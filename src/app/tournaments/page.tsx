@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import type { Tournament, TournamentSize, UserProfile } from "@/lib/types";
-import { PlusCircle, TrophyIcon, SearchIcon } from "lucide-react";
+import { PlusCircle, TrophyIcon, SearchIcon } from "lucide-react"; 
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc, onSnapshot } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -36,9 +36,7 @@ export default function TournamentsPage() {
 
     setIsLoadingTournaments(true);
     const tournamentsRef = collection(db, "tournaments");
-    // Listen for real-time updates on tournaments the user is part of or created
-    // This simple query fetches all tournaments for now; more complex logic for "my tournaments" can be added.
-    const q = query(tournamentsRef); // Consider adding where clause for user participation or creation
+    const q = query(tournamentsRef); 
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const tournamentsData: Tournament[] = [];
@@ -83,13 +81,14 @@ export default function TournamentsPage() {
         name: tournamentName.trim(),
         createdBy: user.uid,
         creatorName: userProfile.displayName || "Unknown User",
-        players: [{ // Creator is automatically added
+        players: [{ 
           uid: user.uid,
           displayName: userProfile.displayName || "Player",
           eloAtStart: userProfile.globalElo,
           matchesPlayed: 0,
           wins: 0,
           losses: 0,
+          points: 0, // Initialize points to 0 for the creator
         }],
         size: selectedSize,
         status: 'pending_registration',
@@ -99,7 +98,6 @@ export default function TournamentsPage() {
       toast({ title: "Success", description: `Tournament "${tournamentName}" created successfully.` });
       setTournamentName("");
       setSelectedSize(undefined);
-      // Close dialog if it's open. This requires Dialog to be controlled.
     } catch (error) {
       console.error("Error creating tournament:", error);
       toast({ title: "Error", description: "Failed to create tournament. Please try again.", variant: "destructive" });
@@ -248,3 +246,4 @@ export default function TournamentsPage() {
     </ProtectedRoute>
   );
 }
+

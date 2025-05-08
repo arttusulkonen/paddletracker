@@ -57,7 +57,7 @@ export interface TournamentPlayer {
   losses: number;
   setsWon?: number; // For tie-breaking in group stage
   setsLost?: number; // For tie-breaking in group stage
-  points?: number; // For group stage standings
+  points: number; // For group stage standings, MUST be initialized to 0
   group?: string; // e.g., 'A', 'B'
 }
 
@@ -82,3 +82,4 @@ export interface Tournament {
   // For simplicity, matches can be queried by tournamentId.
   // A subcollection for 'tournament_matches' or 'tournament_rounds' might be better.
 }
+
