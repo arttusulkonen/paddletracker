@@ -1,10 +1,24 @@
-
 "use client";
 
 import { ProtectedRoute } from "@/components/ProtectedRoutes";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,12 +27,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import type { Room } from "@/lib/types";
-import { UserProfile }  from "@/lib/types";
-import { PlusCircle, UsersIcon, SearchIcon } from "lucide-react";
-import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc, arrayUnion, updateDoc, onSnapshot } from "firebase/firestore";
+import { UserProfile } from "@/lib/types";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  where,
+} from "firebase/firestore";
+import { PlusCircle, SearchIcon, UsersIcon } from "lucide-react";
+import NextImage from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import NextImage from "next/image"; // Changed from 'Image' to 'NextImage'
 
 export default function RoomsPage() {
   const { user, userProfile } = useAuth();
@@ -31,71 +54,98 @@ export default function RoomsPage() {
 
   useEffect(() => {
     if (!user) return;
-
     setIsLoadingRooms(true);
     const roomsRef = collection(db, "rooms");
-    // Listen for real-time updates
-    const unsubscribe = onSnapshot(query(roomsRef, where("members", "array-contains", user.uid)), async (snapshot) => {
-      const roomsData: Room[] = [];
-      for (const docSnap of snapshot.docs) {
-        const roomData = { id: docSnap.id, ...docSnap.data() } as Room;
-        // Fetch creator name if not present
-        if (roomData.createdBy && !roomData.creatorName) {
-            const creatorProfileSnap = await getDoc(doc(db, "users", roomData.createdBy));
-            if (creatorProfileSnap.exists()) {
-                roomData.creatorName = (creatorProfileSnap.data() as UserProfile).displayName || "Unknown User";
+    const unsubscribe = onSnapshot(
+      query(roomsRef, where("members", "array-contains", user.uid)),
+      async (snapshot) => {
+        const roomsData: Room[] = [];
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          const room: Room = { id: docSnap.id, ...(data as Omit<Room, "id">) };
+          if (room.createdBy && !room.creatorName) {
+            const profileSnap = await getDoc(
+              doc(db, "users", room.createdBy)
+            );
+            if (profileSnap.exists()) {
+              room.creatorName =
+                (profileSnap.data() as UserProfile).displayName ||
+                "Unknown User";
             }
+          }
+          roomsData.push(room);
         }
-        roomsData.push(roomData);
-      }
-      setRooms(roomsData.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds));
-      setIsLoadingRooms(false);
-    }, (error) => {
-        console.error("Error fetching rooms: ", error);
-        toast({ title: "Error", description: "Could not fetch rooms.", variant: "destructive" });
+        setRooms(
+          roomsData.sort(
+            (a, b) =>
+              (b.createdAt as any).seconds - (a.createdAt as any).seconds
+          )
+        );
         setIsLoadingRooms(false);
-    });
-    
-    return () => unsubscribe(); // Cleanup listener on component unmount
+      },
+      (error) => {
+        console.error(error);
+        toast({
+          title: "Error",
+          description: "Could not fetch rooms.",
+          variant: "destructive",
+        });
+        setIsLoadingRooms(false);
+      }
+    );
+    return () => unsubscribe();
   }, [user, toast]);
 
   const handleCreateRoom = async () => {
-    if (!user || !userProfile) {
-      toast({ title: "Error", description: "You must be logged in to create a room.", variant: "destructive" });
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create a room.",
+        variant: "destructive",
+      });
       return;
     }
     if (!roomName.trim()) {
-      toast({ title: "Error", description: "Room name cannot be empty.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Room name cannot be empty.",
+        variant: "destructive",
+      });
       return;
     }
-
     setIsCreatingRoom(true);
     try {
-      const newRoom: Omit<Room, 'id'> = {
+      await addDoc(collection(db, "rooms"), {
         name: roomName.trim(),
         createdBy: user.uid,
-        creatorName: userProfile.displayName || "Unknown User",
+        creatorName: userProfile?.displayName || "Unknown User",
         members: [user.uid],
-        localElos: {
-          [user.uid]: 1000, // Initial ELO for creator in this room
-        },
-        createdAt: serverTimestamp() as any,
-      };
-      await addDoc(collection(db, "rooms"), newRoom);
-      toast({ title: "Success", description: `Room "${roomName}" created successfully.` });
-      setRoomName(""); // Reset input
-      // No need to manually add to state, onSnapshot will update it
+        localElos: { [user.uid]: 1000 },
+        createdAt: serverTimestamp(),
+      });
+      toast({
+        title: "Success",
+        description: `Room "${roomName}" created successfully.`,
+      });
+      setRoomName("");
     } catch (error) {
-      console.error("Error creating room:", error);
-      toast({ title: "Error", description: "Failed to create room. Please try again.", variant: "destructive" });
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to create room. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsCreatingRoom(false);
     }
   };
-  
-  const filteredRooms = rooms.filter(room => 
-    room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (room.creatorName && room.creatorName.toLowerCase().includes(searchTerm.toLowerCase()))
+
+  const filteredRooms = rooms.filter(
+    (room) =>
+      room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      room.creatorName
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -115,7 +165,8 @@ export default function RoomsPage() {
               <DialogHeader>
                 <DialogTitle>Create a New Match Room</DialogTitle>
                 <DialogDescription>
-                  Enter a name for your new room. You'll be able to invite players later.
+                  Enter a name for your new room. You'll be able to invite
+                  players later.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -133,7 +184,10 @@ export default function RoomsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" onClick={handleCreateRoom} disabled={isCreatingRoom}>
+                <Button
+                  onClick={handleCreateRoom}
+                  disabled={isCreatingRoom}
+                >
                   {isCreatingRoom ? "Creating..." : "Create Room"}
                 </Button>
               </DialogFooter>
@@ -144,10 +198,13 @@ export default function RoomsPage() {
         <Card className="mb-8 shadow-lg">
           <CardHeader>
             <CardTitle>Your Rooms</CardTitle>
-            <CardDescription>Rooms you are a member of. Click a room to view details and play matches.</CardDescription>
-             <div className="relative mt-4">
+            <CardDescription>
+              Rooms you are a member of. Click a room to view details and play
+              matches.
+            </CardDescription>
+            <div className="relative mt-4">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input 
+              <Input
                 placeholder="Search rooms by name or creator..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -167,12 +224,17 @@ export default function RoomsPage() {
                     <Card key={room.id} className="hover:shadow-md transition-shadow">
                       <CardHeader>
                         <CardTitle className="truncate">{room.name}</CardTitle>
-                        <CardDescription>Created by: {room.creatorName || "Unknown"}</CardDescription>
+                        <CardDescription>
+                          Created by: {room.creatorName}
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground">Members: {room.members.length}</p>
                         <p className="text-sm text-muted-foreground">
-                          Your ELO in this room: {room.localElos[user!.uid] || "N/A (Join to see)"}
+                          Members: {room.members.length}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Your ELO in this room:{" "}
+                          {room.localElos[user.uid] ?? "N/A (Join to see)"}
                         </p>
                       </CardContent>
                       <CardFooter>
@@ -186,26 +248,39 @@ export default function RoomsPage() {
               </ScrollArea>
             ) : (
               <p className="text-center text-muted-foreground py-8">
-                {searchTerm ? "No rooms match your search." : "You are not a member of any rooms yet. Create one or get invited!"}
+                {searchTerm
+                  ? "No rooms match your search."
+                  : "You are not a member of any rooms yet. Create one or get invited!"}
               </p>
             )}
           </CardContent>
         </Card>
-        <Separator className="my-8"/>
+
+        <Separator className="my-8" />
+
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Public Rooms / Find Rooms</CardTitle>
-            <CardDescription>Feature coming soon: Browse and join public rooms.</CardDescription>
+            <CardDescription>
+              Feature coming soon: Browse and join public rooms.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-             <p className="text-center text-muted-foreground py-8">This section is under construction. Check back later!</p>
-             <div className="flex justify-center">
-                <NextImage src="https://picsum.photos/seed/construction/400/200" alt="Under Construction" width={400} height={200} className="rounded-md" data-ai-hint="construction site" />
-             </div>
+            <p className="text-center text-muted-foreground py-8">
+              This section is under construction. Check back later!
+            </p>
+            <div className="flex justify-center">
+              <NextImage
+                src="https://picsum.photos/seed/construction/400/200"
+                alt="Under Construction"
+                width={400}
+                height={200}
+                className="rounded-md"
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
     </ProtectedRoute>
   );
 }
-
