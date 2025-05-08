@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ProtectedRoute } from "@/components/ProtectedRoutes";
@@ -17,6 +18,7 @@ import { PlusCircle, UsersIcon, SearchIcon } from "lucide-react";
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc, arrayUnion, updateDoc, onSnapshot } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import NextImage from "next/image"; // Changed from 'Image' to 'NextImage'
 
 export default function RoomsPage() {
   const { user, userProfile } = useAuth();
@@ -198,7 +200,7 @@ export default function RoomsPage() {
           <CardContent>
              <p className="text-center text-muted-foreground py-8">This section is under construction. Check back later!</p>
              <div className="flex justify-center">
-                <Image src="https://picsum.photos/seed/construction/400/200" alt="Under Construction" width={400} height={200} className="rounded-md" data-ai-hint="construction site" />
+                <NextImage src="https://picsum.photos/seed/construction/400/200" alt="Under Construction" width={400} height={200} className="rounded-md" data-ai-hint="construction site" />
              </div>
           </CardContent>
         </Card>
@@ -206,3 +208,4 @@ export default function RoomsPage() {
     </ProtectedRoute>
   );
 }
+
