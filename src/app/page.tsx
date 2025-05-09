@@ -279,28 +279,6 @@ export default function RoomsPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Placeholder for public rooms ----------------------------------- */}
-        <Separator className="my-8" />
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>Public Rooms / Find Rooms</CardTitle>
-            <CardDescription>Feature coming soon…</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-center text-muted-foreground py-8">Under construction…</p>
-            <div className="flex justify-center">
-              <NextImage
-                src="https://picsum.photos/seed/construction/400/200"
-                alt="Under Construction"
-                width={400}
-                height={200}
-                className="rounded-md"
-              />
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </ProtectedRoute>
   );
