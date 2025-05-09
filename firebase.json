@@ -4,12 +4,11 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "public": "out",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "site": "paddletracker-d3bi4",
+    "source": ".",
+    "frameworksBackend": {
+      "region": "europe-west1"
+    },
     "headers": [
       {
         "source": "/_next/static/**",
@@ -21,11 +20,10 @@
         ]
       }
     ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
     ]
   },
   "storage": {
