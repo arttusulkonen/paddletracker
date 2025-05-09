@@ -5,11 +5,15 @@ import { useToast } from "@/hooks/use-toast";
 import { auth, db } from "@/lib/firebase";
 import type { UserProfile } from "@/lib/types";
 import { getFinnishFormattedDate } from "@/lib/utils";
-import { User as FirebaseUser, onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  User as FirebaseUser,
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
 import {
   arrayUnion,
   doc,
-  getDoc,
+  onSnapshot,
   setDoc,
   updateDoc,
 } from "firebase/firestore";
@@ -36,29 +40,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // 1) Listen for auth state changes
   useEffect(() => {
-    setLoading(true);
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        const userRef = doc(db, "users", firebaseUser.uid);
-        const snap = await getDoc(userRef);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      if (!firebaseUser) {
+        // signed out
+        setUserProfile(null);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // 2) When user signs in, subscribe to their Firestore profile
+  useEffect(() => {
+    if (!user) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const unsubProfile = onSnapshot(
+      userRef,
+      async (snap) => {
         if (snap.exists()) {
           setUserProfile(snap.data() as UserProfile);
         } else {
+          // first-time sign-in: create profile
           const baseProfile: Omit<UserProfile, "eloHistory"> = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email!,
-            displayName: firebaseUser.displayName || undefined,
+            uid: user.uid,
+            email: user.email!,
+            displayName: user.displayName || undefined,
             globalElo: 1000,
             matchesPlayed: 0,
             wins: 0,
             losses: 0,
             createdAt: getFinnishFormattedDate(),
           };
-          const initialData = firebaseUser.photoURL
-            ? { ...baseProfile, photoURL: firebaseUser.photoURL, eloHistory: [] }
-            : { ...baseProfile, eloHistory: [] };
+          const initialData = {
+            ...baseProfile,
+            photoURL: user.photoURL || undefined,
+            eloHistory: [],
+            friends: [],
+            incomingRequests: [],
+            outgoingRequests: [],
+            achievements: [],
+            rooms: [],
+          };
           await setDoc(userRef, initialData);
           await updateDoc(userRef, {
             eloHistory: arrayUnion({
@@ -67,18 +95,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }),
           });
           setUserProfile({
-            ...baseProfile,
+            ...initialData,
             eloHistory: [{ date: getFinnishFormattedDate(), elo: 1000 }],
-          } as any);
+          } as UserProfile);
         }
-      } else {
-        setUser(null);
-        setUserProfile(null);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Profile listener error:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile.",
+          variant: "destructive",
+        });
+        setLoading(false);
       }
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [toast]);
+    );
+
+    return () => {
+      unsubProfile();
+    };
+  }, [user, toast]);
 
   const logout = async () => {
     try {
