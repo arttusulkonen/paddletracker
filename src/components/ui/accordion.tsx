@@ -1,8 +1,8 @@
 "use client"
 
-import * as React from "react"
 import * as AccordionPrimitive from "@radix-ui/react-accordion"
 import { ChevronDown } from "lucide-react"
+import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -18,7 +18,7 @@ const AccordionItem = React.forwardRef<
     {...props}
   />
 ))
-AccordionItem.displayName = "AccordionItem"
+AccordionItem.name = "AccordionItem"
 
 const AccordionTrigger = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Trigger>,
@@ -38,7 +38,7 @@ const AccordionTrigger = React.forwardRef<
     </AccordionPrimitive.Trigger>
   </AccordionPrimitive.Header>
 ))
-AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
+AccordionTrigger.name = AccordionPrimitive.Trigger.name
 
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
@@ -53,6 +53,7 @@ const AccordionContent = React.forwardRef<
   </AccordionPrimitive.Content>
 ))
 
-AccordionContent.displayName = AccordionPrimitive.Content.displayName
+AccordionContent.name = AccordionPrimitive.Content.name
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
+export { Accordion, AccordionContent, AccordionItem, AccordionTrigger }
+

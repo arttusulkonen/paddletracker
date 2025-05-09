@@ -38,7 +38,7 @@ export default function Home() {
         </div>
       ) : user ? (
         <section className="text-center">
-          <h2 className="text-3xl font-semibold mb-6">Hello, {user.displayName || "Player"}!</h2>
+          <h2 className="text-3xl font-semibold mb-6">Hello, {user.name || "Player"}!</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>

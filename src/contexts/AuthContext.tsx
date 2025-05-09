@@ -1,12 +1,25 @@
+// src/contexts/AuthContext.tsx
 "use client";
 
-import type { User as FirebaseUser } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import type { UserProfile } from '@/lib/types';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signOut } from 'firebase/auth'; // Removed User type import as it's not directly used here
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from "@/hooks/use-toast";
+import { auth, db } from "@/lib/firebase";
+import type { UserProfile } from "@/lib/types";
+import { getFinnishFormattedDate } from "@/lib/utils";
+import { User as FirebaseUser, onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  arrayUnion,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -25,41 +38,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setLoading(true);
-    if (!auth) { // Check if Firebase Auth instance is available
-      console.warn("Firebase Auth is not available or not initialized. User authentication features will be disabled.");
-      setUser(null);
-      setUserProfile(null);
-      setLoading(false);
-      return () => {}; // Return an empty cleanup function
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         const userRef = doc(db, "users", firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setUserProfile(userSnap.data() as UserProfile);
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          setUserProfile(snap.data() as UserProfile);
         } else {
-          const newUserProfile: UserProfile = {
+          const baseProfile: Omit<UserProfile, "eloHistory"> = {
             uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
+            email: firebaseUser.email!,
+            displayName: firebaseUser.displayName || undefined,
             globalElo: 1000,
             matchesPlayed: 0,
             wins: 0,
             losses: 0,
-            createdAt: serverTimestamp() as any,
-            eloHistory: [{ date: serverTimestamp() as any, elo: 1000 }],
+            createdAt: getFinnishFormattedDate(),
           };
-          try {
-            await setDoc(userRef, newUserProfile);
-            setUserProfile(newUserProfile);
-          } catch (error) {
-            console.error("Error creating user profile in Firestore:", error);
-            // Handle profile creation error if necessary
-          }
+          const initialData = firebaseUser.photoURL
+            ? { ...baseProfile, photoURL: firebaseUser.photoURL, eloHistory: [] }
+            : { ...baseProfile, eloHistory: [] };
+          await setDoc(userRef, initialData);
+          await updateDoc(userRef, {
+            eloHistory: arrayUnion({
+              date: getFinnishFormattedDate(),
+              elo: 1000,
+            }),
+          });
+          setUserProfile({
+            ...baseProfile,
+            eloHistory: [{ date: getFinnishFormattedDate(), elo: 1000 }],
+          } as any);
         }
       } else {
         setUser(null);
@@ -67,35 +77,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
-  }, []); // Effect runs once on mount
+  }, [toast]);
 
   const logout = async () => {
-    if (!auth) { // Check if Firebase Auth instance is available
-      toast({ title: "Logout Error", description: "Firebase Auth not available. Cannot log out.", variant: "destructive" });
-      return;
-    }
     try {
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
-      toast({ title: "Logged out", description: "You have been successfully logged out." });
-    } catch (error) {
-      console.error("Error logging out:", error);
-      toast({ title: "Logout Error", description: "Failed to log out. Please try again.", variant: "destructive" });
+      toast({ title: "Logged out", description: "You have been logged out." });
+    } catch (err) {
+      console.error("Error logging out:", err);
+      toast({
+        title: "Logout Error",
+        description: "Failed to log out.",
+        variant: "destructive",
+      });
     }
   };
 
-  const value = { user, userProfile, loading, logout };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, userProfile, loading, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }

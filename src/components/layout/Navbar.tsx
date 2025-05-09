@@ -1,10 +1,7 @@
 "use client";
 
-import Link from 'next/link';
-import { UserCircle, LogIn, UserPlus, HomeIcon, TrophyIcon, UsersIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext'; 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from '@/contexts/AuthContext';
+import { HomeIcon, LogIn, TrophyIcon, UserCircle, UserPlus, UsersIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type React from 'react';
 
@@ -79,9 +79,9 @@ export function Navbar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || "User"} />
+                    <AvatarImage src={user.photoURL || undefined} alt={user.name || user.email || "User"} />
                     <AvatarFallback>
-                      {user.displayName ? user.displayName.charAt(0).toUpperCase() : <UserCircle />}
+                      {user.name ? user.name.charAt(0).toUpperCase() : <UserCircle />}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -90,7 +90,7 @@ export function Navbar() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user.displayName || "User"}
+                      {user.name || "User"}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}

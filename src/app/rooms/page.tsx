@@ -1,3 +1,4 @@
+// src/app/rooms/page.tsx
 "use client";
 
 import { ProtectedRoute } from "@/components/ProtectedRoutes";
@@ -26,16 +27,17 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import type { Room } from "@/lib/types";
-import { UserProfile } from "@/lib/types";
+import type { Room, UserProfile } from "@/lib/types";
+import { getFinnishFormattedDate } from "@/lib/utils";
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
   getDoc,
   onSnapshot,
   query,
-  serverTimestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { PlusCircle, SearchIcon, UsersIcon } from "lucide-react";
@@ -56,35 +58,32 @@ export default function RoomsPage() {
     if (!user) return;
     setIsLoadingRooms(true);
     const roomsRef = collection(db, "rooms");
-    const unsubscribe = onSnapshot(
-      query(roomsRef, where("members", "array-contains", user.uid)),
-      async (snapshot) => {
-        const roomsData: Room[] = [];
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          const room: Room = { id: docSnap.id, ...(data as Omit<Room, "id">) };
-          if (room.createdBy && !room.creatorName) {
-            const profileSnap = await getDoc(
-              doc(db, "users", room.createdBy)
-            );
-            if (profileSnap.exists()) {
-              room.creatorName =
-                (profileSnap.data() as UserProfile).displayName ||
-                "Unknown User";
+    const q = query(roomsRef, where("memberIds", "array-contains", user.uid));
+    const unsub = onSnapshot(
+      q,
+      async (snap) => {
+        const data: Room[] = [];
+        for (const docSnap of snap.docs) {
+          const d = docSnap.data() as any;
+          if (d.creator && !d.creatorName) {
+            const p = await getDoc(doc(db, "users", d.creator));
+            if (p.exists()) {
+              d.creatorName = (p.data() as UserProfile).name;
             }
           }
-          roomsData.push(room);
+          data.push({ id: docSnap.id, ...d });
         }
         setRooms(
-          roomsData.sort(
+          data.sort(
             (a, b) =>
-              (b.createdAt as any).seconds - (a.createdAt as any).seconds
+              (b.createdAt as any).localeCompare?.(a.createdAt as any) ||
+              0
           )
         );
         setIsLoadingRooms(false);
       },
-      (error) => {
-        console.error(error);
+      (err) => {
+        console.error(err);
         toast({
           title: "Error",
           description: "Could not fetch rooms.",
@@ -93,7 +92,7 @@ export default function RoomsPage() {
         setIsLoadingRooms(false);
       }
     );
-    return () => unsubscribe();
+    return () => unsub();
   }, [user, toast]);
 
   const handleCreateRoom = async () => {
@@ -113,23 +112,45 @@ export default function RoomsPage() {
       });
       return;
     }
+
     setIsCreatingRoom(true);
     try {
-      await addDoc(collection(db, "rooms"), {
+      const ref = await addDoc(collection(db, "rooms"), {
         name: roomName.trim(),
-        createdBy: user.uid,
-        creatorName: userProfile?.displayName || "Unknown User",
-        members: [user.uid],
-        localElos: { [user.uid]: 1000 },
-        createdAt: serverTimestamp(),
+        creator: user.uid,
+        creatorName:
+          userProfile?.name || userProfile?.name || "",
+        createdAt: getFinnishFormattedDate(),
+        matches: [],
+        seasonHistory: [],
+        members: [
+          {
+            userId: user.uid,
+            name:
+              userProfile?.name || userProfile?.name || "",
+            email: userProfile?.email!,
+            rating: 1000,
+            maxRating: 1000,
+            wins: 0,
+            losses: 0,
+            roomCreated: getFinnishFormattedDate(),
+            role: "admin",
+          },
+        ],
+        memberIds: [user.uid],
       });
+
+      await updateDoc(doc(db, "users", user.uid), {
+        rooms: arrayUnion(ref.id),
+      });
+
       toast({
         title: "Success",
         description: `Room "${roomName}" created successfully.`,
       });
       setRoomName("");
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       toast({
         title: "Error",
         description: "Failed to create room. Please try again.",
@@ -140,11 +161,11 @@ export default function RoomsPage() {
     }
   };
 
-  const filteredRooms = rooms.filter(
-    (room) =>
-      room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      room.creatorName
-        ?.toLowerCase()
+  const filtered = rooms.filter(
+    (r) =>
+      r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.creatorName || "")
+        .toLowerCase()
         .includes(searchTerm.toLowerCase())
   );
 
@@ -217,29 +238,43 @@ export default function RoomsPage() {
               <div className="flex items-center justify-center h-40">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
-            ) : filteredRooms.length > 0 ? (
+            ) : filtered.length > 0 ? (
               <ScrollArea className="h-[400px]">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1">
-                  {filteredRooms.map((room) => (
-                    <Card key={room.id} className="hover:shadow-md transition-shadow">
+                  {filtered.map((r) => (
+                    <Card
+                      key={r.id}
+                      className="hover:shadow-md transition-shadow"
+                    >
                       <CardHeader>
-                        <CardTitle className="truncate">{room.name}</CardTitle>
+                        <CardTitle className="truncate">
+                          {r.name}
+                        </CardTitle>
                         <CardDescription>
-                          Created by: {room.creatorName}
+                          Created by: {r.creatorName}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-sm text-muted-foreground">
-                          Members: {room.members.length}
+                          Members: {r.members.length}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Your ELO in this room:{" "}
-                          {room.localElos[user.uid] ?? "N/A (Join to see)"}
+                          Your rating in this room:{" "}
+                          {
+                            r.members.find(
+                              (m) => m.userId === user!.uid
+                            )?.rating ?? "–"
+                          }
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Matches played: {r.matches.length}
                         </p>
                       </CardContent>
                       <CardFooter>
                         <Button asChild className="w-full">
-                          <Link href={`/rooms/${room.id}`}>Enter Room</Link>
+                          <Link href={`/rooms/${r.id}`}>
+                            Enter Room
+                          </Link>
                         </Button>
                       </CardFooter>
                     </Card>
