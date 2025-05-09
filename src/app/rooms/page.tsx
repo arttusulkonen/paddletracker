@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
+import { getUserLite } from "@/lib/friends";
 import type { Room, UserProfile } from "@/lib/types";
 import { getFinnishFormattedDate } from "@/lib/utils";
 import {
@@ -53,6 +55,8 @@ export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [selectedFriends, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -94,6 +98,23 @@ export default function RoomsPage() {
     );
     return () => unsub();
   }, [user, toast]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onSnapshot(doc(db, "users", user.uid), async (snap) => {
+      if (!snap.exists()) { setFriends([]); return; }
+      const data = snap.data() as UserProfile;
+      const ids = data.friends ?? [];
+
+      const loaded = await Promise.all(ids.map(async (id) => {
+        const lite = await getUserLite(id);
+        return { uid: id, ...lite } as UserProfile;
+      }));
+
+      setFriends(loaded);
+    });
+    return () => unsub();
+  }, [user]);
 
   const handleCreateRoom = async () => {
     if (!user) {
@@ -202,6 +223,23 @@ export default function RoomsPage() {
                     className="col-span-3"
                     placeholder="e.g., Office Ping Pong Champs"
                   />
+                  <Separator />
+                  <p className="text-sm font-medium">Invite friends immediately:</p>
+                  <ScrollArea className="h-40 pr-2">
+                    {friends.length ? friends.map((f) => (
+                      <label key={f.uid} className="flex items-center gap-2 py-1">
+                        <Checkbox
+                          checked={selectedFriends.includes(f.uid)}
+                          onCheckedChange={(v) =>
+                            setSelected((prev) =>
+                              v ? [...prev, f.uid] : prev.filter((id) => id !== f.uid)
+                            )
+                          }
+                        />
+                        <span>{f.name}</span>
+                      </label>
+                    )) : <p className="text-muted-foreground">No friends yet.</p>}
+                  </ScrollArea>
                 </div>
               </div>
               <DialogFooter>

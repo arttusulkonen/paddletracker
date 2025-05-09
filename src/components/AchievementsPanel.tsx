@@ -1,4 +1,3 @@
-// src/components/AchievementsPanel.tsx
 "use client";
 
 import {
