@@ -319,7 +319,7 @@ export default function RoomsPage() {
 
         <Separator className="my-8" />
 
-        <Card className="shadow-lg">
+        {/* <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Public Rooms</CardTitle>
             <CardDescription>Browse and join rooms — coming soon</CardDescription>
@@ -338,7 +338,7 @@ export default function RoomsPage() {
               />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </ProtectedRoute>
   )
