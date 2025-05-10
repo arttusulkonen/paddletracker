@@ -414,7 +414,7 @@ export default function ProfileUidPage() {
 
       <div className="space-y-8">
         <ChartCard title="ELO History" icon={LineChartIcon}>
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={450}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -433,7 +433,7 @@ export default function ProfileUidPage() {
         <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData} />
 
         <ChartCard title="Match Result" icon={Activity}>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={450}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -453,7 +453,7 @@ export default function ProfileUidPage() {
         </ChartCard>
 
         <ChartCard title="Score Difference" icon={TrendingUp}>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={450}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />

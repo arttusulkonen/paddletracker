@@ -24,7 +24,7 @@ export default function Home() {
         </p>
       </section>
 
-      <section className="mb-12 w-full max-w-4xl">
+      {/* <section className="mb-12 w-full max-w-4xl">
         <Image
           src="https://picsum.photos/1200/400"
           alt="Ping pong action"
@@ -33,7 +33,7 @@ export default function Home() {
           className="rounded-lg shadow-xl object-cover"
           data-ai-hint="ping pong table"
         />
-      </section>
+      </section> */}
 
       {loading ? (
         <div className="flex justify-center">

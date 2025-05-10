@@ -321,7 +321,7 @@ export default function ProfilePage() {
         </PieCard>
 
         <ChartCard title="Match Result" icon={Activity}>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={450}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -338,7 +338,7 @@ export default function ProfilePage() {
         </ChartCard>
 
         <ChartCard title="Score Difference" icon={TrendingUp}>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={450}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -407,7 +407,7 @@ function PieCard({ title, icon: Icon, data }: { title: string; icon: any; data: 
           <Icon /> {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="h-64">
+      <CardContent className="h-[350px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label />

@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
@@ -9,6 +9,7 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 let app: FirebaseApp | null = null;
@@ -44,7 +45,7 @@ if (!firebaseConfig.apiKey) {
       // ensure auth and db are null, and also nullify app to indicate incomplete setup.
       auth = null;
       db = null;
-      app = null; 
+      app = null;
     }
   } else {
     // This case is hit if initializeApp failed in the try-catch block above.
