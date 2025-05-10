@@ -41,6 +41,8 @@ export function Navbar() {
   }
 
   const reqCount = userProfile?.incomingRequests?.length ?? 0
+  const visibleName = userProfile?.displayName ?? userProfile?.name;
+
 
   return (
     <header className="bg-card border-b sticky top-0 z-50 shadow-sm">
@@ -106,7 +108,7 @@ export function Navbar() {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium">{user.name || "User"}</p>
+                    <p className="text-sm font-medium">{visibleName || "User"}</p>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
                   </div>
                 </DropdownMenuLabel>

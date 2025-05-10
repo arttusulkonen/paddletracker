@@ -72,7 +72,7 @@ export default function FriendRequestsPage() {
                         <AvatarFallback>{r.name[0]}</AvatarFallback>
                       </Avatar>
                       <Link
-                        href={`/player/${r.uid}`}
+                        href={`/profile/${r.uid}`}
                         className="font-medium hover:underline"
                       >
                         {r.name}

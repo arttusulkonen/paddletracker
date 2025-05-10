@@ -47,3 +47,7 @@ export async function getUserLite(uid: string) {
   if (!snap.exists()) return null;
   return { uid, ...(snap.data() as any) };
 }
+
+export function toggleFriend(uid: string, targetUid: string, targetProfile: UserProfile): void {
+  throw new Error('Function not implemented.');
+}

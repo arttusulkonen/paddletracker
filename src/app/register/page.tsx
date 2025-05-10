@@ -1,4 +1,3 @@
-// src/app/register/page.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -24,12 +23,7 @@ import { auth, db } from "@/lib/firebase";
 import { getFinnishFormattedDate } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import {
-  arrayUnion,
-  doc,
-  setDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -55,55 +49,63 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
+      // 1) create auth user
       const cred = await createUserWithEmailAndPassword(
         auth,
         data.email,
         data.password
       );
       const u = cred.user;
-      await updateProfile(u, { name: data.name });
 
+      // 2) set their displayName on Firebase Auth
+      await updateProfile(u, { displayName: data.name });
+
+      // 3) create their Firestore profile document in one shot
       const userRef = doc(db, "users", u.uid);
-      const baseProfile = {
+      await setDoc(userRef, {
         uid: u.uid,
-        email: u.email!,
-        name: data.name,
-        rating: 1000,
-        maxRating: 1000,
+        email: u.email,
+        displayName: data.name,
+        globalElo: 1000,
+        matchesPlayed: 0,
         wins: 0,
         losses: 0,
-        totalMatches: 0,
-        rank: "Ping Pong Padawan",
-        rooms: [] as string[],
-        achievements: [] as any[],
         createdAt: getFinnishFormattedDate(),
-      };
-      await setDoc(userRef, baseProfile);
-      await updateDoc(userRef, {
-        achievements: arrayUnion({
-          type: "eloInit",
-          dateFinished: getFinnishFormattedDate(),
-          finalScore: 1000,
-          wins: 0,
-          losses: 0,
-          matchesPlayed: 0,
-          place: null,
-          roomId: null,
-          roomName: null,
-          totalAddedPoints: 0,
-        }),
+        // empty arrays:
+        eloHistory: [],
+        friends: [],
+        incomingRequests: [],
+        outgoingRequests: [],
+        achievements: [
+          {
+            type: "eloInit",
+            dateFinished: getFinnishFormattedDate(),
+            finalScore: 1000,
+            wins: 0,
+            losses: 0,
+            matchesPlayed: 0,
+            place: null,
+            roomId: null,
+            roomName: null,
+            totalAddedPoints: 0,
+          },
+        ],
+        rooms: [],
       });
 
-      toast({ title: "Успех!", description: "Профиль создан." });
+      toast({
+        title: "Success!",
+        description: "Your account has been created.",
+      });
       router.push("/");
     } catch (err: any) {
       console.error(err);
       toast({
-        title: "Ошибка регистрации",
+        title: "Registration Error",
         description:
           err.code === "auth/email-already-in-use"
-            ? "Этот e-mail уже занят."
-            : "Что-то пошло не так.",
+            ? "That email address is already in use."
+            : "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -151,7 +153,7 @@ export default function RegisterPage() {
                       <Input
                         type="email"
                         {...field}
-                        placeholder="you@email.com"
+                        placeholder="you@example.com"
                       />
                     </FormControl>
                     <FormMessage />
@@ -175,7 +177,11 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
+              >
                 {isLoading ? "Registering..." : "Register"}
               </Button>
             </form>
@@ -185,7 +191,7 @@ export default function RegisterPage() {
           <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
             <Button variant="link" asChild className="p-0 h-auto">
-              <Link href="/login">Login here</Link>
+              <Link href="/login">Log in here</Link>
             </Button>
           </p>
         </CardFooter>

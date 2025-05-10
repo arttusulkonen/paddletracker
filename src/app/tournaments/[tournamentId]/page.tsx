@@ -151,7 +151,7 @@ export default function TournamentPage() {
       const tourRef = doc(db, "tournaments", tournamentId);
       const newP: TournamentPlayer = {
         uid: user.uid,
-        name: currentUserProfile.name || "Player",
+        name: currentUserProfile.displayName || "Player",
         eloAtStart: currentUserProfile.globalElo,
         matchesPlayed: 0,
         wins: 0,

@@ -1,12 +1,11 @@
-// src/app/player/[uid]/page.tsx
-"use client"
+"use client";
+import { Tooltip as RechartTooltip } from 'recharts';
 
-import { useAuth } from "@/contexts/AuthContext"
-import { db } from "@/lib/firebase"
-import * as Friends from "@/lib/friends"
-
-import AchievementsPanel from "@/components/AchievementsPanel"
+import AchievementsPanel from "@/components/AchievementsPanel";
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
   Button,
   Card,
   CardContent,
@@ -25,10 +24,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import type { Match, UserProfile } from "@/lib/types"
-import { format, parse } from "date-fns"
+} from "@/components/ui";
+import { useAuth } from "@/contexts/AuthContext";
+import { db } from "@/lib/firebase";
+import * as Friends from "@/lib/friends";
+import type { Match, UserProfile } from "@/lib/types";
+import { format, parse } from "date-fns";
 import {
   collection,
   doc,
@@ -37,9 +38,9 @@ import {
   query,
   Timestamp,
   where,
-} from "firebase/firestore"
+} from "firebase/firestore";
 import {
-  BarChart3,
+  Activity,
   CornerUpLeft,
   CornerUpRight,
   Flame,
@@ -48,11 +49,13 @@ import {
   Medal,
   Percent,
   PieChart as PieChartIcon,
-} from "lucide-react"
-import Link from "next/link"
-import { useParams } from "next/navigation"
-import { useCallback, useEffect, useMemo, useState } from "react"
+  TrendingUp,
+} from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Brush,
   CartesianGrid,
   Line,
   LineChart,
@@ -62,27 +65,29 @@ import {
   ResponsiveContainer,
   XAxis,
   YAxis,
-} from "recharts"
+} from "recharts";
 
-/* ------------------------------------------------------------------ */
-/* helpers ----------------------------------------------------------- */
-const dateObj = (d: string | Timestamp) =>
+const parseDate = (d: string | Timestamp) =>
   typeof d === "string"
     ? parse(d, "dd.MM.yyyy HH.mm.ss", new Date())
-    : d.toDate()
+    : d.toDate();
 
-const rankFor = (elo: number) => {
-  if (elo < 1001) return "Ping-Pong Padawan"
-  if (elo < 1100) return "Table-Tennis Trainee"
-  if (elo < 1200) return "Racket Rookie"
-  if (elo < 1400) return "Paddle Prodigy"
-  if (elo < 1800) return "Spin Sensei"
-  if (elo < 2000) return "Smash Samurai"
-  return "Ping-Pong Paladin"
-}
+const getRank = (elo: number) =>
+  elo < 1001
+    ? "Ping-Pong Padawan"
+    : elo < 1100
+      ? "Table-Tennis Trainee"
+      : elo < 1200
+        ? "Racket Rookie"
+        : elo < 1400
+          ? "Paddle Prodigy"
+          : elo < 1800
+            ? "Spin Sensei"
+            : elo < 2000
+              ? "Smash Samurai"
+              : "Ping-Pong Paladin";
 
-/* aggregated statistics */
-const calcStats = (list: Match[], uid: string, name?: string) => {
+function computeStats(list: Match[], uid: string) {
   let wins = 0,
     losses = 0,
     best = -Infinity,
@@ -92,36 +97,31 @@ const calcStats = (list: Match[], uid: string, name?: string) => {
     curW = 0,
     curL = 0,
     maxW = 0,
-    maxL = 0
+    maxL = 0;
 
-  list
-    .slice()
-    .reverse()
-    .forEach((m) => {
-      const p1 = m.player1Id === uid
-      const me = p1 ? m.player1 : m.player2
-      const opp = p1 ? m.player2 : m.player1
-      const win = m.winner === name
+  list.forEach((m) => {
+    const p1 = m.player1Id === uid;
+    const me = p1 ? m.player1 : m.player2;
+    const opp = p1 ? m.player2 : m.player1;
+    const win = me.scores > opp.scores;
+    scored += me.scores;
+    conceded += opp.scores;
+    if (win) {
+      wins++;
+      curW++;
+      curL = 0;
+      maxW = Math.max(maxW, curW);
+      best = Math.max(best, me.scores - opp.scores);
+    } else {
+      losses++;
+      curL++;
+      curW = 0;
+      maxL = Math.max(maxL, curL);
+      worst = Math.min(worst, me.scores - opp.scores);
+    }
+  });
 
-      scored += me.scores
-      conceded += opp.scores
-
-      if (win) {
-        wins++
-        curW++
-        curL = 0
-        maxW = Math.max(maxW, curW)
-        best = Math.max(best, me.scores - opp.scores)
-      } else {
-        losses++
-        curL++
-        curW = 0
-        maxL = Math.max(maxL, curL)
-        worst = Math.min(worst, me.scores - opp.scores)
-      }
-    })
-
-  const total = wins + losses
+  const total = wins + losses;
   return {
     total,
     wins,
@@ -134,26 +134,11 @@ const calcStats = (list: Match[], uid: string, name?: string) => {
     pointsDiff: scored - conceded,
     maxWinStreak: maxW,
     maxLossStreak: maxL,
-  }
+  };
 }
 
-type SideStats = {
-  leftWins: number
-  leftLosses: number
-  rightWins: number
-  rightLosses: number
-  leftScored: number
-  leftConceded: number
-  rightScored: number
-  rightConceded: number
-}
-
-const calcSideStats = (
-  list: Match[],
-  uid: string,
-  name?: string
-): SideStats => {
-  const s: SideStats = {
+function computeSideStats(list: Match[], uid: string) {
+  const res = {
     leftWins: 0,
     leftLosses: 0,
     rightWins: 0,
@@ -162,313 +147,257 @@ const calcSideStats = (
     leftConceded: 0,
     rightScored: 0,
     rightConceded: 0,
-  }
+  };
   list.forEach((m) => {
-    const p1 = m.player1Id === uid
-    const me = p1 ? m.player1 : m.player2
-    const opp = p1 ? m.player2 : m.player1
-    const win = m.winner === name
+    const p1 = m.player1Id === uid;
+    const me = p1 ? m.player1 : m.player2;
+    const opp = p1 ? m.player2 : m.player1;
+    const win = me.scores > opp.scores;
     if (me.side === "left") {
-      win ? s.leftWins++ : s.leftLosses++
-      s.leftScored += me.scores
-      s.leftConceded += opp.scores
+      win ? res.leftWins++ : res.leftLosses++;
+      res.leftScored += me.scores;
+      res.leftConceded += opp.scores;
     } else {
-      win ? s.rightWins++ : s.rightLosses++
-      s.rightScored += me.scores
-      s.rightConceded += opp.scores
+      win ? res.rightWins++ : res.rightLosses++;
+      res.rightScored += me.scores;
+      res.rightConceded += opp.scores;
     }
-  })
-  return s
+  });
+  return res;
 }
 
-/* ------------------------------------------------------------------ */
-export default function ProfilePage() {
-  const params = useParams<{ uid?: string }>()
-  const viewedUid = params?.uid as string | undefined
+export default function ProfileUidPage() {
+  const { uid: targetUid } = useParams<{ uid: string }>();
+  const router = useRouter();
+  const { user, userProfile } = useAuth();
+  const isSelf = targetUid === user?.uid;
 
-  const { user, userProfile, loading } = useAuth()
-  const [viewedProfile, setViewedProfile] = useState<UserProfile | null>(null)
-
-  /* ---------------------------------------------------------------- */
-  /* load correct profile ------------------------------------------- */
-  useEffect(() => {
-    if (!viewedUid || viewedUid === user?.uid) {
-      setViewedProfile(userProfile ?? null)
-      return
-    }
-    getDoc(doc(db, "users", viewedUid)).then((snap) =>
-      setViewedProfile(snap.exists() ? (snap.data() as any) : null)
-    )
-  }, [viewedUid, user?.uid, userProfile])
-
-  /* ---------------------------------------------------------------- */
-  /* friendship state ------------------------------------------------ */
+  const [targetProfile, setTargetProfile] = useState<UserProfile | null>(
+    null
+  );
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loadingMatches, setLoadingMatches] = useState(true);
+  const [oppFilter, setOppFilter] = useState("all");
   const [friendStatus, setFriendStatus] = useState<
-    "self" | "friends" | "out" | "in" | "none"
-  >("none")
+    "friends" | "out" | "in" | "none"
+  >("none");
 
   useEffect(() => {
-    if (!user || !viewedUid || !viewedProfile) return
+    if (!user || !targetProfile) return;
+    if (targetProfile.friends?.includes(user.uid)) setFriendStatus("friends");
+    else if (targetProfile.outgoingRequests?.includes(user.uid))
+      setFriendStatus("in");
+    else if (targetProfile.incomingRequests?.includes(user.uid))
+      setFriendStatus("out");
+    else setFriendStatus("none");
+  }, [user, targetProfile]);
 
-    if (viewedUid === user.uid) {
-      setFriendStatus("self")
-      return
-    }
+  // load profile
+  useEffect(() => {
+    const load = async () => {
+      if (!targetUid) return;
+      if (isSelf && userProfile) {
+        setTargetProfile(userProfile);
+        return;
+      }
+      const snap = await getDoc(doc(db, "users", targetUid));
+      if (!snap.exists()) {
+        router.push("/profile");
+        return;
+      }
+      setTargetProfile({ uid: targetUid, ...(snap.data() as any) });
+    };
+    load();
+  }, [targetUid, isSelf, userProfile, router]);
 
-    if (viewedProfile.friends?.includes(user.uid)) setFriendStatus("friends")
-    else if (viewedProfile.incomingRequests?.includes(user.uid))
-      setFriendStatus("out")
-    else if (viewedProfile.outgoingRequests?.includes(user.uid))
-      setFriendStatus("in")
-    else setFriendStatus("none")
-  }, [user, viewedUid, viewedProfile])
-
-  /* ---------------------------------------------------------------- */
-  /* matches --------------------------------------------------------- */
-  const [matches, setMatches] = useState<Match[]>([])
-  const [isLoadingMatches, setIsLoadingMatches] = useState(true)
-  const [opponent, setOpponent] = useState("all")
-
-  const loadMatches = useCallback(async (uid: string) => {
-    setIsLoadingMatches(true)
-    const ref = collection(db, "matches")
+  // load matches
+  const loadMatches = useCallback(async () => {
+    if (!targetUid) return;
+    setLoadingMatches(true);
+    const ref = collection(db, "matches");
     const [p1, p2] = await Promise.all([
-      getDocs(query(ref, where("player1Id", "==", uid))),
-      getDocs(query(ref, where("player2Id", "==", uid))),
-    ])
-    const raw: Match[] = []
-    p1.forEach((d) => raw.push({ id: d.id, ...(d.data() as any) }))
-    p2.forEach((d) => raw.push({ id: d.id, ...(d.data() as any) }))
-
-    const uniq = Array.from(new Map(raw.map((m) => [m.id, m])).values()).sort(
+      getDocs(query(ref, where("player1Id", "==", targetUid))),
+      getDocs(query(ref, where("player2Id", "==", targetUid))),
+    ]);
+    const raw: Match[] = [];
+    p1.forEach((d) => raw.push({ id: d.id, ...(d.data() as any) }));
+    p2.forEach((d) => raw.push({ id: d.id, ...(d.data() as any) }));
+    const uniq = Array.from(new Map(raw.map((r) => [r.id, r])).values()).sort(
       (a, b) =>
-        dateObj(b.timestamp ?? b.playedAt).getTime() -
-        dateObj(a.timestamp ?? a.playedAt).getTime()
-    )
-    setMatches(uniq)
-    setIsLoadingMatches(false)
-  }, [])
+        parseDate(b.timestamp ?? b.playedAt).getTime() -
+        parseDate(a.timestamp ?? a.playedAt).getTime()
+    );
+    setMatches(uniq);
+    setLoadingMatches(false);
+  }, [targetUid]);
 
   useEffect(() => {
-    if (viewedProfile) loadMatches(viewedUid ?? user!.uid)
-  }, [viewedProfile, loadMatches, viewedUid, user])
-
-  /* ---------------------------------------------------------------- */
-  /* derived data ---------------------------------------------------- */
-  const meUid = viewedUid ?? user!.uid
+    loadMatches();
+  }, [loadMatches]);
 
   const opponents = useMemo(() => {
-    const m = new Map<string, string>()
-    matches.forEach((match) => {
-      const p1 = match.player1Id === meUid
-      const id = p1 ? match.player2Id : match.player1Id
-      const name = p1 ? match.player2.name : match.player1.name
-      m.set(id, name)
-    })
-    return [...m].map(([id, name]) => ({ id, name }))
-  }, [matches, meUid])
+    const m = new Map<string, string>();
+    matches.forEach((x) => {
+      const p1 = x.player1Id === targetUid;
+      m.set(p1 ? x.player2Id : x.player1Id, p1 ? x.player2.name : x.player1.name);
+    });
+    return Array.from(m.entries()).map(([id, name]) => ({ id, name }));
+  }, [matches, targetUid]);
 
-  const filteredMatches = useMemo(
+  const filtered = useMemo(
     () =>
-      opponent === "all"
+      oppFilter === "all"
         ? matches
         : matches.filter(
-          (m) => m.player1Id === opponent || m.player2Id === opponent
+          (m) => m.player1Id === oppFilter || m.player2Id === oppFilter
         ),
-    [matches, opponent]
-  )
+    [matches, oppFilter]
+  );
 
-  const stats = useMemo(
-    () =>
-      viewedProfile ? calcStats(filteredMatches, meUid, viewedProfile.name) : null,
-    [filteredMatches, viewedProfile, meUid]
-  )
-  const sideStats = useMemo(
-    () =>
-      viewedProfile
-        ? calcSideStats(filteredMatches, meUid, viewedProfile.name)
-        : null,
-    [filteredMatches, viewedProfile, meUid]
-  )
+  const stats = useMemo(() => computeStats(filtered, targetUid), [
+    filtered,
+    targetUid,
+  ]);
+  const sideStats = useMemo(() => computeSideStats(filtered, targetUid), [
+    filtered,
+    targetUid,
+  ]);
 
-  const pieData = useMemo(
-    () => [
-      { name: "Wins", value: stats?.wins ?? 0, fill: "hsl(var(--accent))" },
-      {
-        name: "Losses",
-        value: stats?.losses ?? 0,
-        fill: "hsl(var(--destructive))",
-      },
-    ],
-    [stats]
-  )
+  const displayName =
+    targetProfile?.displayName ?? targetProfile?.name ?? "Unknown Player";
 
-  const eloHistory = useMemo(() => {
-    if (!viewedProfile) return []
-    const raw =
-      viewedProfile.eloHistory?.map((e: any) => ({
-        elo: e.elo,
-        label: format(dateObj(e.date), "dd.MM HH:mm"),
-        t: dateObj(e.date).getTime(),
-      })) ?? []
-    if (!raw.length)
-      raw.push({
-        elo: viewedProfile.globalElo ?? 0,
-        label: format(new Date(), "dd.MM HH:mm"),
-        t: Date.now(),
+  const perfData = filtered.length
+    ? filtered
+      .slice()
+      .sort(
+        (a, b) =>
+          parseDate(a.timestamp ?? a.playedAt).getTime() -
+          parseDate(b.timestamp ?? b.playedAt).getTime()
+      )
+      .map((m) => {
+        const p1 = m.player1Id === targetUid;
+        const win = p1
+          ? m.player1.scores > m.player2.scores
+          : m.player2.scores > m.player1.scores;
+        return {
+          label: format(parseDate(m.timestamp ?? m.playedAt), "dd.MM.yy"),
+          result: win ? 1 : -1,
+          diff: p1
+            ? m.player1.scores - m.player2.scores
+            : m.player2.scores - m.player1.scores,
+          rating: p1 ? m.player1.newRating : m.player2.newRating,
+        };
       })
-    return raw.sort((a, b) => a.t - b.t)
-  }, [viewedProfile])
+    : [{ label: "", result: 0, diff: 0, rating: targetProfile?.rating ?? 0 }];
 
-  /* ---------------------------------------------------------------- */
-  /* guards ---------------------------------------------------------- */
-  if (loading || !viewedProfile) {
+  const pieData = [
+    { name: "Wins", value: stats.wins, fill: "hsl(var(--accent))" },
+    { name: "Losses", value: stats.losses, fill: "hsl(var(--destructive))" },
+  ];
+
+  if (!targetProfile) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary" />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin h-16 w-16 rounded-full border-b-4 border-primary" />
       </div>
-    )
+    );
   }
 
-  /* ---------------------------------------------------------------- */
   return (
     <section className="container mx-auto py-8 space-y-8">
       {/* Header */}
       <Card>
         <CardHeader className="flex flex-col md:flex-row items-center gap-6">
           <Avatar className="h-24 w-24">
-            <AvatarImage src={viewedProfile.photoURL || undefined} />
+            <AvatarImage src={targetProfile.photoURL || undefined} />
             <AvatarFallback className="text-4xl">
-              {viewedProfile.name?.[0]}
+              {displayName.charAt(0)}
             </AvatarFallback>
           </Avatar>
-
-          <div className="flex-1 text-center md:text-left space-y-1">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <CardTitle className="text-4xl">
-                  {viewedProfile.name}
-                </CardTitle>
-                <CardDescription>{viewedProfile.email}</CardDescription>
-              </div>
-
-              {friendStatus !== "self" && user && (
+          <div className="space-y-1 text-center md:text-left">
+            <div className="flex items-center gap-4">
+              <CardTitle className="text-4xl">{displayName}</CardTitle>
+              {!isSelf && user && (
                 <Button
                   size="sm"
                   variant={friendStatus === "friends" ? "secondary" : "outline"}
                   onClick={async () => {
                     switch (friendStatus) {
                       case "none":
-                        await Friends.sendFriendRequest(user.uid, viewedUid!)
-                        setFriendStatus("out")
-                        break
+                        await Friends.sendFriendRequest(user.uid, targetUid);
+                        break;
                       case "out":
-                        await Friends.cancelRequest(user.uid, viewedUid!)
-                        setFriendStatus("none")
-                        break
+                        await Friends.cancelRequest(user.uid, targetUid);
+                        break;
                       case "in":
-                        await Friends.acceptRequest(user.uid, viewedUid!)
-                        setFriendStatus("friends")
-                        break
+                        await Friends.acceptRequest(user.uid, targetUid);
+                        break;
                       case "friends":
-                        await Friends.unfriend(user.uid, viewedUid!)
-                        setFriendStatus("none")
-                        break
+                        await Friends.unfriend(user.uid, targetUid);
+                        break;
                     }
                   }}
                 >
                   {{
-                    none: "Add friend",
-                    out: "Cancel request",
-                    in: "Accept request",
+                    none: "Add Friend",
+                    out: "Cancel Request",
+                    in: "Accept Request",
                     friends: "Unfriend",
                   }[friendStatus]}
                 </Button>
               )}
             </div>
-
+            <CardDescription>{targetProfile.email}</CardDescription>
             <span className="inline-flex items-center gap-2 rounded-md bg-muted py-1 px-2 text-sm">
-              <Medal className="h-4 w-4 text-accent" />
-              {rankFor(viewedProfile.globalElo)}
+              <Medal className="h-4 w-4 text-accent" />{" "}
+              {getRank(targetProfile.rating)}
             </span>
           </div>
         </CardHeader>
       </Card>
 
-      {/* Quick stats */}
+      {/* Small stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard
           icon={LineChartIcon}
           label="Current ELO"
-          value={viewedProfile.globalElo}
+          value={targetProfile.rating}
         />
-        <StatCard
-          icon={ListOrdered}
-          label="Matches"
-          value={stats?.total ?? 0}
-        />
+        <StatCard icon={ListOrdered} label="Matches" value={stats.total} />
         <StatCard
           icon={Percent}
           label="Win Rate"
-          value={`${stats ? stats.winRate.toFixed(1) : 0}%`}
+          value={`${stats.winRate.toFixed(1)}%`}
         />
-        <StatCard
-          icon={Flame}
-          label="Max Streak"
-          value={stats?.maxWinStreak ?? 0}
-        />
+        <StatCard icon={Flame} label="Max Streak" value={stats.maxWinStreak} />
       </div>
 
-      {/* Achievements & friends */}
+      {/* Achievements */}
       <AchievementsPanel
-        achievements={(viewedProfile.achievements ?? []).map((a) => ({
-          ...a,
-          place: a.place ?? undefined,
-        }))}
-        overallMatches={stats?.total ?? 0}
-        overallWins={stats?.wins ?? 0}
-        overallMaxStreak={stats?.maxWinStreak ?? 0}
+        achievements={targetProfile.achievements ?? []}
+        overallMatches={stats.total}
+        overallWins={stats.wins}
+        overallMaxStreak={stats.maxWinStreak}
       />
 
-      {viewedProfile.friends?.length ? (
+      {/* Friends */}
+      {targetProfile.friends?.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Friends</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-4">
-            {viewedProfile.friends.map((fid) => (
+            {targetProfile.friends.map((fid) => (
               <FriendChip key={fid} uid={fid} />
             ))}
           </CardContent>
         </Card>
-      ) : null}
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartCard title="ELO History" icon={LineChartIcon}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={eloHistory}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis domain={["dataMin-20", "dataMax+20"]} />
-              <ReLegend />
-              <Line
-                type="monotone"
-                dataKey="elo"
-                stroke="hsl(var(--primary))"
-                dot={{ r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData} />
-      </div>
+      )}
 
       {/* Opponent filter */}
       <div className="flex items-center gap-4">
-        <p className="font-medium">Filter by Opponent:</p>
-        <Select value={opponent} onValueChange={setOpponent}>
+        <span className="font-medium">Filter by Opponent:</span>
+        <Select value={oppFilter} onValueChange={setOppFilter}>
           <SelectTrigger className="w-64">
             <SelectValue placeholder="All Opponents" />
           </SelectTrigger>
@@ -483,49 +412,90 @@ export default function ProfilePage() {
         </Select>
       </div>
 
+      <div className="space-y-8">
+        <ChartCard title="ELO History" icon={LineChartIcon}>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={perfData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+              <YAxis domain={['dataMin-20', 'dataMax+20']} />
+              <RechartTooltip
+                contentStyle={{ backgroundColor: '#fff', borderRadius: 4 }}
+                formatter={(value, name, { payload }) => [`${name}: ${value}`, `Date: ${payload.label}`]}
+              />
+              <ReLegend />
+              <Line type="monotone" dataKey="rating" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Brush dataKey="label" height={20} travellerWidth={10} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData} />
+
+        <ChartCard title="Match Result" icon={Activity}>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={perfData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+              <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} />
+              <RechartTooltip
+                contentStyle={{ backgroundColor: '#fff', borderRadius: 4 }}
+                formatter={(value, name, { payload }) => [
+                  `${name}: ${value > 0 ? 'Win' : 'Loss'}`,
+                  `Date: ${payload.label}`,
+                ]}
+              />
+              <ReLegend />
+              <Line type="stepAfter" dataKey="result" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Brush dataKey="label" height={20} travellerWidth={10} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Score Difference" icon={TrendingUp}>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={perfData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+              <YAxis />
+              <RechartTooltip
+                contentStyle={{ backgroundColor: '#fff', borderRadius: 4 }}
+                formatter={(value, name, { payload }) => [
+                  `${name}: ${value}`,
+                  `Date: ${payload.label}`,
+                ]}
+              />
+              <ReLegend />
+              <Line type="monotone" dataKey="diff" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Brush dataKey="label" height={20} travellerWidth={10} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
       {/* Detailed stats */}
-      {stats && (
-        <DetailedStatsCard
-          stats={stats}
-          sideStats={sideStats}
-          label={
-            opponent === "all"
-              ? "Overall Statistics"
-              : `Stats vs ${opponents.find((o) => o.id === opponent)?.name}`
-          }
-        />
-      )}
+      <DetailedStatsCard stats={stats} side={sideStats} />
 
-      {/* Recent / all matches */}
+      {/* Matches table */}
       <MatchesTableCard
-        title="Recent Matches"
-        icon={BarChart3}
-        matches={filteredMatches.slice(0, 5)}
-        loading={isLoadingMatches}
-        meUid={meUid}
-      />
-
-      <MatchesTableCard
-        title={`All Matches (${filteredMatches.length})`}
-        matches={filteredMatches}
-        loading={isLoadingMatches}
-        maxHeight="28rem"
-        meUid={meUid}
+        title={`All Matches (${filtered.length})`}
+        matches={filtered}
+        loading={loadingMatches}
+        meUid={targetUid}
       />
     </section>
-  )
+  );
 }
 
-/* ------------------------------------------------------------------ */
-/* Small reusable components ---------------------------------------- */
+/* ---------------- small reusable ---------------- */
 function StatCard({
   icon: Icon,
   label,
   value,
 }: {
-  icon: any
-  label: string
-  value: string | number
+  icon: any;
+  label: string;
+  value: string | number;
 }) {
   return (
     <Card>
@@ -537,7 +507,7 @@ function StatCard({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function ChartCard({
@@ -545,20 +515,20 @@ function ChartCard({
   icon: Icon,
   children,
 }: {
-  title: string
-  icon: any
-  children: React.ReactNode
+  title: string;
+  icon: any;
+  children: React.ReactNode;
 }) {
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Icon /> {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="h-64">{children}</CardContent>
+      <CardContent className="h-80 w-full">{children}</CardContent>
     </Card>
-  )
+  );
 }
 
 function PieCard({
@@ -566,18 +536,18 @@ function PieCard({
   icon: Icon,
   data,
 }: {
-  title: string
-  icon: any
-  data: { name: string; value: number; fill: string }[]
+  title: string;
+  icon: any;
+  data: { name: string; value: number; fill: string }[];
 }) {
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Icon /> {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="h-64">
+      <CardContent className="h-80 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -594,124 +564,64 @@ function PieCard({
         </ResponsiveContainer>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function DetailedStatsCard({
   stats,
-  sideStats,
-  label,
-}: {
-  stats: ReturnType<typeof calcStats>
-  sideStats: ReturnType<typeof calcSideStats> | null
-  label: string
-}) {
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Medal /> {label}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-          <StatItem l="Matches Played" v={stats.total} />
-          <StatItem l="Wins / Losses" v={`${stats.wins}/${stats.losses}`} />
-          <StatItem l="Best Win Margin" v={stats.bestWinMargin} />
-          <StatItem l="Worst Loss Margin" v={stats.worstLossMargin} />
-          <StatItem l="Points Scored" v={stats.pointsScored} />
-          <StatItem l="Points Conceded" v={stats.pointsConceded} />
-          <StatItem l="Point Diff" v={stats.pointsDiff} />
-          <StatItem l="Longest Win Streak" v={stats.maxWinStreak} />
-          <StatItem l="Longest Loss Streak" v={stats.maxLossStreak} />
-        </CardContent>
-      </Card>
-
-      {sideStats && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CornerUpLeft /> / <CornerUpRight /> Side Statistics
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-            <SideBlock
-              side="Left"
-              wins={sideStats.leftWins}
-              losses={sideStats.leftLosses}
-              scored={sideStats.leftScored}
-              conceded={sideStats.leftConceded}
-            />
-            <SideBlock
-              side="Right"
-              wins={sideStats.rightWins}
-              losses={sideStats.rightLosses}
-              scored={sideStats.rightScored}
-              conceded={sideStats.rightConceded}
-            />
-          </CardContent>
-        </Card>
-      )}
-    </>
-  )
-}
-
-const StatItem = ({ l, v }: { l: string; v: React.ReactNode }) => (
-  <div>
-    <p className="font-semibold">{l}</p>
-    {v}
-  </div>
-)
-
-const SideBlock = ({
   side,
-  wins,
-  losses,
-  scored,
-  conceded,
 }: {
-  side: string
-  wins: number
-  losses: number
-  scored: number
-  conceded: number
-}) => (
-  <div>
-    <p className="font-semibold mb-1">{side} Side</p>
-    <p>Wins: {wins}</p>
-    <p>Losses: {losses}</p>
-    <p>
-      Points: {scored} / {conceded}
-    </p>
-    <p>Win Ratio: {losses ? (wins / losses).toFixed(2) : wins}</p>
-    <p>KD Ratio: {conceded ? (scored / conceded).toFixed(2) : scored}</p>
-  </div>
-)
-
-function MatchesTableCard({
-  title,
-  icon: Icon,
-  matches,
-  loading,
-  maxHeight = "18rem",
-  meUid,
-}: {
-  title: string
-  icon?: any
-  matches: Match[]
-  loading: boolean
-  maxHeight?: string
-  meUid: string
+  stats: ReturnType<typeof computeStats>;
+  side: ReturnType<typeof computeSideStats>;
 }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {Icon && <Icon />} {title}
+          <CornerUpLeft /> / <CornerUpRight /> Detailed Statistics
         </CardTitle>
-        {title === "Recent Matches" && (
-          <CardDescription>Last 5 matches</CardDescription>
-        )}
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+        <StatItem l="Matches" v={stats.total} />
+        <StatItem l="Wins / Losses" v={`${stats.wins} / ${stats.losses}`} />
+        <StatItem l="Win Rate" v={`${stats.winRate.toFixed(2)}%`} />
+        <StatItem l="Best Win Margin" v={stats.bestWinMargin} />
+        <StatItem l="Worst Loss Margin" v={stats.worstLossMargin} />
+        <StatItem l="Points Scored" v={stats.pointsScored} />
+        <StatItem l="Points Conceded" v={stats.pointsConceded} />
+        <StatItem l="Point Diff" v={stats.pointsDiff} />
+        <StatItem l="Max Win Streak" v={stats.maxWinStreak} />
+        <StatItem l="Max Loss Streak" v={stats.maxLossStreak} />
+        <StatItem l="Left Side W/L" v={`${side.leftWins} / ${side.leftLosses}`} />
+        <StatItem l="Right Side W/L" v={`${side.rightWins} / ${side.rightLosses}`} />
+      </CardContent>
+    </Card>
+  );
+}
+function StatItem({ l, v }: { l: string; v: React.ReactNode }) {
+  return (
+    <div>
+      <p className="font-semibold">{l}</p>
+      {v}
+    </div>
+  );
+}
+
+function MatchesTableCard({
+  title,
+  matches,
+  loading,
+  meUid,
+}: {
+  title: string;
+  matches: Match[];
+  loading: boolean;
+  meUid: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -719,7 +629,7 @@ function MatchesTableCard({
         ) : matches.length === 0 ? (
           <p className="text-center py-8">No matches found.</p>
         ) : (
-          <ScrollArea className={`max-h-[${maxHeight}]`}>
+          <ScrollArea className="max-h-[28rem]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -731,69 +641,70 @@ function MatchesTableCard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {matches.map((m) => (
-                  <MatchRow key={m.id} match={m} meUid={meUid} />
-                ))}
+                {matches.map((m) => {
+                  const isP1 = m.player1Id === meUid;
+                  const date =
+                    typeof m.timestamp === "string"
+                      ? m.timestamp
+                      : format(m.playedAt.toDate(), "dd.MM.yyyy HH:mm");
+                  const opp = isP1 ? m.player2.name : m.player1.name;
+                  const myScore = isP1 ? m.player1.scores : m.player2.scores;
+                  const theirScore = isP1 ? m.player2.scores : m.player1.scores;
+                  const eloΔ = isP1 ? m.player1.addedPoints : m.player2.addedPoints;
+                  const win = myScore > theirScore;
+                  return (
+                    <TableRow key={m.id}>
+                      <TableCell>{date}</TableCell>
+                      <TableCell>{opp}</TableCell>
+                      <TableCell>
+                        {myScore} – {theirScore}
+                      </TableCell>
+                      <TableCell
+                        className={win ? "text-accent" : "text-destructive"}
+                      >
+                        {win ? "Win" : "Loss"}
+                      </TableCell>
+                      <TableCell
+                        className={eloΔ >= 0 ? "text-accent" : "text-destructive"}
+                      >
+                        {eloΔ > 0 ? `+${eloΔ}` : eloΔ}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </ScrollArea>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
 
-function MatchRow({ match, meUid }: { match: Match; meUid: string }) {
-  const meP1 = match.player1Id === meUid
-  const date = match.timestamp
-    ? match.timestamp
-    : format(match.playedAt.toDate(), "dd.MM.yyyy HH:mm")
-  const opp = meP1 ? match.player2.name : match.player1.name
-  const myScore = meP1 ? match.player1.scores : match.player2.scores
-  const theirScore = meP1 ? match.player2.scores : match.player1.scores
-  const eloDiff = meP1 ? match.player1.addedPoints : match.player2.addedPoints
-  const win =
-    match.winner === (meP1 ? match.player1.name : match.player2.name)
-
-  return (
-    <TableRow>
-      <TableCell>{date}</TableCell>
-      <TableCell>{opp}</TableCell>
-      <TableCell>
-        {myScore} – {theirScore}
-      </TableCell>
-      <TableCell className={win ? "text-accent" : "text-destructive"}>
-        {win ? "Win" : "Loss"}
-      </TableCell>
-      <TableCell className={eloDiff >= 0 ? "text-accent" : "text-destructive"}>
-        {eloDiff > 0 ? `+${eloDiff}` : eloDiff}
-      </TableCell>
-    </TableRow>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Friend chip ------------------------------------------------------- */
 function FriendChip({ uid }: { uid: string }) {
   const [info, setInfo] = useState<{
-    name: string
-    photoURL?: string
-  } | null>(null)
-  useEffect(() => {
-    Friends.getUserLite(uid).then(setInfo)
-  }, [uid])
-  if (!info) return null
+    name?: string;
+    photoURL?: string;
+  } | null>(null);
 
+  useEffect(() => {
+    Friends.getUserLite(uid).then(setInfo);
+  }, [uid]);
+
+  if (!info?.name) return null;
   return (
     <Link
       href={`/profile/${uid}`}
       className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-muted hover:bg-muted/70"
     >
       <Avatar className="h-6 w-6">
-        <AvatarImage src={info.photoURL || undefined} />
-        <AvatarFallback>{info.name[0]}</AvatarFallback>
+        {info.photoURL ? (
+          <AvatarImage src={info.photoURL} />
+        ) : (
+          <AvatarFallback>{info.name.charAt(0)}</AvatarFallback>
+        )}
       </Avatar>
       <span className="text-sm">{info.name}</span>
     </Link>
-  )
+  );
 }

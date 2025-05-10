@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const baseProfile: Omit<UserProfile, "eloHistory"> = {
             uid: user.uid,
             email: user.email!,
-            displayName: user.displayName || undefined,
+            displayName: user.displayName || null,
             globalElo: 1000,
             matchesPlayed: 0,
             wins: 0,
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           const initialData = {
             ...baseProfile,
-            photoURL: user.photoURL || undefined,
+            photoURL: user.photoURL || null,
             eloHistory: [],
             friends: [],
             incomingRequests: [],
