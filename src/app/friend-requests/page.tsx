@@ -24,7 +24,6 @@ export default function FriendRequestsPage() {
   const [requests, setRequests] = useState<LiteUser[]>([])
   const [loading, setLoading] = useState(true)
 
-  /* грузим имена приславших запросы */
   useEffect(() => {
     const load = async () => {
       if (!userProfile) return

@@ -194,7 +194,6 @@ export default function PlayersTable() {
       }
     }
 
-    /* first—игроки с матчами, потом без */
     const withMatches = list.filter((p) => p.matchesPlayed > 0);
     const noMatches   = list.filter((p) => p.matchesPlayed === 0);
 

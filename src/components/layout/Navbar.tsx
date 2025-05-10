@@ -18,7 +18,6 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type React from "react"
 
-/* логотип ---------------------------------------------------------- */
 const PingPongIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     viewBox="0 0 24 24" fill="none" stroke="currentColor"
