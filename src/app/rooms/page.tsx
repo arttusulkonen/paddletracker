@@ -178,31 +178,65 @@ export default function RoomsPage() {
     }
     setIsCreatingRoom(true)
     try {
-      const ref = await addDoc(collection(db, "rooms"), {
-        name: roomName.trim(),
-        creator: user.uid,
-        creatorName: userProfile?.name ?? "",
-        createdAt: getFinnishFormattedDate(),
-        seasonHistory: [],
-        members: [
-          {
-            userId: user.uid,
-            name: userProfile?.name ?? "",
-            email: userProfile?.email ?? "",
+      const now = getFinnishFormattedDate()
+
+      const initialMembers: Room["members"] = [
+        {
+          userId: user.uid,
+          name: userProfile?.name ?? userProfile?.displayName ?? "",
+          email: userProfile?.email ?? "",
+          rating: 1000,
+          maxRating: 1000,
+          wins: 0,
+          losses: 0,
+          date: now,
+          role: "admin",
+        },
+        ...selectedFriends.map(uid => {
+          const friend = friends.find(f => f.uid === uid)!
+          return {
+            userId: uid,
+            name: friend.name ?? friend.displayName ?? "",
+            email: friend.email ?? "",
             rating: 1000,
             maxRating: 1000,
             wins: 0,
             losses: 0,
-            roomCreated: getFinnishFormattedDate(),
-            role: "admin",
-          },
-        ],
-        memberIds: [user.uid],
+            roomCreated: now,
+            role: "editor",
+          }
+        }),
+      ]
+
+      const initialMemberIds = [user.uid, ...selectedFriends]
+
+      const ref = await addDoc(collection(db, "rooms"), {
+        name: roomName.trim(),
+        creator: user.uid,
+        creatorName: userProfile?.name ?? userProfile?.displayName ?? "",
+        createdAt: now,
+        seasonHistory: [],
+        members: initialMembers,
+        memberIds: initialMemberIds,
       })
-      await updateDoc(doc(db, "users", user.uid), { rooms: arrayUnion(ref.id) })
+
+      await updateDoc(doc(db, "users", user.uid), {
+        rooms: arrayUnion(ref.id),
+      })
+
+      await Promise.all(
+        selectedFriends.map(uid =>
+          updateDoc(doc(db, "users", uid), {
+            rooms: arrayUnion(ref.id),
+          })
+        )
+      )
+
       toast({ title: "Success", description: `Room "${roomName}" created` })
       setRoomName("")
-    } catch {
+      setSelectedFriends([])
+    } catch (err) {
+      console.error(err)
       toast({ title: "Error", description: "Failed to create room", variant: "destructive" })
     } finally {
       setIsCreatingRoom(false)
@@ -236,27 +270,40 @@ export default function RoomsPage() {
                 <DialogDescription>Give your room a name and invite friends.</DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4 py-4">
+              <div className="space-y-4 py-4">
+                {/* Name row */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="roomName" className="text-right">Name</Label>
-                  <Input id="roomName" value={roomName} onChange={(e) => setRoomName(e.target.value)} className="col-span-3" placeholder="Office Ping Pong Champs" />
-
-                  <Separator />
-
-                  <p className="text-sm font-medium">Invite friends now:</p>
-                  <ScrollArea className="h-40 pr-2">
-                    {friends.length ? (
-                      friends.map((f) => (
-                        <label key={f.uid} className="flex items-center gap-2 py-1">
-                          <Checkbox checked={selectedFriends.includes(f.uid)} onCheckedChange={(v) => v ? setSelectedFriends([...selectedFriends, f.uid]) : setSelectedFriends(selectedFriends.filter(id => id !== f.uid))} />
-                          <span>{f.name}</span>
-                        </label>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground">No friends yet</p>
-                    )}
-                  </ScrollArea>
+                  <Input
+                    id="roomName"
+                    value={roomName}
+                    onChange={e => setRoomName(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Office Ping Pong Champs"
+                  />
                 </div>
+
+                {/* Invite friends */}
+                <p className="text-sm font-medium">Invite friends now:</p>
+                <ScrollArea className="h-40 pr-2">
+                  {friends.length ? (
+                    friends.map(f => (
+                      <label key={f.uid} className="flex items-center gap-2 py-1">
+                        <Checkbox
+                          checked={selectedFriends.includes(f.uid)}
+                          onCheckedChange={v =>
+                            v
+                              ? setSelectedFriends([...selectedFriends, f.uid])
+                              : setSelectedFriends(selectedFriends.filter(id => id !== f.uid))
+                          }
+                        />
+                        <span>{f?.name ?? f?.displayName}</span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground">No friends yet</p>
+                  )}
+                </ScrollArea>
               </div>
 
               <DialogFooter>
@@ -291,7 +338,7 @@ export default function RoomsPage() {
                       </CardHeader>
                       <CardContent>
                         <p className="text-sm text-muted-foreground">Members: {r.members.length}</p>
-                        <p className="text-sm text-muted-foreground">Your rating: {roomRating[r.id] ?? "–"}</p>
+                        {/* <p className="text-sm text-muted-foreground">Your rating: {roomRating[r.id] ?? "–"}</p> */}
                         <p className="text-sm text-muted-foreground">Matches played: {myMatches[r.id] ?? "–"}</p>
                       </CardContent>
                       <CardFooter>

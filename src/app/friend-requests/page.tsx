@@ -61,7 +61,7 @@ export default function FriendRequestsPage() {
           ) : requests.length === 0 ? (
             <p className="text-center py-6">No new requests 🎉</p>
           ) : (
-            <ScrollArea className="max-h-[24rem] pr-3">
+            <ScrollArea className="h-[400px] pr-3">
               <ul className="space-y-4">
                 {requests.map((r) => (
                   <li key={r.uid} className="flex items-center justify-between">

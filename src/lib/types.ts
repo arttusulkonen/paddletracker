@@ -1,6 +1,8 @@
 export interface UserProfile {
   email: string;
   name: string;
+  displayName: string;
+  uid: string;
   rank: string;
   globalElo: number;
   matchesPlayed: number;

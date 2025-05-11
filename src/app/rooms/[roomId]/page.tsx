@@ -40,6 +40,7 @@ import {
   addDoc,
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -264,8 +265,8 @@ export default function RoomPage() {
               m.userId === player1Id
                 ? { ...m, rating: r1, wins: m.wins + (dG1 > 0 ? 1 : 0), losses: m.losses + (dG1 < 0 ? 1 : 0) }
                 : m.userId === player2Id
-                ? { ...m, rating: r2, wins: m.wins + (dG2 > 0 ? 1 : 0), losses: m.losses + (dG2 < 0 ? 1 : 0) }
-                : m
+                  ? { ...m, rating: r2, wins: m.wins + (dG2 > 0 ? 1 : 0), losses: m.losses + (dG2 < 0 ? 1 : 0) }
+                  : m
             ),
           }),
         ])
@@ -290,8 +291,8 @@ export default function RoomPage() {
     const arr = Array.isArray(latestSeason.summary)
       ? [...latestSeason.summary]
       : Array.isArray(latestSeason.members)
-      ? [...latestSeason.members]
-      : []
+        ? [...latestSeason.members]
+        : []
     return arr.sort((a: any, b: any) => (a.place ?? 0) - (b.place ?? 0))
   }, [latestSeason])
 
@@ -314,6 +315,82 @@ export default function RoomPage() {
     const avg = sorted.reduce((acc, p) => acc + p.totalMatches, 0) / (sorted.length || 1)
     return [...sorted.filter(p => p.totalMatches >= avg), ...sorted.filter(p => p.totalMatches < avg)]
   }, [members, sortConfig, isFiltered])
+
+
+  type MatchWithId = Match & { id: string };
+
+  const handleDeleteLast = async (match: Match & { id: string }) => {
+    try {
+      const { id, player1Id, player2Id, player1, player2, winner, timestamp } = match;
+
+      const p1Ref = doc(db, 'users', player1Id);
+      const p2Ref = doc(db, 'users', player2Id);
+      const [p1Snap, p2Snap] = await Promise.all([getDoc(p1Ref), getDoc(p2Ref)]);
+      if (!p1Snap.exists() || !p2Snap.exists()) return;
+
+      const p1Data = p1Snap.data() as any;
+      const p2Data = p2Snap.data() as any;
+
+      const newHist1 = (p1Data.eloHistory ?? []).filter((h: any) => h.date !== timestamp);
+      const newHist2 = (p2Data.eloHistory ?? []).filter((h: any) => h.date !== timestamp);
+      const newGlobal1 = newHist1.length ? newHist1[newHist1.length - 1].elo : 1000;
+      const newGlobal2 = newHist2.length ? newHist2[newHist2.length - 1].elo : 1000;
+
+      let p1Wins = (p1Data.wins ?? 0) - (winner === player1.name ? 1 : 0);
+      let p1Losses = (p1Data.losses ?? 0) - (winner !== player1.name ? 1 : 0);
+      let p2Wins = (p2Data.wins ?? 0) - (winner === player2.name ? 1 : 0);
+      let p2Losses = (p2Data.losses ?? 0) - (winner !== player2.name ? 1 : 0);
+
+      await Promise.all([
+        updateDoc(p1Ref, {
+          wins: Math.max(0, p1Wins),
+          losses: Math.max(0, p1Losses),
+          eloHistory: newHist1,
+          globalElo: newGlobal1,
+        }),
+        updateDoc(p2Ref, {
+          wins: Math.max(0, p2Wins),
+          losses: Math.max(0, p2Losses),
+          eloHistory: newHist2,
+          globalElo: newGlobal2,
+        }),
+      ]);
+
+      const roomRef = doc(db, 'rooms', roomId);
+      const roomSnap = await getDoc(roomRef);
+      if (roomSnap.exists()) {
+        const roomData = roomSnap.data() as any;
+        const updatedMembers = roomData.members.map((m: any) => {
+          if (m.userId === player1Id) {
+            return {
+              ...m,
+              rating: newGlobal1,
+              wins: Math.max(0, m.wins - (winner === player1.name ? 1 : 0)),
+              losses: Math.max(0, m.losses - (winner !== player1.name ? 1 : 0)),
+            };
+          }
+          if (m.userId === player2Id) {
+            return {
+              ...m,
+              rating: newGlobal2,
+              wins: Math.max(0, m.wins - (winner === player2.name ? 1 : 0)),
+              losses: Math.max(0, m.losses - (winner !== player2.name ? 1 : 0)),
+            };
+          }
+          return m;
+        });
+        await updateDoc(roomRef, { members: updatedMembers });
+      }
+
+      await deleteDoc(doc(db, 'matches', id));
+      setRecent(r => r.filter(x => x.id !== id));
+
+      toast({ title: 'Match deleted' });
+    } catch (err) {
+      console.error('Delete match failed:', err);
+      toast({ title: 'Error', description: 'Could not delete match', variant: 'destructive' });
+    }
+  };
 
   if (isLoading || !room) {
     return (
@@ -470,23 +547,35 @@ export default function RoomPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Date</TableHead>
                       <TableHead>Player&nbsp;1</TableHead>
                       <TableHead>Player&nbsp;2</TableHead>
                       <TableHead>Δ&nbsp;pts</TableHead>
                       <TableHead>Score</TableHead>
                       <TableHead>Winner</TableHead>
-                      <TableHead>Date</TableHead>
+                      {/* <TableHead>Delete</TableHead> */}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recent.map(m => (
+                    {recent.map((m, idx) => (
                       <TableRow key={m.id}>
+                        <TableCell>{m.timestamp}</TableCell>
                         <TableCell>{m.player1.name}</TableCell>
                         <TableCell>{m.player2.name}</TableCell>
                         <TableCell>{m.player1.roomAddedPoints} | {m.player2.roomAddedPoints}</TableCell>
                         <TableCell>{m.player1.scores} – {m.player2.scores}</TableCell>
+                        <TableCell>{m.player1.scores}–{m.player2.scores}</TableCell>
                         <TableCell className="font-semibold">{m.winner}</TableCell>
-                        <TableCell>{m.timestamp}</TableCell>
+                        {/* {idx === 0 ? (
+                          <TableCell>
+                            <Button variant="destructive" size="sm" onClick={() => handleDeleteLast(m)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        ) : (
+                          <TableCell />
+                        )} */}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -502,32 +591,58 @@ export default function RoomPage() {
   )
 
   function MembersBlock() {
+    const lastRatings = useMemo(() => {
+      const map: Record<string, number> = {};
+      members.forEach((mem) => {
+        const lastMatch = recent.find(
+          (r) => r.player1Id === mem.userId || r.player2Id === mem.userId
+        );
+        if (lastMatch) {
+          map[mem.userId] =
+            lastMatch.player1Id === mem.userId
+              ? lastMatch.player1.roomNewRating
+              : lastMatch.player2.roomNewRating;
+        } else {
+          map[mem.userId] = mem.rating;
+        }
+      });
+      return map;
+    }, [members, recent]);
+
     return (
       <div>
         <Users className="text-primary" /> Members ({members.length})
         <ScrollArea className="h-[300px] border rounded-md p-3 bg-background">
-          {members.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).map(m => {
-            const total = (m.wins || 0) + (m.losses || 0)
-            const winPct = total ? Math.round((m.wins / total) * 100) : 0
-            return (
-              <div key={m.userId} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={m.photoURL || undefined} />
-                    <AvatarFallback>{m.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">
-                      <a href={`/profile/${m.userId}`} className="hover:underline">{m.name}</a>
-                    </p>
-                    <p className="text-xs text-muted-foreground">MP:{total} · W%:{winPct}%</p>
-                  </div>
-                  {m.userId === room?.creator && <Crown className="h-4 w-4 text-yellow-500" />}
+          {regularPlayers.map((p) => (
+            <div
+              key={p.userId}
+              className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md"
+            >
+              <div className="flex items-center gap-3">
+                {console.log(p)}
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={p.photoURL || undefined} />
+                  <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">
+                    <a href={`/profile/${p.userId}`} className="hover:underline">
+                      {p.name}
+                    </a>
+                    {p.userId === room?.creator && (
+                      <Crown className="inline ml-1 h-4 w-4 text-yellow-500" />
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    MP: {p.totalMatches} · W%: {p.winPct}%
+                  </p>
                 </div>
-                <span className="text-sm font-semibold text-primary">{m.rating} pts</span>
               </div>
-            )
-          })}
+              <span className="text-sm font-semibold text-primary">
+                {p.rating} pts
+              </span>
+            </div>
+          ))}
         </ScrollArea>
         <Dialog>
           <DialogTrigger asChild>
