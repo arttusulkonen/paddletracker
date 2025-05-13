@@ -17,7 +17,7 @@ export default function Home() {
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-12">
       <section className="text-center mb-12">
         <h1 className="text-5xl font-extrabold tracking-tight mb-4 sm:text-6xl md:text-7xl">
-          Welcome to <span className="text-primary">PaddleTracker</span>
+          Welcome to <span className="text-primary">PingPongTracker</span>
         </h1>
         <p className="max-w-2xl mx-auto text-lg text-muted-foreground sm:text-xl">
           Track your ping-pong matches, manage tournaments, analyze your ELO rating, and climb the leaderboard!
@@ -104,7 +104,7 @@ export default function Home() {
       )}
 
       <section className="mt-16 w-full max-w-4xl">
-        <h2 className="text-3xl font-semibold text-center mb-8">Why PaddleTracker?</h2>
+        <h2 className="text-3xl font-semibold text-center mb-8">Why PingPongTracker?</h2>
         <div className="grid md:grid-cols-3 gap-8 text-center">
           <div className="p-6 bg-card rounded-lg shadow-md">
             <TrophyIcon className="h-12 w-12 text-accent mx-auto mb-4" />

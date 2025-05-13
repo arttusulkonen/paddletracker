@@ -51,7 +51,7 @@ export function Navbar() {
           href="/" className="flex items-center gap-2 text-primary hover:text-primary/80"
         >
           <PingPongIcon className="h-8 w-8" />
-          <h1 className="text-2xl font-bold">PaddleTracker</h1>
+          <h1 className="text-2xl font-bold">PingPongTracker</h1>
         </Link>
 
         {/* ---------- nav ---------- */}

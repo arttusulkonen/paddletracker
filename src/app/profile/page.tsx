@@ -1,5 +1,4 @@
 "use client"
-
 import AchievementsPanel from "@/components/AchievementsPanel"
 import {
   Avatar,
@@ -58,7 +57,7 @@ import {
   X,
 } from "lucide-react"
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Cropper from "react-easy-crop"
 import {
   Brush,
@@ -69,9 +68,8 @@ import {
   PieChart,
   Tooltip as RechartTooltip,
   Legend as ReLegend,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
+  ResponsiveContainer, TooltipProps, XAxis,
+  YAxis
 } from "recharts"
 
 const parseDate = (d: string | Timestamp) =>
@@ -165,14 +163,19 @@ function computeSideStats(list: Match[], uid: string) {
     const me = isPlayer1 ? m.player1 : m.player2
     const opp = isPlayer1 ? m.player2 : m.player1
     const win = me.scores > opp.scores
+
     if (me.side === "left") {
-      win ? leftSideWins++ : leftSideLosses++
+      if (win) leftSideWins++
+      else leftSideLosses++
       leftPointsScored += me.scores
       leftPointsConceded += opp.scores
-    } else {
-      win ? rightSideWins++ : rightSideLosses++
+
+    } else if (me.side === "right") {
+      if (win) rightSideWins++
+      else rightSideLosses++
       rightPointsScored += me.scores
       rightPointsConceded += opp.scores
+
     }
   })
 
@@ -291,24 +294,27 @@ export default function ProfilePage() {
   const perfData = filtered.length
     ? filtered
       .slice()
-      .sort(
-        (a, b) => parseDate(a.timestamp).getTime() - parseDate(b.timestamp).getTime()
-      )
+      .sort((a, b) => parseDate(a.timestamp).getTime() - parseDate(b.timestamp).getTime())
       .map(m => {
         const p1 = m.player1Id === meUid
-        const win = p1
-          ? m.player1.scores > m.player2.scores
-          : m.player2.scores > m.player1.scores
+        const me = p1 ? m.player1 : m.player2
+        const opp = p1 ? m.player2 : m.player1
+        const opponentName = p1 ? m.player2.name : m.player1.name
+        const score = `${me.scores}–${opp.scores}`
         return {
           label: format(parseDate(m.timestamp), "dd.MM.yy"),
-          result: win ? 1 : -1,
-          diff: p1
-            ? m.player1.scores - m.player2.scores
-            : m.player2.scores - m.player1.scores,
           rating: p1 ? m.player1.newRating : m.player2.newRating,
+          diff: me.scores - opp.scores,
+          result: me.scores > opp.scores ? 1 : -1,
+          opponent: opponentName,
+          score,
+          addedPoints: me.scores > opp.scores
+            ? (p1 ? m.player1.addedPoints : m.player2.addedPoints)
+            : (p1 ? m.player1.addedPoints : m.player2.addedPoints),
         }
       })
-    : [{ label: "", result: 0, diff: 0, rating: userProfile?.rating || 0 }]
+    : [{ label: "", rating: userProfile?.rating || 0, diff: 0, result: 0, opponent: "", score: "", addedPoints: 0 }]
+
 
   const pieData = [
     { name: "Wins", value: stats.wins, fill: "hsl(var(--accent))" },
@@ -334,7 +340,7 @@ export default function ProfilePage() {
 
   return (
     <section className="container mx-auto py-8 space-y-8">
-     
+
       <Card>
         <CardHeader className="flex flex-col md:flex-row md:justify-between items-center gap-6">
           <div className="flex items-center gap-6">
@@ -391,28 +397,6 @@ export default function ProfilePage() {
         <StatCard icon={Flame} label="Max Streak" value={stats.maxWinStreak} />
       </div>
 
-      <AchievementsPanel
-        achievements={userProfile.achievements ?? []}
-        overallMatches={stats.total}
-        overallWins={stats.wins}
-        overallMaxStreak={stats.maxWinStreak}
-      />
-
-      {/* Friends */}
-      {userProfile.friends?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Friends</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-4">
-            {userProfile.friends.map(fid => (
-              <FriendChip key={fid} uid={fid} />
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filter + Detailed Stats */}
       <div className="flex items-center gap-4">
         <span className="font-medium">Filter by Opponent:</span>
         <Select value={oppFilter} onValueChange={setOppFilter}>
@@ -432,30 +416,29 @@ export default function ProfilePage() {
 
       <DetailedStatsCard stats={stats} side={sideStats} />
 
-      {/* Charts */}
-      <div className="space-y-8">
-        <ChartCard title="ELO History" icon={LineChartIcon}>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={perfData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis domain={["dataMin-20", "dataMax+20"]} />
-              <RechartTooltip
-                contentStyle={{ backgroundColor: "#fff", borderRadius: 4 }}
-                formatter={(v, n, { payload }) => [`${n}: ${v}`, `Date: ${payload.label}`]}
-              />
-              <ReLegend />
-              <Line type="monotone" dataKey="rating" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush dataKey="label" height={20} travellerWidth={10} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+        <div className="h-full">
+          <AchievementsPanel
+            achievements={userProfile.achievements ?? []}
+            overallMatches={stats.total}
+            overallWins={stats.wins}
+            overallMaxStreak={stats.maxWinStreak}
+          />
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-4">
           <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData}>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label />
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                />
                 <ReLegend />
               </PieChart>
             </ResponsiveContainer>
@@ -464,12 +447,59 @@ export default function ProfilePage() {
           <PieCard title="Left vs Right Wins" icon={PieChartIcon} data={sidePieData}>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie data={sidePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label />
+                <Pie
+                  data={sidePieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                />
                 <ReLegend />
               </PieChart>
             </ResponsiveContainer>
           </PieCard>
         </div>
+      </div>
+
+      {/* Friends */}
+      {userProfile.friends?.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Friends</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-4">
+            {userProfile.friends.map(fid => (
+              <FriendChip key={fid} uid={fid} />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filter + Detailed Stats */}
+
+      {/* Charts */}
+      <div className="space-y-8">
+        <ChartCard title="ELO History" icon={LineChartIcon}>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={perfData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+              <YAxis domain={["dataMin-20", "dataMax+20"]} />
+              <RechartTooltip content={<CustomTooltip />} />
+              <ReLegend />
+              <Line type="monotone" dataKey="rating" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Brush
+                dataKey="label"
+                height={20}
+                travellerWidth={10}
+                startIndex={Math.floor(perfData.length * 0.8)}
+                endIndex={perfData.length - 1}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
         <ChartCard title="Match Result" icon={Activity}>
           <ResponsiveContainer width="100%" height={450}>
@@ -477,13 +507,10 @@ export default function ProfilePage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
               <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} />
-              <RechartTooltip
-                contentStyle={{ backgroundColor: "#fff", borderRadius: 4 }}
-                formatter={(v, n) => [`${n}: ${v > 0 ? "Win" : "Loss"}`]}
-              />
+              <RechartTooltip content={<CustomTooltip />} />
               <ReLegend />
               <Line type="stepAfter" dataKey="result" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush dataKey="label" height={20} travellerWidth={10} />
+              <Brush dataKey="label" height={20} travellerWidth={10} startIndex={Math.floor(perfData.length * 0.8)} endIndex={perfData.length - 1} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -494,13 +521,10 @@ export default function ProfilePage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
               <YAxis />
-              <RechartTooltip
-                contentStyle={{ backgroundColor: "#fff", borderRadius: 4 }}
-                formatter={(v, n) => [`${n}: ${v}`, ``]}
-              />
+              <RechartTooltip content={<CustomTooltip />} />
               <ReLegend />
               <Line type="monotone" dataKey="diff" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush dataKey="label" height={20} travellerWidth={10} />
+              <Brush dataKey="label" height={20} travellerWidth={10} startIndex={Math.floor(perfData.length * 0.8)} endIndex={perfData.length - 1} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -660,4 +684,18 @@ function createImage(url: string): Promise<HTMLImageElement> {
     img.addEventListener("error", (e) => rej(e))
     img.src = url
   })
+}
+
+const CustomTooltip: FC<TooltipProps<any, any>> = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null
+  const data = payload[0].payload
+  return (
+    <div className="bg-white p-2 rounded shadow-lg text-sm">
+      <div className="font-semibold mb-1">{label}</div>
+      <div>Opponent: {data.opponent}</div>
+      <div>Score: {data.score}</div>
+      <div>Δ Points: {data.addedPoints > 0 ? `+${data.addedPoints}` : data.addedPoints}</div>
+      <div>Your ELO: {data.rating}</div>
+    </div>
+  )
 }

@@ -121,7 +121,7 @@ export default function RegisterPage() {
             <UserPlus className="h-8 w-8 text-primary" /> Create Account
           </CardTitle>
           <CardDescription>
-            Join PaddleTracker and start tracking your games!
+            Join PingPongTracker and start tracking your games!
           </CardDescription>
         </CardHeader>
         <CardContent>

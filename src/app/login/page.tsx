@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { useToast } from '@/hooks/use-toast';
-import { LogIn } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -67,7 +67,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold flex items-center justify-center gap-2">
             <LogIn className="h-8 w-8 text-primary" />
-            Login to PaddleTracker
+            Login to PingPongTracker
           </CardTitle>
           <CardDescription>Enter your credentials to access your account.</CardDescription>
         </CardHeader>

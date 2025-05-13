@@ -136,6 +136,7 @@ export default function RoomPage() {
     if (latestSeason) setViewMode("final")
   }, [latestSeason])
 
+
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !room) return
     setIsInviting(true)
@@ -392,6 +393,29 @@ export default function RoomPage() {
     }
   };
 
+  useEffect(() => {
+    if (!members.length) return;
+
+    const loadUserDetails = async () => {
+      const updated = await Promise.all(
+        members.map(async (m) => {
+          const userSnap = await getDoc(doc(db, "users", m.userId));
+          const userData = userSnap.exists() ? userSnap.data() : {};
+          return {
+            ...m,
+            photoURL: userData.photoURL || null,
+            rank: userData.rank || null,
+            globalElo: userData.globalElo || null,
+            maxRating: userData.maxRating || null,
+          };
+        })
+      );
+      setMembers(updated);
+    };
+
+    loadUserDetails();
+  }, [members.length]);
+
   if (isLoading || !room) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -415,7 +439,6 @@ export default function RoomPage() {
             </Avatar>
             <div className="text-center md:text-left">
               <CardTitle className="text-3xl font-bold">{room.name}</CardTitle>
-              <CardDescription>Created by: {room.creatorName}</CardDescription>
             </div>
           </CardHeader>
 
@@ -461,10 +484,11 @@ export default function RoomPage() {
                     {isFiltered ? "Remove fair ranking" : "Apply fair ranking"}
                   </Button>
                 </div>
-                <ScrollArea className="max-h-[400px]">
+                <ScrollArea>
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>#</TableHead>
                         <TableHead onClick={() => setSortConfig(s => ({ key: "name", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">
                           Name
                         </TableHead>
@@ -480,8 +504,9 @@ export default function RoomPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {regularPlayers.map(p => (
+                      {regularPlayers.map((p, i) => (
                         <TableRow key={p.userId}>
+                          <TableCell>{i + 1}</TableCell>
                           <TableCell>
                             <a href={`/profile/${p.userId}`} className="hover:underline">{p.name}</a>
                             {p.userId === room.creator && <Crown className="inline ml-1 h-4 w-4 text-yellow-500" />}
@@ -498,7 +523,7 @@ export default function RoomPage() {
             )}
             {viewMode === "final" && (
               latestSeason ? (
-                <ScrollArea className="max-h-[400px]">
+                <ScrollArea>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -547,25 +572,24 @@ export default function RoomPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Player&nbsp;1</TableHead>
-                      <TableHead>Player&nbsp;2</TableHead>
-                      <TableHead>Δ&nbsp;pts</TableHead>
+                      <TableHead>Players</TableHead>
                       <TableHead>Score</TableHead>
+                      <TableHead>Δ&nbsp;pts</TableHead>
+                      <TableHead>Δ&nbsp;ELO</TableHead>
                       <TableHead>Winner</TableHead>
+                      <TableHead>Date</TableHead>
                       {/* <TableHead>Delete</TableHead> */}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {recent.map((m, idx) => (
                       <TableRow key={m.id}>
-                        <TableCell>{m.timestamp}</TableCell>
-                        <TableCell>{m.player1.name}</TableCell>
-                        <TableCell>{m.player2.name}</TableCell>
-                        <TableCell>{m.player1.roomAddedPoints} | {m.player2.roomAddedPoints}</TableCell>
+                        <TableCell>{m.player1.name} - {m.player2.name}</TableCell>
                         <TableCell>{m.player1.scores} – {m.player2.scores}</TableCell>
-                        <TableCell>{m.player1.scores}–{m.player2.scores}</TableCell>
+                        <TableCell>{m.player1.roomAddedPoints} | {m.player2.roomAddedPoints}</TableCell>
+                        <TableCell>{m.player1.newRating} | {m.player2.newRating}</TableCell>
                         <TableCell className="font-semibold">{m.winner}</TableCell>
+                        <TableCell>{m.timestamp}</TableCell>
                         {/* {idx === 0 ? (
                           <TableCell>
                             <Button variant="destructive" size="sm" onClick={() => handleDeleteLast(m)}
@@ -619,8 +643,7 @@ export default function RoomPage() {
               className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md"
             >
               <div className="flex items-center gap-3">
-                {console.log(p)}
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-12 w-12">
                   <AvatarImage src={p.photoURL || undefined} />
                   <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
                 </Avatar>
@@ -634,7 +657,7 @@ export default function RoomPage() {
                     )}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    MP: {p.totalMatches} · W%: {p.winPct}%
+                    MP: {p.totalMatches} · W%: {p.winPct}% · ELO: {p.globalElo}
                   </p>
                 </div>
               </div>

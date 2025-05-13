@@ -1,4 +1,4 @@
-# **App Name**: PaddleTracker
+# **App Name**: PingPongTracker
 
 ## Core Features:
 

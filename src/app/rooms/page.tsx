@@ -23,7 +23,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
 import { db } from "@/lib/firebase"
@@ -46,7 +45,7 @@ import {
 } from "firebase/firestore"
 import { PlusCircle, SearchIcon, UsersIcon } from "lucide-react"
 import Link from "next/link"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 export default function RoomsPage() {
   const { user, userProfile } = useAuth()
@@ -75,26 +74,41 @@ export default function RoomsPage() {
 
     const unsubscribe = onSnapshot(
       roomsQuery,
-      (snapshot) => {
-        console.log("all rooms:", snapshot.docs.length)
-        const list = snapshot.docs.map(d => {
-          const data = d.data() as any
-          return { id: d.id, ...data }
+      async snapshot => {
+        let list: Room[] = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
+        list.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+
+        const missingCreators = Array.from(new Set(
+          list.filter(r => !r.creatorName).map(r => r.creator!)
+        ))
+        const creatorNameMap: Record<string, string> = {}
+        await Promise.all(
+          missingCreators.map(async uid => {
+            const snap = await getDoc(doc(db, "users", uid))
+            if (snap.exists()) creatorNameMap[uid] = (snap.data() as any).name || "Unknown"
+          })
+        )
+        list = list.map(r =>
+          !r.creatorName && r.creator && creatorNameMap[r.creator]
+            ? { ...r, creatorName: creatorNameMap[r.creator] }
+            : r
+        )
+
+        const ratingMap: Record<string, number> = {}
+        list.forEach(r => {
+          const me = r.members.find(m => m.userId === user.uid)
+          ratingMap[r.id] = me?.rating ?? 0
         })
-        list.sort((a, b) => {
-          const da = new Date(a.createdAt).getTime()
-          const db = new Date(b.createdAt).getTime()
-          return db - da
-        })
+
         setRooms(list)
+        setRoomRating(ratingMap)
         setIsLoadingRooms(false)
       },
-      (err) => {
+      err => {
         console.error("rooms onSnapshot error:", err)
         setIsLoadingRooms(false)
       }
     )
-
     return () => unsubscribe()
   }, [user])
 
@@ -102,64 +116,36 @@ export default function RoomsPage() {
     if (!user || !rooms.length) return
     const res: Record<string, number> = {}
     await Promise.all(
-      rooms.map(async (r) => {
-        const q1 = query(
-          collection(db, "matches"),
-          where("roomId", "==", r.id),
-          where("player1Id", "==", user.uid)
-        )
-        const q2 = query(
-          collection(db, "matches"),
-          where("roomId", "==", r.id),
-          where("player2Id", "==", user.uid)
-        )
-        const [s1, s2] = await Promise.all([getDocs(q1), getDocs(q2)])
+      rooms.map(async r => {
+        const [s1, s2] = await Promise.all([
+          getDocs(query(
+            collection(db, "matches"),
+            where("roomId", "==", r.id),
+            where("player1Id", "==", user.uid)
+          )),
+          getDocs(query(
+            collection(db, "matches"),
+            where("roomId", "==", r.id),
+            where("player2Id", "==", user.uid)
+          ))
+        ])
         res[r.id] = s1.size + s2.size
       })
     )
     setMyMatches(res)
   }, [rooms, user])
-
   useEffect(() => { loadMyCounts() }, [loadMyCounts])
 
-  useEffect(() => {
-    if (!user) return
-    const fetchRatings = async () => {
-      const rr: Record<string, number> = {}
-      await Promise.all(
-        rooms.map(async (r) => {
-          const mSnap = await getDocs(
-            query(
-              collection(db, "matches"),
-              where("roomId", "==", r.id),
-              orderBy("timestamp", "desc"),
-              limit(1)
-            )
-          )
-          if (!mSnap.empty) {
-            const m = mSnap.docs[0].data() as any
-            if (m.player1Id === user.uid) rr[r.id] = m.player1.roomNewRating
-            else if (m.player2Id === user.uid) rr[r.id] = m.player2.roomNewRating
-          } else {
-            const initMember = r.members.find((m) => m.userId === user.uid)
-            rr[r.id] = initMember?.rating ?? 0
-          }
-        })
-      )
-      setRoomRating(rr)
-    }
-    fetchRatings()
-  }, [rooms, user])
-
+  // C: загружаем друзей для создания комнаты
   useEffect(() => {
     if (!user) return
     const unsub = onSnapshot(
       doc(db, "users", user.uid),
-      async (snap) => {
+      async snap => {
         if (!snap.exists()) return setFriends([])
         const ids = (snap.data() as UserProfile).friends ?? []
         const loaded = await Promise.all(
-          ids.map(async (id) => ({ uid: id, ...(await getUserLite(id)) } as UserProfile))
+          ids.map(async id => ({ uid: id, ...(await getUserLite(id)) }))
         )
         setFriends(loaded)
       }
@@ -167,6 +153,7 @@ export default function RoomsPage() {
     return () => unsub()
   }, [user])
 
+  // D: создание новой комнаты
   const handleCreateRoom = async () => {
     if (!user) {
       toast({ title: "Error", description: "Log in to create a room", variant: "destructive" })
@@ -179,62 +166,40 @@ export default function RoomsPage() {
     setIsCreatingRoom(true)
     try {
       const now = getFinnishFormattedDate()
-
-      const initialMembers: Room["members"] = [
+      const initialMembers = [
         {
           userId: user.uid,
           name: userProfile?.name ?? userProfile?.displayName ?? "",
           email: userProfile?.email ?? "",
-          rating: 1000,
-          maxRating: 1000,
-          wins: 0,
-          losses: 0,
-          date: now,
-          role: "admin",
+          rating: 1000, wins: 0, losses: 0, date: now, role: "admin",
         },
         ...selectedFriends.map(uid => {
-          const friend = friends.find(f => f.uid === uid)!
+          const f = friends.find(x => x.uid === uid)!
           return {
             userId: uid,
-            name: friend.name ?? friend.displayName ?? "",
-            email: friend.email ?? "",
-            rating: 1000,
-            maxRating: 1000,
-            wins: 0,
-            losses: 0,
-            roomCreated: now,
-            role: "editor",
+            name: f.name ?? f.displayName ?? "",
+            email: f.email ?? "",
+            rating: 1000, wins: 0, losses: 0, date: now, role: "editor",
           }
-        }),
+        })
       ]
-
-      const initialMemberIds = [user.uid, ...selectedFriends]
-
       const ref = await addDoc(collection(db, "rooms"), {
         name: roomName.trim(),
         creator: user.uid,
         creatorName: userProfile?.name ?? userProfile?.displayName ?? "",
         createdAt: now,
-        seasonHistory: [],
         members: initialMembers,
-        memberIds: initialMemberIds,
+        memberIds: [user.uid, ...selectedFriends],
       })
-
-      await updateDoc(doc(db, "users", user.uid), {
-        rooms: arrayUnion(ref.id),
-      })
-
+      // обновляем users.rooms
+      await updateDoc(doc(db, "users", user.uid), { rooms: arrayUnion(ref.id) })
       await Promise.all(
         selectedFriends.map(uid =>
-          updateDoc(doc(db, "users", uid), {
-            rooms: arrayUnion(ref.id),
-          })
+          updateDoc(doc(db, "users", uid), { rooms: arrayUnion(ref.id) })
         )
       )
-
       toast({ title: "Success", description: `Room "${roomName}" created` })
-      setRoomName("")
-      setSelectedFriends([])
+      setRoomName(""); setSelectedFriends([])
     } catch (err) {
       console.error(err)
       toast({ title: "Error", description: "Failed to create room", variant: "destructive" })
@@ -243,35 +208,34 @@ export default function RoomsPage() {
     }
   }
 
-  const filtered = rooms.filter(
-    (r) =>
+  // E: фильтрация по поиску
+  const filtered = useMemo(() =>
+    rooms.filter(r =>
       r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (r.creatorName ?? "").toLowerCase().includes(searchTerm.toLowerCase())
+    ), [rooms, searchTerm]
   )
 
   return (
     <ProtectedRoute>
       <div className="container mx-auto py-8 px-4">
+        {/* Заголовок и диалог создания */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-4xl font-bold flex items-center gap-2">
             <UsersIcon className="h-10 w-10 text-primary" /> Match Rooms
           </h1>
-
           <Dialog>
             <DialogTrigger asChild>
               <Button size="lg">
                 <PlusCircle className="mr-2 h-5 w-5" /> Create New Room
               </Button>
             </DialogTrigger>
-
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Create a Match Room</DialogTitle>
                 <DialogDescription>Give your room a name and invite friends.</DialogDescription>
               </DialogHeader>
-
               <div className="space-y-4 py-4">
-                {/* Name row */}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="roomName" className="text-right">Name</Label>
                   <Input
@@ -282,74 +246,92 @@ export default function RoomsPage() {
                     placeholder="Office Ping Pong Champs"
                   />
                 </div>
-
-                {/* Invite friends */}
                 <p className="text-sm font-medium">Invite friends now:</p>
                 <ScrollArea className="h-40 pr-2">
-                  {friends.length ? (
-                    friends.map(f => (
-                      <label key={f.uid} className="flex items-center gap-2 py-1">
-                        <Checkbox
-                          checked={selectedFriends.includes(f.uid)}
-                          onCheckedChange={v =>
-                            v
-                              ? setSelectedFriends([...selectedFriends, f.uid])
-                              : setSelectedFriends(selectedFriends.filter(id => id !== f.uid))
-                          }
-                        />
-                        <span>{f?.name ?? f?.displayName}</span>
-                      </label>
-                    ))
-                  ) : (
+                  {friends.length ? friends.map(f => (
+                    <label key={f.uid} className="flex items-center gap-2 py-1">
+                      <Checkbox
+                        checked={selectedFriends.includes(f.uid)}
+                        onCheckedChange={v =>
+                          v
+                            ? setSelectedFriends([...selectedFriends, f.uid])
+                            : setSelectedFriends(selectedFriends.filter(id => id !== f.uid))
+                        }
+                      />
+                      <span>{f.name ?? f.displayName}</span>
+                    </label>
+                  )) : (
                     <p className="text-muted-foreground">No friends yet</p>
                   )}
                 </ScrollArea>
               </div>
-
               <DialogFooter>
-                <Button onClick={handleCreateRoom} disabled={isCreatingRoom}>{isCreatingRoom ? "Creating…" : "Create"}</Button>
+                <Button onClick={handleCreateRoom} disabled={isCreatingRoom}>
+                  {isCreatingRoom ? "Creating…" : "Create"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
+        {/* Список комнат */}
         <Card className="mb-8 shadow-lg">
           <CardHeader>
             <CardTitle>Your Rooms</CardTitle>
             <CardDescription>Click to enter and record matches</CardDescription>
-
             <div className="relative mt-4">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input placeholder="Search by name or creator…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full max-w-md" />
+              <Input
+                placeholder="Search by name or creator…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 w-full max-w-md"
+              />
             </div>
           </CardHeader>
-
           <CardContent>
             {isLoadingRooms ? (
-              <div className="flex items-center justify-center h-40"><div className="animate-spin h-12 w-12 rounded-full border-b-2 border-primary" /></div>
+              <div className="flex items-center justify-center h-40">
+                <div className="animate-spin h-12 w-12 rounded-full border-b-2 border-primary" />
+              </div>
             ) : filtered.length ? (
               <ScrollArea className="h-[400px]">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1">
-                  {filtered.map((r) => (
-                    <Card key={r.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader>
-                        <CardTitle className="truncate">{r.name}</CardTitle>
-                        <CardDescription>Created by: {r.creatorName ?? "Unknown"}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">Members: {r.members.length}</p>
-                        {/* <p className="text-sm text-muted-foreground">Your rating: {roomRating[r.id] ?? "–"}</p> */}
-                        <p className="text-sm text-muted-foreground">Matches played: {myMatches[r.id] ?? "–"}</p>
-                      </CardContent>
-                      <CardFooter>
-                        <Button asChild className="w-full"><Link href={`/rooms/${r.id}`}>Enter Room</Link></Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
+                  {filtered
+                    .slice()
+                    .reverse()
+                    .map((r) => (
+                      <Card key={r.id} className="hover:shadow-md transition-shadow">
+                        <CardHeader>
+                          <CardTitle className="truncate">{r.name}</CardTitle>
+                          <CardDescription>Created by: {r.creatorName}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm text-muted-foreground">
+                            Members: {r.members.length}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Matches played: {myMatches[r.id] ?? "–"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Your rating: {roomRating[r.id] ?? "–"}
+                          </p>
+                        </CardContent>
+                        <CardFooter>
+                          <Button asChild className="w-full">
+                            <Link href={`/rooms/${r.id}`}>Enter Room</Link>
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
                 </div>
               </ScrollArea>
             ) : (
-              <p className="text-center text-muted-foreground py-8">{searchTerm ? "No rooms match your search" : "You are not a member of any rooms yet"}</p>
+              <p className="text-center text-muted-foreground py-8">
+                {searchTerm
+                  ? "No rooms match your search"
+                  : "You are not a member of any rooms yet"}
+              </p>
             )}
           </CardContent>
         </Card>

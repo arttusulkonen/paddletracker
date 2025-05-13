@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'PaddleTracker',
+  title: 'PingPongTracker',
   description: 'Track your ping-pong matches, manage tournaments, and analyze your ELO rating.',
 };
 
