@@ -113,6 +113,10 @@ export default function LoginPage() {
               <Link href="/register">Register here</Link>
             </Button>
           </p>
+
+          <p className="text-sm text-muted-foreground">
+            <Link href="/forgot-password">Forgot your password?</Link>
+          </p>
         </CardFooter>
       </Card>
     </div>

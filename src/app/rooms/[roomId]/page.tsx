@@ -84,18 +84,14 @@ export default function RoomPage() {
   const [room, setRoom] = useState<Room | null>(null)
   const [members, setMembers] = useState<Room["members"]>([])
   const [isLoading, setIsLoading] = useState(true)
-
   const [inviteEmail, setInviteEmail] = useState("")
   const [isInviting, setIsInviting] = useState(false)
-
   const [player1Id, setPlayer1Id] = useState("")
   const [player2Id, setPlayer2Id] = useState("")
   const [matchesInput, setMatchesInput] = useState([{ score1: "", score2: "", side1: "", side2: "" }])
   const [isRecording, setIsRecording] = useState(false)
-
   const [recent, setRecent] = useState<Match[]>([])
   const [latestSeason, setLatestSeason] = useState<any | null>(null)
-
   const [viewMode, setViewMode] = useState<"regular" | "final">("regular")
   const [isFiltered, setFiltered] = useState(false)
   const [sortConfig, setSortConfig] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "rating", dir: "desc" })
@@ -135,7 +131,6 @@ export default function RoomPage() {
   useEffect(() => {
     if (latestSeason) setViewMode("final")
   }, [latestSeason])
-
 
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !room) return
@@ -317,82 +312,6 @@ export default function RoomPage() {
     return [...sorted.filter(p => p.totalMatches >= avg), ...sorted.filter(p => p.totalMatches < avg)]
   }, [members, sortConfig, isFiltered])
 
-
-  type MatchWithId = Match & { id: string };
-
-  const handleDeleteLast = async (match: Match & { id: string }) => {
-    try {
-      const { id, player1Id, player2Id, player1, player2, winner, timestamp } = match;
-
-      const p1Ref = doc(db, 'users', player1Id);
-      const p2Ref = doc(db, 'users', player2Id);
-      const [p1Snap, p2Snap] = await Promise.all([getDoc(p1Ref), getDoc(p2Ref)]);
-      if (!p1Snap.exists() || !p2Snap.exists()) return;
-
-      const p1Data = p1Snap.data() as any;
-      const p2Data = p2Snap.data() as any;
-
-      const newHist1 = (p1Data.eloHistory ?? []).filter((h: any) => h.date !== timestamp);
-      const newHist2 = (p2Data.eloHistory ?? []).filter((h: any) => h.date !== timestamp);
-      const newGlobal1 = newHist1.length ? newHist1[newHist1.length - 1].elo : 1000;
-      const newGlobal2 = newHist2.length ? newHist2[newHist2.length - 1].elo : 1000;
-
-      let p1Wins = (p1Data.wins ?? 0) - (winner === player1.name ? 1 : 0);
-      let p1Losses = (p1Data.losses ?? 0) - (winner !== player1.name ? 1 : 0);
-      let p2Wins = (p2Data.wins ?? 0) - (winner === player2.name ? 1 : 0);
-      let p2Losses = (p2Data.losses ?? 0) - (winner !== player2.name ? 1 : 0);
-
-      await Promise.all([
-        updateDoc(p1Ref, {
-          wins: Math.max(0, p1Wins),
-          losses: Math.max(0, p1Losses),
-          eloHistory: newHist1,
-          globalElo: newGlobal1,
-        }),
-        updateDoc(p2Ref, {
-          wins: Math.max(0, p2Wins),
-          losses: Math.max(0, p2Losses),
-          eloHistory: newHist2,
-          globalElo: newGlobal2,
-        }),
-      ]);
-
-      const roomRef = doc(db, 'rooms', roomId);
-      const roomSnap = await getDoc(roomRef);
-      if (roomSnap.exists()) {
-        const roomData = roomSnap.data() as any;
-        const updatedMembers = roomData.members.map((m: any) => {
-          if (m.userId === player1Id) {
-            return {
-              ...m,
-              rating: newGlobal1,
-              wins: Math.max(0, m.wins - (winner === player1.name ? 1 : 0)),
-              losses: Math.max(0, m.losses - (winner !== player1.name ? 1 : 0)),
-            };
-          }
-          if (m.userId === player2Id) {
-            return {
-              ...m,
-              rating: newGlobal2,
-              wins: Math.max(0, m.wins - (winner === player2.name ? 1 : 0)),
-              losses: Math.max(0, m.losses - (winner !== player2.name ? 1 : 0)),
-            };
-          }
-          return m;
-        });
-        await updateDoc(roomRef, { members: updatedMembers });
-      }
-
-      await deleteDoc(doc(db, 'matches', id));
-      setRecent(r => r.filter(x => x.id !== id));
-
-      toast({ title: 'Match deleted' });
-    } catch (err) {
-      console.error('Delete match failed:', err);
-      toast({ title: 'Error', description: 'Could not delete match', variant: 'destructive' });
-    }
-  };
-
   useEffect(() => {
     if (!members.length) return;
 
@@ -415,7 +334,6 @@ export default function RoomPage() {
 
     loadUserDetails();
   }, [members.length]);
-
   if (isLoading || !room) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -443,8 +361,31 @@ export default function RoomPage() {
           </CardHeader>
 
           <CardContent className="p-6 grid md:grid-cols-3 gap-6">
-            <MembersBlock />
-            {!latestSeason && <RecordBlock />}
+            <MembersBlock
+              members={members}
+              recent={recent}
+              regularPlayers={regularPlayers}
+              isInviting={isInviting}
+              inviteEmail={inviteEmail}
+              setInviteEmail={setInviteEmail}
+              handleInvite={handleInvite}
+              room={room}
+            />
+            {!latestSeason && (
+              <RecordBlock
+                members={members}
+                player1Id={player1Id}
+                player2Id={player2Id}
+                setPlayer1Id={setPlayer1Id}
+                setPlayer2Id={setPlayer2Id}
+                matchesInput={matchesInput}
+                setMatchesInput={setMatchesInput}
+                addRow={addRow}
+                removeRow={removeRow}
+                saveMatches={saveMatches}
+                isRecording={isRecording}
+              />
+            )}
             {!latestSeason && (
               <div className="md:col-span-3 text-right">
                 <Button variant="destructive" onClick={handleFinishSeason}>
@@ -489,18 +430,10 @@ export default function RoomPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>#</TableHead>
-                        <TableHead onClick={() => setSortConfig(s => ({ key: "name", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">
-                          Name
-                        </TableHead>
-                        <TableHead onClick={() => setSortConfig(s => ({ key: "rating", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">
-                          Points
-                        </TableHead>
-                        <TableHead onClick={() => setSortConfig(s => ({ key: "totalMatches", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">
-                          Matches
-                        </TableHead>
-                        <TableHead onClick={() => setSortConfig(s => ({ key: "winPct", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">
-                          Win&nbsp;%
-                        </TableHead>
+                        <TableHead onClick={() => setSortConfig(s => ({ key: "name", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">Name</TableHead>
+                        <TableHead onClick={() => setSortConfig(s => ({ key: "rating", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">Points</TableHead>
+                        <TableHead onClick={() => setSortConfig(s => ({ key: "totalMatches", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">Matches</TableHead>
+                        <TableHead onClick={() => setSortConfig(s => ({ key: "winPct", dir: s.dir === "asc" ? "desc" : "asc" }))} className="cursor-pointer">Win %</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -532,8 +465,8 @@ export default function RoomPage() {
                         <TableHead>Matches</TableHead>
                         <TableHead>Wins</TableHead>
                         <TableHead>Losses</TableHead>
-                        <TableHead>Longest&nbsp;WS</TableHead>
-                        <TableHead>Total&nbsp;+pts</TableHead>
+                        <TableHead>Longest WS</TableHead>
+                        <TableHead>Total +pts</TableHead>
                         <TableHead>Score</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -562,9 +495,7 @@ export default function RoomPage() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="text-primary" /> Recent Matches
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2"><ShieldCheck className="text-primary" /> Recent Matches</CardTitle>
           </CardHeader>
           <CardContent>
             {recent.length ? (
@@ -574,15 +505,14 @@ export default function RoomPage() {
                     <TableRow>
                       <TableHead>Players</TableHead>
                       <TableHead>Score</TableHead>
-                      <TableHead>Δ&nbsp;pts</TableHead>
-                      <TableHead>Δ&nbsp;ELO</TableHead>
+                      <TableHead>Δ pts</TableHead>
+                      <TableHead>Δ ELO</TableHead>
                       <TableHead>Winner</TableHead>
                       <TableHead>Date</TableHead>
-                      {/* <TableHead>Delete</TableHead> */}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recent.map((m, idx) => (
+                    {recent.map(m => (
                       <TableRow key={m.id}>
                         <TableCell>{m.player1.name} - {m.player2.name}</TableCell>
                         <TableCell>{m.player1.scores} – {m.player2.scores}</TableCell>
@@ -590,16 +520,6 @@ export default function RoomPage() {
                         <TableCell>{m.player1.newRating} | {m.player2.newRating}</TableCell>
                         <TableCell className="font-semibold">{m.winner}</TableCell>
                         <TableCell>{m.timestamp}</TableCell>
-                        {/* {idx === 0 ? (
-                          <TableCell>
-                            <Button variant="destructive" size="sm" onClick={() => handleDeleteLast(m)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        ) : (
-                          <TableCell />
-                        )} */}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -613,184 +533,178 @@ export default function RoomPage() {
       </div>
     </ProtectedRoute>
   )
+}
 
-  function MembersBlock() {
-    const lastRatings = useMemo(() => {
-      const map: Record<string, number> = {};
-      members.forEach((mem) => {
-        const lastMatch = recent.find(
-          (r) => r.player1Id === mem.userId || r.player2Id === mem.userId
-        );
-        if (lastMatch) {
-          map[mem.userId] =
-            lastMatch.player1Id === mem.userId
-              ? lastMatch.player1.roomNewRating
-              : lastMatch.player2.roomNewRating;
-        } else {
-          map[mem.userId] = mem.rating;
-        }
-      });
-      return map;
-    }, [members, recent]);
+function MembersBlock({ members, recent, regularPlayers, isInviting, inviteEmail, setInviteEmail, handleInvite, room }: {
+  members: Room["members"]
+  recent: Match[]
+  regularPlayers: any[]
+  isInviting: boolean
+  inviteEmail: string
+  setInviteEmail(v: string): void
+  handleInvite(): void
+  room: Room
+}) {
+  const lastRatings = useMemo(() => {
+    const map: Record<string, number> = {}
+    members.forEach(mem => {
+      const lastMatch = recent.find(r => r.player1Id === mem.userId || r.player2Id === mem.userId)
+      map[mem.userId] = lastMatch
+        ? lastMatch.player1Id === mem.userId
+          ? lastMatch.player1.roomNewRating
+          : lastMatch.player2.roomNewRating
+        : mem.rating
+    })
+    return map
+  }, [members, recent])
 
-    return (
-      <div>
-        <Users className="text-primary" /> Members ({members.length})
-        <ScrollArea className="h-[300px] border rounded-md p-3 bg-background">
-          {regularPlayers.map((p) => (
-            <div
-              key={p.userId}
-              className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md"
-            >
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={p.photoURL || undefined} />
-                  <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">
-                    <a href={`/profile/${p.userId}`} className="hover:underline">
-                      {p.name}
-                    </a>
-                    {p.userId === room?.creator && (
-                      <Crown className="inline ml-1 h-4 w-4 text-yellow-500" />
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    MP: {p.totalMatches} · W%: {p.winPct}% · ELO: {p.globalElo}
-                  </p>
-                </div>
+  return (
+    <div>
+      <Users className="text-primary" /> Members ({members.length})
+      <ScrollArea className="h-[300px] border rounded-md p-3 bg-background">
+        {regularPlayers.map(p => (
+          <div key={p.userId} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={p.photoURL || undefined} />
+                <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">
+                  <a href={`/profile/${p.userId}`} className="hover:underline">{p.name}</a>
+                  {p.userId === room.creator && <Crown className="inline ml-1 h-4 w-4 text-yellow-500" />}
+                </p>
+                <p className="text-xs text-muted-foreground">MP: {p.totalMatches} · W%: {p.winPct}% · ELO: {p.globalElo}</p>
               </div>
-              <span className="text-sm font-semibold text-primary">
-                {p.rating} pts
-              </span>
             </div>
-          ))}
-        </ScrollArea>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="mt-4 w-full" variant="outline" disabled={isInviting}>
-              <MailPlus className="mr-2 h-4 w-4" /> Invite Player
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Invite to {room?.name}</DialogTitle>
-              <DialogDescription>Enter email</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2 py-2">
-              <Label htmlFor="invEmail">Email</Label>
-              <Input id="invEmail" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="ghost">Cancel</Button>
-              </DialogClose>
-              <Button onClick={handleInvite} disabled={isInviting}>Send</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    )
-  }
-
-  function RecordBlock() {
-    return (
-      <Card className="md:col-span-2 shadow-md">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Sword className="text-accent" /> Record Matches</CardTitle>
-          <CardDescription>Select players and scores</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 items-end">
-            <PlayerSelect label="Player 1" value={player1Id} onChange={setPlayer1Id} list={members.map(m => ({ userId: m.userId, name: m.name, rating: m.rating }))} />
-            <PlayerSelect label="Player 2" value={player2Id} onChange={setPlayer2Id} list={members.map(m => ({ userId: m.userId, name: m.name, rating: m.rating }))} />
-          </div>
-          {matchesInput.map((m, i) => (
-            <MatchRowInput key={i} index={i} data={m} onChange={row => setMatchesInput(r => r.map((v, idx) => idx === i ? row : v))} onRemove={() => removeRow(i)} removable={i > 0} />
-          ))}
-          <Button variant="outline" className="flex items-center gap-2" onClick={addRow}><Plus /> Add Match</Button>
-          <Button className="w-full mt-4" disabled={isRecording} onClick={saveMatches}>
-            {isRecording ? "Recording…" : "Record & Update ELO"}
-          </Button>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  function PlayerSelect({
-    label,
-    value,
-    onChange,
-    list,
-  }: {
-    label: string
-    value: string
-    onChange(v: string): void
-    list: { userId: string; name: string; rating: number }[]
-  }) {
-    return (
-      <div>
-        <Label>{label}</Label>
-        <select className="w-full border rounded p-2" value={value} onChange={e => onChange(e.target.value)}>
-          <option value="">Select</option>
-          {list.map(o => (
-            <option key={o.userId} value={o.userId}>
-              {o.name} ({o.rating})
-            </option>
-          ))}
-        </select>
-      </div>
-    )
-  }
-
-  function MatchRowInput({
-    index,
-    data,
-    onChange,
-    onRemove,
-    removable,
-  }: {
-    index: number
-    data: any
-    onChange(d: any): void
-    onRemove(): void
-    removable: boolean
-  }) {
-    return (
-      <div className="grid grid-cols-2 gap-4 mb-2 relative">
-        {["1", "2"].map(n => (
-          <div key={n}>
-            <Label>{`P${n} Score`}</Label>
-            <Input
-              type="number"
-              value={data[`score${n}`]}
-              onChange={e => onChange({ ...data, [`score${n}`]: e.target.value })}
-            />
-            <Label className="mt-2">Side</Label>
-            <select
-              className="w-full border rounded p-2"
-              value={data[`side${n}`]}
-              onChange={e =>
-                onChange({
-                  ...data,
-                  [`side${n}`]: e.target.value,
-                  [`side${n === "1" ? "2" : "1"}`]: e.target.value === "left" ? "right" : "left",
-                })
-              }
-            >
-              <option value="">–</option>
-              <option value="left">Left</option>
-              <option value="right">Right</option>
-            </select>
+            <span className="text-sm font-semibold text-primary">{p.rating} pts</span>
           </div>
         ))}
-        {removable && (
-          <Button variant="ghost" className="absolute top-1/2 right-0 -translate-y-1/2" onClick={onRemove}>
-            <Trash2 />
+      </ScrollArea>
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button className="mt-4 w-full" variant="outline" disabled={isInviting}>
+            <MailPlus className="mr-2 h-4 w-4" /> Invite Player
           </Button>
-        )}
-      </div>
-    )
-  }
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite to {room.name}</DialogTitle>
+            <DialogDescription>Enter email</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="invEmail">Email</Label>
+            <Input id="invEmail" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleInvite} disabled={isInviting}>Send</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function RecordBlock({ members, player1Id, player2Id, setPlayer1Id, setPlayer2Id, matchesInput, setMatchesInput, addRow, removeRow, saveMatches, isRecording }: {
+  members: Room["members"]
+  player1Id: string
+  player2Id: string
+  setPlayer1Id(v: string): void
+  setPlayer2Id(v: string): void
+  matchesInput: { score1: string; score2: string; side1: string; side2: string }[]
+  setMatchesInput(v: any): void
+  addRow(): void
+  removeRow(i: number): void
+  saveMatches(): void
+  isRecording: boolean
+}) {
+  return (
+    <Card className="md:col-span-2 shadow-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Sword className="text-accent" /> Record Matches</CardTitle>
+        <CardDescription>Select players and scores</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 items-end">
+          <PlayerSelect label="Player 1" value={player1Id} onChange={setPlayer1Id} list={members.map(m => ({ userId: m.userId, name: m.name, rating: m.rating }))} />
+          <PlayerSelect label="Player 2" value={player2Id} onChange={setPlayer2Id} list={members.map(m => ({ userId: m.userId, name: m.name, rating: m.rating }))} />
+        </div>
+        {matchesInput.map((m, i) => (
+          <MatchRowInput key={i} index={i} data={m} onChange={row => setMatchesInput(r => r.map((v, idx) => idx === i ? row : v))} onRemove={() => removeRow(i)} removable={i > 0} />
+        ))}
+        <Button variant="outline" className="flex items-center gap-2" onClick={addRow}><Plus /> Add Match</Button>
+        <Button className="w-full mt-4" disabled={isRecording} onClick={saveMatches}>
+          {isRecording ? "Recording…" : "Record & Update ELO"}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function PlayerSelect({ label, value, onChange, list }: {
+  label: string
+  value: string
+  onChange(v: string): void
+  list: { userId: string; name: string; rating: number }[]
+}) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <select className="w-full border rounded p-2" value={value} onChange={e => onChange(e.target.value)}>
+        <option value="">Select</option>
+        {list.map(o => (
+          <option key={o.userId} value={o.userId}>
+            {o.name} ({o.rating})
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function MatchRowInput({ index, data, onChange, onRemove, removable }: {
+  index: number
+  data: any
+  onChange(d: any): void
+  onRemove(): void
+  removable: boolean
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-4 mb-2 relative">
+      {["1", "2"].map(n => (
+        <div key={n}>
+          <Label>{`P${n} Score`}</Label>
+          <Input
+            type="number"
+            value={data[`score${n}`]}
+            onChange={e => onChange({ ...data, [`score${n}`]: e.target.value })}
+          />
+          <Label className="mt-2">Side</Label>
+          <select
+            className="w-full border rounded p-2"
+            value={data[`side${n}`]}
+            onChange={e =>
+              onChange({
+                ...data,
+                [`side${n}`]: e.target.value,
+                [`side${n === "1" ? "2" : "1"}`]: e.target.value === "left" ? "right" : "left",
+              })
+            }
+          >
+            <option value="">–</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+      ))}
+      {removable && (
+        <Button variant="ghost" className="absolute top-1/2 right-0 -translate-y-1/2" onClick={onRemove}>
+          <Trash2 />
+        </Button>
+      )}
+    </div>
+  )
 }
