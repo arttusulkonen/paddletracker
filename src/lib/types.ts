@@ -28,6 +28,12 @@ export interface UserProfile {
   }[];
 }
 
+export interface TournamentRoom {
+  id: string
+  name: string
+  // Add other properties as needed
+}
+
 export interface Match {
   id: string;
   player1Id: string;

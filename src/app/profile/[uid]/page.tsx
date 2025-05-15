@@ -150,43 +150,47 @@ function computeStats(list: Match[], uid: string) {
 }
 
 function computeSideStats(list: Match[], uid: string) {
-  let leftWins = 0,
-    leftLosses = 0,
-    rightWins = 0,
-    rightLosses = 0,
-    leftScored = 0,
-    leftConceded = 0,
-    rightScored = 0,
-    rightConceded = 0;
+  let leftSideWins = 0,
+    leftSideLosses = 0,
+    rightSideWins = 0,
+    rightSideLosses = 0,
+    leftPointsScored = 0,
+    leftPointsConceded = 0,
+    rightPointsScored = 0,
+    rightPointsConceded = 0
 
-  list.forEach((m) => {
-    const p1 = m.player1Id === uid;
-    const me = p1 ? m.player1 : m.player2;
-    const opp = p1 ? m.player2 : m.player1;
-    const win = me.scores > opp.scores;
+  list.forEach(m => {
+    const isPlayer1 = m.player1Id === uid
+    const me = isPlayer1 ? m.player1 : m.player2
+    const opp = isPlayer1 ? m.player2 : m.player1
+    const win = me.scores > opp.scores
+
     if (me.side === "left") {
-      win ? leftWins++ : leftLosses++;
-      leftScored += me.scores;
-      leftConceded += opp.scores;
-    } else {
-      win ? rightWins++ : rightLosses++;
-      rightScored += me.scores;
-      rightConceded += opp.scores;
+      if (win) leftSideWins++
+      else leftSideLosses++
+      leftPointsScored += me.scores
+      leftPointsConceded += opp.scores
+
+    } else if (me.side === "right") {
+      if (win) rightSideWins++
+      else rightSideLosses++
+      rightPointsScored += me.scores
+      rightPointsConceded += opp.scores
+
     }
-  });
+  })
 
   return {
-    leftWins,
-    leftLosses,
-    rightWins,
-    rightLosses,
-    leftScored,
-    leftConceded,
-    rightScored,
-    rightConceded,
-  };
+    leftSideWins,
+    leftSideLosses,
+    rightSideWins,
+    rightSideLosses,
+    leftPointsScored,
+    leftPointsConceded,
+    rightPointsScored,
+    rightPointsConceded,
+  }
 }
-
 // ---------------- Custom Tooltip ----------------
 
 const CustomTooltip: FC<RechartTooltip["props"]> = ({ active, payload, label }) => {
@@ -222,39 +226,38 @@ export default function ProfileUidPage() {
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [oppFilter, setOppFilter] = useState("all");
 
-  // Load target's profile & derive friendStatus
   useEffect(() => {
-    if (!targetUid) return;
+    if (!targetUid || !user) return;
     if (isSelf && userProfile) {
       setTargetProfile(userProfile);
       setFriendStatus("none");
       return;
     }
 
-    getDoc(doc(db, "users", targetUid)).then((snap) => {
-      if (!snap.exists()) {
+    (async () => {
+      const tSnap = await getDoc(doc(db, "users", targetUid));
+      if (!tSnap.exists()) {
         router.push("/profile");
-      } else {
-        const data = snap.data() as any;
-        setTargetProfile({ uid: targetUid, ...data });
-
-        const incoming: string[] = data.incomingRequests ?? [];
-        const outgoing: string[] = data.outgoingRequests ?? [];
-        const friendsArr: string[] = data.friends ?? [];
-
-        if (friendsArr.includes(user!.uid)) {
-          setFriendStatus("friends");
-        } else if (incoming.includes(user!.uid)) {
-          // they sent you a request
-          setFriendStatus("incoming");
-        } else if (outgoing.includes(user!.uid)) {
-          // you sent them a request
-          setFriendStatus("outgoing");
-        } else {
-          setFriendStatus("none");
-        }
+        return;
       }
-    });
+      setTargetProfile({ uid: targetUid, ...(tSnap.data() as any) });
+
+      const mySnap = await getDoc(doc(db, "users", user.uid));
+      const myData = mySnap.exists() ? (mySnap.data() as any) : {};
+      const incoming: string[] = myData.incomingRequests ?? [];
+      const outgoing: string[] = myData.outgoingRequests ?? [];
+      const friendsArr: string[] = myData.friends ?? [];
+
+      if (friendsArr.includes(targetUid)) {
+        setFriendStatus("friends");
+      } else if (outgoing.includes(targetUid)) {
+        setFriendStatus("outgoing");
+      } else if (incoming.includes(targetUid)) {
+        setFriendStatus("incoming");
+      } else {
+        setFriendStatus("none");
+      }
+    })();
   }, [targetUid, isSelf, user, userProfile, router]);
 
   // Load matches
@@ -353,8 +356,8 @@ export default function ProfileUidPage() {
     { name: "Losses", value: stats.losses, fill: "hsl(var(--destructive))" },
   ];
   const sidePieData = [
-    { name: "Left Wins", value: sideStats.leftWins, fill: "hsl(var(--accent))" },
-    { name: "Right Wins", value: sideStats.rightWins, fill: "hsl(var(--primary))" },
+    { name: "Left Wins", value: sideStats.leftSideWins, fill: "hsl(var(--accent))" },
+    { name: "Right Wins", value: sideStats.rightSideWins, fill: "hsl(var(--primary))" },
   ];
 
   if (!targetProfile) {
@@ -640,8 +643,8 @@ function DetailedStatsCard({ stats, side }: { stats: ReturnType<typeof computeSt
         <StatItem l="Point Diff" v={stats.pointsDiff} />
         <StatItem l="Max Win Streak" v={stats.maxWinStreak} />
         <StatItem l="Max Loss Streak" v={stats.maxLossStreak} />
-        <StatItem l="Left Side W/L" v={`${side.leftWins} / ${side.leftLosses}`} />
-        <StatItem l="Right Side W/L" v={`${side.rightWins} / ${side.rightLosses}`} />
+        <StatItem l="Left Side W/L" v={`${side.leftSideWins} / ${side.leftSideLosses}`} />
+        <StatItem l="Right Side W/L" v={`${side.rightSideWins} / ${side.rightSideLosses}`} />
       </CardContent>
     </Card>
   );

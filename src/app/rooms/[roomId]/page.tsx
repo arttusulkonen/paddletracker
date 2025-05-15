@@ -172,44 +172,52 @@ export default function RoomPage() {
 
   const saveMatches = async () => {
     if (!player1Id || !player2Id || player1Id === player2Id) {
-      toast({ title: "Select two different players", variant: "destructive" })
-      return
+      toast({ title: "Select two different players", variant: "destructive" });
+      return;
     }
     if (matchesInput.some(m => !m.score1 || !m.score2 || !m.side1 || !m.side2)) {
-      toast({ title: "Fill all fields", variant: "destructive" })
-      return
+      toast({ title: "Fill all fields", variant: "destructive" });
+      return;
     }
-    setIsRecording(true)
+    setIsRecording(true);
     try {
       for (const row of matchesInput) {
-        const s1 = parseInt(row.score1, 10)
-        const s2 = parseInt(row.score2, 10)
-        const winnerId = s1 > s2 ? player1Id : player2Id
-        const time = getFinnishFormattedDate()
+        // 1) parse scores & compute winner
+        const s1 = parseInt(row.score1, 10);
+        const s2 = parseInt(row.score2, 10);
+        const winnerId = s1 > s2 ? player1Id : player2Id;
 
+        // 2) compute a fresh timestamp for each match
+        const time = getFinnishFormattedDate();
+
+        // 3) fetch current global Elo
         const [p1Snap, p2Snap] = await Promise.all([
           getDoc(doc(db, "users", player1Id)),
-          getDoc(doc(db, "users", player2Id))
-        ])
-        const p1Data = p1Snap.data() as any
-        const p2Data = p2Snap.data() as any
-        const g1 = p1Data.globalElo ?? 1000
-        const g2 = p2Data.globalElo ?? 1000
-        const K = 32
-        const exp1 = 1 / (1 + 10 ** ((g2 - g1) / 400))
-        const exp2 = 1 / (1 + 10 ** ((g1 - g2) / 400))
-        const newG1 = Math.round(g1 + K * ((winnerId === player1Id ? 1 : 0) - exp1))
-        const newG2 = Math.round(g2 + K * ((winnerId === player2Id ? 1 : 0) - exp2))
-        const dG1 = newG1 - g1
-        const dG2 = newG2 - g2
+          getDoc(doc(db, "users", player2Id)),
+        ]);
+        const p1Data = p1Snap.data() as any;
+        const p2Data = p2Snap.data() as any;
+        const g1 = p1Data.globalElo ?? 1000;
+        const g2 = p2Data.globalElo ?? 1000;
 
-        const roomSnap = await getDoc(doc(db, "rooms", roomId))
-        const rData = roomSnap.data() as Room
-        const rp1 = rData.members.find(m => m.userId === player1Id)!
-        const rp2 = rData.members.find(m => m.userId === player2Id)!
-        const r1 = rp1.rating + dG1
-        const r2 = rp2.rating + dG2
+        // 4) Elo math
+        const K = 32;
+        const exp1 = 1 / (1 + 10 ** ((g2 - g1) / 400));
+        const exp2 = 1 / (1 + 10 ** ((g1 - g2) / 400));
+        const newG1 = Math.round(g1 + K * ((winnerId === player1Id ? 1 : 0) - exp1));
+        const newG2 = Math.round(g2 + K * ((winnerId === player2Id ? 1 : 0) - exp2));
+        const dG1 = newG1 - g1;
+        const dG2 = newG2 - g2;
 
+        // 5) fetch room & compute room‐rating updates
+        const roomSnap = await getDoc(doc(db, "rooms", roomId));
+        const rData = roomSnap.data() as Room;
+        const rp1 = rData.members.find(m => m.userId === player1Id)!;
+        const rp2 = rData.members.find(m => m.userId === player2Id)!;
+        const r1 = rp1.rating + dG1;
+        const r2 = rp2.rating + dG2;
+
+        // 6) write the match
         await addDoc(collection(db, "matches"), {
           roomId,
           timestamp: time,
@@ -239,8 +247,9 @@ export default function RoomPage() {
             side: row.side2,
           },
           winner: winnerId === player1Id ? rp1.name : rp2.name,
-        })
+        });
 
+        // 7) update users & room stats
         await Promise.all([
           updateDoc(doc(db, "users", player1Id), {
             globalElo: newG1,
@@ -265,16 +274,21 @@ export default function RoomPage() {
                   : m
             ),
           }),
-        ])
+        ]);
+
+        // 8) pause 1 second so next timestamp differs
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-      setPlayer1Id("")
-      setPlayer2Id("")
-      setMatchesInput([{ score1: "", score2: "", side1: "", side2: "" }])
-      toast({ title: "Matches recorded" })
+
+      // reset form
+      setPlayer1Id("");
+      setPlayer2Id("");
+      setMatchesInput([{ score1: "", score2: "", side1: "", side2: "" }]);
+      toast({ title: "Matches recorded" });
     } finally {
-      setIsRecording(false)
+      setIsRecording(false);
     }
-  }
+  };
 
   const handleFinishSeason = async () => {
     await finalizeSeason(roomId)
