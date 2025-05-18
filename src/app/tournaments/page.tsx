@@ -1,68 +1,269 @@
-// File: src/app/tournaments/page.tsx
-'use client'
-import { ProtectedRoute } from '@/components/ProtectedRoutes'
-import { Button } from '@/components/ui/button'
+'use client';
+
+import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { useAuth } from '@/contexts/AuthContext'
-import { useToast } from '@/hooks/use-toast'
-import { db } from '@/lib/firebase'
-import type { TournamentRoom } from '@/lib/types'
-import { collection, onSnapshot } from 'firebase/firestore'
-import { PlusCircle, SearchIcon, UsersIcon } from 'lucide-react'
-import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Input,
+  Label,
+  ScrollArea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { getUserLite } from '@/lib/friends';
+import type { TournamentRoom, UserProfile } from '@/lib/types';
+import { getFinnishFormattedDate } from '@/lib/utils';
+import { seedKnockoutRounds } from '@/lib/utils/bracketUtils';
+import { parseFlexDate, safeFormatDate } from "@/lib/utils/date";
+import {
+  addDoc,
+  arrayUnion,
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  updateDoc,
+  where
+} from 'firebase/firestore';
+import { PlusCircle, SearchIcon, UsersIcon } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+
+const PLAYER_COUNTS = [4, 6, 8, 12] as const;
 
 export default function TournamentRoomsPage() {
-  const { user } = useAuth()
-  const { toast } = useToast()
+  const router = useRouter();
+  const { user, userProfile } = useAuth();
+  const { toast } = useToast();
 
-  const [tournaments, setTournaments] = useState<TournamentRoom[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [tournaments, setTournaments] = useState<TournamentRoom[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (!user) {
-      setIsLoading(false)
-      return
+      setIsLoading(false);
+      return;
     }
-    const col = collection(db, 'tournament-rooms')
-    const unsub = onSnapshot(col, snap => {
-      const arr = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
-      // only those where user is participant
-      const filtered = arr.filter(t =>
-        Array.isArray(t.participants) &&
-        t.participants.some((p: any) => p.userId === user.uid)
+    const col = collection(db, 'tournament-rooms');
+    const unsub = onSnapshot(
+      col,
+      snap => {
+        const arr = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        const filtered = arr.filter(t =>
+          (t.participants ?? []).some((p: any) => p.userId === user.uid)
+        );
+        filtered.sort(
+          (a, b) =>
+            parseFlexDate(b.createdAt).getTime() - parseFlexDate(a.createdAt).getTime()
+        );
+        setTournaments(filtered);
+        setIsLoading(false);
+      },
+      err => {
+        console.error(err);
+        toast({
+          title: 'Error',
+          description: 'Could not load tournaments.',
+          variant: 'destructive'
+        });
+        setIsLoading(false);
+      }
+    );
+    return () => unsub();
+  }, [user, toast]);
+
+  /* ───────── данные для создания (друзья + co-players) ───────── */
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onSnapshot(doc(db, 'users', user.uid), async snap => {
+      if (!snap.exists()) return setFriends([]);
+      const ids: string[] = snap.data().friends ?? [];
+      const loaded = await Promise.all(
+        ids.map(async uid => ({ uid, ...(await getUserLite(uid)) }))
+      );
+      setFriends(loaded);
+    });
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'rooms'),
+      where('memberIds', 'array-contains', user.uid)
+    );
+    const unsub = onSnapshot(q, async snap => {
+      const set = new Set<string>();
+      snap.docs.forEach(d =>
+        (d.data().memberIds ?? []).forEach((uid: string) =>
+          uid !== user.uid ? set.add(uid) : null
+        )
+      );
+      const toLoad = Array.from(set).filter(
+        uid => !friends.some(f => f.uid === uid)
+      );
+      const loaded = await Promise.all(
+        toLoad.map(async uid => ({ uid, ...(await getUserLite(uid)) }))
+      );
+      setCoPlayers(loaded);
+    });
+    return () => unsub();
+  }, [user, friends]);
+
+  const candidates = useMemo(() => {
+    const map = new Map<string, UserProfile>();
+    [...friends, ...coPlayers].forEach(p => map.set(p.uid, p));
+    return Array.from(map.values()).sort((a, b) =>
+      (a.name ?? a.displayName ?? '').localeCompare(
+        b.name ?? b.displayName ?? ''
       )
-      filtered.sort((a, b) => {
-        const da = parseDate(a.createdAt)
-        const dbt = parseDate(b.createdAt)
-        return dbt.getTime() - da.getTime()
-      })
-      setTournaments(filtered)
-      setIsLoading(false)
-    }, err => {
-      console.error(err)
-      toast({ title: 'Error', description: 'Could not load tournaments.', variant: 'destructive' })
-      setIsLoading(false)
-    })
-    return () => unsub()
-  }, [user, toast])
+    );
+  }, [friends, coPlayers]);
 
-  const filtered = useMemo(() =>
-    tournaments.filter(t =>
-      t.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [tournaments, searchTerm]
-  )
+  /* ───────── state для popup ───────── */
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [playerCount, setPlayerCount] =
+    useState<(typeof PLAYER_COUNTS)[number]>(4);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [creating, setCreating] = useState(false);
 
+  /* ───────── helpers ───────── */
+  const shuffle = <T,>(arr: T[]) =>
+    arr
+      .map(v => ({ v, r: Math.random() }))
+      .sort((a, b) => a.r - b.r)
+      .map(x => x.v);
+
+  const roundRobinMatches = (arr: { userId: string; name: string }[]) => {
+    const res: any[] = [];
+    for (let i = 0; i < arr.length; i++)
+      for (let j = i + 1; j < arr.length; j++)
+        res.push({
+          matchId: crypto.randomUUID(),
+          name: `${arr[i].name} vs ${arr[j].name}`,
+          player1: arr[i],
+          player2: arr[j],
+          scorePlayer1: null,
+          scorePlayer2: null,
+          matchStatus: 'pending',
+          winner: null
+        });
+    return res;
+  };
+
+  /* ───────── создание ───────── */
+  const createTournament = async () => {
+    if (!user) {
+      toast({ title: 'Error', description: 'Log in', variant: 'destructive' });
+      return;
+    }
+    if (!name.trim()) {
+      toast({ title: 'Error', description: 'Name required', variant: 'destructive' });
+      return;
+    }
+    if (selected.length + 1 !== playerCount) {
+      toast({
+        title: 'Error',
+        description: `Select exactly ${playerCount} players (including you)`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const now = getFinnishFormattedDate();
+      const participants = shuffle([
+        { userId: user.uid, name: userProfile?.name ?? userProfile?.displayName ?? '' },
+        ...selected.map(uid => {
+          const p = candidates.find(c => c.uid === uid)!;
+          return { userId: uid, name: p.name ?? p.displayName ?? '' };
+        })
+      ]).map((p, i) => ({ ...p, seed: i + 1 }));
+
+      const bracket: any = {
+        stage: 'inProgress',
+        currentRound: 0,
+        rounds: [
+          {
+            label: 'Round-Robin',
+            type: 'roundRobin',
+            roundIndex: 0,
+            status: 'inProgress',
+            matches: roundRobinMatches(participants),
+            participants
+          },
+          { roundIndex: 1, type: 'knockoutSemis', label: 'Semi-finals', status: 'pending', matches: [] },
+          { roundIndex: 2, type: 'knockoutFinal', label: 'Finals', status: 'pending', matches: [] }
+        ]
+      };
+      seedKnockoutRounds(bracket, []);
+
+      const ref = await addDoc(collection(db, 'tournament-rooms'), {
+        name: name.trim(),
+        createdAt: now,
+        creator: user.uid,
+        participants,
+        bracket,
+        champion: null,
+        isFinished: false
+      });
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        tournaments: arrayUnion(ref.id)
+      });
+      await Promise.all(
+        selected.map(uid =>
+          updateDoc(doc(db, 'users', uid), { tournaments: arrayUnion(ref.id) })
+        )
+      );
+
+      toast({ title: 'Tournament created' });
+      setDialogOpen(false);
+      router.push(`/tournaments/${ref.id}`);
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Error', description: 'Failed to create', variant: 'destructive' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  /* ───────── фильтрация ───────── */
+  const filtered = useMemo(
+    () =>
+      tournaments.filter(t =>
+        t.name.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [tournaments, searchTerm]
+  );
+
+  /* ───────── UI ───────── */
   return (
     <ProtectedRoute>
       <div className="container mx-auto py-8 px-4">
@@ -70,12 +271,105 @@ export default function TournamentRoomsPage() {
           <h1 className="text-4xl font-bold flex items-center gap-2">
             <UsersIcon className="h-8 w-8 text-primary" /> Tournaments
           </h1>
-          <Button asChild>
-            <Link href="/tournaments/create">
-              <PlusCircle className="mr-2 h-5 w-5" /> New Tournament
-            </Link>
-          </Button>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="mr-2 h-5 w-5" /> New Tournament
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent className="sm:max-w-[420px]">
+              <DialogHeader>
+                <DialogTitle>Create Tournament</DialogTitle>
+                <DialogDescription>
+                  Give it a name, choose size and pick participants
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Name</Label>
+                  <Input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Players</Label>
+                  <Select
+                    value={String(playerCount)}
+                    onValueChange={v => {
+                      setPlayerCount(Number(v) as any);
+                      setSelected([]);
+                    }}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Players" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PLAYER_COUNTS.map(cnt => (
+                        <SelectItem key={cnt} value={String(cnt)}>
+                          {cnt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium mb-2">
+                    Select participants ({selected.length + 1}/{playerCount})
+                  </p>
+                  <ScrollArea className="h-48 pr-2">
+                    {candidates.length ? (
+                      candidates.map(p => {
+                        const disabled =
+                          !selected.includes(p.uid) &&
+                          selected.length + 1 >= playerCount;
+                        return (
+                          <label
+                            key={p.uid}
+                            className={`flex items-center gap-2 py-1 ${disabled
+                                ? 'opacity-50 cursor-not-allowed'
+                                : ''
+                              }`}
+                          >
+                            <Checkbox
+                              disabled={disabled}
+                              checked={selected.includes(p.uid)}
+                              onCheckedChange={v =>
+                                v
+                                  ? setSelected([...selected, p.uid])
+                                  : setSelected(
+                                    selected.filter(id => id !== p.uid)
+                                  )
+                              }
+                            />
+                            <span>{p.name ?? p.displayName}</span>
+                          </label>
+                        );
+                      })
+                    ) : (
+                      <p className="text-muted-foreground">
+                        You have no friends or co-players yet
+                      </p>
+                    )}
+                  </ScrollArea>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button onClick={createTournament} disabled={creating}>
+                  {creating ? 'Creating…' : 'Create'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
+
         <Card className="shadow-lg">
           <CardHeader>
             <div className="relative w-full max-w-md">
@@ -88,6 +382,7 @@ export default function TournamentRoomsPage() {
               />
             </div>
           </CardHeader>
+
           <CardContent>
             {isLoading ? (
               <div className="flex items-center justify-center h-40">
@@ -100,7 +395,9 @@ export default function TournamentRoomsPage() {
                     <Card key={t.id} className="hover:shadow-md transition-shadow">
                       <CardHeader>
                         <CardTitle className="truncate">{t.name}</CardTitle>
-                        <CardDescription>Created: {t.createdAt}</CardDescription>
+                        <CardDescription>  
+                          Created: {safeFormatDate(t.createdAt, "dd.MM.yyyy HH:mm")}
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <p className="text-sm text-muted-foreground">
@@ -130,11 +427,5 @@ export default function TournamentRoomsPage() {
         </Card>
       </div>
     </ProtectedRoute>
-  )
-}
-
-function parseDate(dateString: any) {
-  if (typeof dateString !== 'string') return new Date(0)
-  const [day, month, year] = dateString.split('.').map(Number)
-  return new Date(year, month - 1, day)
+  );
 }

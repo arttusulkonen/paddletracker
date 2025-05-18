@@ -40,8 +40,8 @@ export function Navbar() {
   }
 
   const reqCount = userProfile?.incomingRequests?.length ?? 0
-  const visibleName = userProfile?.displayName ?? userProfile?.name;
-
+  const visibleName = user?.displayName ?? user?.name;
+  
 
   return (
     <header className="bg-card border-b sticky top-0 z-50 shadow-sm">
@@ -115,7 +115,7 @@ export function Navbar() {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem asChild>
-                  <Link href="/profile">
+                  <Link href={`/profile/${user.uid}`}>
                     <UserCircle className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </Link>

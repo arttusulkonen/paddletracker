@@ -24,8 +24,9 @@ import { useToast } from "@/hooks/use-toast"
 import { db } from "@/lib/firebase"
 import * as Friends from "@/lib/friends"
 import type { Match } from "@/lib/types"
+import { parseFlexDate, safeFormatDate } from "@/lib/utils/date"
 import { Slider } from "@radix-ui/react-slider"
-import { format, parse } from "date-fns"
+import { format } from "date-fns"
 import {
   collection,
   doc,
@@ -72,10 +73,6 @@ import {
   YAxis
 } from "recharts"
 
-const parseDate = (d: string | Timestamp) =>
-  typeof d === "string"
-    ? parse(d, "dd.MM.yyyy HH.mm.ss", new Date())
-    : d.toDate()
 
 const getRank = (elo: number) =>
   elo < 1001
@@ -101,6 +98,8 @@ const medalMap: Record<string, string> = {
   "Smash Samurai": "/img/smash-samurai.png",
   "Ping-Pong Paladin": "/img/ping-pong-paladin.png",
 }
+
+
 
 function computeStats(list: Match[], uid: string) {
   let wins = 0,
@@ -250,15 +249,12 @@ export default function ProfilePage() {
     p2.forEach(d => rows.push({ id: d.id, ...(d.data() as any) }))
     const uniq = Array.from(new Map(rows.map(r => [r.id, r])).values()).sort(
       (a, b) =>
-        parseDate(b.timestamp).getTime() - parseDate(a.timestamp).getTime()
+        parseFlexDate(b.timestamp ?? b.playedAt).getTime() -
+        parseFlexDate(a.timestamp ?? a.playedAt).getTime()
     )
     setMatches(uniq)
     setLoadingMatches(false)
   }, [meUid])
-
-  useEffect(() => {
-    loadMatches()
-  }, [loadMatches])
 
   const opponents = useMemo(() => {
     const map = new Map<string, string>()
@@ -294,20 +290,22 @@ export default function ProfilePage() {
   const perfData = filtered.length
     ? filtered
       .slice()
-      .sort((a, b) => parseDate(a.timestamp).getTime() - parseDate(b.timestamp).getTime())
+      .sort(
+        (a, b) =>
+          parseFlexDate(a.timestamp ?? a.playedAt).getTime() -
+          parseFlexDate(b.timestamp ?? b.playedAt).getTime()
+      )
       .map(m => {
         const p1 = m.player1Id === meUid
         const me = p1 ? m.player1 : m.player2
         const opp = p1 ? m.player2 : m.player1
-        const opponentName = p1 ? m.player2.name : m.player1.name
-        const score = `${me.scores}–${opp.scores}`
         return {
-          label: format(parseDate(m.timestamp), "dd.MM.yy"),
+          label: safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy"),
           rating: p1 ? m.player1.newRating : m.player2.newRating,
           diff: me.scores - opp.scores,
           result: me.scores > opp.scores ? 1 : -1,
-          opponent: opponentName,
-          score,
+          opponent: p1 ? m.player2.name : m.player1.name,
+          score: `${me.scores}–${opp.scores}`,
           addedPoints: me.scores > opp.scores
             ? (p1 ? m.player1.addedPoints : m.player2.addedPoints)
             : (p1 ? m.player1.addedPoints : m.player2.addedPoints),
@@ -332,11 +330,11 @@ export default function ProfilePage() {
       </div>
     )
   }
-
+  
   const rank = getRank(userProfile.maxRating)
   const medalSrc = medalMap[rank]
   const displayName =
-    userProfile.displayName ?? userProfile.name ?? "[No Name]"
+    user.displayName ?? user.name ?? "[No Name]"
 
   return (
     <section className="container mx-auto py-8 space-y-8">
@@ -354,22 +352,6 @@ export default function ProfilePage() {
                   {displayName.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <button
-                onClick={() => inputRef.current?.click()}
-                className="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow hover:bg-gray-100"
-                aria-label="Change avatar"
-                disabled={uploading}
-              >
-                <Camera className="h-5 w-5 text-primary" />
-              </button>
-              <input
-                ref={inputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={uploading}
-              />
             </div>
             <div className="text-left space-y-1">
               <CardTitle className="text-4xl">{displayName}</CardTitle>
@@ -639,7 +621,7 @@ function MatchesTableCard({ title, matches, loading, meUid }: { title: string; m
               <TableBody>
                 {matches.map(m => {
                   const isP1 = m.player1Id === meUid
-                  const date = typeof m.timestamp === "string" ? m.timestamp : format(m.playedAt.toDate(), "dd.MM.yyyy HH:mm")
+                  const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yyyy HH.mm.ss")
                   const opp = isP1 ? m.player2.name : m.player1.name
                   const myScore = isP1 ? m.player1.scores : m.player2.scores
                   const theirScore = isP1 ? m.player2.scores : m.player1.scores

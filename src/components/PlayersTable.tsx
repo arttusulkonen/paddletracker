@@ -1,22 +1,40 @@
-/*
-  Global leaderboard table – shows players who share a room with the current user.
-  Allows time-frame filtering (all / 365 / 180 / 90 / 30 / 7 days) and column sorting.
-*/
-
-"use client";
+'use client';
 
 import {
   Button,
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-  ScrollArea, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from "@/components/ui";
-import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  ScrollArea,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui';
+import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/firebase';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+/* -------------------------------------------------------------------------- */
+/*  Types                                                                     */
+/* -------------------------------------------------------------------------- */
 interface PlayerStats {
   id: string;
   name: string;
@@ -31,106 +49,127 @@ interface PlayerStats {
 }
 
 const TIME_FRAMES = [
-  { label: "All Time", value: "all", info: "Includes every match" },
-  { label: "365 days", value: "365", info: "Matches from the last year" },
-  { label: "180 days", value: "180", info: "Matches from the last 6 months" },
-  { label: "90 days",  value: "90",  info: "Matches from the last 3 months" },
-  { label: "30 days",  value: "30",  info: "Matches from the last month" },
-  { label: "7 days",   value: "7",   info: "Matches from the last week" },
+  { label: 'All Time', value: 'all', info: 'Includes every match' },
+  { label: '365 days', value: '365', info: 'Matches from the last year' },
+  { label: '180 days', value: '180', info: 'Matches from the last 6 months' },
+  { label: '90 days', value: '90', info: 'Matches from the last 3 months' },
+  { label: '30 days', value: '30', info: 'Matches from the last month' },
+  { label: '7 days', value: '7', info: 'Matches from the last week' },
 ] as const;
 
 type SortKey =
-  | "rank"
-  | "name"
-  | "matchesPlayed"
-  | "wins"
-  | "losses"
-  | "winRate"
-  | "totalAddedPoints"
-  | "longestWinStreak";
+  | 'rank'
+  | 'name'
+  | 'matchesPlayed'
+  | 'wins'
+  | 'losses'
+  | 'winRate'
+  | 'totalAddedPoints'
+  | 'longestWinStreak';
 
+/* -------------------------------------------------------------------------- */
+/*  Component                                                                 */
+/* -------------------------------------------------------------------------- */
 export default function PlayersTable() {
   const { user } = useAuth();
 
+  /* ---------------- state ---------------- */
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
 
   const [timeFrame, setTimeFrame] =
-    useState<(typeof TIME_FRAMES)[number]["value"]>("all");
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
-    key: "rank",
-    dir: "asc",
+    useState<(typeof TIME_FRAMES)[number]['value']>('all');
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
+    key: 'rank',
+    dir: 'asc',
   });
 
-  /* ---------- helpers -------------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /*  Helpers                                                                */
+  /* ---------------------------------------------------------------------- */
   const parseTimestamp = (ts: string): Date => {
-    const [datePart, timePart] = ts.split(" ");
+    const [datePart, timePart] = ts.split(' ');
     if (!datePart || !timePart) return new Date(0);
-    const [dd, MM, yyyy] = datePart.split(".").map(Number);
-    const [hh, mm, ss] = timePart.split(".").map(Number);
+    const [dd, MM, yyyy] = datePart.split('.').map(Number);
+    const [hh, mm, ss] = timePart.split('.').map(Number);
     return new Date(yyyy, MM - 1, dd, hh, mm, ss);
   };
 
-  const longestStreak = (
-    userId: string,
-    userName: string,
-    list: any[]
-  ): number => {
-    const ordered = [...list].sort(
-      (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-    );
+  const longestStreak = (uid: string, uname: string, list: any[]): number => {
+    const ordered = list
+      .slice()
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
     let cur = 0,
       best = 0;
     for (const m of ordered) {
       const win =
-        (m.player1Id === userId && m.winner === m.player1.name) ||
-        (m.player2Id === userId && m.winner === m.player2.name);
-      if (win) {
-        cur += 1;
-        best = Math.max(best, cur);
-      } else cur = 0;
+        (m.player1Id === uid && m.winner === m.player1.name) ||
+        (m.player2Id === uid && m.winner === m.player2.name);
+      win ? (best = Math.max(best, ++cur)) : (cur = 0);
     }
     return best;
   };
 
-  /* ---------- fetch ---------------------------------------------------- */
-  const fetchPlayers = useCallback(async () => {
+  /* ---------------------------------------------------------------------- */
+  /*  Fetch players + matches, ограниченные вашими комнатами                 */
+  /* ---------------------------------------------------------------------- */
+  const loadData = useCallback(async () => {
     if (!user) return;
-    const mySnap = await getDoc(doc(db, "users", user.uid));
-    const myRooms: string[] = mySnap.exists() ? mySnap.data().rooms || [] : [];
-    if (!myRooms.length) return setPlayers([]);
 
-    const plSnap = await getDocs(collection(db, "users"));
-    const list = plSnap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((p: any) => (p.rooms || []).some((r: string) => myRooms.includes(r)));
-    setPlayers(list);
-  }, [user]);
+    /* 1️⃣  Берём все комнаты, где текущий пользователь состоит */
+    const roomSnap = await getDocs(
+      query(collection(db, 'rooms'), where('memberIds', 'array-contains', user.uid))
+    );
+    const myRoomIds = roomSnap.docs.map((d) => d.id);
 
-  const fetchMatches = useCallback(async () => {
-    const mSnap = await getDocs(collection(db, "matches"));
-    setMatches(
-      mSnap.docs.map((d) => {
+    /* 2️⃣  Собираем список uid всех участников этих комнат */
+    const membersSet = new Set<string>();
+    roomSnap.docs.forEach((d) => {
+      const memberIds: string[] =
+        d.data().memberIds ??
+        (d.data().members || []).map((m: any) => m.userId);
+      memberIds.forEach((id) => membersSet.add(id));
+    });
+
+    /* 3️⃣  Загружаем игроков из users, только тех, что в membersSet */
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const pl = usersSnap.docs
+      .filter((doc) => membersSet.has(doc.id))
+      .map((doc) => ({ id: doc.id, ...doc.data() }));
+    setPlayers(pl);
+
+    /* 4️⃣  Загружаем матчи, но оставляем только:
+           – матч из ваших комнат
+           – оба игрока присутствуют в membersSet (для надёжности) */
+    const matchSnap = await getDocs(collection(db, 'matches'));
+    const ms = matchSnap.docs
+      .map((d) => {
         const data = d.data();
         return { id: d.id, ...data, timestamp: parseTimestamp(data.timestamp) };
       })
-    );
-  }, []);
+      .filter(
+        (m) =>
+          myRoomIds.includes(m.roomId) &&
+          membersSet.has(m.player1Id) &&
+          membersSet.has(m.player2Id)
+      );
+    setMatches(ms);
+
+    setLoading(false);
+  }, [user]);
 
   useEffect(() => {
-    const loadAll = async () => {
-      await Promise.all([fetchPlayers(), fetchMatches()]);
-      setLoading(false);
-    };
-    loadAll();
-  }, [fetchPlayers, fetchMatches]);
+    loadData();
+  }, [loadData]);
 
-  /* ---------- statistics ---------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /*  Statistics                                                             */
+  /* ---------------------------------------------------------------------- */
   const stats: PlayerStats[] = useMemo(() => {
     const now = new Date();
     const cutoff =
-      timeFrame === "all"
+      timeFrame === 'all'
         ? null
         : new Date(now.getTime() - Number(timeFrame) * 86_400_000);
 
@@ -138,6 +177,7 @@ export default function PlayersTable() {
       ? matches.filter((m) => m.timestamp >= cutoff && m.timestamp <= now)
       : matches;
 
+    /* базовая заготовка */
     const base: Record<string, PlayerStats> = {};
     for (const p of players) {
       base[p.id] = {
@@ -154,18 +194,18 @@ export default function PlayersTable() {
       };
     }
 
-    /* accumulate */
+    /* накопление */
     for (const m of relMatches) {
       const { player1, player2, winner, player1Id, player2Id } = m;
       if (base[player1Id]) {
-        base[player1Id].matchesPlayed += 1;
+        base[player1Id].matchesPlayed++;
         winner === player1.name
           ? base[player1Id].wins++
           : base[player1Id].losses++;
         base[player1Id].totalAddedPoints += player1.addedPoints ?? 0;
       }
       if (base[player2Id]) {
-        base[player2Id].matchesPlayed += 1;
+        base[player2Id].matchesPlayed++;
         winner === player2.name
           ? base[player2Id].wins++
           : base[player2Id].losses++;
@@ -175,27 +215,24 @@ export default function PlayersTable() {
 
     const list = Object.values(base);
 
-    /* final calculations */
+    /* финальный расчёт */
     const avgMatches =
       list.reduce((acc, p) => acc + p.matchesPlayed, 0) / (list.length || 1);
 
     for (const p of list) {
       p.longestWinStreak = longestStreak(p.id, p.name, relMatches);
-      const rawScore =
-        p.wins * 2 + p.totalAddedPoints + p.longestWinStreak * 2;
+      const raw = p.wins * 2 + p.totalAddedPoints + p.longestWinStreak * 2;
       p.winRate = p.matchesPlayed ? (p.wins / p.matchesPlayed) * 100 : 0;
-
-      if (p.matchesPlayed === 0) {
-        p.finalScore = -1;
-      } else if (p.matchesPlayed < avgMatches) {
-        p.finalScore = rawScore * 0.9;
-      } else {
-        p.finalScore = rawScore;
-      }
+      p.finalScore =
+        p.matchesPlayed === 0
+          ? -1
+          : p.matchesPlayed < avgMatches
+            ? raw * 0.9 // штраф
+            : raw;
     }
 
     const withMatches = list.filter((p) => p.matchesPlayed > 0);
-    const noMatches   = list.filter((p) => p.matchesPlayed === 0);
+    const noMatches = list.filter((p) => p.matchesPlayed === 0);
 
     withMatches.sort(
       (a, b) => b.finalScore - a.finalScore || a.name.localeCompare(b.name)
@@ -207,55 +244,49 @@ export default function PlayersTable() {
     return ordered;
   }, [players, matches, timeFrame]);
 
-  /* ---------- sorting -------------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /*  Sorting                                                               */
+  /* ---------------------------------------------------------------------- */
   const sortedStats = useMemo(() => {
     const arr = [...stats];
     const { key, dir } = sort;
-    const mult = dir === "asc" ? 1 : -1;
+    const mult = dir === 'asc' ? 1 : -1;
 
     arr.sort((a, b) => {
-      if (key === "name") return a.name.localeCompare(b.name) * mult;
-      if (key === "rank") {
+      if (key === 'name') return a.name.localeCompare(b.name) * mult;
+      if (key === 'rank') {
         return (a.rank - b.rank) * mult || a.name.localeCompare(b.name);
       }
       const diff = a[key] - b[key];
       return diff === 0 ? a.name.localeCompare(b.name) : diff * mult;
     });
 
-    if (key !== "rank") {
-      arr.forEach((p, i) => (p.rank = i + 1));
-    }
+    if (key !== 'rank') arr.forEach((p, i) => (p.rank = i + 1));
     return arr;
   }, [stats, sort]);
 
   const toggleSort = (k: SortKey) =>
     setSort((s) => ({
       key: k,
-      dir: s.key === k && s.dir === "asc" ? "desc" : "asc",
+      dir: s.key === k && s.dir === 'asc' ? 'desc' : 'asc',
     }));
 
-  /* ---------- render helpers ------------------------------------------ */
-  const header = (
-    k: SortKey,
-    label: string,
-    tooltip: string
-  ): JSX.Element => (
-    <TooltipProvider>
+  const header = (k: SortKey, label: string, tip: string) => (
+    <TooltipProvider key={k}>
       <Tooltip>
         <TooltipTrigger asChild>
           <th
             onClick={() => toggleSort(k)}
             className="py-3 px-4 bg-muted text-left text-xs font-medium uppercase tracking-wide cursor-pointer select-none"
           >
-            {label} {sort.key === k ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
+            {label} {sort.key === k ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}
           </th>
         </TooltipTrigger>
-        <TooltipContent>{tooltip}</TooltipContent>
+        <TooltipContent>{tip}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
 
-  /* ---------- UI ------------------------------------------------------- */
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -265,70 +296,110 @@ export default function PlayersTable() {
   }
 
   return (
-    <Card className="mt-16">
-      <CardHeader>
-        <CardTitle className="text-2xl">Leaderboard</CardTitle>
-        <CardDescription>Players who share a room with you</CardDescription>
-      </CardHeader>
+    <>
+      {/* ==== лидерборд ================================================== */}
+      <Card className="mt-16">
+        <CardHeader>
+          <CardTitle className="text-2xl">Leaderboard</CardTitle>
+          <CardDescription>Players who share a room with you</CardDescription>
+        </CardHeader>
 
-      <CardContent className="space-y-6">
-        <div className="flex flex-wrap gap-2">
-          {TIME_FRAMES.map((t) => (
-            <TooltipProvider key={t.value}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant={timeFrame === t.value ? "default" : "outline"}
-                    onClick={() => setTimeFrame(t.value)}
-                  >
-                    {t.label}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t.info}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ))}
-        </div>
-
-        <ScrollArea className="h-[500px] overflow-auto border rounded-md">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {header("rank", "Rank", "Calculated by final score")}
-                {header("name", "Name", "Player")}
-                {header("matchesPlayed", "Matches", "Total matches")}
-                {header("wins", "Wins", "Matches won")}
-                {header("losses", "Losses", "Matches lost")}
-                {header("winRate", "Win %", "Win percentage")}
-                {header("totalAddedPoints", "+Pts", "Total added points")}
-                {header("longestWinStreak", "Longest WS", "Longest win streak")}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedStats.map((p) => (
-                <TableRow key={p.id} className="hover:bg-muted/50">
-                  <TableCell>{p.rank}</TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/profile/${p.id}`}
-                      className="text-primary hover:underline"
+        <CardContent className="space-y-6">
+          {/* фильтр по дате */}
+          <div className="flex flex-wrap gap-2">
+            {TIME_FRAMES.map((t) => (
+              <TooltipProvider key={t.value}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant={timeFrame === t.value ? 'default' : 'outline'}
+                      onClick={() => setTimeFrame(t.value)}
                     >
-                      {p.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{p.matchesPlayed}</TableCell>
-                  <TableCell>{p.wins}</TableCell>
-                  <TableCell>{p.losses}</TableCell>
-                  <TableCell>{p.winRate.toFixed(2)}%</TableCell>
-                  <TableCell>{p.totalAddedPoints}</TableCell>
-                  <TableCell>{p.longestWinStreak}</TableCell>
+                      {t.label}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t.info}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ))}
+          </div>
+
+          {/* таблица */}
+          <ScrollArea className="h-[500px] overflow-auto border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {header('rank', '#', 'Calculated by final score')}
+                  {header('name', 'Name', 'Player')}
+                  {header('matchesPlayed', 'Matches', 'Total matches')}
+                  {header('wins', 'Wins', 'Matches won')}
+                  {header('losses', 'Losses', 'Matches lost')}
+                  {header('winRate', 'Win %', 'Win percentage')}
+                  {header('totalAddedPoints', '+Pts', 'Total added points')}
+                  {header('longestWinStreak', 'Longest WS', 'Longest win streak')}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {sortedStats.map((p) => (
+                  <TableRow key={p.id} className="hover:bg-muted/50">
+                    <TableCell>{p.rank}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/profile/${p.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {p.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{p.matchesPlayed}</TableCell>
+                    <TableCell>{p.wins}</TableCell>
+                    <TableCell>{p.losses}</TableCell>
+                    <TableCell>{p.winRate.toFixed(2)}%</TableCell>
+                    <TableCell>{p.totalAddedPoints}</TableCell>
+                    <TableCell>{p.longestWinStreak}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      {/* ==== пояснение методики ========================================= */}
+      <Card className="mt-6 bg-muted/50">
+        <CardHeader>
+          <CardTitle className="text-lg">How rankings are calculated</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <p>
+            The <strong>final score</strong> for each player is calculated as
+            follows:
+          </p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>
+              <strong>Wins:</strong> every win gives <strong>+2 pts</strong>.
+            </li>
+            <li>
+              <strong>Total Added Points:</strong> bonus points earned in
+              matches are added in full.
+            </li>
+            <li>
+              <strong>Longest Win Streak:</strong> each win in your longest
+              streak adds <strong>+2 pts</strong>.
+            </li>
+            <li>
+              <strong>Low participation penalty:</strong> if you played fewer
+              matches than the room average, the raw score is reduced by{' '}
+              <strong>10 %</strong>.
+            </li>
+          </ul>
+          <p>
+            Players are sorted by the final score (higher → better). Ties are
+            resolved alphabetically.
+          </p>
+        </CardContent>
+      </Card>
+    </>
   );
 }

@@ -1,4 +1,3 @@
-// src/app/profile/[uid]/page.tsx
 "use client";
 
 import AchievementsPanel from "@/components/AchievementsPanel";
@@ -9,6 +8,7 @@ import {
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
   ScrollArea,
@@ -29,18 +29,25 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import * as Friends from "@/lib/friends";
 import type { Match, UserProfile } from "@/lib/types";
-import { format, parse } from "date-fns";
+import { parseFlexDate, safeFormatDate } from "@/lib/utils/date";
 import {
   collection,
   doc,
   getDoc,
   getDocs,
   query,
-  Timestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import {
+  getDownloadURL,
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+} from "firebase/storage";
+import {
   Activity,
+  Camera,
   CornerUpLeft,
   CornerUpRight,
   Flame,
@@ -52,7 +59,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { FC, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Brush,
   CartesianGrid,
@@ -67,12 +81,7 @@ import {
   YAxis,
 } from "recharts";
 
-// ---------------- Utility ----------------
-
-const parseDate = (d: string | Timestamp) =>
-  typeof d === "string"
-    ? parse(d, "dd.MM.yyyy HH.mm.ss", new Date())
-    : d.toDate();
+// ---------------- Helpers ----------------
 
 const getRank = (elo: number) =>
   elo < 1001
@@ -157,28 +166,26 @@ function computeSideStats(list: Match[], uid: string) {
     leftPointsScored = 0,
     leftPointsConceded = 0,
     rightPointsScored = 0,
-    rightPointsConceded = 0
+    rightPointsConceded = 0;
 
-  list.forEach(m => {
-    const isPlayer1 = m.player1Id === uid
-    const me = isPlayer1 ? m.player1 : m.player2
-    const opp = isPlayer1 ? m.player2 : m.player1
-    const win = me.scores > opp.scores
+  list.forEach((m) => {
+    const isP1 = m.player1Id === uid;
+    const me = isP1 ? m.player1 : m.player2;
+    const opp = isP1 ? m.player2 : m.player1;
+    const win = me.scores > opp.scores;
 
     if (me.side === "left") {
-      if (win) leftSideWins++
-      else leftSideLosses++
-      leftPointsScored += me.scores
-      leftPointsConceded += opp.scores
-
+      if (win) leftSideWins++;
+      else leftSideLosses++;
+      leftPointsScored += me.scores;
+      leftPointsConceded += opp.scores;
     } else if (me.side === "right") {
-      if (win) rightSideWins++
-      else rightSideLosses++
-      rightPointsScored += me.scores
-      rightPointsConceded += opp.scores
-
+      if (win) rightSideWins++;
+      else rightSideLosses++;
+      rightPointsScored += me.scores;
+      rightPointsConceded += opp.scores;
     }
-  })
+  });
 
   return {
     leftSideWins,
@@ -189,9 +196,8 @@ function computeSideStats(list: Match[], uid: string) {
     leftPointsConceded,
     rightPointsScored,
     rightPointsConceded,
-  }
+  };
 }
-// ---------------- Custom Tooltip ----------------
 
 const CustomTooltip: FC<RechartTooltip["props"]> = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -209,25 +215,57 @@ const CustomTooltip: FC<RechartTooltip["props"]> = ({ active, payload, label }) 
   );
 };
 
-// ---------------- Profile Page ----------------
+// ---------------- Main Page ----------------
 
 export default function ProfileUidPage() {
   const { uid: targetUid } = useParams<{ uid: string }>();
   const router = useRouter();
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+
   const isSelf = targetUid === user?.uid;
+
+  // Avatar upload state (self only)
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1_000_000) {
+      return toast({
+        title: "Error",
+        description: "Please choose an image under 1 MB",
+        variant: "destructive",
+      });
+    }
+    try {
+      setUploading(true);
+      const storage = getStorage();
+      const ref = storageRef(storage, `avatars/${user!.uid}/avatar.jpg`);
+      await uploadBytes(ref, file);
+      const url = await getDownloadURL(ref);
+      await updateDoc(doc(db, "users", user!.uid), { photoURL: url });
+      toast({ title: "Success", description: "Avatar updated" });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // ---------------- Profile / Friend Data ----------------
 
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   const [friendStatus, setFriendStatus] = useState<
     "none" | "outgoing" | "incoming" | "friends"
   >("none");
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loadingMatches, setLoadingMatches] = useState(true);
-  const [oppFilter, setOppFilter] = useState("all");
 
   useEffect(() => {
     if (!targetUid || !user) return;
+
+    // Viewing own profile – reuse auth context profile
     if (isSelf && userProfile) {
       setTargetProfile(userProfile);
       setFriendStatus("none");
@@ -235,12 +273,12 @@ export default function ProfileUidPage() {
     }
 
     (async () => {
-      const tSnap = await getDoc(doc(db, "users", targetUid));
-      if (!tSnap.exists()) {
+      const snap = await getDoc(doc(db, "users", targetUid));
+      if (!snap.exists()) {
         router.push("/profile");
         return;
       }
-      setTargetProfile({ uid: targetUid, ...(tSnap.data() as any) });
+      setTargetProfile({ uid: targetUid, ...(snap.data() as any) });
 
       const mySnap = await getDoc(doc(db, "users", user.uid));
       const myData = mySnap.exists() ? (mySnap.data() as any) : {};
@@ -248,19 +286,19 @@ export default function ProfileUidPage() {
       const outgoing: string[] = myData.outgoingRequests ?? [];
       const friendsArr: string[] = myData.friends ?? [];
 
-      if (friendsArr.includes(targetUid)) {
-        setFriendStatus("friends");
-      } else if (outgoing.includes(targetUid)) {
-        setFriendStatus("outgoing");
-      } else if (incoming.includes(targetUid)) {
-        setFriendStatus("incoming");
-      } else {
-        setFriendStatus("none");
-      }
+      if (friendsArr.includes(targetUid)) setFriendStatus("friends");
+      else if (outgoing.includes(targetUid)) setFriendStatus("outgoing");
+      else if (incoming.includes(targetUid)) setFriendStatus("incoming");
+      else setFriendStatus("none");
     })();
   }, [targetUid, isSelf, user, userProfile, router]);
 
-  // Load matches
+  // ---------------- Matches ----------------
+
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loadingMatches, setLoadingMatches] = useState(true);
+  const [oppFilter, setOppFilter] = useState("all");
+
   const loadMatches = useCallback(async () => {
     if (!targetUid) return;
     setLoadingMatches(true);
@@ -269,11 +307,13 @@ export default function ProfileUidPage() {
       getDocs(query(ref, where("player1Id", "==", targetUid))),
       getDocs(query(ref, where("player2Id", "==", targetUid))),
     ]);
-    const raw: Match[] = [];
-    p1.forEach((d) => raw.push({ id: d.id, ...(d.data() as any) }));
-    p2.forEach((d) => raw.push({ id: d.id, ...(d.data() as any) }));
-    const uniq = Array.from(new Map(raw.map((r) => [r.id, r])).values()).sort(
-      (a, b) => parseDate(b.timestamp).getTime() - parseDate(a.timestamp).getTime()
+    const rows: Match[] = [];
+    p1.forEach((d) => rows.push({ id: d.id, ...(d.data() as any) }));
+    p2.forEach((d) => rows.push({ id: d.id, ...(d.data() as any) }));
+    const uniq = Array.from(new Map(rows.map((r) => [r.id, r])).values()).sort(
+      (a, b) =>
+        parseFlexDate(b.timestamp ?? b.playedAt).getTime() -
+        parseFlexDate(a.timestamp ?? a.playedAt).getTime()
     );
     setMatches(uniq);
     setLoadingMatches(false);
@@ -283,7 +323,8 @@ export default function ProfileUidPage() {
     loadMatches();
   }, [loadMatches]);
 
-  // Opponents list
+  // ---------------- Memoised Derived Data ----------------
+
   const opponents = useMemo(() => {
     const m = new Map<string, string>();
     matches.forEach((match) => {
@@ -296,7 +337,6 @@ export default function ProfileUidPage() {
     return Array.from(m.entries()).map(([id, name]) => ({ id, name }));
   }, [matches, targetUid]);
 
-  // Filtered matches
   const filtered = useMemo(
     () =>
       oppFilter === "all"
@@ -307,29 +347,23 @@ export default function ProfileUidPage() {
     [matches, oppFilter]
   );
 
-  // Stats
-  const stats = useMemo(() => computeStats(filtered, targetUid), [
-    filtered,
-    targetUid,
-  ]);
-  const sideStats = useMemo(() => computeSideStats(filtered, targetUid), [
-    filtered,
-    targetUid,
-  ]);
+  const stats = useMemo(() => computeStats(filtered, targetUid), [filtered, targetUid]);
+  const sideStats = useMemo(() => computeSideStats(filtered, targetUid), [filtered, targetUid]);
 
-  // Performance data
   const perfData = filtered.length
     ? filtered
       .slice()
       .sort(
-        (a, b) => parseDate(a.timestamp).getTime() - parseDate(b.timestamp).getTime()
+        (a, b) =>
+          parseFlexDate(a.timestamp ?? a.playedAt).getTime() -
+          parseFlexDate(b.timestamp ?? b.playedAt).getTime()
       )
       .map((m) => {
         const isP1 = m.player1Id === targetUid;
         const me = isP1 ? m.player1 : m.player2;
         const opp = isP1 ? m.player2 : m.player1;
         return {
-          label: format(parseDate(m.timestamp), "dd.MM.yy"),
+          label: safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy"),
           rating: me.newRating,
           diff: me.scores - opp.scores,
           result: me.scores > opp.scores ? 1 : -1,
@@ -350,11 +384,11 @@ export default function ProfileUidPage() {
       },
     ];
 
-  // Pie data
   const pieData = [
     { name: "Wins", value: stats.wins, fill: "hsl(var(--accent))" },
     { name: "Losses", value: stats.losses, fill: "hsl(var(--destructive))" },
   ];
+
   const sidePieData = [
     { name: "Left Wins", value: sideStats.leftSideWins, fill: "hsl(var(--accent))" },
     { name: "Right Wins", value: sideStats.rightSideWins, fill: "hsl(var(--primary))" },
@@ -373,7 +407,10 @@ export default function ProfileUidPage() {
   const rank = getRank(targetProfile.maxRating);
   const medalSrc = medalMap[rank];
 
-  // Friend button handlers
+  console.log(targetProfile);
+
+  // ---------------- Friend Handlers ----------------
+
   const handleAdd = async () => {
     await Friends.sendFriendRequest(user!.uid, targetUid);
     setFriendStatus("outgoing");
@@ -397,95 +434,104 @@ export default function ProfileUidPage() {
 
   return (
     <section className="container mx-auto py-8 space-y-8">
-      {/* Header */}
       <Card>
         <CardHeader className="flex flex-col md:flex-row md:justify-between items-center gap-6">
           <div className="flex items-center gap-6">
-            <Avatar className="h-32 w-32">
-              <AvatarImage
-                src={targetProfile.photoURL || undefined}
-                className="object-cover"
-              />
-              <AvatarFallback className="text-4xl">
-                {displayName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-32 w-32">
+                <AvatarFallback className="text-4xl">
+                  {displayName.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+            </div>
             <div className="text-left space-y-1">
               <CardTitle className="text-4xl">{displayName}</CardTitle>
+              {isSelf && (
+                <CardDescription>{targetProfile.email}</CardDescription>
+              )}
               <div className="inline-flex items-center gap-2 rounded-md bg-muted py-1 px-2 text-sm">
                 <span className="font-medium">{rank}</span>
               </div>
+              {/* Friend buttons for other profiles */}
+              {!isSelf && (
+                <div className="pt-2 flex gap-2">
+                  {friendStatus === "none" && (
+                    <Button onClick={handleAdd}>Add Friend</Button>
+                  )}
+                  {friendStatus === "outgoing" && (
+                    <Button onClick={handleCancel}>Cancel Request</Button>
+                  )}
+                  {friendStatus === "incoming" && (
+                    <Button onClick={handleAccept}>Accept Request</Button>
+                  )}
+                  {friendStatus === "friends" && (
+                    <Button variant="destructive" onClick={handleRemove}>
+                      Remove Friend
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {medalSrc && (
-              <img
-                src={medalSrc}
-                alt={rank}
-                className="h-[140px] w-[140px] rounded-md"
-              />
-            )}
-            {!isSelf && (
-              <>
-                {friendStatus === "none" && (
-                  <Button onClick={handleAdd}>Add Friend</Button>
-                )}
-                {friendStatus === "outgoing" && (
-                  <Button onClick={handleCancel}>Cancel Request</Button>
-                )}
-                {friendStatus === "incoming" && (
-                  <Button onClick={handleAccept}>Accept Request</Button>
-                )}
-                {friendStatus === "friends" && (
-                  <Button variant="destructive" onClick={handleRemove}>
-                    Remove Friend
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+          {medalSrc && <img src={medalSrc} alt={rank} className="h-[140px] w-[140px] rounded-md" />}
         </CardHeader>
       </Card>
 
-      {/* Small stats */}
+      {/* Quick stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatCard
-          icon={LineChartIcon}
-          label="Current ELO"
-          value={targetProfile.globalElo}
-        />
+        <StatCard icon={LineChartIcon} label="Current ELO" value={targetProfile.globalElo} />
         <StatCard icon={ListOrdered} label="Matches" value={stats.total} />
-        <StatCard
-          icon={Percent}
-          label="Win Rate"
-          value={`${stats.winRate.toFixed(1)}%`}
-        />
+        <StatCard icon={Percent} label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} />
         <StatCard icon={Flame} label="Max Streak" value={stats.maxWinStreak} />
       </div>
 
-      {/* Achievements */}
-      <AchievementsPanel
-        achievements={targetProfile.achievements || []}
-        overallMatches={stats.total}
-        overallWins={stats.wins}
-        overallMaxStreak={stats.maxWinStreak}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+        <div className="h-full">
+          <AchievementsPanel
+            achievements={userProfile.achievements ?? []}
+            overallMatches={stats.total}
+            overallWins={stats.wins}
+            overallMaxStreak={stats.maxWinStreak}
+          />
+        </div>
 
-      {/* Friends (list) */}
-      {targetProfile.friends?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Friends</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-4">
-            {targetProfile.friends.map((fid) => (
-              <FriendChip key={fid} uid={fid} />
-            ))}
-          </CardContent>
-        </Card>
-      )}
+        <div className="flex flex-col gap-4">
+          <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData}>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                />
+                <ReLegend />
+              </PieChart>
+            </ResponsiveContainer>
+          </PieCard>
 
-      {/* Opponent filter */}
+          <PieCard title="Left vs Right Wins" icon={PieChartIcon} data={sidePieData}>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={sidePieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                />
+                <ReLegend />
+              </PieChart>
+            </ResponsiveContainer>
+          </PieCard>
+        </div>
+      </div>
+
       <div className="flex items-center gap-4">
         <span className="font-medium">Filter by Opponent:</span>
         <Select value={oppFilter} onValueChange={setOppFilter}>
@@ -503,14 +549,11 @@ export default function ProfileUidPage() {
         </Select>
       </div>
 
-      {/* Detailed stats */}
       <DetailedStatsCard stats={stats} side={sideStats} />
 
-      {/* Charts */}
       <div className="space-y-8">
-        {/* ELO History */}
         <ChartCard title="ELO History" icon={LineChartIcon}>
-          <ResponsiveContainer width="100%" height={450}>
+          <ResponsiveContainer width="100%" height={400}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -518,18 +561,19 @@ export default function ProfileUidPage() {
               <RechartTooltip content={<CustomTooltip />} />
               <ReLegend />
               <Line type="monotone" dataKey="rating" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush dataKey="label" height={20} travellerWidth={10} startIndex={Math.floor(perfData.length * 0.8)} endIndex={perfData.length - 1} />
+              <Brush
+                dataKey="label"
+                height={20}
+                travellerWidth={10}
+                startIndex={Math.floor(perfData.length * 0.8)}
+                endIndex={perfData.length - 1}
+              />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Pie charts */}
-        <div className="grid grid-cols-2 gap-4">
-          <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData} />
-          <PieCard title="Side Wins" icon={PieChartIcon} data={sidePieData} />
-        </div>
 
-        {/* Match Result */}
+
         <ChartCard title="Match Result" icon={Activity}>
           <ResponsiveContainer width="100%" height={450}>
             <LineChart data={perfData}>
@@ -539,12 +583,17 @@ export default function ProfileUidPage() {
               <RechartTooltip content={<CustomTooltip />} />
               <ReLegend />
               <Line type="stepAfter" dataKey="result" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush dataKey="label" height={20} travellerWidth={10} startIndex={Math.floor(perfData.length * 0.8)} endIndex={perfData.length - 1} />
+              <Brush
+                dataKey="label"
+                height={20}
+                travellerWidth={10}
+                startIndex={Math.floor(perfData.length * 0.8)}
+                endIndex={perfData.length - 1}
+              />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Score Difference */}
         <ChartCard title="Score Difference" icon={TrendingUp}>
           <ResponsiveContainer width="100%" height={450}>
             <LineChart data={perfData}>
@@ -554,13 +603,19 @@ export default function ProfileUidPage() {
               <RechartTooltip content={<CustomTooltip />} />
               <ReLegend />
               <Line type="monotone" dataKey="diff" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush dataKey="label" height={20} travellerWidth={10} startIndex={Math.floor(perfData.length * 0.8)} endIndex={perfData.length - 1} />
+              <Brush
+                dataKey="label"
+                height={20}
+                travellerWidth={10}
+                startIndex={Math.floor(perfData.length * 0.8)}
+                endIndex={perfData.length - 1}
+              />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
 
-      {/* Matches Table */}
+      {/* Matches table */}
       <MatchesTableCard
         title={`All Matches (${filtered.length})`}
         matches={filtered}
@@ -571,9 +626,7 @@ export default function ProfileUidPage() {
   );
 }
 
-// ————————————————
-// (Below are your small reusable components unchanged)
-// ————————————————
+// ---------------- Reusable Components ----------------
 
 function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: string | number }) {
   return (
@@ -591,25 +644,23 @@ function StatCard({ icon: Icon, label, value }: { icon: any; label: string; valu
 
 function ChartCard({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
   return (
-    <Card className="w-full">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Icon />
-          {title}
+          <Icon /> {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="h-[500px] w-full">{children}</CardContent>
+      <CardContent>{children}</CardContent>
     </Card>
   );
 }
 
 function PieCard({ title, icon: Icon, data }: { title: string; icon: any; data: { name: string; value: number; fill: string }[] }) {
   return (
-    <Card className="w-full">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Icon />
-          {title}
+          <Icon /> {title}
         </CardTitle>
       </CardHeader>
       <CardContent className="h-[350px] w-full">
@@ -685,10 +736,7 @@ function MatchesTableCard({ title, matches, loading, meUid }: { title: string; m
               <TableBody>
                 {matches.map((m) => {
                   const isP1 = m.player1Id === meUid;
-                  const date =
-                    typeof m.timestamp === "string"
-                      ? m.timestamp
-                      : format(m.playedAt.toDate(), "dd.MM.yyyy HH:mm");
+                  const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yyyy HH.mm.ss");
                   const opp = isP1 ? m.player2.name : m.player1.name;
                   const myScore = isP1 ? m.player1.scores : m.player2.scores;
                   const theirScore = isP1 ? m.player2.scores : m.player1.scores;
@@ -726,6 +774,7 @@ function FriendChip({ uid }: { uid: string }) {
   }, [uid]);
 
   if (!info?.name) return null;
+
   return (
     <Link href={`/profile/${uid}`} className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-muted hover:bg-muted/70">
       <Avatar className="h-6 w-6">

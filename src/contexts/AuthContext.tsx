@@ -4,7 +4,7 @@
 import { useToast } from "@/hooks/use-toast";
 import { auth, db } from "@/lib/firebase";
 import type { UserProfile } from "@/lib/types";
-import { getFinnishFormattedDate } from "@/lib/utils";
+import { getFinnishFormattedDate } from '@/lib/utils';
 import {
   User as FirebaseUser,
   onAuthStateChanged,

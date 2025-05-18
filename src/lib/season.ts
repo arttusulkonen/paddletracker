@@ -1,4 +1,6 @@
+// src/lib/season.ts
 import { db } from "@/lib/firebase";
+import { getFinnishFormattedDate } from "@/lib/utils";
 import {
   arrayUnion,
   collection,
@@ -21,45 +23,56 @@ export const toDate = (v: string | Timestamp): Date =>
         .reverse()
         .map((x, i) => (i === 1 ? x - 1 : x))
     )
-    : v.toDate()
+    : v.toDate();
 
-type RawMatch = any
+type RawMatch = any;
 
-type Stat = {
-  userId: string
-  name: string
-  wins: number
-  losses: number
-  totalAddedPoints: number
-  matches: { w: boolean; t: Date }[]
-  rating: number
-}
+type PlayerSeasonStat = {
+  userId: string;
+  name: string;
+  wins: number;
+  losses: number;
+  totalAddedPoints: number;
+  matches: { w: boolean; ts: Date }[];
+  roomRating: number; // rating внутри комнаты к моменту матча
+};
 
 type SeasonRow = {
-  userId: string
-  name: string
-  place: number
-  matchesPlayed: number
-  wins: number
-  losses: number
-  totalAddedPoints: number
-  finalScore: number
-  longestWinStreak: number
+  userId: string;
+  name: string;
+  place: number;
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  totalAddedPoints: number;
+  finalScore: number;
+  longestWinStreak: number;
+};
+
+function pickRoomRating(obj: any): number {
+  // матчи новой версии содержат roomNewRating, старые — rating/newRating
+  return (
+    obj.roomNewRating ??
+    obj.rating ??
+    obj.newRating ??
+    obj.oldRating ??
+    1000
+  );
 }
 
-async function gatherStats(roomId: string): Promise<SeasonRow[]> {
-  const q = query(collection(db, "matches"), where("roomId", "==", roomId))
-  const snap = await getDocs(q)
-  if (snap.empty) return []
+async function collectStats(roomId: string): Promise<SeasonRow[]> {
+  const qs = query(collection(db, "matches"), where("roomId", "==", roomId));
+  const snap = await getDocs(qs);
+  if (snap.empty) return [];
 
-  const stats: Record<string, Stat> = {}
+  const stats: Record<string, PlayerSeasonStat> = {};
 
-  snap.forEach(d => {
-    const m = d.data() as RawMatch
+  snap.forEach((d) => {
+    const m = d.data() as RawMatch;
     const players = [
       { id: m.player1Id, info: m.player1 },
       { id: m.player2Id, info: m.player2 },
-    ] as const
+    ] as const;
 
     players.forEach(({ id, info }) => {
       if (!stats[id]) {
@@ -70,27 +83,35 @@ async function gatherStats(roomId: string): Promise<SeasonRow[]> {
           losses: 0,
           totalAddedPoints: 0,
           matches: [],
-          rating: info.rating ?? 1000,
-        }
+          roomRating: pickRoomRating(info),
+        };
       }
-      const s = stats[id]
-      const win = m.winner === info.name
-      win ? (s.wins += 1) : (s.losses += 1)
-      s.totalAddedPoints += info.addedPoints ?? 0
-      s.matches.push({ w: win, t: toDate(m.timestamp ?? m.playedAt) })
-    })
-  })
+      const s = stats[id];
+      const win = m.winner === info.name;
+      win ? s.wins++ : s.losses++;
+      s.totalAddedPoints += info.addedPoints ?? 0;
+      s.matches.push({ w: win, ts: toDate(m.timestamp) });
+      // сохраняем «последний» рейтинг в комнате
+      s.roomRating = pickRoomRating(info);
+    });
+  });
 
-  const rows: SeasonRow[] = Object.values(stats).map(s => {
-    const sorted = [...s.matches].sort((a, b) => a.t.getTime() - b.t.getTime())
-    let cur = 0
-    let max = 0
-    sorted.forEach(m => {
+  /* ---------- пост-обработка ---------- */
+  const rows: SeasonRow[] = Object.values(stats).map((s) => {
+    /* streak */
+    const ordered = [...s.matches].sort(
+      (a, b) => a.ts.getTime() - b.ts.getTime()
+    );
+    let cur = 0,
+      max = 0;
+    ordered.forEach((m) => {
       if (m.w) {
-        cur += 1
-        if (cur > max) max = cur
-      } else cur = 0
-    })
+        if (++cur > max) max = cur;
+      } else {
+        cur = 0;
+      }
+    });
+
     return {
       userId: s.userId,
       name: s.name,
@@ -99,60 +120,82 @@ async function gatherStats(roomId: string): Promise<SeasonRow[]> {
       wins: s.wins,
       losses: s.losses,
       totalAddedPoints: s.totalAddedPoints,
-      finalScore: 0,
+      finalScore: 0, // вычислим ниже
       longestWinStreak: max,
-    }
-  })
+    };
+  });
 
+  /* ---------- финальный скор ---------- */
   const avgMatches =
-    rows.length > 0 ? rows.reduce((a, r) => a + r.matchesPlayed, 0) / rows.length : 0
+    rows.length > 0
+      ? rows.reduce((acc, r) => acc + r.matchesPlayed, 0) / rows.length
+      : 0;
 
-  rows.forEach(r => {
-    const baseScore = r.wins * 2 + (stats[r.userId].rating ?? 1000) * 0.1
-    let normAdded = r.totalAddedPoints
-    if (r.matchesPlayed > avgMatches && avgMatches !== 0) {
-      normAdded /= r.matchesPlayed / avgMatches
+  rows.forEach((r) => {
+    const rating = stats[r.userId].roomRating;
+    const base = r.wins * 2 + rating * 0.1;
+
+    // нормализуем «заработанные» очки
+    let normPts = r.totalAddedPoints;
+    if (avgMatches) {
+      const ratio = r.matchesPlayed / avgMatches;
+      if (ratio > 1) {
+        // сверх-активность: штраф квадратично
+        normPts /= ratio * ratio;
+      }
     }
-    let final = baseScore + normAdded
-    if (r.matchesPlayed < avgMatches) final *= 0.9
-    r.finalScore = final
-  })
 
-  rows.sort((a, b) => b.finalScore - a.finalScore)
-  rows.forEach((r, i) => (r.place = i + 1))
-  return rows
+    let score = base + normPts;
+    if (r.matchesPlayed < avgMatches) score *= 0.9; // штраф за малую активность
+    r.finalScore = score;
+  });
+
+  rows.sort((a, b) => b.finalScore - a.finalScore);
+  rows.forEach((r, i) => (r.place = i + 1));
+  return rows;
 }
 
-export async function finalizeSeason(roomId: string): Promise<void> {
-  const summary = await gatherStats(roomId)
-  if (!summary.length) return
+/* -------------------------------------------------------------------------- */
+/*                                   PUBLIC                                   */
+/* -------------------------------------------------------------------------- */
 
-  const roomRef = doc(db, "rooms", roomId)
-  const roomSnap = await getDoc(roomRef)
-  if (!roomSnap.exists()) return
-  const roomData = roomSnap.data()
+export async function finalizeSeason(roomId: string): Promise<void> {
+  const summary = await collectStats(roomId);
+  if (!summary.length) return;
+
+  const roomRef = doc(db, "rooms", roomId);
+  const roomSnap = await getDoc(roomRef);
+  if (!roomSnap.exists()) return;
+  const roomData = roomSnap.data();
 
   const entry = {
-    dateFinished: new Date().toLocaleString("fi-FI"),
+    dateFinished: getFinnishFormattedDate(),
     roomId,
     roomName: roomData.name ?? "",
     summary,
     type: "seasonFinish",
-  }
+  };
 
+  /* ---------- обновляем room.members (wins / losses / rating) ---------- */
   const updatedMembers = (roomData.members ?? []).map((m: any) => {
-    const row = summary.find(r => r.userId === m.userId)
-    if (!row) return m
-    return { ...m, wins: row.wins, losses: row.losses }
-  })
+    const row = summary.find((r) => r.userId === m.userId);
+    if (!row) return m;
+    return {
+      ...m,
+      wins: row.wins,
+      losses: row.losses,
+      rating: statsSafely(row.userId, summary)?.roomRating ?? m.rating,
+    };
+  });
 
   await updateDoc(roomRef, {
     seasonHistory: arrayUnion(entry),
     members: updatedMembers,
-  })
+  });
 
+  /* ---------- достижения игрокам ---------- */
   for (const r of summary) {
-    const uRef = doc(db, "users", r.userId)
+    const uRef = doc(db, "users", r.userId);
     await updateDoc(uRef, {
       achievements: arrayUnion({
         type: "seasonFinish",
@@ -161,6 +204,14 @@ export async function finalizeSeason(roomId: string): Promise<void> {
         dateFinished: entry.dateFinished,
         ...r,
       }),
-    })
+    });
   }
+}
+
+/* helper для typescript */
+function statsSafely(
+  id: string,
+  rows: SeasonRow[]
+): { roomRating: number } | undefined {
+  return (rows as any as Record<string, { roomRating: number }>)[id];
 }

@@ -67,8 +67,7 @@ export default function AchievementsPanel({
   overallWins = 0,
   overallMaxStreak = 0,
 }: Props) {
-  // если нет ни одного сезона — заглушка
-  if (!achievements.some(a => a.type === "seasonFinish")) {
+  if (!achievements.length) {
     return (
       <Card>
         <CardHeader><CardTitle>Achievements</CardTitle></CardHeader>
