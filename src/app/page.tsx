@@ -52,7 +52,7 @@ export default function Home() {
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full">
-                  <Link href="/profile">Go to Profile <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                  <Link href={`/profile/${user?.uid}`}>Go to Profile <ArrowRight className="ml-2 h-4 w-4" /></Link>
                 </Button>
               </CardFooter>
             </Card>

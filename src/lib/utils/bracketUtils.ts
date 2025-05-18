@@ -40,7 +40,6 @@ export function computeTable(matches: any[]) {
     }
   }
 
-  /* сортировка: Wins desc  →  PF‑PA diff desc  →  name asc */
   const arr = Object.values(t).sort(
     (a: any, b: any) =>
       b.wins - a.wins ||

@@ -58,6 +58,7 @@ export interface Room {
   creatorName?: string;
   members: Member[];
   createdAt: string;
+  roomCreated: string;
 }
 
 interface Member {

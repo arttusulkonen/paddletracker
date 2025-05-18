@@ -9,7 +9,6 @@
     "deploy": "npm run build && firebase deploy --only hosting"
   },
   "dependencies": {
-    "@g-loot/react-tournament-brackets": "^1.0.31-rc",
     "@genkit-ai/googleai": "^1.6.2",
     "@genkit-ai/next": "^1.6.2",
     "@hookform/resolvers": "^4.1.3",
@@ -48,7 +47,6 @@
     "next": "^15.3.2",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
-    "react-brackets": "^0.4.7",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-easy-crop": "^5.4.1",

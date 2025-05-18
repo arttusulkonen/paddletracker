@@ -23,8 +23,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import {
   collection,
-  doc,
-  getDoc,
   getDocs,
   query,
   where,
@@ -96,7 +94,7 @@ export default function PlayersTable() {
     return new Date(yyyy, MM - 1, dd, hh, mm, ss);
   };
 
-  const longestStreak = (uid: string, uname: string, list: any[]): number => {
+  const longestStreak = (uid: string, list: any[]): number => {
     const ordered = list
       .slice()
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -111,19 +109,21 @@ export default function PlayersTable() {
     return best;
   };
 
+  const safeName = (n: string) => n ?? '';
+
   /* ---------------------------------------------------------------------- */
-  /*  Fetch players + matches, ограниченные вашими комнатами                 */
+  /*  Fetch players + matches                                                */
   /* ---------------------------------------------------------------------- */
   const loadData = useCallback(async () => {
     if (!user) return;
 
-    /* 1️⃣  Берём все комнаты, где текущий пользователь состоит */
+    /* 1. Rooms with the current user */
     const roomSnap = await getDocs(
       query(collection(db, 'rooms'), where('memberIds', 'array-contains', user.uid))
     );
     const myRoomIds = roomSnap.docs.map((d) => d.id);
 
-    /* 2️⃣  Собираем список uid всех участников этих комнат */
+    /* 2. Set of all member uids */
     const membersSet = new Set<string>();
     roomSnap.docs.forEach((d) => {
       const memberIds: string[] =
@@ -132,16 +132,25 @@ export default function PlayersTable() {
       memberIds.forEach((id) => membersSet.add(id));
     });
 
-    /* 3️⃣  Загружаем игроков из users, только тех, что в membersSet */
+    /* 3. Users */
     const usersSnap = await getDocs(collection(db, 'users'));
     const pl = usersSnap.docs
       .filter((doc) => membersSet.has(doc.id))
-      .map((doc) => ({ id: doc.id, ...doc.data() }));
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name:
+            data.displayName ??
+            data.name ??
+            data.email ??
+            'Unknown',
+          ...data,
+        };
+      });
     setPlayers(pl);
 
-    /* 4️⃣  Загружаем матчи, но оставляем только:
-           – матч из ваших комнат
-           – оба игрока присутствуют в membersSet (для надёжности) */
+    /* 4. Matches from those rooms */
     const matchSnap = await getDocs(collection(db, 'matches'));
     const ms = matchSnap.docs
       .map((d) => {
@@ -155,7 +164,6 @@ export default function PlayersTable() {
           membersSet.has(m.player2Id)
       );
     setMatches(ms);
-
     setLoading(false);
   }, [user]);
 
@@ -167,6 +175,8 @@ export default function PlayersTable() {
   /*  Statistics                                                             */
   /* ---------------------------------------------------------------------- */
   const stats: PlayerStats[] = useMemo(() => {
+    if (loading) return [];
+
     const now = new Date();
     const cutoff =
       timeFrame === 'all'
@@ -177,7 +187,6 @@ export default function PlayersTable() {
       ? matches.filter((m) => m.timestamp >= cutoff && m.timestamp <= now)
       : matches;
 
-    /* базовая заготовка */
     const base: Record<string, PlayerStats> = {};
     for (const p of players) {
       base[p.id] = {
@@ -188,13 +197,12 @@ export default function PlayersTable() {
         losses: 0,
         totalAddedPoints: 0,
         longestWinStreak: 0,
-        finalScore: 0,
+        finalScore: -Infinity,
         winRate: 0,
         rank: 0,
       };
     }
 
-    /* накопление */
     for (const m of relMatches) {
       const { player1, player2, winner, player1Id, player2Id } = m;
       if (base[player1Id]) {
@@ -215,37 +223,29 @@ export default function PlayersTable() {
 
     const list = Object.values(base);
 
-    /* финальный расчёт */
     const avgMatches =
       list.reduce((acc, p) => acc + p.matchesPlayed, 0) / (list.length || 1);
 
     for (const p of list) {
-      p.longestWinStreak = longestStreak(p.id, p.name, relMatches);
+      if (p.matchesPlayed === 0) continue;
+      p.longestWinStreak = longestStreak(p.id, relMatches);
       const raw = p.wins * 2 + p.totalAddedPoints + p.longestWinStreak * 2;
-      p.winRate = p.matchesPlayed ? (p.wins / p.matchesPlayed) * 100 : 0;
-      p.finalScore =
-        p.matchesPlayed === 0
-          ? -1
-          : p.matchesPlayed < avgMatches
-            ? raw * 0.9 // штраф
-            : raw;
+      p.winRate = (p.wins / p.matchesPlayed) * 100;
+      p.finalScore = p.matchesPlayed < avgMatches ? raw * 0.9 : raw;
     }
 
-    const withMatches = list.filter((p) => p.matchesPlayed > 0);
-    const noMatches = list.filter((p) => p.matchesPlayed === 0);
-
-    withMatches.sort(
-      (a, b) => b.finalScore - a.finalScore || a.name.localeCompare(b.name)
+    list.sort(
+      (a, b) =>
+        b.finalScore - a.finalScore ||
+        safeName(a.name).localeCompare(safeName(b.name))
     );
-    noMatches.sort((a, b) => a.name.localeCompare(b.name));
 
-    const ordered = [...withMatches, ...noMatches];
-    ordered.forEach((p, i) => (p.rank = i + 1));
-    return ordered;
-  }, [players, matches, timeFrame]);
+    list.forEach((p, i) => (p.rank = i + 1));
+    return list;
+  }, [players, matches, timeFrame, loading]);
 
   /* ---------------------------------------------------------------------- */
-  /*  Sorting                                                               */
+  /*  Sorting UI                                                             */
   /* ---------------------------------------------------------------------- */
   const sortedStats = useMemo(() => {
     const arr = [...stats];
@@ -253,12 +253,15 @@ export default function PlayersTable() {
     const mult = dir === 'asc' ? 1 : -1;
 
     arr.sort((a, b) => {
-      if (key === 'name') return a.name.localeCompare(b.name) * mult;
-      if (key === 'rank') {
-        return (a.rank - b.rank) * mult || a.name.localeCompare(b.name);
-      }
-      const diff = a[key] - b[key];
-      return diff === 0 ? a.name.localeCompare(b.name) : diff * mult;
+      if (key === 'name')
+        return safeName(a.name).localeCompare(safeName(b.name)) * mult;
+      if (key === 'rank')
+        return (a.rank - b.rank) * mult ||
+          safeName(a.name).localeCompare(safeName(b.name));
+      const diff = (a as any)[key] - (b as any)[key];
+      return diff === 0
+        ? safeName(a.name).localeCompare(safeName(b.name))
+        : diff * mult;
     });
 
     if (key !== 'rank') arr.forEach((p, i) => (p.rank = i + 1));
@@ -295,9 +298,11 @@ export default function PlayersTable() {
     );
   }
 
+  /* ---------------------------------------------------------------------- */
+  /*  UI                                                                     */
+  /* ---------------------------------------------------------------------- */
   return (
     <>
-      {/* ==== лидерборд ================================================== */}
       <Card className="mt-16">
         <CardHeader>
           <CardTitle className="text-2xl">Leaderboard</CardTitle>
@@ -305,7 +310,6 @@ export default function PlayersTable() {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* фильтр по дате */}
           <div className="flex flex-wrap gap-2">
             {TIME_FRAMES.map((t) => (
               <TooltipProvider key={t.value}>
@@ -325,7 +329,6 @@ export default function PlayersTable() {
             ))}
           </div>
 
-          {/* таблица */}
           <ScrollArea className="h-[500px] overflow-auto border rounded-md">
             <Table>
               <TableHeader>
@@ -366,7 +369,6 @@ export default function PlayersTable() {
         </CardContent>
       </Card>
 
-      {/* ==== пояснение методики ========================================= */}
       <Card className="mt-6 bg-muted/50">
         <CardHeader>
           <CardTitle className="text-lg">How rankings are calculated</CardTitle>

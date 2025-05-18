@@ -1,10 +1,3 @@
-/*  Rooms page
-    ▸ Показывает ваши комнаты.
-    ▸ При создании новой комнаты можно пригласить:
-       1. ваших друзей;
-       2. всех игроков, с которыми вы когда-либо делили комнату.
-    ▸ Списки объединяются → дубли удаляются → сортировка по имени. */
-
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -49,59 +42,54 @@ import {
 } from 'firebase/firestore';
 import { PlusCircle, SearchIcon, UsersIcon } from 'lucide-react';
 import Link from 'next/link';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-/* -------------------------------------------------------------------------- */
-/*  Component                                                                 */
-/* -------------------------------------------------------------------------- */
+const normalizeDateStr = (str: string) =>
+  str.includes(' ') ? str : `${str} 00.00.00`;
+
 export default function RoomsPage() {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
-  /* ---------------- local state ---------------- */
   const [roomName, setRoomName] = useState('');
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
-  /* --- Для инвайтов ---------------------------------------------------- */
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
 
-  /* --- Прочие ---------------------------------------------------------- */
   const [searchTerm, setSearchTerm] = useState('');
   const [myMatches, setMyMatches] = useState<Record<string, number>>({});
   const [roomRating, setRoomRating] = useState<Record<string, number>>({});
 
-  /* ---------------------------------------------------------------------- */
-  /*  Загрузка комнат                                                       */
-  /* ---------------------------------------------------------------------- */
   useEffect(() => {
     if (!user) return;
-
     setIsLoadingRooms(true);
     const roomsQuery = query(
       collection(db, 'rooms'),
       where('memberIds', 'array-contains', user.uid)
     );
-
     const unsub = onSnapshot(
       roomsQuery,
       async (snap) => {
-        let list: Room[] = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        }));
-        list.sort((a, b) => parseFlexDate(b.createdAt).getTime() - parseFlexDate(a.createdAt).getTime());
-
-        /* --- заполняем creatorName если пусто --- */
+        let list = await Promise.all(
+          snap.docs.map(async (d) => {
+            const data = d.data() as any;
+            return {
+              id: d.id,
+              ...data,
+              createdRaw: data.createdAt || data.roomCreated || '',
+            };
+          })
+        );
+        list.sort((a, b) => {
+          const da = parseFlexDate(normalizeDateStr(a.createdRaw));
+          const db = parseFlexDate(normalizeDateStr(b.createdRaw));
+          return db.getTime() - da.getTime();
+        });
         const missing = Array.from(
           new Set(list.filter((r) => !r.creatorName).map((r) => r.creator!))
         );
@@ -117,29 +105,22 @@ export default function RoomsPage() {
             ? { ...r, creatorName: creatorNameMap[r.creator] }
             : r
         );
-
-        /* --- моя текущая rating + матчи --- */
         const ratingMap: Record<string, number> = {};
         list.forEach((r) => {
           const me = r.members.find((m) => m.userId === user.uid);
           ratingMap[r.id] = me?.rating ?? 0;
         });
-
         setRooms(list);
         setRoomRating(ratingMap);
         setIsLoadingRooms(false);
       },
-      (err) => {
-        console.error('rooms onSnapshot error:', err);
+      () => {
         setIsLoadingRooms(false);
       }
     );
     return () => unsub();
   }, [user]);
 
-  /* ---------------------------------------------------------------------- */
-  /*  Кол-во моих матчей в каждой комнате                                   */
-  /* ---------------------------------------------------------------------- */
   const loadMyCounts = useCallback(async () => {
     if (!user || !rooms.length) return;
     const res: Record<string, number> = {};
@@ -170,9 +151,6 @@ export default function RoomsPage() {
     loadMyCounts();
   }, [loadMyCounts]);
 
-  /* ---------------------------------------------------------------------- */
-  /*  Загрузка друзей                                                       */
-  /* ---------------------------------------------------------------------- */
   useEffect(() => {
     if (!user) return;
     const unsub = onSnapshot(doc(db, 'users', user.uid), async (snap) => {
@@ -186,21 +164,13 @@ export default function RoomsPage() {
     return () => unsub();
   }, [user]);
 
-  /* ---------------------------------------------------------------------- */
-  /*  Игроки, с которыми вы были в одной комнате                            */
-  /* ---------------------------------------------------------------------- */
   useEffect(() => {
     if (!user) return;
     const loadCoPlayers = async () => {
-      /* собираем id всех сокомнатников */
       const unionIds = new Set<string>();
-      rooms.forEach((r) => {
-        (r.memberIds ?? []).forEach((id: string) => {
-          if (id !== user.uid) unionIds.add(id);
-        });
-      });
-
-      /* исключаем уже загруженных друзей (чтобы не запрашивать повторно) */
+      rooms.forEach((r) =>
+        (r.memberIds ?? []).forEach((id: string) => id !== user.uid && unionIds.add(id))
+      );
       const toLoad = Array.from(unionIds).filter(
         (uid) => !friends.some((f) => f.uid === uid)
       );
@@ -212,9 +182,6 @@ export default function RoomsPage() {
     loadCoPlayers();
   }, [rooms, friends, user]);
 
-  /* ---------------------------------------------------------------------- */
-  /*  Кандидаты для инвайта (друзья + co-players)                           */
-  /* ---------------------------------------------------------------------- */
   const inviteCandidates = useMemo(() => {
     const map = new Map<string, UserProfile>();
     [...friends, ...coPlayers].forEach((p) => map.set(p.uid, p));
@@ -225,31 +192,18 @@ export default function RoomsPage() {
     );
   }, [friends, coPlayers]);
 
-  /* ---------------------------------------------------------------------- */
-  /*  Создание комнаты                                                      */
-  /* ---------------------------------------------------------------------- */
   const handleCreateRoom = async () => {
     if (!user) {
-      toast({
-        title: 'Error',
-        description: 'Log in to create a room',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Log in to create a room', variant: 'destructive' });
       return;
     }
     if (!roomName.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Room name cannot be empty',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Room name cannot be empty', variant: 'destructive' });
       return;
     }
     setIsCreatingRoom(true);
     try {
       const now = getFinnishFormattedDate();
-
-      /* --- состав --- */
       const initialMembers = [
         {
           userId: user.uid,
@@ -262,8 +216,7 @@ export default function RoomsPage() {
           role: 'admin' as const,
         },
         ...selectedFriends.map((uid) => {
-          const f =
-            inviteCandidates.find((x) => x.uid === uid)!;
+          const f = inviteCandidates.find((x) => x.uid === uid)!;
           return {
             userId: uid,
             name: f.name ?? f.displayName ?? '',
@@ -276,8 +229,6 @@ export default function RoomsPage() {
           };
         }),
       ];
-
-      /* --- запись в rooms --- */
       const ref = await addDoc(collection(db, 'rooms'), {
         name: roomName.trim(),
         creator: user.uid,
@@ -286,8 +237,6 @@ export default function RoomsPage() {
         members: initialMembers,
         memberIds: [user.uid, ...selectedFriends],
       });
-
-      /* --- обновляем users.rooms --- */
       await updateDoc(doc(db, 'users', user.uid), {
         rooms: arrayUnion(ref.id),
       });
@@ -296,54 +245,34 @@ export default function RoomsPage() {
           updateDoc(doc(db, 'users', uid), { rooms: arrayUnion(ref.id) })
         )
       );
-
-      toast({
-        title: 'Success',
-        description: `Room "${roomName}" created`,
-      });
+      toast({ title: 'Success', description: `Room "${roomName}" created` });
       setRoomName('');
       setSelectedFriends([]);
-    } catch (err) {
-      console.error(err);
-      toast({
-        title: 'Error',
-        description: 'Failed to create room',
-        variant: 'destructive',
-      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to create room', variant: 'destructive' });
     } finally {
       setIsCreatingRoom(false);
     }
   };
 
-  /* ---------------------------------------------------------------------- */
-  /*  Фильтрация списка комнат                                              */
-  /* ---------------------------------------------------------------------- */
   const filteredRooms = useMemo(
     () =>
       rooms.filter(
         (r) =>
           r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (r.creatorName ?? '')
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
+          (r.creatorName ?? '').toLowerCase().includes(searchTerm.toLowerCase())
       ),
     [rooms, searchTerm]
   );
 
-  /* ---------------------------------------------------------------------- */
-  /*  UI                                                                    */
-  /* ---------------------------------------------------------------------- */
   return (
     <ProtectedRoute>
       <div className="container mx-auto py-8 px-4">
-        {/* ───────── Header + Create dialog ───────── */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
           <h1 className="text-4xl font-bold flex items-center gap-2">
             <UsersIcon className="h-10 w-10 text-primary" />
             Match Rooms
           </h1>
-
-          {/* Create dialog */}
           <Dialog>
             <DialogTrigger asChild>
               <Button size="lg">
@@ -351,7 +280,6 @@ export default function RoomsPage() {
                 Create New Room
               </Button>
             </DialogTrigger>
-
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Create a Match Room</DialogTitle>
@@ -359,8 +287,6 @@ export default function RoomsPage() {
                   Give your room a name and invite friends or past teammates.
                 </DialogDescription>
               </DialogHeader>
-
-              {/* form */}
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="roomName" className="text-right">
@@ -374,15 +300,11 @@ export default function RoomsPage() {
                     placeholder="Office Ping Pong Champs"
                   />
                 </div>
-
                 <p className="text-sm font-medium">Invite players:</p>
                 <ScrollArea className="h-40 pr-2">
                   {inviteCandidates.length ? (
                     inviteCandidates.map((p) => (
-                      <label
-                        key={p.uid}
-                        className="flex items-center gap-2 py-1"
-                      >
+                      <label key={p.uid} className="flex items-center gap-2 py-1">
                         <Checkbox
                           checked={selectedFriends.includes(p.uid)}
                           onCheckedChange={(v) =>
@@ -403,7 +325,6 @@ export default function RoomsPage() {
                   )}
                 </ScrollArea>
               </div>
-
               <DialogFooter>
                 <Button onClick={handleCreateRoom} disabled={isCreatingRoom}>
                   {isCreatingRoom ? 'Creating…' : 'Create'}
@@ -412,16 +333,10 @@ export default function RoomsPage() {
             </DialogContent>
           </Dialog>
         </div>
-
-        {/* ───────── Room list ───────── */}
         <Card className="mb-8 shadow-lg">
           <CardHeader>
             <CardTitle>Your Rooms</CardTitle>
-            <CardDescription>
-              Click a card to enter and record matches
-            </CardDescription>
-
-            {/* поиск */}
+            <CardDescription>Click a card to enter and record matches</CardDescription>
             <div className="relative mt-4">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
@@ -432,7 +347,6 @@ export default function RoomsPage() {
               />
             </div>
           </CardHeader>
-
           <CardContent>
             {isLoadingRooms ? (
               <div className="flex items-center justify-center h-40">
@@ -441,41 +355,36 @@ export default function RoomsPage() {
             ) : filteredRooms.length ? (
               <ScrollArea>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1">
-                  {filteredRooms
-                    .slice()
-                    .reverse()
-                    .map((r) => (
-                      <Card
-                        key={r.id}
-                        className="hover:shadow-md transition-shadow"
-                      >
-                        <CardHeader>
-                          <CardTitle className="truncate">{r.name}</CardTitle>
-                          <CardDescription>
-                            Created by: {r.creatorName}
-                          </CardDescription>
-                          <CardDescription>
-                            Created: {safeFormatDate(r.createdAt, "dd.MM.yyyy HH:mm")}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-muted-foreground">
-                            Members: {r.members.length}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Matches played: {myMatches[r.id] ?? '–'}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Your rating: {roomRating[r.id] ?? '–'}
-                          </p>
-                        </CardContent>
-                        <CardFooter>
-                          <Button asChild className="w-full">
-                            <Link href={`/rooms/${r.id}`}>Enter Room</Link>
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    ))}
+                  {filteredRooms.map((r) => (
+                    <Card key={r.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader>
+                        <CardTitle className="truncate">{r.name}</CardTitle>
+                        <CardDescription>Created by: {r.creatorName}</CardDescription>
+                        <CardDescription>
+                          Created:{' '}
+                          {r.createdRaw
+                            ? safeFormatDate(normalizeDateStr(r.createdRaw), 'dd.MM.yyyy')
+                            : r.roomCreated}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          Members: {r.members.length}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Matches played: {myMatches[r.id] ?? '–'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Your rating: {roomRating[r.id] ?? '–'}
+                        </p>
+                      </CardContent>
+                      <CardFooter>
+                        <Button asChild className="w-full">
+                          <Link href={`/rooms/${r.id}`}>Enter Room</Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
                 </div>
               </ScrollArea>
             ) : (

@@ -39,12 +39,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import {
-  getDownloadURL,
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-} from "firebase/storage";
+
 import {
   Activity,
   Camera,
@@ -225,37 +220,6 @@ export default function ProfileUidPage() {
 
   const isSelf = targetUid === user?.uid;
 
-  // Avatar upload state (self only)
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 1_000_000) {
-      return toast({
-        title: "Error",
-        description: "Please choose an image under 1 MB",
-        variant: "destructive",
-      });
-    }
-    try {
-      setUploading(true);
-      const storage = getStorage();
-      const ref = storageRef(storage, `avatars/${user!.uid}/avatar.jpg`);
-      await uploadBytes(ref, file);
-      const url = await getDownloadURL(ref);
-      await updateDoc(doc(db, "users", user!.uid), { photoURL: url });
-      toast({ title: "Success", description: "Avatar updated" });
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Upload failed", variant: "destructive" });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // ---------------- Profile / Friend Data ----------------
 
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   const [friendStatus, setFriendStatus] = useState<

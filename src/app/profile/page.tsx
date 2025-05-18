@@ -37,12 +37,6 @@ import {
   where,
 } from "firebase/firestore"
 import {
-  getDownloadURL,
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-} from "firebase/storage"
-import {
   Activity,
   Camera,
   Check,
@@ -194,42 +188,6 @@ export default function ProfilePage() {
   const { user, userProfile, loading } = useAuth()
   const meUid = user?.uid ?? ""
   const { toast } = useToast()
-
-  // file picker & upload
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 1_000_000) {
-      return toast({
-        title: "Error",
-        description: "Please choose an image under 1 MB",
-        variant: "destructive",
-      })
-    }
-    try {
-      setUploading(true)
-      const storage = getStorage()
-      const ref = storageRef(storage, `avatars/${meUid}/avatar.jpg`)
-      await uploadBytes(ref, file)
-      const url = await getDownloadURL(ref)
-      await updateDoc(doc(db, "users", meUid), { photoURL: url })
-      toast({ title: "Success", description: "Avatar updated" })
-      setSelectedFile(null)
-    } catch (err) {
-      console.error(err)
-      toast({
-        title: "Error",
-        description: "Upload failed",
-        variant: "destructive",
-      })
-    } finally {
-      setUploading(false)
-    }
-  }
 
   // Stats & matches
   const [matches, setMatches] = useState<Match[]>([])
