@@ -358,6 +358,11 @@ export default function ProfileUidPage() {
     { name: "Right Wins", value: sideStats.rightSideWins, fill: "hsl(var(--primary))" },
   ];
 
+  const sidePieLossData = [
+    { name: 'Left Losses', value: sideStats.leftSideLosses, fill: 'hsl(var(--destructive))' },
+    { name: 'Right Losses', value: sideStats.rightSideLosses, fill: 'hsl(var(--primary))' },
+  ];
+
   if (!targetProfile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -477,22 +482,11 @@ export default function ProfileUidPage() {
             </ResponsiveContainer>
           </PieCard>
 
-          <PieCard title="Left vs Right Wins" icon={PieChartIcon} data={sidePieData}>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={sidePieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
-                />
-                <ReLegend />
-              </PieChart>
-            </ResponsiveContainer>
-          </PieCard>
+          <div className="flex flex-row gap-4">
+            <PieCard title="Left vs Right Wins" icon={PieChartIcon} data={sidePieData} />
+
+            <PieCard title="Left vs Right Losses" icon={PieChartIcon} data={sidePieLossData} />
+          </div>
         </div>
       </div>
 
@@ -647,7 +641,7 @@ function DetailedStatsCard({ stats, side }: { stats: ReturnType<typeof computeSt
           <CornerUpLeft /> / <CornerUpRight /> Detailed Statistics
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+      <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
         <StatItem l="Matches" v={stats.total} />
         <StatItem l="Wins / Losses" v={`${stats.wins} / ${stats.losses}`} />
         <StatItem l="Win Rate" v={`${stats.winRate.toFixed(2)}%`} />
