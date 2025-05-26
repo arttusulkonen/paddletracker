@@ -457,7 +457,7 @@ export default function ProfileUidPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         <div className="h-full">
           <AchievementsPanel
-            achievements={userProfile.achievements ?? []}
+            achievements={targetProfile?.achievements ?? []}
             overallMatches={stats.total}
             overallWins={stats.wins}
             overallMaxStreak={stats.maxWinStreak}
