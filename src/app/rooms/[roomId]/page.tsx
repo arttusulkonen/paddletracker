@@ -69,6 +69,7 @@ import {
   Settings2, // For sorting icon
   Filter, // For filter icon
 } from 'lucide-react';
+import Link from 'next/link'; // Added Link import
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
