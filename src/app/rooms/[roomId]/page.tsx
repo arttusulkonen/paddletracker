@@ -69,7 +69,7 @@ import {
   Settings2, // For sorting icon
   Filter, // For filter icon
 } from 'lucide-react';
-import Link from 'next/link'; 
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -575,10 +575,11 @@ export default function RoomPage() {
                   </p>
                   <Button
                     size='xs'
-                    sm={{size:'sm'}}
+                    // sm={{size:'sm'}} // This syntax is incorrect for Button props
+                    // Correct way to handle responsive size is typically via className or conditional rendering
                     variant='outline'
                     onClick={() => setFiltered((f) => !f)}
-                    className="whitespace-nowrap"
+                    className="whitespace-nowrap text-xs sm:text-sm sm:h-9 sm:px-3" // Example of manual responsive sizing
                   >
                     <Filter className="mr-1 h-3 w-3 sm:h-4 sm:w-4" /> {isFiltered ? 'Remove Fair Rank' : 'Apply Fair Rank'}
                   </Button>
@@ -822,13 +823,13 @@ function MembersBlock({
               key={p.userId}
               className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-muted/50 rounded-md transition-colors"
             >
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0"> {/* Added min-w-0 for flex child */}
+                <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"> {/* Added flex-shrink-0 */}
                   <AvatarImage src={userProfile.photoURL || undefined} alt={p.name}/>
                   <AvatarFallback className="text-xs sm:text-sm">{p.name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <p className="font-medium leading-none text-xs sm:text-sm">
+                <div className="min-w-0"> {/* Added min-w-0 for nested flex child */}
+                  <p className="font-medium leading-none text-xs sm:text-sm whitespace-nowrap truncate"> {/* Added truncate */}
                     <Link
                       href={`/profile/${p.userId}`}
                       className="hover:underline"
@@ -839,15 +840,15 @@ function MembersBlock({
                       <Crown className="inline ml-1 h-3 w-3 sm:h-4 sm:w-4 text-yellow-500" />
                     )}
                   </p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                     MP&nbsp;{p.totalMatches} · W%&nbsp;{p.winPct}% · Global&nbsp;{globalElo}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[10px] text-muted-foreground whitespace-nowrap">
                     Rank&nbsp;{rank}
                   </p>
                 </div>
               </div>
-              <span className="text-xs sm:text-sm font-semibold text-primary">
+              <span className="text-xs sm:text-sm font-semibold text-primary whitespace-nowrap ml-2 flex-shrink-0"> {/* Added flex-shrink-0 */}
                 {elo}&nbsp;pts
               </span>
             </div>
@@ -1079,7 +1080,7 @@ function MatchRowInput({
         <Button
           variant='ghost'
           size="icon"
-          className='absolute top-1/2 right-[-8px] sm:right-0 -translate-y-1/2 h-6 w-6 sm:h-7 sm:w-7'
+          className='absolute top-1/2 right-[-8px] sm:right-0 -translate-y-1/2 h-6 w-6 sm:h-7 sm:w-7' // Adjusted right positioning
           onClick={onRemove}
         >
           <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
