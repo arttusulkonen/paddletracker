@@ -24,7 +24,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Label, // Added Label import
+  Label, 
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
@@ -409,42 +409,44 @@ export default function PlayersTable() {
             <p className="text-center text-muted-foreground py-8 text-sm sm:text-base">No player data available for the selected time frame or you are not in any rooms yet.</p>
           ) : (
             <ScrollArea className="h-[400px] sm:h-[500px] w-full overflow-auto border rounded-md">
-              <Table className="min-w-[700px] sm:min-w-full"> {/* Min width for horizontal scroll on small screens */}
-                <TableHeader>
-                  <TableRow>
-                    {header('rank', '#', 'Overall Rank', 'asc')}
-                    {header('name', 'Name', 'Player Name', 'asc')}
-                    {header('globalElo', 'ELO', 'Global ELO Rating', 'desc')}
-                    {header('matchesPlayed', 'MP', 'Matches Played', 'desc')}
-                    {header('wins', 'W', 'Matches Won', 'desc')}
-                    {header('losses', 'L', 'Matches Lost', 'desc')}
-                    {header('winRate', 'Win %', 'Win Percentage', 'desc')}
-                    {header('totalAddedPoints', '+Pts', 'Net ELO Change in Period', 'desc')}
-                    {header('longestWinStreak', 'WS', 'Longest Win Streak', 'desc')}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedStats.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-muted/50 text-xs sm:text-sm">
-                      <TableCell className="font-medium py-2 px-2 sm:px-4">{p.rank}</TableCell>
-                      <TableCell className="py-2 px-2 sm:px-4">
-                        <Link
-                          href={`/profile/${p.id}`}
-                          className="text-primary hover:underline font-medium"
-                        >
-                          {p.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="font-semibold py-2 px-2 sm:px-4">{p.globalElo}</TableCell>
-                      <TableCell className="py-2 px-2 sm:px-4">{p.matchesPlayed}</TableCell>
-                      <TableCell className="py-2 px-2 sm:px-4">{p.wins}</TableCell>
-                      <TableCell className="py-2 px-2 sm:px-4">{p.losses}</TableCell>
-                      <TableCell className="py-2 px-2 sm:px-4">{p.winRate.toFixed(1)}%</TableCell>
-                      <TableCell className={`py-2 px-2 sm:px-4 ${p.totalAddedPoints >= 0 ? 'text-accent' : 'text-destructive'}`}>{p.totalAddedPoints > 0 ? `+${p.totalAddedPoints}` : p.totalAddedPoints}</TableCell>
-                      <TableCell className="py-2 px-2 sm:px-4">{p.longestWinStreak}</TableCell>
+              <Table className="min-w-[700px] sm:min-w-full">
+                <>
+                  <TableHeader>
+                    <TableRow>
+                      {header('rank', '#', 'Overall Rank', 'asc')}
+                      {header('name', 'Name', 'Player Name', 'asc')}
+                      {header('globalElo', 'ELO', 'Global ELO Rating', 'desc')}
+                      {header('matchesPlayed', 'MP', 'Matches Played', 'desc')}
+                      {header('wins', 'W', 'Matches Won', 'desc')}
+                      {header('losses', 'L', 'Matches Lost', 'desc')}
+                      {header('winRate', 'Win %', 'Win Percentage', 'desc')}
+                      {header('totalAddedPoints', '+Pts', 'Net ELO Change in Period', 'desc')}
+                      {header('longestWinStreak', 'WS', 'Longest Win Streak', 'desc')}
                     </TableRow>
-                  ))}
-                </TableBody>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedStats.map((p) => (
+                      <TableRow key={p.id} className="hover:bg-muted/50 text-xs sm:text-sm">
+                        <TableCell className="font-medium py-2 px-2 sm:px-4">{p.rank}</TableCell>
+                        <TableCell className="py-2 px-2 sm:px-4">
+                          <Link
+                            href={`/profile/${p.id}`}
+                            className="text-primary hover:underline font-medium"
+                          >
+                            {p.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="font-semibold py-2 px-2 sm:px-4">{p.globalElo}</TableCell>
+                        <TableCell className="py-2 px-2 sm:px-4">{p.matchesPlayed}</TableCell>
+                        <TableCell className="py-2 px-2 sm:px-4">{p.wins}</TableCell>
+                        <TableCell className="py-2 px-2 sm:px-4">{p.losses}</TableCell>
+                        <TableCell className="py-2 px-2 sm:px-4">{p.winRate.toFixed(1)}%</TableCell>
+                        <TableCell className={`py-2 px-2 sm:px-4 ${p.totalAddedPoints >= 0 ? 'text-accent' : 'text-destructive'}`}>{p.totalAddedPoints > 0 ? `+${p.totalAddedPoints}` : p.totalAddedPoints}</TableCell>
+                        <TableCell className="py-2 px-2 sm:px-4">{p.longestWinStreak}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </>
               </Table>
             </ScrollArea>
           )}
@@ -471,4 +473,3 @@ export default function PlayersTable() {
     </>
   );
 }
-

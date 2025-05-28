@@ -16,7 +16,7 @@ import {
   Timestamp,
   updateDoc,
 } from "firebase/firestore"
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react" // Added React for Fragment
 
 import {
   Button,
@@ -315,70 +315,72 @@ function RoundEditor({ round, bracket, persist, roundType, isTournamentAdmin }: 
       <CardContent className="p-2 sm:p-4 md:p-6">
         <ScrollArea className="max-h-[400px] sm:max-h-none w-full">
           <Table className="min-w-[550px] sm:min-w-full"> {/* Min width for scroll on small screens */}
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-xs sm:text-sm">P1</TableHead>
-                <TableHead className="text-center text-xs sm:text-sm w-16 sm:w-20">Score</TableHead>
-                <TableHead className="text-center text-xs sm:text-sm w-16 sm:w-20">Score</TableHead>
-                <TableHead className="text-right text-xs sm:text-sm">P2</TableHead>
-                <TableHead className="text-center text-xs sm:text-sm hidden sm:table-cell">Winner</TableHead>
-                {isTournamentAdmin && <TableHead className="w-20 sm:w-24" />}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {matches.map((m: any) => {
-                const fin = m.matchStatus === "finished"
-                const p1Name = m.player1?.name || "TBD";
-                const p2Name = m.player2?.name || "TBD";
-                const winnerName = fin ? (m.winner === m.player1?.userId ? p1Name : p2Name) : "—";
-                return (
-                  <TableRow key={m.matchId} className={fin ? "opacity-70" : "bg-accent/5"}>
-                    <TableCell className="text-xs sm:text-sm font-medium">{p1Name}{m.player1?.place ? ` (${m.player1.place})` : ""}</TableCell>
-                    <TableCell className="text-center">
-                      <Input
-                        type="number"
-                        min="0"
-                        disabled={fin || !isTournamentAdmin || savingMatchId === m.matchId}
-                        value={m.scorePlayer1 ?? ""}
-                        onChange={e => setMatches((ms: any[]) => ms.map(x =>
-                          x.matchId === m.matchId
-                            ? { ...x, scorePlayer1: e.target.value === '' ? null : Number(e.target.value) }
-                            : x))}
-                        className="w-12 sm:w-16 mx-auto text-center h-8 text-xs sm:text-sm"
-                      />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Input
-                        type="number"
-                        min="0"
-                        disabled={fin || !isTournamentAdmin || savingMatchId === m.matchId}
-                        value={m.scorePlayer2 ?? ""}
-                        onChange={e => setMatches((ms: any[]) => ms.map(x =>
-                          x.matchId === m.matchId
-                            ? { ...x, scorePlayer2: e.target.value === '' ? null : Number(e.target.value) }
-                            : x))}
-                        className="w-12 sm:w-16 mx-auto text-center h-8 text-xs sm:text-sm"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right text-xs sm:text-sm font-medium">
-                      {p2Name}{m.player2?.place ? ` (${m.player2.place})` : ""}
-                    </TableCell>
-                    <TableCell className="text-center font-semibold text-xs sm:text-sm hidden sm:table-cell">
-                      {winnerName}
-                    </TableCell>
-                    {isTournamentAdmin && (
+            <React.Fragment>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-sm">P1</TableHead>
+                  <TableHead className="text-center text-xs sm:text-sm w-16 sm:w-20">Score</TableHead>
+                  <TableHead className="text-center text-xs sm:text-sm w-16 sm:w-20">Score</TableHead>
+                  <TableHead className="text-right text-xs sm:text-sm">P2</TableHead>
+                  <TableHead className="text-center text-xs sm:text-sm hidden sm:table-cell">Winner</TableHead>
+                  {isTournamentAdmin && <TableHead className="w-20 sm:w-24" />}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matches.map((m: any) => {
+                  const fin = m.matchStatus === "finished"
+                  const p1Name = m.player1?.name || "TBD";
+                  const p2Name = m.player2?.name || "TBD";
+                  const winnerName = fin ? (m.winner === m.player1?.userId ? p1Name : p2Name) : "—";
+                  return (
+                    <TableRow key={m.matchId} className={fin ? "opacity-70" : "bg-accent/5"}>
+                      <TableCell className="text-xs sm:text-sm font-medium">{p1Name}{m.player1?.place ? ` (${m.player1.place})` : ""}</TableCell>
                       <TableCell className="text-center">
-                        {!fin && (
-                          <Button size="xs" sm={{size: "sm"}} onClick={() => save(m.matchId)} disabled={savingMatchId === m.matchId || !m.player1 || !m.player2}>
-                            {savingMatchId === m.matchId ? 'Saving...' : 'Save'}
-                          </Button>
-                        )}
+                        <Input
+                          type="number"
+                          min="0"
+                          disabled={fin || !isTournamentAdmin || savingMatchId === m.matchId}
+                          value={m.scorePlayer1 ?? ""}
+                          onChange={e => setMatches((ms: any[]) => ms.map(x =>
+                            x.matchId === m.matchId
+                              ? { ...x, scorePlayer1: e.target.value === '' ? null : Number(e.target.value) }
+                              : x))}
+                          className="w-12 sm:w-16 mx-auto text-center h-8 text-xs sm:text-sm"
+                        />
                       </TableCell>
-                    )}
-                  </TableRow>
-                )
-              })}
-            </TableBody>
+                      <TableCell className="text-center">
+                        <Input
+                          type="number"
+                          min="0"
+                          disabled={fin || !isTournamentAdmin || savingMatchId === m.matchId}
+                          value={m.scorePlayer2 ?? ""}
+                          onChange={e => setMatches((ms: any[]) => ms.map(x =>
+                            x.matchId === m.matchId
+                              ? { ...x, scorePlayer2: e.target.value === '' ? null : Number(e.target.value) }
+                              : x))}
+                          className="w-12 sm:w-16 mx-auto text-center h-8 text-xs sm:text-sm"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right text-xs sm:text-sm font-medium">
+                        {p2Name}{m.player2?.place ? ` (${m.player2.place})` : ""}
+                      </TableCell>
+                      <TableCell className="text-center font-semibold text-xs sm:text-sm hidden sm:table-cell">
+                        {winnerName}
+                      </TableCell>
+                      {isTournamentAdmin && (
+                        <TableCell className="text-center">
+                          {!fin && (
+                            <Button size="xs" sm={{size: "sm"}} onClick={() => save(m.matchId)} disabled={savingMatchId === m.matchId || !m.player1 || !m.player2}>
+                              {savingMatchId === m.matchId ? 'Saving...' : 'Save'}
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </React.Fragment>
           </Table>
         </ScrollArea>
         <p className="text-xs text-muted-foreground mt-2 sm:hidden">Winner: {matches.map((m:any) => m.matchStatus === 'finished' ? (m.winner === m.player1?.userId ? m.player1?.name : m.player2?.name) : 'TBD').join(', ')}</p>
@@ -411,30 +413,32 @@ function Standings({ matches, participants }: { matches: any[], participants: an
       <h3 className="text-sm sm:text-base font-semibold mb-2">Round Robin Standings</h3>
       <ScrollArea className="max-h-[300px] sm:max-h-none w-full">
         <Table className="min-w-[400px] sm:min-w-full">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-xs sm:text-sm w-8">#</TableHead>
-              <TableHead className="text-xs sm:text-sm">Player</TableHead>
-              <TableHead className="text-xs sm:text-sm text-center">W</TableHead>
-              <TableHead className="text-xs sm:text-sm text-center">L</TableHead>
-              <TableHead className="text-xs sm:text-sm text-center">PF</TableHead>
-              <TableHead className="text-xs sm:text-sm text-center">PA</TableHead>
-              <TableHead className="text-xs sm:text-sm text-center">PD</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map(p => (
-              <TableRow key={p.userId} className="text-xs sm:text-sm">
-                <TableCell>{p.place}</TableCell>
-                <TableCell className="font-medium">{p.name}</TableCell>
-                <TableCell className="text-center">{p.wins}</TableCell>
-                <TableCell className="text-center">{p.losses}</TableCell>
-                <TableCell className="text-center">{p.pf}</TableCell>
-                <TableCell className="text-center">{p.pa}</TableCell>
-                <TableCell className="text-center">{p.pf - p.pa}</TableCell>
+          <React.Fragment>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs sm:text-sm w-8">#</TableHead>
+                <TableHead className="text-xs sm:text-sm">Player</TableHead>
+                <TableHead className="text-xs sm:text-sm text-center">W</TableHead>
+                <TableHead className="text-xs sm:text-sm text-center">L</TableHead>
+                <TableHead className="text-xs sm:text-sm text-center">PF</TableHead>
+                <TableHead className="text-xs sm:text-sm text-center">PA</TableHead>
+                <TableHead className="text-xs sm:text-sm text-center">PD</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
+            </TableHeader>
+            <TableBody>
+              {rows.map(p => (
+                <TableRow key={p.userId} className="text-xs sm:text-sm">
+                  <TableCell>{p.place}</TableCell>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="text-center">{p.wins}</TableCell>
+                  <TableCell className="text-center">{p.losses}</TableCell>
+                  <TableCell className="text-center">{p.pf}</TableCell>
+                  <TableCell className="text-center">{p.pa}</TableCell>
+                  <TableCell className="text-center">{p.pf - p.pa}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </React.Fragment>
         </Table>
       </ScrollArea>
     </div>
@@ -452,38 +456,39 @@ function FinalTable({ stats }: { stats?: any[] }) {
       <CardContent className="p-2 sm:p-4 md:p-6">
         <ScrollArea className="max-h-[400px] sm:max-h-none w-full">
           <Table className="min-w-[500px] sm:min-w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-xs sm:text-sm w-8">Place</TableHead>
-                <TableHead className="text-xs sm:text-sm">Player</TableHead>
-                <TableHead className="text-xs sm:text-sm text-center">W</TableHead>
-                <TableHead className="text-xs sm:text-sm text-center">L</TableHead>
-                <TableHead className="text-xs sm:text-sm text-center">PF</TableHead>
-                <TableHead className="text-xs sm:text-sm text-center">PA</TableHead>
-                 <TableHead className="text-xs sm:text-sm text-center">ELO Δ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedStats.map(p => (
-                <TableRow key={p.userId} className={`text-xs sm:text-sm ${p.place === 1 ? 'bg-yellow-100 dark:bg-yellow-800/30' : p.place === 2 ? 'bg-gray-100 dark:bg-gray-700/30' : p.place === 3 ? 'bg-orange-100 dark:bg-orange-800/30': ''}`}>
-                  <TableCell className="font-bold">{p.place}</TableCell>
-                  <TableCell>
-                    <Link href={`/profile/${p.userId}`} className="text-primary hover:underline font-medium">
-                      {p.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-center">{p.wins}</TableCell>
-                  <TableCell className="text-center">{p.losses}</TableCell>
-                  <TableCell className="text-center">{p.pf}</TableCell>
-                  <TableCell className="text-center">{p.pa}</TableCell>
-                  <TableCell className={`text-center font-semibold ${p.delta >= 0 ? 'text-accent' : 'text-destructive'}`}>{p.delta > 0 ? `+${p.delta}`: p.delta}</TableCell>
+            <React.Fragment>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-sm w-8">Place</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Player</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-center">W</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-center">L</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-center">PF</TableHead>
+                  <TableHead className="text-xs sm:text-sm text-center">PA</TableHead>
+                   <TableHead className="text-xs sm:text-sm text-center">ELO Δ</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
+              </TableHeader>
+              <TableBody>
+                {sortedStats.map(p => (
+                  <TableRow key={p.userId} className={`text-xs sm:text-sm ${p.place === 1 ? 'bg-yellow-100 dark:bg-yellow-800/30' : p.place === 2 ? 'bg-gray-100 dark:bg-gray-700/30' : p.place === 3 ? 'bg-orange-100 dark:bg-orange-800/30': ''}`}>
+                    <TableCell className="font-bold">{p.place}</TableCell>
+                    <TableCell>
+                      <Link href={`/profile/${p.userId}`} className="text-primary hover:underline font-medium">
+                        {p.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-center">{p.wins}</TableCell>
+                    <TableCell className="text-center">{p.losses}</TableCell>
+                    <TableCell className="text-center">{p.pf}</TableCell>
+                    <TableCell className="text-center">{p.pa}</TableCell>
+                    <TableCell className={`text-center font-semibold ${p.delta >= 0 ? 'text-accent' : 'text-destructive'}`}>{p.delta > 0 ? `+${p.delta}`: p.delta}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </React.Fragment>
           </Table>
         </ScrollArea>
       </CardContent>
     </Card>
   )
 }
-

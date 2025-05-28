@@ -71,7 +71,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react'; // Added React for Fragment
 
 const calcWinPct = (wins: number, losses: number) => {
   const total = wins + losses;
@@ -586,80 +586,82 @@ export default function RoomPage() {
                 </div>
                 <ScrollArea className="h-[300px] sm:h-[400px] w-full">
                   <Table className="min-w-[500px] sm:min-w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs sm:text-sm w-8 sm:w-12">#</TableHead>
-                        <TableHead
-                          onClick={() =>
-                            setSortConfig((s) => ({
-                              key: 'name',
-                              dir: s.dir === 'asc' ? 'desc' : 'asc',
-                            }))
-                          }
-                          className='cursor-pointer text-xs sm:text-sm'
-                        >
-                          Name <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
-                        </TableHead>
-                        <TableHead
-                          onClick={() =>
-                            setSortConfig((s) => ({
-                              key: 'rating',
-                              dir: s.dir === 'asc' ? 'desc' : 'asc',
-                            }))
-                          }
-                          className='cursor-pointer text-xs sm:text-sm'
-                        >
-                          Points <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
-                        </TableHead>
-                        <TableHead
-                          onClick={() =>
-                            setSortConfig((s) => ({
-                              key: 'totalMatches',
-                              dir: s.dir === 'asc' ? 'desc' : 'asc',
-                            }))
-                          }
-                          className='cursor-pointer text-xs sm:text-sm'
-                        >
-                          MP <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
-                        </TableHead>
-                        <TableHead
-                          onClick={() =>
-                            setSortConfig((s) => ({
-                              key: 'winPct',
-                              dir: s.dir === 'asc' ? 'desc' : 'asc',
-                            }))
-                          }
-                          className='cursor-pointer text-xs sm:text-sm'
-                        >
-                          Win % <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {regularPlayers.map((p, i) => (
-                        <TableRow key={p.userId} className="text-xs sm:text-sm">
-                          <TableCell>{i + 1}</TableCell>
-                          <TableCell>
-                            <Link
-                              href={`/profile/${p.userId}`}
-                              className='hover:underline'
-                            >
-                              {p.name}
-                            </Link>
-                            {p.userId === room.creator && (
-                              <Crown className='inline ml-1 h-3 w-3 sm:h-4 sm:w-4 text-yellow-500' />
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {p.ratingVisible ? p.effectiveRating : 'Hidden'}
-                          </TableCell>
-                          <TableCell>{p.totalMatches}</TableCell>
-                          <TableCell>
-                            {p.ratingVisible ? `${p.winPct}%` : 'Hidden'}
-                          </TableCell>
+                    <React.Fragment>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs sm:text-sm w-8 sm:w-12">#</TableHead>
+                          <TableHead
+                            onClick={() =>
+                              setSortConfig((s) => ({
+                                key: 'name',
+                                dir: s.dir === 'asc' ? 'desc' : 'asc',
+                              }))
+                            }
+                            className='cursor-pointer text-xs sm:text-sm'
+                          >
+                            Name <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
+                          </TableHead>
+                          <TableHead
+                            onClick={() =>
+                              setSortConfig((s) => ({
+                                key: 'rating',
+                                dir: s.dir === 'asc' ? 'desc' : 'asc',
+                              }))
+                            }
+                            className='cursor-pointer text-xs sm:text-sm'
+                          >
+                            Points <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
+                          </TableHead>
+                          <TableHead
+                            onClick={() =>
+                              setSortConfig((s) => ({
+                                key: 'totalMatches',
+                                dir: s.dir === 'asc' ? 'desc' : 'asc',
+                              }))
+                            }
+                            className='cursor-pointer text-xs sm:text-sm'
+                          >
+                            MP <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
+                          </TableHead>
+                          <TableHead
+                            onClick={() =>
+                              setSortConfig((s) => ({
+                                key: 'winPct',
+                                dir: s.dir === 'asc' ? 'desc' : 'asc',
+                              }))
+                            }
+                            className='cursor-pointer text-xs sm:text-sm'
+                          >
+                            Win % <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
+                          </TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
+                      </TableHeader>
+                      <TableBody>
+                        {regularPlayers.map((p, i) => (
+                          <TableRow key={p.userId} className="text-xs sm:text-sm">
+                            <TableCell>{i + 1}</TableCell>
+                            <TableCell>
+                              <Link
+                                href={`/profile/${p.userId}`}
+                                className='hover:underline'
+                              >
+                                {p.name}
+                              </Link>
+                              {p.userId === room.creator && (
+                                <Crown className='inline ml-1 h-3 w-3 sm:h-4 sm:w-4 text-yellow-500' />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {p.ratingVisible ? p.effectiveRating : 'Hidden'}
+                            </TableCell>
+                            <TableCell>{p.totalMatches}</TableCell>
+                            <TableCell>
+                              {p.ratingVisible ? `${p.winPct}%` : 'Hidden'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </React.Fragment>
                   </Table>
                 </ScrollArea>
               </>
@@ -668,36 +670,38 @@ export default function RoomPage() {
               (latestSeason ? (
                 <ScrollArea className="h-[300px] sm:h-[400px] w-full">
                   <Table className="min-w-[600px] sm:min-w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs sm:text-sm">Place</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Name</TableHead>
-                        <TableHead className="text-xs sm:text-sm">MP</TableHead>
-                        <TableHead className="text-xs sm:text-sm">W</TableHead>
-                        <TableHead className="text-xs sm:text-sm">L</TableHead>
-                        <TableHead className="text-xs sm:text-sm">WS</TableHead>
-                        <TableHead className="text-xs sm:text-sm">+Pts</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Score</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {finalRows.map((r: any) => (
-                        <TableRow key={r.userId} className="text-xs sm:text-sm">
-                          <TableCell>{r.place}</TableCell>
-                          <TableCell>{r.name}</TableCell>
-                          <TableCell>{r.matchesPlayed}</TableCell>
-                          <TableCell>{r.wins}</TableCell>
-                          <TableCell>{r.losses}</TableCell>
-                          <TableCell>{r.longestWinStreak ?? '-'}</TableCell>
-                          <TableCell>
-                            {r.totalAddedPoints?.toFixed(0) ?? '-'}
-                          </TableCell>
-                          <TableCell>
-                            {r.finalScore?.toFixed(0) ?? '-'}
-                          </TableCell>
+                    <React.Fragment>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs sm:text-sm">Place</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Name</TableHead>
+                          <TableHead className="text-xs sm:text-sm">MP</TableHead>
+                          <TableHead className="text-xs sm:text-sm">W</TableHead>
+                          <TableHead className="text-xs sm:text-sm">L</TableHead>
+                          <TableHead className="text-xs sm:text-sm">WS</TableHead>
+                          <TableHead className="text-xs sm:text-sm">+Pts</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Score</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
+                      </TableHeader>
+                      <TableBody>
+                        {finalRows.map((r: any) => (
+                          <TableRow key={r.userId} className="text-xs sm:text-sm">
+                            <TableCell>{r.place}</TableCell>
+                            <TableCell>{r.name}</TableCell>
+                            <TableCell>{r.matchesPlayed}</TableCell>
+                            <TableCell>{r.wins}</TableCell>
+                            <TableCell>{r.losses}</TableCell>
+                            <TableCell>{r.longestWinStreak ?? '-'}</TableCell>
+                            <TableCell>
+                              {r.totalAddedPoints?.toFixed(0) ?? '-'}
+                            </TableCell>
+                            <TableCell>
+                              {r.finalScore?.toFixed(0) ?? '-'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </React.Fragment>
                   </Table>
                 </ScrollArea>
               ) : (
@@ -716,42 +720,44 @@ export default function RoomPage() {
             {recent.length ? (
               <ScrollArea className='h-[300px] sm:h-[400px] w-full'>
                 <Table className="min-w-[700px] sm:min-w-full">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs sm:text-sm">Players</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Score</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Room ΔPts</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Global ΔELO</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Winner</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recent.map((m) => (
-                      <TableRow key={m.id} className="text-xs sm:text-sm">
-                        <TableCell className="whitespace-nowrap">
-                          {m.player1.name} vs {m.player2.name}
-                        </TableCell>
-                        <TableCell>
-                          {m.player1.scores} – {m.player2.scores}
-                        </TableCell>
-                        <TableCell>
-                          {m.player1.roomAddedPoints > 0 ? '+' : ''}{m.player1.roomAddedPoints} / {' '}
-                          {m.player2.roomAddedPoints > 0 ? '+' : ''}{m.player2.roomAddedPoints}
-                        </TableCell>
-                         <TableCell>
-                          {m.player1.addedPoints > 0 ? '+' : ''}{m.player1.addedPoints} / {' '}
-                          {m.player2.addedPoints > 0 ? '+' : ''}{m.player2.addedPoints}
-                        </TableCell>
-                        <TableCell className='font-semibold'>
-                          {m.winner}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {safeFormatDate(m.timestamp, 'dd.MM.yy HH:mm')}
-                        </TableCell>
+                  <React.Fragment>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs sm:text-sm">Players</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Score</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Room ΔPts</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Global ΔELO</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Winner</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Date</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
+                    </TableHeader>
+                    <TableBody>
+                      {recent.map((m) => (
+                        <TableRow key={m.id} className="text-xs sm:text-sm">
+                          <TableCell className="whitespace-nowrap">
+                            {m.player1.name} vs {m.player2.name}
+                          </TableCell>
+                          <TableCell>
+                            {m.player1.scores} – {m.player2.scores}
+                          </TableCell>
+                          <TableCell>
+                            {m.player1.roomAddedPoints > 0 ? '+' : ''}{m.player1.roomAddedPoints} / {' '}
+                            {m.player2.roomAddedPoints > 0 ? '+' : ''}{m.player2.roomAddedPoints}
+                          </TableCell>
+                           <TableCell>
+                            {m.player1.addedPoints > 0 ? '+' : ''}{m.player1.addedPoints} / {' '}
+                            {m.player2.addedPoints > 0 ? '+' : ''}{m.player2.addedPoints}
+                          </TableCell>
+                          <TableCell className='font-semibold'>
+                            {m.winner}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {safeFormatDate(m.timestamp, 'dd.MM.yy HH:mm')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </React.Fragment>
                 </Table>
               </ScrollArea>
             ) : (

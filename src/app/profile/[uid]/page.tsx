@@ -59,7 +59,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import {
+import React, { // Added React import for Fragment
   FC,
   useCallback,
   useEffect,
@@ -690,41 +690,43 @@ function MatchesTableCard({ title, matches, loading, meUid }: { title: string; m
         ) : (
           <ScrollArea className="h-[300px] sm:h-[400px] w-full">
             <Table className="min-w-[600px] sm:min-w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs sm:text-sm">Date</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Opponent</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Score</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Result</TableHead>
-                  <TableHead className="text-xs sm:text-sm">ELO Δ</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {matches.map((m) => {
-                  const isP1 = m.player1Id === meUid;
-                  const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy HH:mm");
-                  const opp = isP1 ? m.player2.name : m.player1.name;
-                  const myScore = isP1 ? m.player1.scores : m.player2.scores;
-                  const theirScore = isP1 ? m.player2.scores : m.player1.scores;
-                  const eloΔ = isP1 ? m.player1.addedPoints : m.player2.addedPoints;
-                  const win = myScore > theirScore;
-                  return (
-                    <TableRow key={m.id} className="text-xs sm:text-sm">
-                      <TableCell>{date}</TableCell>
-                      <TableCell>{opp}</TableCell>
-                      <TableCell>
-                        {myScore} – {theirScore}
-                      </TableCell>
-                      <TableCell className={win ? "text-accent" : "text-destructive"}>
-                        {win ? "Win" : "Loss"}
-                      </TableCell>
-                      <TableCell className={eloΔ >= 0 ? "text-accent" : "text-destructive"}>
-                        {eloΔ > 0 ? `+${eloΔ}` : eloΔ}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
+              <React.Fragment>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Opponent</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Score</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Result</TableHead>
+                    <TableHead className="text-xs sm:text-sm">ELO Δ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {matches.map((m) => {
+                    const isP1 = m.player1Id === meUid;
+                    const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy HH:mm");
+                    const opp = isP1 ? m.player2.name : m.player1.name;
+                    const myScore = isP1 ? m.player1.scores : m.player2.scores;
+                    const theirScore = isP1 ? m.player2.scores : m.player1.scores;
+                    const eloΔ = isP1 ? m.player1.addedPoints : m.player2.addedPoints;
+                    const win = myScore > theirScore;
+                    return (
+                      <TableRow key={m.id} className="text-xs sm:text-sm">
+                        <TableCell>{date}</TableCell>
+                        <TableCell>{opp}</TableCell>
+                        <TableCell>
+                          {myScore} – {theirScore}
+                        </TableCell>
+                        <TableCell className={win ? "text-accent" : "text-destructive"}>
+                          {win ? "Win" : "Loss"}
+                        </TableCell>
+                        <TableCell className={eloΔ >= 0 ? "text-accent" : "text-destructive"}>
+                          {eloΔ > 0 ? `+${eloΔ}` : eloΔ}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </React.Fragment>
             </Table>
           </ScrollArea>
         )}
