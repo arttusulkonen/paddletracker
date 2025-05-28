@@ -24,6 +24,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Label, // Added Label import
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
