@@ -69,7 +69,7 @@ import {
   Settings2, // For sorting icon
   Filter, // For filter icon
 } from 'lucide-react';
-import Link from 'next/link'; // Added Link import
+import Link from 'next/link'; 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -1012,7 +1012,6 @@ function PlayerSelect({
           <SelectValue placeholder="Select Player" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="" disabled className="text-xs sm:text-sm">Select Player</SelectItem>
           {list.filter(p => p.userId !== otherPlayerId).map((o) => (
             <SelectItem key={o.userId} value={o.userId} className="text-xs sm:text-sm">
               {o.name} ({o.rating})
@@ -1070,7 +1069,6 @@ function MatchRowInput({
                 <SelectValue placeholder="Side" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="" disabled className="text-xs sm:text-sm">Select Side</SelectItem>
                 <SelectItem value="left" className="text-xs sm:text-sm">Left</SelectItem>
                 <SelectItem value="right" className="text-xs sm:text-sm">Right</SelectItem>
             </SelectContent>
