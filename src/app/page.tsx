@@ -1,3 +1,4 @@
+
 "use client";
 
 import PlayersTable from "@/components/PlayersTable";
@@ -14,12 +15,12 @@ export default function Home() {
   const visibleName = user?.displayName ?? user?.name;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-12">
-      <section className="text-center mb-12">
-        <h1 className="text-5xl font-extrabold tracking-tight mb-4 sm:text-6xl md:text-7xl">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-8 sm:py-12">
+      <section className="text-center mb-8 sm:mb-12">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-4">
           Welcome to <span className="text-primary">PingPongTracker</span>
         </h1>
-        <p className="max-w-2xl mx-auto text-lg text-muted-foreground sm:text-xl">
+        <p className="max-w-xl sm:max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-muted-foreground">
           Track your ping-pong matches, manage tournaments, analyze your ELO rating, and climb the leaderboard!
         </p>
       </section>
@@ -40,15 +41,15 @@ export default function Home() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : user ? (
-        <section className="text-center">
-          <h2 className="text-3xl font-semibold mb-6">Hello, {visibleName || "Player"}!</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <section className="text-center w-full px-2">
+          <h2 className="text-2xl sm:text-3xl font-semibold mb-6">Hello, {visibleName || "Player"}!</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><UserPlus className="text-primary" /> Your Profile</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl"><UserPlus className="text-primary h-5 w-5" /> Your Profile</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>View your stats and ELO history.</p>
+                <p className="text-sm sm:text-base">View your stats and ELO history.</p>
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full">
@@ -58,10 +59,10 @@ export default function Home() {
             </Card>
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><UsersIcon className="text-primary" /> Match Rooms</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl"><UsersIcon className="text-primary h-5 w-5" /> Match Rooms</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>Create or join rooms to play matches.</p>
+                <p className="text-sm sm:text-base">Create or join rooms to play matches.</p>
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full">
@@ -71,10 +72,10 @@ export default function Home() {
             </Card>
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><TrophyIcon className="text-primary" /> Tournaments</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl"><TrophyIcon className="text-primary h-5 w-5" /> Tournaments</CardTitle>
               </CardHeader>
               <CardContent>
-                <p>Compete in exciting tournaments.</p>
+                <p className="text-sm sm:text-base">Compete in exciting tournaments.</p>
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full">
@@ -87,7 +88,7 @@ export default function Home() {
         </section>
       ) : (
         <section className="text-center">
-          <h2 className="text-3xl font-semibold mb-6">Get Started</h2>
+          <h2 className="text-2xl sm:text-3xl font-semibold mb-6">Get Started</h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" asChild>
               <Link href="/login" className="flex items-center gap-2">
@@ -103,23 +104,23 @@ export default function Home() {
         </section>
       )}
 
-      <section className="mt-16 w-full max-w-4xl">
-        <h2 className="text-3xl font-semibold text-center mb-8">Why PingPongTracker?</h2>
-        <div className="grid md:grid-cols-3 gap-8 text-center">
-          <div className="p-6 bg-card rounded-lg shadow-md">
-            <TrophyIcon className="h-12 w-12 text-accent mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">ELO Rating System</h3>
-            <p className="text-muted-foreground">Accurately track your skill progression with the widely recognized ELO system.</p>
+      <section className="mt-12 sm:mt-16 w-full max-w-4xl px-2">
+        <h2 className="text-2xl sm:text-3xl font-semibold text-center mb-6 sm:mb-8">Why PingPongTracker?</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 text-center">
+          <div className="p-4 sm:p-6 bg-card rounded-lg shadow-md">
+            <TrophyIcon className="h-10 w-10 sm:h-12 sm:w-12 text-accent mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">ELO Rating System</h3>
+            <p className="text-sm sm:text-base text-muted-foreground">Accurately track your skill progression with the widely recognized ELO system.</p>
           </div>
-          <div className="p-6 bg-card rounded-lg shadow-md">
-            <UsersIcon className="h-12 w-12 text-accent mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Rooms & Tournaments</h3>
-            <p className="text-muted-foreground">Organize casual matches in rooms or compete in structured tournaments.</p>
+          <div className="p-4 sm:p-6 bg-card rounded-lg shadow-md">
+            <UsersIcon className="h-10 w-10 sm:h-12 sm:w-12 text-accent mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">Rooms & Tournaments</h3>
+            <p className="text-sm sm:text-base text-muted-foreground">Organize casual matches in rooms or compete in structured tournaments.</p>
           </div>
-          <div className="p-6 bg-card rounded-lg shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-12 w-12 text-accent mx-auto mb-4"><path d="M12 20V10M18 20V4M6 20V16" /></svg>
-            <h3 className="text-xl font-semibold mb-2">Detailed Statistics</h3>
-            <p className="text-muted-foreground">Analyze your performance with win/loss records, match history, and more.</p>
+          <div className="p-4 sm:p-6 bg-card rounded-lg shadow-md">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 sm:h-12 sm:w-12 text-accent mx-auto mb-3 sm:mb-4"><path d="M12 20V10M18 20V4M6 20V16" /></svg>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2">Detailed Statistics</h3>
+            <p className="text-sm sm:text-base text-muted-foreground">Analyze your performance with win/loss records, match history, and more.</p>
           </div>
         </div>
       </section>

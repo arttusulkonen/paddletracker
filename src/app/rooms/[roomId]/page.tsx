@@ -1,3 +1,4 @@
+
 'use client';
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import {
@@ -28,6 +29,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -60,6 +66,8 @@ import {
   Sword,
   Trash2,
   Users,
+  Settings2, // For sorting icon
+  Filter, // For filter icon
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -80,6 +88,7 @@ export default function RoomPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [player1Id, setPlayer1Id] = useState('');
   const [player2Id, setPlayer2Id] = useState('');
   const [matchesInput, setMatchesInput] = useState([
@@ -114,7 +123,7 @@ export default function RoomPage() {
         rating: m.roomNewRating ?? m.rating,
       }));
       setRoom({ ...data, members: mapped });
-      setMembers(mapped);
+      setMembers(mapped); // Initialize members here
       const last =
         data.seasonHistory
           ?.slice()
@@ -146,6 +155,23 @@ export default function RoomPage() {
       unsubMatches();
     };
   }, [user, roomId, router, toast]);
+  
+  useEffect(() => { // Separate useEffect for members state update based on recent matches
+    if (!room || !recent.length) return; // Ensure room and recent matches are available
+
+    const updatedMembersList = room.members.map(mem => {
+        const lastMatchInvolvingMember = recent.find(
+            (r) => r.player1Id === mem.userId || r.player2Id === mem.userId
+        );
+        const roomRating = lastMatchInvolvingMember
+            ? (lastMatchInvolvingMember.player1Id === mem.userId
+                ? lastMatchInvolvingMember.player1.roomNewRating
+                : lastMatchInvolvingMember.player2.roomNewRating)
+            : mem.rating; // Fallback to existing rating if no recent match
+        return { ...mem, rating: roomRating };
+    });
+    setMembers(updatedMembersList);
+  }, [room, recent]); // Dependencies: room and recent matches
 
   useEffect(() => {
     if (latestSeason) setViewMode('final');
@@ -174,9 +200,10 @@ export default function RoomPage() {
       }
       const newMember = {
         userId: uid,
-        name: target.name || target.email!,
+        name: target.name || target.displayName || target.email!, // Use displayName
         email: target.email!,
-        rating: 1000,
+        rating: 1000, // Default ELO for new members in room
+        roomNewRating: 1000, // Explicitly set roomNewRating
         wins: 0,
         losses: 0,
         date: getFinnishFormattedDate(),
@@ -184,12 +211,14 @@ export default function RoomPage() {
       };
       await updateDoc(doc(db, 'rooms', roomId), {
         members: arrayUnion(newMember),
+        memberIds: arrayUnion(uid) // Also update memberIds
       });
       toast({
         title: 'Invited',
         description: `${newMember.name} added to room`,
       });
       setInviteEmail('');
+      setInviteDialogOpen(false); // Close dialog
     } finally {
       setIsInviting(false);
     }
@@ -211,7 +240,7 @@ export default function RoomPage() {
     if (
       matchesInput.some((m) => !m.score1 || !m.score2 || !m.side1 || !m.side2)
     ) {
-      toast({ title: 'Fill all fields', variant: 'destructive' });
+      toast({ title: 'Fill all fields for scores and sides', variant: 'destructive' });
       return;
     }
     setIsRecording(true);
@@ -220,6 +249,11 @@ export default function RoomPage() {
         // 1) parse scores & compute winner
         const s1 = parseInt(row.score1, 10);
         const s2 = parseInt(row.score2, 10);
+        if (isNaN(s1) || isNaN(s2)) {
+            toast({ title: 'Invalid scores entered', variant: 'destructive' });
+            setIsRecording(false);
+            return;
+        }
         const winnerId = s1 > s2 ? player1Id : player2Id;
 
         // 2) compute a fresh timestamp for each match
@@ -230,8 +264,8 @@ export default function RoomPage() {
           getDoc(doc(db, 'users', player1Id)),
           getDoc(doc(db, 'users', player2Id)),
         ]);
-        const p1Data = p1Snap.data() as any;
-        const p2Data = p2Snap.data() as any;
+        const p1Data = p1Snap.data() as UserProfile; // Use UserProfile type
+        const p2Data = p2Snap.data() as UserProfile; // Use UserProfile type
         const g1 = p1Data.globalElo ?? 1000;
         const g2 = p2Data.globalElo ?? 1000;
 
@@ -255,8 +289,8 @@ export default function RoomPage() {
         const rData = roomSnap.data() as Room;
         const rp1 = rData.members.find((m) => m.userId === player1Id)!;
         const rp2 = rData.members.find((m) => m.userId === player2Id)!;
-        const r1 = rp1.rating + dG1;
-        const r2 = rp2.rating + dG2;
+        const r1 = (rp1.roomNewRating ?? rp1.rating) + dG1; // Use roomNewRating if available
+        const r2 = (rp2.roomNewRating ?? rp2.rating) + dG2; // Use roomNewRating if available
 
         // 6) write the match
         await addDoc(collection(db, 'matches'), {
@@ -264,14 +298,14 @@ export default function RoomPage() {
           timestamp: time,
           player1Id,
           player2Id,
-          players: [player1Id, player2Id],
+          players: [player1Id, player2Id], // Keep this for queries
           player1: {
             name: rp1.name,
             scores: s1,
             oldRating: g1,
             newRating: newG1,
             addedPoints: dG1,
-            roomOldRating: rp1.rating,
+            roomOldRating: rp1.roomNewRating ?? rp1.rating,
             roomNewRating: r1,
             roomAddedPoints: dG1,
             side: row.side1,
@@ -282,7 +316,7 @@ export default function RoomPage() {
             oldRating: g2,
             newRating: newG2,
             addedPoints: dG2,
-            roomOldRating: rp2.rating,
+            roomOldRating: rp2.roomNewRating ?? rp2.rating,
             roomNewRating: r2,
             roomAddedPoints: dG2,
             side: row.side2,
@@ -315,16 +349,18 @@ export default function RoomPage() {
               m.userId === player1Id
                 ? {
                   ...m,
-                  rating: r1,
-                  wins: m.wins + (dG1 > 0 ? 1 : 0),
-                  losses: m.losses + (dG1 < 0 ? 1 : 0),
+                  rating: r1, // Keep rating for backward compatibility if needed
+                  roomNewRating: r1, // Store new room-specific ELO
+                  wins: (m.wins || 0) + (winnerId === player1Id ? 1 : 0), // Increment wins/losses correctly
+                  losses: (m.losses || 0) + (winnerId !== player1Id ? 1 : 0),
                 }
                 : m.userId === player2Id
                   ? {
                     ...m,
                     rating: r2,
-                    wins: m.wins + (dG2 > 0 ? 1 : 0),
-                    losses: m.losses + (dG2 < 0 ? 1 : 0),
+                    roomNewRating: r2,
+                    wins: (m.wins || 0) + (winnerId === player2Id ? 1 : 0),
+                    losses: (m.losses || 0) + (winnerId !== player2Id ? 1 : 0),
                   }
                   : m
             ),
@@ -340,15 +376,27 @@ export default function RoomPage() {
       setPlayer2Id('');
       setMatchesInput([{ score1: '', score2: '', side1: '', side2: '' }]);
       toast({ title: 'Matches recorded' });
-    } finally {
+    } catch(error) {
+        console.error("Error saving matches:", error);
+        toast({title: "Error", description: "Could not save matches.", variant: "destructive"});
+    }
+    finally {
       setIsRecording(false);
     }
   };
 
   const handleFinishSeason = async () => {
-    await finalizeSeason(roomId);
-    toast({ title: 'Season finished' });
-    setViewMode('final');
+    setIsRecording(true); // Reuse isRecording to disable button
+    try {
+        await finalizeSeason(roomId);
+        toast({ title: 'Season finished' });
+        setViewMode('final');
+    } catch (error) {
+        console.error("Error finishing season:", error);
+        toast({ title: "Error", description: "Could not finish season.", variant: "destructive"});
+    } finally {
+        setIsRecording(false);
+    }
   };
 
   const finalRows = useMemo(() => {
@@ -367,16 +415,22 @@ export default function RoomPage() {
       return {
         ...m,
         totalMatches: total,
-        ratingVisible: total >= 5,
+        ratingVisible: total >= 5, // Threshold for showing rating
         winPct: calcWinPct(m.wins || 0, m.losses || 0),
+        // Use roomNewRating for sorting if available, else fallback to rating
+        effectiveRating: m.roomNewRating ?? m.rating,
       };
     });
     const sorted = enriched.sort((a, b) => {
       if (a.ratingVisible !== b.ratingVisible) return a.ratingVisible ? -1 : 1;
+      const valA = sortConfig.key === 'rating' ? a.effectiveRating : (a as any)[sortConfig.key];
+      const valB = sortConfig.key === 'rating' ? b.effectiveRating : (b as any)[sortConfig.key];
+      
       const dir = sortConfig.dir === 'asc' ? 1 : -1;
-      return (a as any)[sortConfig.key] > (b as any)[sortConfig.key]
-        ? dir
-        : -dir;
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return valA.localeCompare(valB) * dir;
+      }
+      return (valA > valB ? 1 : valA < valB ? -1 : 0) * dir;
     });
     if (!isFiltered) return sorted;
     const avg =
@@ -394,13 +448,13 @@ export default function RoomPage() {
       const updated = await Promise.all(
         members.map(async (m) => {
           const userSnap = await getDoc(doc(db, 'users', m.userId));
-          const userData = userSnap.exists() ? userSnap.data() : {};
+          const userData = userSnap.exists() ? userSnap.data() as UserProfile : null; // Use UserProfile
           return {
             ...m,
-            photoURL: userData.photoURL || null,
-            rank: userData.rank || null,
-            globalElo: userData.globalElo || null,
-            maxRating: userData.maxRating || null,
+            photoURL: userData?.photoURL || null,
+            rank: userData?.rank || getRank(userData?.globalElo ?? 1000), // Calculate rank if not present
+            globalElo: userData?.globalElo ?? 1000,
+            maxRating: userData?.maxRating ?? userData?.globalElo ?? 1000,
           };
         })
       );
@@ -408,47 +462,51 @@ export default function RoomPage() {
     };
 
     loadUserDetails();
-  }, [members.length, recent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [members.length, recent.length]); // Depend on lengths to avoid excessive calls
+  
   if (isLoading || !room) {
     return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <div className='animate-spin h-16 w-16 rounded-full border-b-4 border-primary' />
+      <div className='flex items-center justify-center min-h-[calc(100vh-10rem)]'>
+        <div className='animate-spin h-12 w-12 sm:h-16 sm:w-16 rounded-full border-b-4 border-primary' />
       </div>
     );
   }
 
   return (
     <ProtectedRoute>
-      <div className='container mx-auto py-8 px-4'>
+      <div className='container mx-auto py-6 sm:py-8 px-2 sm:px-4'>
         <Button
           variant='outline'
-          className='mb-6'
+          className='mb-4 sm:mb-6 text-xs sm:text-sm'
           onClick={() => router.push('/rooms')}
         >
-          <ArrowLeft className='mr-2 h-4 w-4' /> Back to Rooms
+          <ArrowLeft className='mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4' /> Back to Rooms
         </Button>
 
-        <Card className='mb-8 shadow-xl'>
-          <CardHeader className='bg-muted/50 p-6 flex flex-col md:flex-row items-center gap-6'>
-            <Avatar className='h-24 w-24 border-4 border-background shadow-md'>
-              <AvatarImage src={room.avatarURL || undefined} />
-              <AvatarFallback>{room.name[0]}</AvatarFallback>
+        <Card className='mb-6 sm:mb-8 shadow-xl'>
+          <CardHeader className='bg-muted/50 p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-3 sm:gap-6'>
+            <Avatar className='h-16 w-16 sm:h-20 md:h-24 md:w-24 border-2 sm:border-4 border-background shadow-md'>
+              <AvatarImage src={room.avatarURL || undefined} alt={room.name} />
+              <AvatarFallback className="text-xl sm:text-2xl md:text-3xl">{room.name[0]}</AvatarFallback>
             </Avatar>
-            <div className='text-center md:text-left'>
-              <CardTitle className='text-3xl font-bold'>{room.name}</CardTitle>
+            <div className='text-center sm:text-left'>
+              <CardTitle className='text-xl sm:text-2xl md:text-3xl font-bold'>{room.name}</CardTitle>
             </div>
           </CardHeader>
 
-          <CardContent className='p-6 grid md:grid-cols-3 gap-6'>
+          <CardContent className='p-4 sm:p-6 grid md:grid-cols-3 gap-4 sm:gap-6'>
             <MembersBlock
               members={members}
-              recent={recent}
-              regularPlayers={regularPlayers}
+              recent={recent} // Pass recent matches
+              regularPlayers={regularPlayers} // Pass sorted players
               isInviting={isInviting}
               inviteEmail={inviteEmail}
               setInviteEmail={setInviteEmail}
               handleInvite={handleInvite}
               room={room}
+              inviteDialogOpen={inviteDialogOpen}
+              setInviteDialogOpen={setInviteDialogOpen}
             />
             {!latestSeason && (
               <RecordBlock
@@ -465,9 +523,9 @@ export default function RoomPage() {
                 isRecording={isRecording}
               />
             )}
-            {!latestSeason && (
-              <div className='md:col-span-3 text-right'>
-                <Button variant='destructive' onClick={handleFinishSeason}>
+            {!latestSeason && room.creator === user?.uid && (
+              <div className='md:col-span-3 text-center sm:text-right mt-4'>
+                <Button variant='destructive' onClick={handleFinishSeason} disabled={isRecording}>
                   Finish Season
                 </Button>
               </div>
@@ -475,12 +533,12 @@ export default function RoomPage() {
           </CardContent>
         </Card>
 
-        <Separator className='my-8' />
+        <Separator className='my-6 sm:my-8' />
 
-        <Card className='shadow-lg mb-8'>
-          <CardHeader>
-            <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-              <CardTitle>Standings</CardTitle>
+        <Card className='shadow-lg mb-6 sm:mb-8'>
+          <CardHeader className="p-4 sm:p-6">
+            <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4'>
+              <CardTitle className="text-lg sm:text-xl">Standings</CardTitle>
               {latestSeason && (
                 <div className='flex gap-2'>
                   <Button
@@ -500,33 +558,35 @@ export default function RoomPage() {
                 </div>
               )}
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               {viewMode === 'regular'
-                ? 'Current rankings'
-                : 'Final season standings'}
+                ? 'Current rankings in this room'
+                : 'Final season standings for this room'}
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="p-2 sm:p-4 md:p-6">
             {viewMode === 'regular' && (
               <>
-                <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4'>
-                  <p className='text-sm'>
-                    Fair ranking shows players with matches ≥ average first
+                <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-3 sm:mb-4'>
+                  <p className='text-xs sm:text-sm'>
+                    Fair ranking shows players with matches ≥ room average first.
                   </p>
                   <Button
-                    size='sm'
+                    size='xs'
+                    sm={{size:'sm'}}
                     variant='outline'
                     onClick={() => setFiltered((f) => !f)}
+                    className="whitespace-nowrap"
                   >
-                    {isFiltered ? 'Remove fair ranking' : 'Apply fair ranking'}
+                    <Filter className="mr-1 h-3 w-3 sm:h-4 sm:w-4" /> {isFiltered ? 'Remove Fair Rank' : 'Apply Fair Rank'}
                   </Button>
                 </div>
-                <ScrollArea>
-                  <Table>
+                <ScrollArea className="h-[300px] sm:h-[400px] w-full">
+                  <Table className="min-w-[500px] sm:min-w-full">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>#</TableHead>
+                        <TableHead className="text-xs sm:text-sm w-8 sm:w-12">#</TableHead>
                         <TableHead
                           onClick={() =>
                             setSortConfig((s) => ({
@@ -534,9 +594,9 @@ export default function RoomPage() {
                               dir: s.dir === 'asc' ? 'desc' : 'asc',
                             }))
                           }
-                          className='cursor-pointer'
+                          className='cursor-pointer text-xs sm:text-sm'
                         >
-                          Name
+                          Name <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
                         </TableHead>
                         <TableHead
                           onClick={() =>
@@ -545,9 +605,9 @@ export default function RoomPage() {
                               dir: s.dir === 'asc' ? 'desc' : 'asc',
                             }))
                           }
-                          className='cursor-pointer'
+                          className='cursor-pointer text-xs sm:text-sm'
                         >
-                          Points
+                          Points <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
                         </TableHead>
                         <TableHead
                           onClick={() =>
@@ -556,9 +616,9 @@ export default function RoomPage() {
                               dir: s.dir === 'asc' ? 'desc' : 'asc',
                             }))
                           }
-                          className='cursor-pointer'
+                          className='cursor-pointer text-xs sm:text-sm'
                         >
-                          Matches
+                          MP <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
                         </TableHead>
                         <TableHead
                           onClick={() =>
@@ -567,29 +627,29 @@ export default function RoomPage() {
                               dir: s.dir === 'asc' ? 'desc' : 'asc',
                             }))
                           }
-                          className='cursor-pointer'
+                          className='cursor-pointer text-xs sm:text-sm'
                         >
-                          Win %
+                          Win % <Settings2 className="inline h-3 w-3 sm:h-4 sm:w-4 opacity-50" />
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {regularPlayers.map((p, i) => (
-                        <TableRow key={p.userId}>
+                        <TableRow key={p.userId} className="text-xs sm:text-sm">
                           <TableCell>{i + 1}</TableCell>
                           <TableCell>
-                            <a
+                            <Link
                               href={`/profile/${p.userId}`}
                               className='hover:underline'
                             >
                               {p.name}
-                            </a>
+                            </Link>
                             {p.userId === room.creator && (
-                              <Crown className='inline ml-1 h-4 w-4 text-yellow-500' />
+                              <Crown className='inline ml-1 h-3 w-3 sm:h-4 sm:w-4 text-yellow-500' />
                             )}
                           </TableCell>
                           <TableCell>
-                            {p.ratingVisible ? p.rating : 'Hidden'}
+                            {p.ratingVisible ? p.effectiveRating : 'Hidden'}
                           </TableCell>
                           <TableCell>{p.totalMatches}</TableCell>
                           <TableCell>
@@ -604,23 +664,23 @@ export default function RoomPage() {
             )}
             {viewMode === 'final' &&
               (latestSeason ? (
-                <ScrollArea>
-                  <Table>
+                <ScrollArea className="h-[300px] sm:h-[400px] w-full">
+                  <Table className="min-w-[600px] sm:min-w-full">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Place</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Matches</TableHead>
-                        <TableHead>Wins</TableHead>
-                        <TableHead>Losses</TableHead>
-                        <TableHead>Longest WS</TableHead>
-                        <TableHead>Total +pts</TableHead>
-                        <TableHead>Score</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Place</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Name</TableHead>
+                        <TableHead className="text-xs sm:text-sm">MP</TableHead>
+                        <TableHead className="text-xs sm:text-sm">W</TableHead>
+                        <TableHead className="text-xs sm:text-sm">L</TableHead>
+                        <TableHead className="text-xs sm:text-sm">WS</TableHead>
+                        <TableHead className="text-xs sm:text-sm">+Pts</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Score</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {finalRows.map((r: any) => (
-                        <TableRow key={r.userId}>
+                        <TableRow key={r.userId} className="text-xs sm:text-sm">
                           <TableCell>{r.place}</TableCell>
                           <TableCell>{r.name}</TableCell>
                           <TableCell>{r.matchesPlayed}</TableCell>
@@ -628,10 +688,10 @@ export default function RoomPage() {
                           <TableCell>{r.losses}</TableCell>
                           <TableCell>{r.longestWinStreak ?? '-'}</TableCell>
                           <TableCell>
-                            {r.totalAddedPoints?.toFixed(2) ?? '-'}
+                            {r.totalAddedPoints?.toFixed(0) ?? '-'}
                           </TableCell>
                           <TableCell>
-                            {r.finalScore?.toFixed(2) ?? '-'}
+                            {r.finalScore?.toFixed(0) ?? '-'}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -639,52 +699,53 @@ export default function RoomPage() {
                   </Table>
                 </ScrollArea>
               ) : (
-                <p className='text-muted-foreground'>Season not finished yet</p>
+                <p className='text-muted-foreground text-center py-4 text-sm sm:text-base'>Season not finished yet</p>
               ))}
           </CardContent>
         </Card>
 
         <Card className='shadow-lg'>
-          <CardHeader>
-            <CardTitle className='flex items-center gap-2'>
-              <ShieldCheck className='text-primary' /> Recent Matches
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className='flex items-center gap-2 text-lg sm:text-xl'>
+              <ShieldCheck className='text-primary h-5 w-5 sm:h-6 sm:w-6' /> Recent Matches
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0 sm:p-2 md:p-4">
             {recent.length ? (
-              <ScrollArea className='h-[300px]'>
-                <Table>
+              <ScrollArea className='h-[300px] sm:h-[400px] w-full'>
+                <Table className="min-w-[700px] sm:min-w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Players</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Δ pts</TableHead>
-                      <TableHead>Δ ELO</TableHead>
-                      <TableHead>Winner</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Players</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Score</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Room ΔPts</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Global ΔELO</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Winner</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {recent.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell>
-                          {m.player1.name} - {m.player2.name}
+                      <TableRow key={m.id} className="text-xs sm:text-sm">
+                        <TableCell className="whitespace-nowrap">
+                          {m.player1.name} vs {m.player2.name}
                         </TableCell>
                         <TableCell>
                           {m.player1.scores} – {m.player2.scores}
                         </TableCell>
                         <TableCell>
-                          {m.player1.roomAddedPoints} |{' '}
-                          {m.player2.roomAddedPoints}
+                          {m.player1.roomAddedPoints > 0 ? '+' : ''}{m.player1.roomAddedPoints} / {' '}
+                          {m.player2.roomAddedPoints > 0 ? '+' : ''}{m.player2.roomAddedPoints}
                         </TableCell>
-                        <TableCell>
-                          {m.player1.newRating} | {m.player2.newRating}
+                         <TableCell>
+                          {m.player1.addedPoints > 0 ? '+' : ''}{m.player1.addedPoints} / {' '}
+                          {m.player2.addedPoints > 0 ? '+' : ''}{m.player2.addedPoints}
                         </TableCell>
                         <TableCell className='font-semibold'>
                           {m.winner}
                         </TableCell>
-                        <TableCell>
-                          {safeFormatDate(m.timestamp, 'dd.MM.yyyy HH:mm:ss')}
+                        <TableCell className="whitespace-nowrap">
+                          {safeFormatDate(m.timestamp, 'dd.MM.yy HH:mm')}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -692,7 +753,7 @@ export default function RoomPage() {
                 </Table>
               </ScrollArea>
             ) : (
-              <p className='text-center py-8 text-muted-foreground'>
+              <p className='text-center py-8 text-muted-foreground text-sm sm:text-base'>
                 No recent matches
               </p>
             )}
@@ -712,6 +773,8 @@ function MembersBlock({
   setInviteEmail,
   handleInvite,
   room,
+  inviteDialogOpen,
+  setInviteDialogOpen,
 }: {
   members: Room["members"];
   recent: Match[];
@@ -721,129 +784,111 @@ function MembersBlock({
   setInviteEmail(v: string): void;
   handleInvite(): void;
   room: Room;
+  inviteDialogOpen: boolean;
+  setInviteDialogOpen: (open: boolean) => void;
 }) {
-  // 1. Сохраняем отдельный profiles-стейт
-  const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
 
-  // 2. Загружаем профили для всех игроков при обновлении members/recent
   useEffect(() => {
     if (!members.length) return;
     const fetchProfiles = async () => {
-      const profs: Record<string, any> = {};
+      const profs: Record<string, UserProfile> = {};
       await Promise.all(
         members.map(async (m) => {
           const snap = await getDoc(doc(db, "users", m.userId));
-          if (snap.exists()) profs[m.userId] = snap.data();
+          if (snap.exists()) profs[m.userId] = snap.data() as UserProfile;
         })
       );
       setProfiles(profs);
     };
     fetchProfiles();
-  }, [members, recent]); // ключевое отличие — recent
-
-  // Последний рейтинг игрока в комнате по матчам
-  const lastRoomRating = useMemo(() => {
-    const map: Record<string, number> = {};
-    members.forEach((mem) => {
-      const lastMatch = recent.find(
-        (r) => r.player1Id === mem.userId || r.player2Id === mem.userId
-      );
-      map[mem.userId] = lastMatch
-        ? lastMatch.player1Id === mem.userId
-          ? lastMatch.player1.roomNewRating
-          : lastMatch.player2.roomNewRating
-        : mem.rating;
-    });
-    return map;
-  }, [members, recent]);
+  }, [members]);
 
   return (
-    <div>
-      <Users className="text-primary" />{" "}
-      <span className="font-semibold">Members ({members.length})</span>
-      <ScrollArea className="h-[300px] border rounded-md p-3 bg-background">
+    <div className="md:col-span-1">
+      <CardTitle className="text-base sm:text-lg flex items-center gap-2 mb-2 sm:mb-3">
+        <Users className="text-primary h-5 w-5" /> Members ({members.length})
+      </CardTitle>
+      <ScrollArea className="h-[250px] sm:h-[300px] border rounded-md p-2 sm:p-3 bg-background">
         {regularPlayers.map((p) => {
           const userProfile = profiles[p.userId] || {};
-          // Показываем globalElo из профиля, fallback — рейтинг в комнате
-          const globalElo = userProfile.globalElo ?? "–";
-          const elo =
-            globalElo !== "–"
-              ? globalElo
-              : lastRoomRating[p.userId] ?? p.rating ?? "–";
-          const rank =
-            userProfile.rank ?? getRank(Number.isFinite(elo) ? elo : 1000);
+          const globalElo = userProfile.globalElo ?? '–';
+          const elo = p.effectiveRating ?? '–'; // Use effectiveRating which considers roomNewRating
+          const rank = userProfile.rank ?? getRank(Number.isFinite(globalElo) ? globalElo : 1000);
 
           return (
             <div
               key={p.userId}
-              className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md transition-colors"
+              className="flex items-center justify-between p-1.5 sm:p-2 hover:bg-muted/50 rounded-md transition-colors"
             >
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={userProfile.photoURL || undefined} />
-                  <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+                  <AvatarImage src={userProfile.photoURL || undefined} alt={p.name}/>
+                  <AvatarFallback className="text-xs sm:text-sm">{p.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium leading-none">
-                    <a
+                  <p className="font-medium leading-none text-xs sm:text-sm">
+                    <Link
                       href={`/profile/${p.userId}`}
                       className="hover:underline"
                     >
                       {p.name}
-                    </a>
+                    </Link>
                     {p.userId === room.creator && (
-                      <Crown className="inline ml-1 h-4 w-4 text-yellow-500" />
+                      <Crown className="inline ml-1 h-3 w-3 sm:h-4 sm:w-4 text-yellow-500" />
                     )}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    MP&nbsp;{p.totalMatches} · W%&nbsp;{p.winPct}% · ELO&nbsp;
-                    {globalElo}
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
+                    MP&nbsp;{p.totalMatches} · W%&nbsp;{p.winPct}% · Global&nbsp;{globalElo}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
                     Rank&nbsp;{rank}
                   </p>
                 </div>
               </div>
-              <span className="text-sm font-semibold text-primary">
-                {p.rating}&nbsp;pts
+              <span className="text-xs sm:text-sm font-semibold text-primary">
+                {elo}&nbsp;pts
               </span>
             </div>
           );
         })}
       </ScrollArea>
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button
-            className="mt-4 w-full"
-            variant="outline"
-            disabled={isInviting}
-          >
-            <MailPlus className="mr-2 h-4 w-4" /> Invite&nbsp;Player
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invite to {room.name}</DialogTitle>
-            <DialogDescription>Enter email</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="invEmail">Email</Label>
-            <Input
-              id="invEmail"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleInvite} disabled={isInviting}>
-              Send
+      {room.creator === useAuth().user?.uid && ( // Only admin can invite
+        <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              className="mt-3 sm:mt-4 w-full text-xs sm:text-sm"
+              variant="outline"
+              size="sm"
+              disabled={isInviting}
+            >
+              <MailPlus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" /> Invite Player
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-xs">
+            <DialogHeader>
+              <DialogTitle className="text-base sm:text-lg">Invite to {room.name}</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">Enter user's email to invite them.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-2">
+              <Label htmlFor="invEmail" className="text-xs sm:text-sm">Email</Label>
+              <Input
+                id="invEmail"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="text-xs sm:text-sm"
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="ghost" onClick={() => setInviteDialogOpen(false)} size="sm">Cancel</Button>
+              <Button onClick={handleInvite} disabled={isInviting || !inviteEmail.includes('@')} size="sm">
+                {isInviting ? 'Sending...' : 'Send Invite'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
@@ -880,14 +925,14 @@ function RecordBlock({
 }) {
   return (
     <Card className='md:col-span-2 shadow-md'>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <Sword className='text-accent' /> Record Matches
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className='flex items-center gap-2 text-base sm:text-lg'>
+          <Sword className='text-accent h-5 w-5' /> Record Matches
         </CardTitle>
-        <CardDescription>Select players and scores</CardDescription>
+        <CardDescription className="text-xs sm:text-sm">Select players, sides, and scores for each game.</CardDescription>
       </CardHeader>
-      <CardContent className='space-y-4'>
-        <div className='grid grid-cols-2 gap-4 items-end'>
+      <CardContent className='space-y-3 sm:space-y-4 p-4 sm:p-6'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 items-end'>
           <PlayerSelect
             label='Player 1'
             value={player1Id}
@@ -895,8 +940,9 @@ function RecordBlock({
             list={members.map((m) => ({
               userId: m.userId,
               name: m.name,
-              rating: m.rating,
+              rating: m.roomNewRating ?? m.rating, // Use roomNewRating
             }))}
+            otherPlayerId={player2Id}
           />
           <PlayerSelect
             label='Player 2'
@@ -905,31 +951,35 @@ function RecordBlock({
             list={members.map((m) => ({
               userId: m.userId,
               name: m.name,
-              rating: m.rating,
+              rating: m.roomNewRating ?? m.rating, // Use roomNewRating
             }))}
+            otherPlayerId={player1Id}
           />
         </div>
-        {matchesInput.map((m, i) => (
-          <MatchRowInput
-            key={i}
-            index={i}
-            data={m}
-            onChange={(row) =>
-              setMatchesInput((r) => r.map((v, idx) => (idx === i ? row : v)))
-            }
-            onRemove={() => removeRow(i)}
-            removable={i > 0}
-          />
-        ))}
+        <ScrollArea className="max-h-[200px] sm:max-h-[250px] pr-2"> {/* Scroll for multiple match inputs */}
+          {matchesInput.map((m, i) => (
+            <MatchRowInput
+              key={i}
+              index={i}
+              data={m}
+              onChange={(row) =>
+                setMatchesInput((r: any[]) => r.map((v, idx) => (idx === i ? row : v)))
+              }
+              onRemove={() => removeRow(i)}
+              removable={i > 0 && matchesInput.length > 1}
+            />
+          ))}
+        </ScrollArea>
         <Button
           variant='outline'
-          className='flex items-center gap-2'
+          size="sm"
+          className='flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto'
           onClick={addRow}
         >
-          <Plus /> Add Match
+          <Plus className="h-4 w-4" /> Add Game
         </Button>
         <Button
-          className='w-full mt-4'
+          className='w-full mt-3 sm:mt-4 text-xs sm:text-sm'
           disabled={isRecording}
           onClick={saveMatches}
         >
@@ -945,27 +995,30 @@ function PlayerSelect({
   value,
   onChange,
   list,
+  otherPlayerId,
 }: {
   label: string;
   value: string;
   onChange(v: string): void;
   list: { userId: string; name: string; rating: number }[];
+  otherPlayerId?: string;
 }) {
   return (
-    <div>
-      <Label>{label}</Label>
-      <select
-        className='w-full border rounded p-2'
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value=''>Select</option>
-        {list.map((o) => (
-          <option key={o.userId} value={o.userId}>
-            {o.name} ({o.rating})
-          </option>
-        ))}
-      </select>
+    <div className="space-y-1">
+      <Label className="text-xs sm:text-sm">{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full text-xs sm:text-sm">
+          <SelectValue placeholder="Select Player" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="" disabled className="text-xs sm:text-sm">Select Player</SelectItem>
+          {list.filter(p => p.userId !== otherPlayerId).map((o) => (
+            <SelectItem key={o.userId} value={o.userId} className="text-xs sm:text-sm">
+              {o.name} ({o.rating})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -983,44 +1036,55 @@ function MatchRowInput({
   onRemove(): void;
   removable: boolean;
 }) {
+  const handleSideChange = (playerNum: '1' | '2', newSide: 'left' | 'right' | '') => {
+    const otherPlayerNum = playerNum === '1' ? '2' : '1';
+    const otherSide = newSide === 'left' ? 'right' : newSide === 'right' ? 'left' : '';
+    onChange({
+      ...data,
+      [`side${playerNum}`]: newSide,
+      [`side${otherPlayerNum}`]: otherSide,
+    });
+  };
+
   return (
-    <div className='grid grid-cols-2 gap-4 mb-2 relative'>
-      {['1', '2'].map((n) => (
-        <div key={n}>
-          <Label>{`P${n} Score`}</Label>
+    <div className='grid grid-cols-2 gap-3 sm:gap-4 mb-2 sm:mb-3 relative pt-3'>
+      {index > 0 && <Separator className="absolute top-0 left-0 right-0 mb-2"/>}
+      {['1', '2'].map((nStr) => {
+        const n = nStr as '1' | '2';
+        return (
+        <div key={n} className="space-y-1">
+          <Label className="text-xs sm:text-sm">{`P${n} Score`}</Label>
           <Input
             type='number'
+            placeholder="0"
             value={data[`score${n}`]}
             onChange={(e) =>
               onChange({ ...data, [`score${n}`]: e.target.value })
             }
+            className="text-xs sm:text-sm h-8 sm:h-9"
           />
-          <Label className='mt-2'>Side</Label>
-          <select
-            className='w-full border rounded p-2'
-            value={data[`side${n}`]}
-            onChange={(e) =>
-              onChange({
-                ...data,
-                [`side${n}`]: e.target.value,
-                [`side${n === '1' ? '2' : '1'}`]:
-                  e.target.value === 'left' ? 'right' : 'left',
-              })
-            }
-          >
-            <option value=''>–</option>
-            <option value='left'>Left</option>
-            <option value='right'>Right</option>
-          </select>
+          <Label className="text-xs sm:text-sm mt-1 sm:mt-2 block">Side</Label>
+           <Select value={data[`side${n}`]} onValueChange={(val) => handleSideChange(n, val as 'left' | 'right' | '')}>
+            <SelectTrigger className="w-full text-xs sm:text-sm h-8 sm:h-9">
+                <SelectValue placeholder="Side" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="" disabled className="text-xs sm:text-sm">Select Side</SelectItem>
+                <SelectItem value="left" className="text-xs sm:text-sm">Left</SelectItem>
+                <SelectItem value="right" className="text-xs sm:text-sm">Right</SelectItem>
+            </SelectContent>
+           </Select>
         </div>
-      ))}
+      )})}
       {removable && (
         <Button
           variant='ghost'
-          className='absolute top-1/2 right-0 -translate-y-1/2'
+          size="icon"
+          className='absolute top-1/2 right-[-8px] sm:right-0 -translate-y-1/2 h-6 w-6 sm:h-7 sm:w-7'
           onClick={onRemove}
         >
-          <Trash2 />
+          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+          <span className="sr-only">Remove game {index + 1}</span>
         </Button>
       )}
     </div>

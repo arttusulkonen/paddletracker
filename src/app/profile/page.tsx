@@ -1,3 +1,4 @@
+
 "use client"
 import AchievementsPanel from "@/components/AchievementsPanel"
 import {
@@ -23,10 +24,9 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
 import { db } from "@/lib/firebase"
 import * as Friends from "@/lib/friends"
-import type { Match } from "@/lib/types"
+import type { Match, UserProfile } from "@/lib/types"
 import { parseFlexDate, safeFormatDate } from "@/lib/utils/date"
-import { Slider } from "@radix-ui/react-slider"
-import { format } from "date-fns"
+
 import {
   collection,
   doc,
@@ -53,7 +53,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import Cropper from "react-easy-crop"
+
 import {
   Brush,
   CartesianGrid,
@@ -92,7 +92,6 @@ const medalMap: Record<string, string> = {
   "Smash Samurai": "/img/smash-samurai.png",
   "Ping-Pong Paladin": "/img/ping-pong-paladin.png",
 }
-
 
 
 function computeStats(list: Match[], uid: string) {
@@ -168,7 +167,6 @@ function computeSideStats(list: Match[], uid: string) {
       else rightSideLosses++
       rightPointsScored += me.scores
       rightPointsConceded += opp.scores
-
     }
   })
 
@@ -182,6 +180,20 @@ function computeSideStats(list: Match[], uid: string) {
     rightPointsScored,
     rightPointsConceded,
   }
+}
+
+const CustomTooltip: FC<TooltipProps<any, any>> = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null
+  const data = payload[0].payload
+  return (
+    <div className="bg-popover p-2 rounded shadow-lg text-xs border text-popover-foreground">
+      <div className="font-semibold mb-1">{label}</div>
+      <div>Opponent: {data.opponent}</div>
+      <div>Score: {data.score}</div>
+      <div>Δ Points: {data.addedPoints > 0 ? `+${data.addedPoints}` : data.addedPoints}</div>
+      <div>Your ELO: {data.rating}</div>
+    </div>
+  )
 }
 
 export default function ProfilePage() {
@@ -213,6 +225,10 @@ export default function ProfilePage() {
     setMatches(uniq)
     setLoadingMatches(false)
   }, [meUid])
+
+  useEffect(() => { // Added missing dependency
+    loadMatches();
+  }, [loadMatches]);
 
   const opponents = useMemo(() => {
     const map = new Map<string, string>()
@@ -258,15 +274,13 @@ export default function ProfilePage() {
         const me = p1 ? m.player1 : m.player2
         const opp = p1 ? m.player2 : m.player1
         return {
-          label: safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy"),
+          label: safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM"),
           rating: p1 ? m.player1.newRating : m.player2.newRating,
           diff: me.scores - opp.scores,
           result: me.scores > opp.scores ? 1 : -1,
           opponent: p1 ? m.player2.name : m.player1.name,
           score: `${me.scores}–${opp.scores}`,
-          addedPoints: me.scores > opp.scores
-            ? (p1 ? m.player1.addedPoints : m.player2.addedPoints)
-            : (p1 ? m.player1.addedPoints : m.player2.addedPoints),
+          addedPoints: me.addedPoints,
         }
       })
     : [{ label: "", rating: userProfile?.rating || 0, diff: 0, result: 0, opponent: "", score: "", addedPoints: 0 }]
@@ -279,12 +293,17 @@ export default function ProfilePage() {
   const sidePieData = [
     { name: "Left Wins", value: sideStats.leftSideWins, fill: "hsl(var(--accent))" },
     { name: "Right Wins", value: sideStats.rightSideWins, fill: "hsl(var(--primary))" },
-  ]
+  ];
+  const sidePieLossData = [ // Added for completeness
+    { name: 'Left Losses', value: sideStats.leftSideLosses, fill: 'hsl(var(--destructive))' },
+    { name: 'Right Losses', value: sideStats.rightSideLosses, fill: 'hsl(var(--primary))' },
+  ];
 
-  if (loading || !userProfile) {
+
+  if (loading || !userProfile || !user) { // Added !user check
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin h-16 w-16 rounded-full border-b-4 border-primary" />
+      <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <div className="animate-spin h-12 w-12 sm:h-16 sm:w-16 rounded-full border-b-4 border-primary" />
       </div>
     )
   }
@@ -292,29 +311,27 @@ export default function ProfilePage() {
   const rank = getRank(userProfile.maxRating)
   const medalSrc = medalMap[rank]
   const displayName =
-    user.displayName ?? user.name ?? "[No Name]"
+    user.displayName ?? userProfile.name ?? userProfile.displayName ?? "[No Name]" // Prioritize user.displayName from auth
 
   return (
-    <section className="container mx-auto py-8 space-y-8">
-
+    <section className="container mx-auto py-4 sm:py-8 space-y-6 sm:space-y-8">
       <Card>
-        <CardHeader className="flex flex-col md:flex-row md:justify-between items-center gap-6">
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <Avatar className="h-32 w-32">
-                <AvatarImage
-                  src={userProfile.photoURL || undefined}
-                  className="object-cover"
-                />
-                <AvatarFallback className="text-4xl">
-                  {displayName.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-            </div>
-            <div className="text-left space-y-1">
-              <CardTitle className="text-4xl">{displayName}</CardTitle>
-              <CardDescription>{userProfile.email}</CardDescription>
-              <div className="inline-flex items-center gap-2 rounded-md bg-muted py-1 px-2 text-sm">
+        <CardHeader className="flex flex-col sm:flex-row sm:justify-between items-center gap-4 sm:gap-6 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left">
+            <Avatar className="h-24 w-24 sm:h-32 sm:w-32">
+              <AvatarImage
+                src={userProfile.photoURL || undefined}
+                alt={displayName}
+                className="object-cover"
+              />
+              <AvatarFallback className="text-3xl sm:text-4xl">
+                {displayName.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-1">
+              <CardTitle className="text-2xl sm:text-3xl md:text-4xl">{displayName}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">{userProfile.email}</CardDescription>
+              <div className="inline-flex items-center gap-2 rounded-md bg-muted py-1 px-2 text-xs sm:text-sm">
                 <span className="font-medium">{rank}</span>
               </div>
             </div>
@@ -323,24 +340,24 @@ export default function ProfilePage() {
             <img
               src={medalSrc}
               alt={rank}
-              className="h-[140px] w-[140px] rounded-md"
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-[140px] md:w-[140px] rounded-md object-contain"
             />
           )}
         </CardHeader>
       </Card>
 
       {/* Achievements + Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         <StatCard icon={LineChartIcon} label="Current ELO" value={userProfile.globalElo} />
         <StatCard icon={ListOrdered} label="Matches" value={stats.total} />
         <StatCard icon={Percent} label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} />
         <StatCard icon={Flame} label="Max Streak" value={stats.maxWinStreak} />
       </div>
 
-      <div className="flex items-center gap-4">
-        <span className="font-medium">Filter by Opponent:</span>
+      <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+        <span className="font-medium text-sm sm:text-base">Filter by Opponent:</span>
         <Select value={oppFilter} onValueChange={setOppFilter}>
-          <SelectTrigger className="w-64">
+          <SelectTrigger className="w-full sm:w-64">
             <SelectValue placeholder="All Opponents" />
           </SelectTrigger>
           <SelectContent>
@@ -357,59 +374,28 @@ export default function ProfilePage() {
       <DetailedStatsCard stats={stats} side={sideStats} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-        <div className="h-full">
-          <AchievementsPanel
+         <AchievementsPanel
             achievements={userProfile.achievements ?? []}
             overallMatches={stats.total}
             overallWins={stats.wins}
             overallMaxStreak={stats.maxWinStreak}
           />
-        </div>
-
         <div className="flex flex-col gap-4">
-          <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData}>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
-                />
-                <ReLegend />
-              </PieChart>
-            </ResponsiveContainer>
-          </PieCard>
-
-          <PieCard title="Left vs Right Wins" icon={PieChartIcon} data={sidePieData}>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={sidePieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
-                />
-                <ReLegend />
-              </PieChart>
-            </ResponsiveContainer>
-          </PieCard>
+          <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData} />
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <PieCard title="Left vs Right Wins" icon={CornerUpLeft} data={sidePieData} isSmall={true} />
+            <PieCard title="Left vs Right Losses" icon={CornerUpRight} data={sidePieLossData} isSmall={true} />
+          </div>
         </div>
       </div>
 
       {/* Friends */}
       {userProfile.friends?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Friends</CardTitle>
+        <Card className="shadow-md">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg md:text-xl">Friends</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-4">
+          <CardContent className="flex flex-wrap gap-2 sm:gap-4 p-4 sm:p-6">
             {userProfile.friends.map(fid => (
               <FriendChip key={fid} uid={fid} />
             ))}
@@ -417,61 +403,79 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      {/* Filter + Detailed Stats */}
-
-      {/* Charts */}
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         <ChartCard title="ELO History" icon={LineChartIcon}>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={perfData}>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={perfData} margin={{ top: 5, right: 20, left: -20, bottom: 50 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis domain={["dataMin-20", "dataMax+20"]} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={50} interval="preserveStartEnd" />
+              <YAxis domain={["dataMin-20", "dataMax+20"]} tick={{ fontSize: 10 }} />
               <RechartTooltip content={<CustomTooltip />} />
-              <ReLegend />
-              <Line type="monotone" dataKey="rating" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush
-                dataKey="label"
-                height={20}
-                travellerWidth={10}
-                startIndex={Math.floor(perfData.length * 0.8)}
-                endIndex={perfData.length - 1}
-              />
+              <ReLegend wrapperStyle={{fontSize: "12px"}} />
+              <Line type="monotone" dataKey="rating" stroke="hsl(var(--primary))" dot={{ r: 2 }} activeDot={{ r: 4 }} />
+              {perfData.length > 1 && (
+                 <Brush
+                  dataKey="label"
+                  height={20}
+                  stroke="hsl(var(--primary))"
+                  travellerWidth={10}
+                  startIndex={Math.max(0, perfData.length - Math.min(perfData.length, 20) )} // Show last 20 or all if less
+                  endIndex={perfData.length - 1}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Match Result" icon={Activity}>
-          <ResponsiveContainer width="100%" height={450}>
-            <LineChart data={perfData}>
+        <ChartCard title="Match Result (Win/Loss)" icon={Activity}>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={perfData} margin={{ top: 5, right: 20, left: -20, bottom: 50 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={50} interval="preserveStartEnd" />
+              <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} tickFormatter={(v) => v === 1 ? "Win" : v === -1 ? "Loss" : "N/A"} tick={{ fontSize: 10 }} />
               <RechartTooltip content={<CustomTooltip />} />
-              <ReLegend />
-              <Line type="stepAfter" dataKey="result" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush dataKey="label" height={20} travellerWidth={10} startIndex={Math.floor(perfData.length * 0.8)} endIndex={perfData.length - 1} />
+              <ReLegend wrapperStyle={{fontSize: "12px"}} />
+              <Line type="stepAfter" dataKey="result" name="Result" stroke="hsl(var(--accent))" dot={{ r: 2 }} activeDot={{ r: 4 }} />
+               {perfData.length > 1 && (
+                <Brush
+                  dataKey="label"
+                  height={20}
+                  stroke="hsl(var(--accent))"
+                  travellerWidth={10}
+                  startIndex={Math.max(0, perfData.length - Math.min(perfData.length, 20) )}
+                  endIndex={perfData.length - 1}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
         <ChartCard title="Score Difference" icon={TrendingUp}>
-          <ResponsiveContainer width="100%" height={450}>
-            <LineChart data={perfData}>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={perfData} margin={{ top: 5, right: 20, left: -20, bottom: 50 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={50} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} />
               <RechartTooltip content={<CustomTooltip />} />
-              <ReLegend />
-              <Line type="monotone" dataKey="diff" dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Brush dataKey="label" height={20} travellerWidth={10} startIndex={Math.floor(perfData.length * 0.8)} endIndex={perfData.length - 1} />
+              <ReLegend wrapperStyle={{fontSize: "12px"}} />
+              <Line type="monotone" dataKey="diff" name="Score Diff." stroke="hsl(var(--destructive))" dot={{ r: 2 }} activeDot={{ r: 4 }} />
+              {perfData.length > 1 && (
+                <Brush
+                  dataKey="label"
+                  height={20}
+                  stroke="hsl(var(--destructive))"
+                  travellerWidth={10}
+                  startIndex={Math.max(0, perfData.length - Math.min(perfData.length, 20) )}
+                  endIndex={perfData.length - 1}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
 
       <MatchesTableCard
-        title={`All Matches (${filtered.length})`}
+        title={`Match History (${filtered.length})`}
         matches={filtered}
         loading={loadingMatches}
         meUid={meUid}
@@ -482,13 +486,11 @@ export default function ProfilePage() {
 
 function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: string | number }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-4">
-        <Icon className="h-6 w-6 text-primary" />
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-2xl font-semibold">{value}</p>
-        </div>
+    <Card className="shadow">
+      <CardContent className="flex flex-col items-center text-center p-3 sm:p-4">
+        <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary mb-1 sm:mb-2" />
+        <p className="text-xs sm:text-sm text-muted-foreground">{label}</p>
+        <p className="text-lg sm:text-xl md:text-2xl font-semibold">{value}</p>
       </CardContent>
     </Card>
   )
@@ -496,97 +498,109 @@ function StatCard({ icon: Icon, label, value }: { icon: any; label: string; valu
 
 function ChartCard({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon /> {title}
+    <Card className="shadow-md">
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" /> {title}
         </CardTitle>
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="p-2 sm:p-4 md:p-6 pt-0">{children}</CardContent>
     </Card>
   )
 }
 
-function PieCard({ title, icon: Icon, data, children }: { title: string; icon: any; data: { name: string; value: number; fill: string }[]; children: React.ReactNode }) {
+function PieCard({ title, icon: Icon, data, isSmall = false }: { title: string; icon: any; data: { name: string; value: number; fill: string }[], isSmall?:boolean }) {
+  const outerRadius = isSmall ? 60 : 80;
+  const height = isSmall ? 250 : 300;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon /> {title}
+    <Card className="shadow-md h-full">
+      <CardHeader className="p-4">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" /> {title}
         </CardTitle>
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className={`h-[${height}px] w-full p-2 sm:p-4`}>
+        <ResponsiveContainer width="100%" height={height}>
+          <PieChart>
+            <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={outerRadius} labelLine={false} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`} stroke="hsl(var(--background))" legendType="square"
+             className="text-xs sm:text-sm"
+            />
+            <ReLegend wrapperStyle={{fontSize: "10px", marginTop: "10px"}} />
+            <RechartTooltip wrapperStyle={{fontSize: "12px"}}/>
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
     </Card>
   )
 }
 
 function DetailedStatsCard({ stats, side }: { stats: ReturnType<typeof computeStats>; side: ReturnType<typeof computeSideStats> }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CornerUpLeft /> / <CornerUpRight /> Detailed Statistics
+    <Card className="shadow-md">
+      <CardHeader className="p-4 sm:p-6">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+          <CornerUpLeft className="h-4 w-4 sm:h-5 sm:w-5" /> / <CornerUpRight className="h-4 w-4 sm:h-5 sm:w-5" /> Detailed Statistics
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
-        <Stat l="Matches" v={stats.total} />
-        <Stat l="Wins / Losses" v={`${stats.wins} / ${stats.losses}`} />
-        <Stat l="Win Rate" v={`${stats.winRate.toFixed(2)}%`} />
-        <Stat l="Best Win Margin" v={stats.bestWinMargin} />
-        <Stat l="Worst Loss Margin" v={stats.worstLossMargin} />
-        <Stat l="Points Scored" v={stats.pointsScored} />
-        <Stat l="Points Conceded" v={stats.pointsConceded} />
-        <Stat l="Point Diff" v={stats.pointsDiff} />
-        <Stat l="Max Win Streak" v={stats.maxWinStreak} />
-        <Stat l="Max Loss Streak" v={stats.maxLossStreak} />
-        <Stat l="Left Side Wins" v={side.leftSideWins} />
-        <Stat l="Left Side Losses" v={side.leftSideLosses} />
-        <Stat l="Right Side Wins" v={side.rightSideWins} />
-        <Stat l="Right Side Losses" v={side.rightSideLosses} />
+      <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm p-4 sm:p-6">
+        <StatItem l="Matches" v={stats.total} />
+        <StatItem l="Wins / Losses" v={`${stats.wins} / ${stats.losses}`} />
+        <StatItem l="Win Rate" v={`${stats.winRate.toFixed(2)}%`} />
+        <StatItem l="Best Win Margin" v={stats.bestWinMargin} />
+        <StatItem l="Worst Loss Margin" v={stats.worstLossMargin} />
+        <StatItem l="Points Scored" v={stats.pointsScored} />
+        <StatItem l="Points Conceded" v={stats.pointsConceded} />
+        <StatItem l="Point Diff" v={stats.pointsDiff} />
+        <StatItem l="Max Win Streak" v={stats.maxWinStreak} />
+        <StatItem l="Max Loss Streak" v={stats.maxLossStreak} />
+        <StatItem l="Left Side Wins" v={side.leftSideWins} />
+        <StatItem l="Left Side Losses" v={side.leftSideLosses} />
+        <StatItem l="Right Side Wins" v={side.rightSideWins} />
+        <StatItem l="Right Side Losses" v={side.rightSideLosses} />
       </CardContent>
     </Card>
   )
 }
 
-const Stat = ({ l, v }: { l: string; v: React.ReactNode }) => (
+const StatItem = ({ l, v }: { l: string; v: React.ReactNode }) => (
   <div>
     <p className="font-semibold">{l}</p>
-    {v}
+    <p className="text-muted-foreground">{v}</p>
   </div>
 )
 
 function MatchesTableCard({ title, matches, loading, meUid }: { title: string; matches: Match[]; loading: boolean; meUid: string }) {
   return (
-    <Card>
-      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
-      <CardContent>
+    <Card className="shadow-md">
+      <CardHeader className="p-4 sm:p-6"><CardTitle className="text-base sm:text-lg md:text-xl">{title}</CardTitle></CardHeader>
+      <CardContent className="p-0 sm:p-2 md:p-4">
         {loading ? (
           <div className="text-center py-8">Loading…</div>
         ) : matches.length === 0 ? (
-          <p className="text-center py-8">No matches found.</p>
+          <p className="text-center py-8 text-sm sm:text-base">No matches found.</p>
         ) : (
-          <ScrollArea className="h-[400px]">
-            <Table>
+          <ScrollArea className="h-[300px] sm:h-[400px] w-full">
+            <Table className="min-w-[600px] sm:min-w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Opponent</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Result</TableHead>
-                  <TableHead>ELO Δ</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Opponent</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Score</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Result</TableHead>
+                  <TableHead className="text-xs sm:text-sm">ELO Δ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {matches.map(m => {
                   const isP1 = m.player1Id === meUid
-                  const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yyyy HH.mm.ss")
+                  const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy HH:mm")
                   const opp = isP1 ? m.player2.name : m.player1.name
                   const myScore = isP1 ? m.player1.scores : m.player2.scores
                   const theirScore = isP1 ? m.player2.scores : m.player1.scores
                   const eloΔ = isP1 ? m.player1.addedPoints : m.player2.addedPoints
                   const win = myScore > theirScore
                   return (
-                    <TableRow key={m.id}>
+                    <TableRow key={m.id} className="text-xs sm:text-sm">
                       <TableCell>{date}</TableCell>
                       <TableCell>{opp}</TableCell>
                       <TableCell>{myScore} – {theirScore}</TableCell>
@@ -605,37 +619,20 @@ function MatchesTableCard({ title, matches, loading, meUid }: { title: string; m
 }
 
 function FriendChip({ uid }: { uid: string }) {
-  const [info, setInfo] = useState<{ name?: string; photoURL?: string } | null>(null)
+  const [info, setInfo] = useState<{ name?: string; displayName?: string; photoURL?: string } | null>(null) // Added displayName
   useEffect(() => { Friends.getUserLite(uid).then(setInfo) }, [uid])
-  if (!info?.name) return null
+
+  const friendName = info?.name ?? info?.displayName ?? "Friend"; // Use displayName as fallback
+  if (!friendName || friendName === "Friend") return null;
+
   return (
-    <Link href={`/profile/${uid}`} className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-muted hover:bg-muted/70">
-      <Avatar className="h-6 w-6">
-        {info.photoURL ? <AvatarImage src={info.photoURL} /> : <AvatarFallback>{info.name.charAt(0)}</AvatarFallback>}
+    <Link href={`/profile/${uid}`} className="inline-flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1 rounded-md bg-muted hover:bg-muted/70">
+      <Avatar className="h-5 w-5 sm:h-6 sm:w-6">
+        {info.photoURL ? <AvatarImage src={info.photoURL} alt={friendName} /> : <AvatarFallback className="text-xs">{friendName.charAt(0)}</AvatarFallback>}
       </Avatar>
-      <span className="text-sm">{info.name}</span>
+      <span className="text-xs sm:text-sm">{friendName}</span>
     </Link>
   )
 }
-function createImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((res, rej) => {
-    const img = new Image()
-    img.addEventListener("load", () => res(img))
-    img.addEventListener("error", (e) => rej(e))
-    img.src = url
-  })
-}
 
-const CustomTooltip: FC<TooltipProps<any, any>> = ({ active, payload, label }) => {
-  if (!active || !payload || !payload.length) return null
-  const data = payload[0].payload
-  return (
-    <div className="bg-white p-2 rounded shadow-lg text-sm">
-      <div className="font-semibold mb-1">{label}</div>
-      <div>Opponent: {data.opponent}</div>
-      <div>Score: {data.score}</div>
-      <div>Δ Points: {data.addedPoints > 0 ? `+${data.addedPoints}` : data.addedPoints}</div>
-      <div>Your ELO: {data.rating}</div>
-    </div>
-  )
-}
+// Removed unused createImage function
