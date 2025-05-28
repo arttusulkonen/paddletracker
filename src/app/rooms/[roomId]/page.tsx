@@ -93,7 +93,7 @@ export default function RoomPage() {
   const [player1Id, setPlayer1Id] = useState('');
   const [player2Id, setPlayer2Id] = useState('');
   const [matchesInput, setMatchesInput] = useState([
-    { score1: '', score2: '', side1: '', side2: '' },
+    { id: crypto.randomUUID(), score1: '', score2: '', side1: '', side2: '' },
   ]);
   const [isRecording, setIsRecording] = useState(false);
   const [recent, setRecent] = useState<Match[]>([]);
@@ -228,10 +228,11 @@ export default function RoomPage() {
   const addRow = () =>
     setMatchesInput((r) => [
       ...r,
-      { score1: '', score2: '', side1: '', side2: '' },
+      { id: crypto.randomUUID(), score1: '', score2: '', side1: '', side2: '' },
     ]);
-  const removeRow = (i: number) =>
-    setMatchesInput((r) => r.filter((_, idx) => idx !== i));
+  const removeRow = (idToRemove: string) =>
+    setMatchesInput((r) => r.filter((match) => match.id !== idToRemove));
+
 
   const saveMatches = async () => {
     if (!player1Id || !player2Id || player1Id === player2Id) {
@@ -375,7 +376,7 @@ export default function RoomPage() {
       // reset form
       setPlayer1Id('');
       setPlayer2Id('');
-      setMatchesInput([{ score1: '', score2: '', side1: '', side2: '' }]);
+      setMatchesInput([{ id: crypto.randomUUID(), score1: '', score2: '', side1: '', side2: '' }]);
       toast({ title: 'Matches recorded' });
     } catch(error) {
         console.error("Error saving matches:", error);
@@ -920,6 +921,7 @@ function RecordBlock({
   setPlayer1Id(v: string): void;
   setPlayer2Id(v: string): void;
   matchesInput: {
+    id: string;
     score1: string;
     score2: string;
     side1: string;
@@ -927,7 +929,7 @@ function RecordBlock({
   }[];
   setMatchesInput(v: any): void;
   addRow(): void;
-  removeRow(i: number): void;
+  removeRow(idToRemove: string): void;
   saveMatches(): void;
   isRecording: boolean;
 }) {
@@ -967,14 +969,14 @@ function RecordBlock({
         <ScrollArea className="max-h-[200px] sm:max-h-[250px] pr-2"> {/* Scroll for multiple match inputs */}
           {matchesInput.map((m, i) => (
             <MatchRowInput
-              key={i}
+              key={m.id}
               index={i}
               data={m}
               onChange={(row) =>
-                setMatchesInput((r: any[]) => r.map((v, idx) => (idx === i ? row : v)))
+                setMatchesInput((currentRows: any[]) => currentRows.map(currentRow => (currentRow.id === m.id ? row : currentRow)))
               }
-              onRemove={() => removeRow(i)}
-              removable={i > 0 && matchesInput.length > 1}
+              onRemove={() => removeRow(m.id)}
+              removable={matchesInput.length > 1} // Simplified removable condition
             />
           ))}
         </ScrollArea>
@@ -1030,19 +1032,21 @@ function PlayerSelect({
   );
 }
 
+interface MatchRowInputProps {
+  index: number;
+  data: { id: string; score1: string; score2: string; side1: string; side2: string };
+  onChange: (data: MatchRowInputProps['data']) => void;
+  onRemove: () => void;
+  removable: boolean;
+}
+
 function MatchRowInput({
   index,
   data,
   onChange,
   onRemove,
   removable,
-}: {
-  index: number;
-  data: any;
-  onChange(d: any): void;
-  onRemove(): void;
-  removable: boolean;
-}) {
+}: MatchRowInputProps) {
   const handleSideChange = (playerNum: '1' | '2', newSide: 'left' | 'right' | '') => {
     const otherPlayerNum = playerNum === '1' ? '2' : '1';
     const otherSide = newSide === 'left' ? 'right' : newSide === 'right' ? 'left' : '';
@@ -1064,14 +1068,14 @@ function MatchRowInput({
           <Input
             type='number'
             placeholder="0"
-            value={data[`score${n}`]}
+            value={data[`score${n}`] || ''}
             onChange={(e) =>
               onChange({ ...data, [`score${n}`]: e.target.value })
             }
             className="text-xs sm:text-sm h-8 sm:h-9"
           />
           <Label className="text-xs sm:text-sm mt-1 sm:mt-2 block">Side</Label>
-           <Select value={data[`side${n}`]} onValueChange={(val) => handleSideChange(n, val as 'left' | 'right' | '')}>
+           <Select value={data[`side${n}`] || ''} onValueChange={(val) => handleSideChange(n, val as 'left' | 'right' | '')}>
             <SelectTrigger className="w-full text-xs sm:text-sm h-8 sm:h-9">
                 <SelectValue placeholder="Side" />
             </SelectTrigger>
