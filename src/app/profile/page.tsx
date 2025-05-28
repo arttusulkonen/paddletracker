@@ -593,17 +593,22 @@ function MatchesTableCard({ title, matches, loading, meUid }: { title: string; m
                 </TableHeader>
                 <TableBody>
                   {matches.map(m => {
-                    const isP1 = m.player1Id === meUid
-                    const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy HH:mm")
-                    const opp = isP1 ? m.player2.name : m.player1.name
-                    const myScore = isP1 ? m.player1.scores : m.player2.scores
-                    const theirScore = isP1 ? m.player2.scores : m.player1.scores
-                    const eloΔ = isP1 ? m.player1.addedPoints : m.player2.addedPoints
-                    const win = myScore > theirScore
+                    const isP1 = m.player1Id === meUid;
+                    const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy HH:mm");
+                    const oppName = isP1 ? m.player2.name : m.player1.name;
+                    const oppId = isP1 ? m.player2Id : m.player1Id;
+                    const myScore = isP1 ? m.player1.scores : m.player2.scores;
+                    const theirScore = isP1 ? m.player2.scores : m.player1.scores;
+                    const eloΔ = isP1 ? m.player1.addedPoints : m.player2.addedPoints;
+                    const win = myScore > theirScore;
                     return (
                       <TableRow key={m.id} className="text-xs sm:text-sm">
                         <TableCell>{date}</TableCell>
-                        <TableCell>{opp}</TableCell>
+                        <TableCell>
+                          <Link href={`/profile/${oppId}`} className="hover:underline text-primary">
+                            {oppName}
+                          </Link>
+                        </TableCell>
                         <TableCell>{myScore} – {theirScore}</TableCell>
                         <TableCell className={win ? "text-accent" : "text-destructive"}>{win ? "Win" : "Loss"}</TableCell>
                         <TableCell className={eloΔ >= 0 ? "text-accent" : "text-destructive"}>{eloΔ > 0 ? `+${eloΔ}` : eloΔ}</TableCell>
@@ -638,3 +643,5 @@ function FriendChip({ uid }: { uid: string }) {
 }
 
 // Removed unused createImage function
+
+    
