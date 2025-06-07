@@ -34,8 +34,10 @@ const calcWinPct = (w: number, l: number) => {
   const t = w + l;
   return t ? ((w / t) * 100).toFixed(1) : '0.0';
 };
-const tsToMs = (v?: string) =>
-  parseFlexDate(v ?? '').getTime() || Date.parse(v ?? '') || 0;
+const tsToMs = (v?: string) => {
+  const ms = parseFlexDate(v ?? '').getTime();
+  return isNaN(ms) ? Date.parse(v ?? '') || 0 : ms;
+};
 
 // flip-helper для поля side
 const flip = (s: string) => (s === 'left' ? 'right' : s === 'right' ? 'left' : '');
@@ -105,7 +107,7 @@ export default function RoomPage() {
       query(
         collection(db, 'matches'),
         where('roomId', '==', roomId),
-        orderBy('tsIso', 'desc'),
+        orderBy('timestamp', 'asc'),
       ),
       snap => {
         const fresh = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Match));
@@ -120,7 +122,7 @@ export default function RoomPage() {
         setSeasonStarts(starts);
 
         // Сохраняем отсортированный массив
-        setRecent(fresh.sort((a, b) => tsToMs(b.tsIso) - tsToMs(a.tsIso)));
+        setRecent(fresh.sort((a, b) => tsToMs(b.timestamp) - tsToMs(a.timestamp)));
       },
     );
 
@@ -349,7 +351,7 @@ export default function RoomPage() {
 
   /* ───────── season snapshots ───────── */
   const getSeasonEloSnapshots = async (roomId: string): Promise<StartEndElo> => {
-    const qs = query(collection(db, 'matches'), where('roomId', '==', roomId), orderBy('tsIso', 'asc'));
+    const qs = query(collection(db, 'matches'), where('roomId', '==', roomId), orderBy('timestamp', 'asc'));
     const snap = await getDocs(qs);
     const firstSeen: Record<string, number> = {};
     const lastSeen: Record<string, number> = {};
