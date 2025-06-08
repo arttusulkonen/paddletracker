@@ -1,124 +1,135 @@
-// fixSeasonPlaces.cjs  – v3 (2025-06-04)
-// --------------------------------------------------------------
-// ⏬ См. комментарии выше
-// --------------------------------------------------------------
+// backfill-season-elo.cjs  – 2025-06-07
+// Запуск:  node backfill-season-elo.cjs ./serviceAccountKey.json
 
 'use strict';
 const admin = require('firebase-admin');
 const path = require('path');
 
-/* ───────── init ───────── */
-const keyPath = process.argv[2] || './serviceAccountKey.json';
+/* ─── init ─── */
+const keyFile = process.argv[2] || './serviceAccountKey.json';
 admin.initializeApp({
-  credential: admin.credential.cert(require(path.resolve(keyPath))),
+  credential: admin.credential.cert(require(path.resolve(keyFile))),
 });
 const db = admin.firestore();
-const BATCH_LIMIT = 450;
 
-/* ───── helpers ───── */
-const chunk = (a, n) =>
-  a.reduce(
-    (res, _, i) => (
-      i % n ? res[res.length - 1].push(a[i]) : res.push([a[i]]), res
-    ),
+/* ─── helpers ─── */
+const CHUNK = 450;
+
+function chunk(arr, n = CHUNK) {
+  return arr.reduce(
+    (acc, x, i) => (i % n ? acc[acc.length - 1].push(x) : acc.push([x]), acc),
     []
   );
-const adjF = (r) => (r <= 0 ? 0 : r < 1 ? Math.sqrt(r) : 1 / Math.sqrt(r));
+}
 
-function recomputeSeason(summary) {
-  if (!summary.length) return summary;
+/* "06.06.2025 18.21.16"  or  "19.1.2025 klo 14.17.41" → Date */
+function parseFinnish(s = '') {
+  const clean = s.replace('klo', '').trim(); // 19.1.2025 klo 14.17.41 → 19.1.2025 14.17.41
+  const [d, m, y, hh = 0, mm = 0, ss = 0] = clean
+    .split(/[ .:]/)
+    .filter(Boolean)
+    .map(Number);
+  return new Date(y, m - 1, d, hh, mm, ss);
+}
 
-  /* 1. Cчитаем 𝑀̄ только для сыгравших >0 */
-  const avg =
-    summary
-      .filter((r) => (r.matchesPlayed || 0) > 0)
-      .reduce((s, r) => s + (r.matchesPlayed || 0), 0) /
-    Math.max(1, summary.filter((r) => (r.matchesPlayed || 0) > 0).length);
+/* Вычисляем { userId → {start, end} } */
+async function calcSnapshots(roomId, seasonEnd) {
+  const msEnd = seasonEnd.getTime();
+  const qs = await db.collection('matches').where('roomId', '==', roomId).get();
 
-  const lowThreshold = avg / 2;
-
-  /* 2. Пересчёт adjPoints */
-  summary.forEach((r) => {
-    const ratio = (r.matchesPlayed || 0) / avg || 0;
-    r.adjPoints = (r.totalAddedPoints || 0) * adjF(ratio);
+  const first = {},
+    last = {};
+  qs.forEach((d) => {
+    const m = d.data();
+    const ts = parseFinnish(m.timestamp).getTime();
+    if (ts > msEnd) return; // матч сыгран уже после завершения того сезона
+    [
+      { id: m.player1Id, old: m.player1.oldRating, nw: m.player1.newRating },
+      { id: m.player2Id, old: m.player2.oldRating, nw: m.player2.newRating },
+    ].forEach(({ id, old, nw }) => {
+      if (first[id] == null) first[id] = old;
+      last[id] = nw;
+    });
   });
 
-  /* 3. Две корзины — «достаточно» и «мало» матчей */
-  const bigSample = summary.filter(
-    (r) => (r.matchesPlayed || 0) >= lowThreshold
-  );
-  const smallSample = summary.filter(
-    (r) => (r.matchesPlayed || 0) < lowThreshold
-  );
-
-  /* 4. Сортировки внутри корзин */
-  const byFields = (a, b) =>
-    (b.adjPoints || 0) - (a.adjPoints || 0) ||
-    (b.totalAddedPoints || 0) - (a.totalAddedPoints || 0) ||
-    (b.wins || 0) - (a.wins || 0) ||
-    (b.longestWinStreak || 0) - (a.longestWinStreak || 0);
-
-  bigSample.sort(byFields);
-  smallSample.sort(byFields);
-
-  const ordered = [...bigSample, ...smallSample];
-  ordered.forEach((r, idx) => (r.place = idx + 1));
-  return ordered;
+  const out = {};
+  Object.keys(first).forEach((uid) => {
+    out[uid] = { start: first[uid], end: last[uid] ?? first[uid] };
+  });
+  return out;
 }
 
-/* ───── per-room ───── */
-async function updateRoom(room) {
-  const data = room.data();
-  const hist = data.seasonHistory || [];
-  if (!hist.length) return null;
-  const i = hist.length - 1;
-  const last = { ...hist[i] };
-  if (!Array.isArray(last.summary)) return null; // season not finished
-
-  last.summary = recomputeSeason(last.summary);
-  const newHist = [...hist];
-  newHist[i] = last;
-  await room.ref.update({ seasonHistory: newHist });
-  console.log(`• Room ${room.id} recalculated (${last.summary.length})`);
-  return last.summary;
-}
-
-/* ───── achievements ───── */
-async function syncAchievements(roomId, summary) {
-  const upd = await Promise.all(
-    summary.map(async (r) => {
-      const uRef = db.collection('users').doc(r.userId);
-      const snap = await uRef.get();
-      if (!snap.exists) return null;
-      const ach = (snap.data().achievements || []).map((a) =>
-        a.type === 'seasonFinish' && a.roomId === roomId
-          ? { ...a, place: r.place, adjPoints: r.adjPoints }
-          : a
-      );
-      return { ref: uRef, ach };
-    })
-  );
-  const valid = upd.filter(Boolean);
-  for (const group of chunk(valid, BATCH_LIMIT)) {
-    const batch = db.batch();
-    group.forEach(({ ref, ach }) => batch.update(ref, { achievements: ach }));
-    await batch.commit();
-  }
-}
-
-/* ───── run all ───── */
+/* ─── основной проход по комнатам ─── */
 (async () => {
-  try {
-    console.log('⏳ Fetching rooms…');
-    const rooms = await db.collection('rooms').get();
-    for (const room of rooms.docs) {
-      const summary = await updateRoom(room);
-      if (summary) await syncAchievements(room.id, summary);
+  console.log('⏳ scanning rooms…');
+  const rooms = await db.collection('rooms').get();
+
+  for (const room of rooms.docs) {
+    const data = room.data();
+    const hist = Array.isArray(data.seasonHistory) ? data.seasonHistory : [];
+    let updated = false;
+
+    /* по каждому сезону внутри комнаты */
+    for (let idx = 0; idx < hist.length; idx++) {
+      const season = hist[idx];
+      if (season.type !== 'seasonFinish' || !Array.isArray(season.summary))
+        continue;
+
+      // Уже проставлены? → пропускаем
+      if (
+        season.summary.every(
+          (r) => r.startGlobalElo != null && r.endGlobalElo != null
+        )
+      )
+        continue;
+
+      /* 1. Считаем snapshots */
+      const seasonEnd = parseFinnish(season.dateFinished);
+      const snaps = await calcSnapshots(room.id, seasonEnd);
+
+      /* 2. Обновляем summary */
+      season.summary = season.summary.map((r) => ({
+        ...r,
+        startGlobalElo: snaps[r.userId]?.start ?? r.startGlobalElo ?? null,
+        endGlobalElo: snaps[r.userId]?.end ?? r.endGlobalElo ?? null,
+      }));
+      hist[idx] = season;
+      updated = true;
+
+      /* 3. Синхронизируем achievements */
+      const achUpdates = [];
+      for (const row of season.summary) {
+        const uRef = db.collection('users').doc(row.userId);
+        const uSnap = await uRef.get();
+        if (!uSnap.exists) continue;
+        const ach = (uSnap.data().achievements || []).map((a) =>
+          a.type === 'seasonFinish' &&
+          a.roomId === room.id &&
+          a.dateFinished === season.dateFinished
+            ? {
+                ...a,
+                startGlobalElo: row.startGlobalElo,
+                endGlobalElo: row.endGlobalElo,
+              }
+            : a
+        );
+        achUpdates.push({ ref: uRef, ach });
+      }
+      // batched writes
+      for (const grp of chunk(achUpdates)) {
+        const batch = db.batch();
+        grp.forEach(({ ref, ach }) => batch.update(ref, { achievements: ach }));
+        await batch.commit();
+      }
+      console.log(`• ${room.id}  –  season ${idx + 1} enriched`);
     }
-    console.log('✅ Done.');
-    process.exit(0);
-  } catch (e) {
-    console.error('❌', e);
-    process.exit(1);
+
+    /* 4. Записываем обратно в room */
+    if (updated) {
+      await room.ref.update({ seasonHistory: hist });
+    }
   }
+
+  console.log('✅ migration finished');
+  process.exit(0);
 })();

@@ -72,6 +72,10 @@ export default function RoomPage() {
   const [sortConfig, setSortConfig] =
     useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'rating', dir: 'desc' });
 
+
+  useEffect(() => {
+    if (latestSeason) setViewMode('final');
+  }, [latestSeason]);
   /* ───────── firestore listeners ───────── */
   useEffect(() => {
     if (!user) return;
@@ -745,6 +749,7 @@ export default function RoomPage() {
                       <TableHead>Best&nbsp;Streak</TableHead>
                       <TableHead>Start&nbsp;Elo</TableHead>
                       <TableHead>End&nbsp;Elo</TableHead>
+                      <TableHead>Elo&nbsp;Δ</TableHead>
                       <TableHead>Total&nbsp;Δ</TableHead>
                       <TableHead>Adjusted&nbsp;Pts</TableHead>
                     </TableRow>
@@ -770,6 +775,11 @@ export default function RoomPage() {
                         <TableCell>{r.longestWinStreak ?? '—'}</TableCell>
                         <TableCell>{r.startGlobalElo ?? '—'}</TableCell>
                         <TableCell>{r.endGlobalElo ?? '—'}</TableCell>
+                        <TableCell>
+                          {r.startGlobalElo != null && r.endGlobalElo != null
+                            ? (r.endGlobalElo - r.startGlobalElo).toFixed(0)
+                            : '—'}
+                        </TableCell>
                         <TableCell>{r.totalAddedPoints?.toFixed(2) ?? '—'}</TableCell>
                         <TableCell>{r.adjPoints?.toFixed(2) ?? '—'}</TableCell>
                       </TableRow>

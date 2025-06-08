@@ -36,13 +36,12 @@ import {
   getDoc,
   getDocs,
   query,
-  updateDoc,
   where,
 } from "firebase/firestore";
 
 import {
   Activity,
-  Camera,
+  ArrowLeftRight,
   CornerUpLeft,
   CornerUpRight,
   Flame,
@@ -50,7 +49,10 @@ import {
   ListOrdered,
   Percent,
   PieChart as PieChartIcon,
+  TrendingDown,
+  TrendingFlat,
   TrendingUp,
+  TrendingUp as WinStreakIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -59,7 +61,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
@@ -194,7 +195,123 @@ function computeSideStats(list: Match[], uid: string) {
   };
 }
 
-const CustomTooltip: FC<RechartTooltip["props"]> = ({ active, payload, label }) => {
+function groupByMonth(list: Match[], uid: string) {
+  const map = new Map<string, { start: number; end: number }>();
+  list.forEach((m) => {
+    const d = parseFlexDate(m.timestamp ?? m.playedAt);
+    const key = `${d.getUTCFullYear()}-${String(
+      d.getUTCMonth() + 1
+    ).padStart(2, "0")}`;
+    const isP1 = m.player1Id === uid;
+    const me = isP1 ? m.player1 : m.player2;
+    if (!map.has(key))
+      map.set(key, { start: me.oldRating, end: me.newRating });
+    else map.get(key)!.end = me.newRating;
+  });
+  return Array.from(map.entries())
+    .map(([label, v]) => ({
+      label,
+      ...v,
+      delta: v.end - v.start,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+const pct = (v: number) => `${v.toFixed(1)} %`;
+
+function buildInsights(
+  stats: ReturnType<typeof computeStats>,
+  side: ReturnType<typeof computeSideStats>,
+  monthly: ReturnType<typeof groupByMonth>,
+): Insight[] {
+  const rows: Insight[] = [];
+
+  /* last month */
+  const last = monthly.at(-1);
+  if (last) {
+    const up = last.delta >= 0;
+    rows.push({
+      icon: up ? TrendingUp : TrendingDown,
+      color: up ? "text-emerald-600" : "text-rose-600",
+      text: `${up ? "Gained" : "Lost"} <b>${Math.abs(last.delta)} ELO</b> over the last month`,
+    });
+  }
+
+  /* best / worst */
+  if (monthly.length >= 3) {
+    const best = [...monthly].sort((a, b) => b.delta - a.delta)[0];
+    const worst = [...monthly].sort((a, b) => a.delta - b.delta)[0];
+    rows.push({
+      icon: TrendingUp,
+      color: "text-primary",
+      text: `Best month: <b>${best.label}</b> (+${best.delta} ELO)`,
+    });
+    rows.push({
+      icon: TrendingDown,
+      color: "text-rose-600",
+      text: `Toughest month: <b>${worst.label}</b> (${worst.delta} ELO)`,
+    });
+  }
+
+  /* table sides */
+  const lGames = side.leftSideWins + side.leftSideLosses;
+  const rGames = side.rightSideWins + side.rightSideLosses;
+  if (lGames >= 10 && rGames >= 10) {
+    const winL = (side.leftSideWins / lGames) * 100;
+    const winR = (side.rightSideWins / rGames) * 100;
+    const better = winL > winR ? "left" : "right";
+    rows.push({
+      icon: ArrowLeftRight,
+      color: "text-indigo-600",
+      text:
+        winL === winR
+          ? `Almost even on both sides (${pct(winL)} / ${pct(winR)})`
+          : `Stronger on the <b>${better}</b> side (${pct(Math.max(winL, winR))} win-rate)`,
+    });
+  }
+
+  /* streak */
+  if (stats.maxWinStreak >= 8)
+    rows.push({
+      icon: Flame,
+      color: "text-amber-600",
+      text: `Longest winning streak: <b>${stats.maxWinStreak}</b> games`,
+    });
+
+  return rows;
+}
+
+// opponent-wise aggregate
+function opponentStats(list: Match[], uid: string) {
+  const map = new Map<
+    string,
+    { name: string; wins: number; losses: number; elo: number }
+  >();
+  list.forEach((m) => {
+    const isP1 = m.player1Id === uid;
+    const oppId = isP1 ? m.player2Id : m.player1Id;
+    const oppName = isP1 ? m.player2.name : m.player1.name;
+    const me = isP1 ? m.player1 : m.player2;
+    const win = me.scores > (isP1 ? m.player2.scores : m.player1.scores);
+    if (!map.has(oppId))
+      map.set(oppId, { name: oppName, wins: 0, losses: 0, elo: 0 });
+    const rec = map.get(oppId)!;
+    win ? rec.wins++ : rec.losses++;
+    rec.elo += me.addedPoints; // cumulative elo diff
+  });
+  return Array.from(map.values())
+    .map((r) => ({
+      ...r,
+      winRate: r.wins + r.losses ? (r.wins / (r.wins + r.losses)) * 100 : 0,
+    }))
+    .sort((a, b) => b.winRate - a.winRate);
+}
+
+const CustomTooltip: FC<RechartTooltip["props"]> = ({
+  active,
+  payload,
+  label,
+}) => {
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
@@ -203,7 +320,8 @@ const CustomTooltip: FC<RechartTooltip["props"]> = ({ active, payload, label }) 
       <div>Opponent: {data.opponent}</div>
       <div>Score: {data.score}</div>
       <div>
-        Δ Points: {data.addedPoints > 0 ? `+${data.addedPoints}` : data.addedPoints}
+        Δ Points:{" "}
+        {data.addedPoints > 0 ? `+${data.addedPoints}` : data.addedPoints}
       </div>
       <div>Your ELO: {data.rating}</div>
     </div>
@@ -219,7 +337,6 @@ export default function ProfileUidPage() {
   const { toast } = useToast();
 
   const isSelf = targetUid === user?.uid;
-
 
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   const [friendStatus, setFriendStatus] = useState<
@@ -311,8 +428,27 @@ export default function ProfileUidPage() {
     [matches, oppFilter]
   );
 
-  const stats = useMemo(() => computeStats(filtered, targetUid), [filtered, targetUid]);
-  const sideStats = useMemo(() => computeSideStats(filtered, targetUid), [filtered, targetUid]);
+  const stats = useMemo(
+    () => computeStats(filtered, targetUid),
+    [filtered, targetUid]
+  );
+  const sideStats = useMemo(
+    () => computeSideStats(filtered, targetUid),
+    [filtered, targetUid]
+  );
+
+  const monthly = useMemo(
+    () => groupByMonth(filtered, targetUid),
+    [filtered, targetUid]
+  );
+  const insights = useMemo(
+    () => buildInsights(stats, sideStats, monthly),
+    [stats, sideStats, monthly]
+  );
+  const oppStats = useMemo(
+    () => opponentStats(matches, targetUid),
+    [matches, targetUid]
+  );
 
   const perfData = filtered.length
     ? filtered
@@ -354,13 +490,29 @@ export default function ProfileUidPage() {
   ];
 
   const sidePieData = [
-    { name: "Left Wins", value: sideStats.leftSideWins, fill: "hsl(var(--accent))" },
-    { name: "Right Wins", value: sideStats.rightSideWins, fill: "hsl(var(--primary))" },
+    {
+      name: "Left Wins",
+      value: sideStats.leftSideWins,
+      fill: "hsl(var(--accent))",
+    },
+    {
+      name: "Right Wins",
+      value: sideStats.rightSideWins,
+      fill: "hsl(var(--primary))",
+    },
   ];
 
   const sidePieLossData = [
-    { name: 'Left Losses', value: sideStats.leftSideLosses, fill: 'hsl(var(--destructive))' },
-    { name: 'Right Losses', value: sideStats.rightSideLosses, fill: 'hsl(var(--primary))' },
+    {
+      name: "Left Losses",
+      value: sideStats.leftSideLosses,
+      fill: "hsl(var(--destructive))",
+    },
+    {
+      name: "Right Losses",
+      value: sideStats.rightSideLosses,
+      fill: "hsl(var(--primary))",
+    },
   ];
 
   if (!targetProfile) {
@@ -375,8 +527,6 @@ export default function ProfileUidPage() {
     targetProfile.displayName ?? targetProfile.name ?? "Unknown Player";
   const rank = getRank(targetProfile.maxRating);
   const medalSrc = medalMap[rank];
-
-  console.log(targetProfile);
 
   // ---------------- Friend Handlers ----------------
 
@@ -421,7 +571,6 @@ export default function ProfileUidPage() {
               <div className="inline-flex items-center gap-2 rounded-md bg-muted py-1 px-2 text-sm">
                 <span className="font-medium">{rank}</span>
               </div>
-              {/* Friend buttons for other profiles */}
               {!isSelf && (
                 <div className="pt-2 flex gap-2">
                   {friendStatus === "none" && (
@@ -442,16 +591,34 @@ export default function ProfileUidPage() {
               )}
             </div>
           </div>
-          {medalSrc && <img src={medalSrc} alt={rank} className="h-[140px] w-[140px] rounded-md" />}
+          {medalSrc && (
+            <img
+              src={medalSrc}
+              alt={rank}
+              className="h-[140px] w-[140px] rounded-md"
+            />
+          )}
         </CardHeader>
       </Card>
 
       {/* Quick stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatCard icon={LineChartIcon} label="Current ELO" value={targetProfile.globalElo} />
+        <StatCard
+          icon={LineChartIcon}
+          label="Current ELO"
+          value={targetProfile.globalElo}
+        />
         <StatCard icon={ListOrdered} label="Matches" value={stats.total} />
-        <StatCard icon={Percent} label="Win Rate" value={`${stats.winRate.toFixed(1)}%`} />
-        <StatCard icon={Flame} label="Max Streak" value={stats.maxWinStreak} />
+        <StatCard
+          icon={Percent}
+          label="Win Rate"
+          value={`${stats.winRate.toFixed(1)}%`}
+        />
+        <StatCard
+          icon={Flame}
+          label="Max Streak"
+          value={stats.maxWinStreak}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
@@ -465,27 +632,20 @@ export default function ProfileUidPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData}>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
-                />
-                <ReLegend />
-              </PieChart>
-            </ResponsiveContainer>
-          </PieCard>
+          <PieCard title="Win / Loss" icon={PieChartIcon} data={pieData} />
 
           <div className="flex flex-row gap-4">
-            <PieCard title="Left vs Right Wins" icon={PieChartIcon} data={sidePieData} />
+            <PieCard
+              title="Left vs Right Wins"
+              icon={PieChartIcon}
+              data={sidePieData}
+            />
 
-            <PieCard title="Left vs Right Losses" icon={PieChartIcon} data={sidePieLossData} />
+            <PieCard
+              title="Left vs Right Losses"
+              icon={PieChartIcon}
+              data={sidePieLossData}
+            />
           </div>
         </div>
       </div>
@@ -509,6 +669,29 @@ export default function ProfileUidPage() {
 
       <DetailedStatsCard stats={stats} side={sideStats} />
 
+      {/* AI-insights */}
+      {insights.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LineChartIcon /> Insights
+            </CardTitle>
+            <CardDescription>Automatic game analysis</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {insights.map((i, idx) => (
+                <li key={idx} className="flex items-start gap-3">
+                  <i.icon className={`h-5 w-5 ${i.color} shrink-0`} />
+                  {/* eslint-disable-next-line react/no-danger */}
+                  <span dangerouslySetInnerHTML={{ __html: i.text }} />
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-8">
         <ChartCard title="ELO History" icon={LineChartIcon}>
           <ResponsiveContainer width="100%" height={400}>
@@ -518,7 +701,12 @@ export default function ProfileUidPage() {
               <YAxis domain={["dataMin-20", "dataMax+20"]} />
               <RechartTooltip content={<CustomTooltip />} />
               <ReLegend />
-              <Line type="monotone" dataKey="rating" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line
+                type="monotone"
+                dataKey="rating"
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
               <Brush
                 dataKey="label"
                 height={20}
@@ -530,7 +718,19 @@ export default function ProfileUidPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-
+        {/* monthly Δ ELO */}
+        <ChartCard title="Monthly Δ ELO" icon={LineChartIcon}>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={monthly}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" />
+              <YAxis />
+              <ReLegend />
+              <RechartTooltip />
+              <Line type="monotone" dataKey="delta" strokeWidth={2} dot />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
         <ChartCard title="Match Result" icon={Activity}>
           <ResponsiveContainer width="100%" height={450}>
@@ -540,7 +740,12 @@ export default function ProfileUidPage() {
               <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} />
               <RechartTooltip content={<CustomTooltip />} />
               <ReLegend />
-              <Line type="stepAfter" dataKey="result" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line
+                type="stepAfter"
+                dataKey="result"
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
               <Brush
                 dataKey="label"
                 height={20}
@@ -560,7 +765,12 @@ export default function ProfileUidPage() {
               <YAxis />
               <RechartTooltip content={<CustomTooltip />} />
               <ReLegend />
-              <Line type="monotone" dataKey="diff" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              <Line
+                type="monotone"
+                dataKey="diff"
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
               <Brush
                 dataKey="label"
                 height={20}
@@ -580,13 +790,59 @@ export default function ProfileUidPage() {
         loading={loadingMatches}
         meUid={targetUid}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Performance vs Opponents</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[260px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Opponent</TableHead>
+                  <TableHead>W / L</TableHead>
+                  <TableHead>Win %</TableHead>
+                  <TableHead>ELO Δ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {oppStats.map((o) => (
+                  <TableRow key={o.name}>
+                    <TableCell>{o.name}</TableCell>
+                    <TableCell>
+                      {o.wins} / {o.losses}
+                    </TableCell>
+                    <TableCell>{o.winRate.toFixed(1)}%</TableCell>
+                    <TableCell
+                      className={
+                        o.elo >= 0 ? "text-accent" : "text-destructive"
+                      }
+                    >
+                      {o.elo > 0 ? `+${o.elo}` : o.elo}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </section>
   );
 }
 
 // ---------------- Reusable Components ----------------
 
-function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: string | number }) {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: any;
+  label: string;
+  value: string | number;
+}) {
   return (
     <Card>
       <CardContent className="flex items-center gap-4">
@@ -600,7 +856,15 @@ function StatCard({ icon: Icon, label, value }: { icon: any; label: string; valu
   );
 }
 
-function ChartCard({ title, icon: Icon, children }: { title: string; icon: any; children: React.ReactNode }) {
+function ChartCard({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: any;
+  children: React.ReactNode;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -613,7 +877,15 @@ function ChartCard({ title, icon: Icon, children }: { title: string; icon: any; 
   );
 }
 
-function PieCard({ title, icon: Icon, data }: { title: string; icon: any; data: { name: string; value: number; fill: string }[] }) {
+function PieCard({
+  title,
+  icon: Icon,
+  data,
+}: {
+  title: string;
+  icon: any;
+  data: { name: string; value: number; fill: string }[];
+}) {
   return (
     <Card>
       <CardHeader>
@@ -624,7 +896,15 @@ function PieCard({ title, icon: Icon, data }: { title: string; icon: any; data: 
       <CardContent className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label />
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius={80}
+              label
+            />
             <ReLegend />
           </PieChart>
         </ResponsiveContainer>
@@ -633,7 +913,13 @@ function PieCard({ title, icon: Icon, data }: { title: string; icon: any; data: 
   );
 }
 
-function DetailedStatsCard({ stats, side }: { stats: ReturnType<typeof computeStats>; side: ReturnType<typeof computeSideStats> }) {
+function DetailedStatsCard({
+  stats,
+  side,
+}: {
+  stats: ReturnType<typeof computeStats>;
+  side: ReturnType<typeof computeSideStats>;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -652,8 +938,14 @@ function DetailedStatsCard({ stats, side }: { stats: ReturnType<typeof computeSt
         <StatItem l="Point Diff" v={stats.pointsDiff} />
         <StatItem l="Max Win Streak" v={stats.maxWinStreak} />
         <StatItem l="Max Loss Streak" v={stats.maxLossStreak} />
-        <StatItem l="Left Side W/L" v={`${side.leftSideWins} / ${side.leftSideLosses}`} />
-        <StatItem l="Right Side W/L" v={`${side.rightSideWins} / ${side.rightSideLosses}`} />
+        <StatItem
+          l="Left Side W/L"
+          v={`${side.leftSideWins} / ${side.leftSideLosses}`}
+        />
+        <StatItem
+          l="Right Side W/L"
+          v={`${side.rightSideWins} / ${side.rightSideLosses}`}
+        />
       </CardContent>
     </Card>
   );
@@ -668,7 +960,17 @@ function StatItem({ l, v }: { l: string; v: React.ReactNode }) {
   );
 }
 
-function MatchesTableCard({ title, matches, loading, meUid }: { title: string; matches: Match[]; loading: boolean; meUid: string }) {
+function MatchesTableCard({
+  title,
+  matches,
+  loading,
+  meUid,
+}: {
+  title: string;
+  matches: Match[];
+  loading: boolean;
+  meUid: string;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -694,11 +996,16 @@ function MatchesTableCard({ title, matches, loading, meUid }: { title: string; m
               <TableBody>
                 {matches.map((m) => {
                   const isP1 = m.player1Id === meUid;
-                  const date = safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yyyy HH.mm.ss");
+                  const date = safeFormatDate(
+                    m.timestamp ?? m.playedAt,
+                    "dd.MM.yyyy HH.mm.ss"
+                  );
                   const opp = isP1 ? m.player2.name : m.player1.name;
                   const myScore = isP1 ? m.player1.scores : m.player2.scores;
                   const theirScore = isP1 ? m.player2.scores : m.player1.scores;
-                  const eloΔ = isP1 ? m.player1.addedPoints : m.player2.addedPoints;
+                  const eloΔ = isP1
+                    ? m.player1.addedPoints
+                    : m.player2.addedPoints;
                   const win = myScore > theirScore;
                   return (
                     <TableRow key={m.id}>
@@ -707,10 +1014,18 @@ function MatchesTableCard({ title, matches, loading, meUid }: { title: string; m
                       <TableCell>
                         {myScore} – {theirScore}
                       </TableCell>
-                      <TableCell className={win ? "text-accent" : "text-destructive"}>
+                      <TableCell
+                        className={
+                          win ? "text-accent" : "text-destructive"
+                        }
+                      >
                         {win ? "Win" : "Loss"}
                       </TableCell>
-                      <TableCell className={eloΔ >= 0 ? "text-accent" : "text-destructive"}>
+                      <TableCell
+                        className={
+                          eloΔ >= 0 ? "text-accent" : "text-destructive"
+                        }
+                      >
                         {eloΔ > 0 ? `+${eloΔ}` : eloΔ}
                       </TableCell>
                     </TableRow>
@@ -726,7 +1041,10 @@ function MatchesTableCard({ title, matches, loading, meUid }: { title: string; m
 }
 
 function FriendChip({ uid }: { uid: string }) {
-  const [info, setInfo] = useState<{ name?: string; photoURL?: string } | null>(null);
+  const [info, setInfo] = useState<{
+    name?: string;
+    photoURL?: string;
+  } | null>(null);
   useEffect(() => {
     Friends.getUserLite(uid).then(setInfo);
   }, [uid]);
@@ -734,9 +1052,16 @@ function FriendChip({ uid }: { uid: string }) {
   if (!info?.name) return null;
 
   return (
-    <Link href={`/profile/${uid}`} className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-muted hover:bg-muted/70">
+    <Link
+      href={`/profile/${uid}`}
+      className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-muted hover:bg-muted/70"
+    >
       <Avatar className="h-6 w-6">
-        {info.photoURL ? <AvatarImage src={info.photoURL} /> : <AvatarFallback>{info.name.charAt(0)}</AvatarFallback>}
+        {info.photoURL ? (
+          <AvatarImage src={info.photoURL} />
+        ) : (
+          <AvatarFallback>{info.name.charAt(0)}</AvatarFallback>
+        )}
       </Avatar>
       <span className="text-sm">{info.name}</span>
     </Link>
