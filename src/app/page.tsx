@@ -83,6 +83,15 @@ export default function Home() {
               </CardFooter>
             </Card>
           </div>
+          {/* 2025 wrap link to a wrap page. /wrap-2025 url */}
+          <div className="mt-8">
+            <Button asChild variant="outline" className="w-full max-w-md">
+              <Link href="/wrap-2025" className="flex items-center justify-center gap-2">
+                <span>Ping-Pong WRAP ’25</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
           <PlayersTable />
         </section>
       ) : (
