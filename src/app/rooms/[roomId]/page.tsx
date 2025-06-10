@@ -1,6 +1,8 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
+import { ArrowRight } from 'lucide-react';
+
 import {
   Avatar, AvatarFallback, AvatarImage,
   Button,
@@ -396,6 +398,7 @@ export default function RoomPage() {
   const last5Form = (m: any) => recent
     .filter(x => x.player1Id === m.userId || x.player2Id === m.userId)
     .slice(0, 5)
+    .reverse()
     .map(x => (x.winner === m.name || x.winner === m.userId) ? 'W' : 'L')
     .join(' ');
   const bestWinStreak = (m: any) => {
@@ -673,7 +676,10 @@ export default function RoomPage() {
                       >
                         Avg&nbsp;Δ&nbsp;/&nbsp;Game
                       </TableHead>
-                      <TableHead>Last&nbsp;5</TableHead>
+                      <TableHead>
+                        Last 5&nbsp;←
+                      </TableHead>
+
                       <TableHead
                         className="cursor-pointer"
                         onClick={() =>
