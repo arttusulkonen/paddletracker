@@ -329,7 +329,7 @@ export default function PlayersTable() {
             ))}
           </div>
 
-          <ScrollArea className="h-[500px] overflow-auto border rounded-md">
+          <ScrollArea className="overflow-auto border rounded-md">
             <Table>
               <TableHeader>
                 <TableRow>

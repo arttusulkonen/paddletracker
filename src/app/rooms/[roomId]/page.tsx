@@ -113,7 +113,6 @@ export default function RoomPage() {
       query(
         collection(db, 'matches'),
         where('roomId', '==', roomId),
-        orderBy('timestamp', 'asc'),
       ),
       snap => {
         const fresh = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Match));
@@ -413,17 +412,36 @@ export default function RoomPage() {
     return max;
   };
 
+  /** агрегируем wins / losses из fresh-матчей */
+  const matchStats = useMemo(() => {
+    const st: Record<string, { wins: number; losses: number }> = {};
+    recent.forEach((m) => {
+      [
+        { id: m.player1Id, win: m.winner === m.player1.name },
+        { id: m.player2Id, win: m.winner === m.player2.name },
+      ].forEach(({ id, win }) => {
+        if (!st[id]) st[id] = { wins: 0, losses: 0 };
+        win ? st[id].wins++ : st[id].losses++;
+      });
+    });
+    return st;
+  }, [recent]);
+
   /* ───────────────────────── memo: regularPlayers ──────────────────── */
   const regularPlayers = useMemo(() => {
     return members.map((m) => {
-      const total = (m.wins || 0) + (m.losses || 0);
+      const wins = matchStats[m.userId]?.wins ?? 0;
+      const losses = matchStats[m.userId]?.losses ?? 0;
+      const total = wins + losses;
       const globalStart = seasonStarts[m.userId] ?? m.globalElo ?? 0;
       const globalDelta = (m.globalElo ?? 0) - globalStart;
       return {
         ...m,
-        totalMatches: total,
         ratingVisible: total >= 5,
-        winPct: calcWinPct(m.wins || 0, m.losses || 0),
+        wins,
+        losses,
+        totalMatches: total,
+        winPct: calcWinPct(wins, losses),
         deltaRoom: deltaRoom(m),
         globalDelta,
         avgPtsPerMatch: avgPtsPerGame(m),
@@ -852,7 +870,7 @@ export default function RoomPage() {
           </CardHeader>
           <CardContent>
             {recent.length ? (
-              <ScrollArea className="h-[300px]">
+              <ScrollArea className="h-[800px]">
                 <Table>
                   <TableHeader>
                     <TableRow>

@@ -796,7 +796,7 @@ export default function ProfileUidPage() {
           <CardTitle>Performance vs Opponents</CardTitle>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[260px]">
+          <ScrollArea>
             <Table>
               <TableHeader>
                 <TableRow>
