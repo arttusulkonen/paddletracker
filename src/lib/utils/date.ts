@@ -2,52 +2,66 @@
 import { format } from "date-fns";
 import { Timestamp } from "firebase/firestore";
 
-// Парсит строку формата "17.05.2025 13.51.30" или "17.5.2025 klo 14.55.31"
+/** Robust date parser for many legacy formats */
 export function parseFlexDate(d: string | Timestamp): Date {
+  /* Fire­store Timestamp ------------------------------- */
   if (typeof d === "object" && d !== null && "toDate" in d) {
-    // Firestore Timestamp
-    return d.toDate();
+    return d.toDate(); // already a JS Date
   }
+
   if (typeof d !== "string") return new Date(NaN);
 
-  // Унификация: убираем "klo", запятые и двойные пробелы
-  let str = d.replace("klo", "").replace(",", "").replace(/\s+/g, " ").trim();
+  /* ISO-8601 (e.g. 2025-06-03T14:32:08.063Z) ----------- */
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(d)) {
+    const iso = Date.parse(d);
+    if (!isNaN(iso)) return new Date(iso);
+  }
 
-  // match "dd.MM.yyyy HH.mm.ss"
-  let m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4}) (\d{1,2})\.(\d{1,2})\.(\d{1,2})$/);
+  /* Normalise legacy Finnish “klo”, commas, double spaces */
+  let str = d.replace("klo", "")
+    .replace(",", "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  /* dd.MM.yyyy HH.mm.ss -------------------------------- */
+  let m = str.match(
+    /^(\d{1,2})\.(\d{1,2})\.(\d{4}) (\d{1,2})\.(\d{1,2})\.(\d{1,2})$/
+  );
   if (m) {
-    // Преобразуем в ISO-строку: yyyy-MM-ddTHH:mm:ss
-    const [_, day, month, year, hour, min, sec] = m;
+    const [, day, mon, yr, h, mi, s] = m;
     return new Date(
-      `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour.padStart(2, "0")}:${min.padStart(2, "0")}:${sec.padStart(2, "0")}`
+      `${yr}-${mon.padStart(2, "0")}-${day.padStart(2, "0")}T` +
+      `${h.padStart(2, "0")}:${mi.padStart(2, "0")}:${s.padStart(2, "0")}`
     );
   }
 
-  // match "dd.MM.yyyy HH.mm"
-  m = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4}) (\d{1,2})\.(\d{1,2})$/);
+  /* dd.MM.yyyy HH.mm ----------------------------------- */
+  m = str.match(
+    /^(\d{1,2})\.(\d{1,2})\.(\d{4}) (\d{1,2})\.(\d{1,2})$/
+  );
   if (m) {
-    const [_, day, month, year, hour, min] = m;
+    const [, day, mon, yr, h, mi] = m;
     return new Date(
-      `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour.padStart(2, "0")}:${min.padStart(2, "0")}:00`
+      `${yr}-${mon.padStart(2, "0")}-${day.padStart(2, "0")}T` +
+      `${h.padStart(2, "0")}:${mi.padStart(2, "0")}:00`
     );
   }
 
-  // Если не распознали — пробуем стандартный парсер
+  /* Fallback to built-in parser ------------------------ */
   return new Date(str);
 }
 
-// Возвращает строку или fallback
-export function safeFormatDate(dateLike: string | Timestamp, formatStr: string, fallback = "Invalid date") {
+/** Safe formatter — returns fallback on error */
+export function safeFormatDate(
+  dateLike: string | Timestamp,
+  fmt: string,
+  fallback = "Invalid date"
+) {
   const date = parseFlexDate(dateLike);
-  if (!(date instanceof Date) || isNaN(date.getTime())) {
-    if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
-      console.warn("Invalid date value:", dateLike, new Error().stack);
-    }
-    return fallback;
-  }
+  if (!(date instanceof Date) || isNaN(date.getTime())) return fallback;
+
   try {
-    return format(date, formatStr);
+    return format(date, fmt);
   } catch {
     return fallback;
   }
