@@ -242,6 +242,8 @@ export default function RoomPage() {
         });
       };
 
+      const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
+
       // 5) Проходим по каждому «под-матчу»
       for (let idx = 0; idx < matchesInput.length; idx++) {
         const row = matchesInput[idx];
@@ -323,6 +325,10 @@ export default function RoomPage() {
         setRecent(prev => prev.some(m => m.id === docRef.id)
           ? prev
           : [{ id: docRef.id, ...matchDoc } as Match, ...prev]);
+
+        if (idx < matchesInput.length - 1) {
+          await wait(1000);
+        }
       }
 
       // 6) обновляем UI-черновик участников
@@ -394,12 +400,25 @@ export default function RoomPage() {
   /* ───────── helper фns for standings ───────── */
   const deltaRoom = (m: any) => (m.rating || 0) - (m.startRating ?? 1000);
   const avgPtsPerGame = (m: any) => (m.wins + m.losses ? deltaRoom(m) / (m.wins + m.losses) : 0);
-  const last5Form = (m: any) => recent
-    .filter(x => x.player1Id === m.userId || x.player2Id === m.userId)
-    .slice(0, 5)
-    .reverse()
-    .map(x => (x.winner === m.name || x.winner === m.userId) ? 'W' : 'L')
-    .join(' ');
+  type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
+
+  const last5Form = (m: any): MiniMatch[] =>
+    recent
+      .filter(x => x.player1Id === m.userId || x.player2Id === m.userId)
+      .slice(0, 5)
+      .reverse()
+      .map(x => {
+        const win = x.winner === m.name || x.winner === m.userId;
+        const youOnLeft = x.player1Id === m.userId;
+        const youScore = youOnLeft ? x.player1.scores : x.player2.scores;
+        const oppScore = youOnLeft ? x.player2.scores : x.player1.scores;
+        const opponent = youOnLeft ? x.player2.name : x.player1.name;
+        return {
+          result: win ? 'W' : 'L',
+          opponent,
+          score: `${youScore}-${oppScore}`,
+        };
+      });
   const bestWinStreak = (m: any) => {
     const arr = recent
       .filter(x => x.player1Id === m.userId || x.player2Id === m.userId)
@@ -747,7 +766,20 @@ export default function RoomPage() {
                             : '—'}
                         </TableCell>
                         <TableCell>
-                          {p.ratingVisible ? p.last5Form : '—'}
+                          {p.ratingVisible ? (
+                            <div className="flex gap-1">
+                              {p.last5Form.map((mm: MiniMatch, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className={`inline-block w-2 h-2 rounded-full ${mm.result === 'W' ? 'bg-green-500' : 'bg-red-500'
+                                    }`}
+                                  title={`${mm.result === 'W' ? 'Win' : 'Loss'} vs ${mm.opponent} (${mm.score})`}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            '—'
+                          )}
                         </TableCell>
                         <TableCell>
                           {p.ratingVisible ? p.longestWinStreak : '—'}
