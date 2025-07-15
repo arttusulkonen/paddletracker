@@ -1,9 +1,16 @@
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
-import { ArrowRight } from 'lucide-react';
-
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Avatar, AvatarFallback, AvatarImage,
   Button,
   Card, CardContent, CardDescription, CardHeader, CardTitle,
@@ -41,10 +48,19 @@ const tsToMs = (v?: string) => {
   return isNaN(ms) ? Date.parse(v ?? '') || 0 : ms;
 };
 
-// flip-helper для поля side
 const flip = (s: string) => (s === 'left' ? 'right' : s === 'right' ? 'left' : '');
 
 type StartEndElo = Record<string, { start: number; end: number }>;
+
+function getRank(elo: number) {
+  if (elo < 1001) return 'Ping-Pong Padawan';
+  if (elo < 1100) return 'Table-Tennis Trainee';
+  if (elo < 1200) return 'Racket Rookie';
+  if (elo < 1400) return 'Paddle Prodigy';
+  if (elo < 1800) return 'Spin Sensei';
+  if (elo < 2000) return 'Smash Samurai';
+  return 'Ping-Pong Paladin';
+}
 
 /* ───────── main component ──────── */
 export default function RoomPage() {
@@ -78,64 +94,85 @@ export default function RoomPage() {
   useEffect(() => {
     if (latestSeason) setViewMode('final');
   }, [latestSeason]);
+
   /* ───────── firestore listeners ───────── */
   useEffect(() => {
     if (!user) return;
 
-    /* 1) Подписка на документ room */
-    const unsubRoom = onSnapshot(doc(db, 'rooms', roomId), snap => {
-      if (!snap.exists()) {
+    const unsubRoom = onSnapshot(doc(db, 'rooms', roomId), async (roomSnap) => {
+      if (!roomSnap.exists()) {
         router.push('/rooms');
         return;
       }
-      const data = snap.data() as Room;
-      const merged = (data.members ?? []).map(m => ({
-        ...m,
-        rating: m.roomNewRating ?? m.rating,
-      }));
-      setMembers(prev => {
-        const map = new Map(prev.map(p => [p.userId, p]));
-        merged.forEach(m => map.set(m.userId, { ...map.get(m.userId), ...m }));
-        return Array.from(map.values());
-      });
-      setRoom({ ...data, members: merged });
+      const roomData = roomSnap.data() as Room;
 
-      /* находим финальный snapshot внутри room.seasonHistory */
+      const matchesQuery = query(collection(db, 'matches'), where('roomId', '==', roomId));
+      const matchesSnap = await getDocs(matchesQuery);
+      
+      const allMatches = matchesSnap.docs
+        .map(d => ({ id: d.id, ...(d.data() as any) } as Match))
+        .sort((a, b) => tsToMs((a as any).timestamp) - tsToMs((b as any).timestamp));
+
+      const starts: Record<string, number> = {};
+      allMatches.forEach((m) => {
+        const p1 = m.player1Id, p2 = m.player2Id;
+        if (starts[p1] == null) starts[p1] = m.player1.oldRating;
+        if (starts[p2] == null) starts[p2] = m.player2.oldRating;
+      });
+      setSeasonStarts(starts);
+
+      const initialMembers = roomData.members ?? [];
+      if (initialMembers.length > 0) {
+        const memberIds = initialMembers.map(m => m.userId);
+        const userDocsPromises = memberIds.map(id => getDoc(doc(db, 'users', id)));
+        const userDocsSnaps = await Promise.all(userDocsPromises);
+
+        const freshProfiles = new Map<string, UserProfile>();
+        userDocsSnaps.forEach(userSnap => {
+          if (userSnap.exists()) {
+            freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
+          }
+        });
+
+        const syncedMembers = initialMembers.map(member => {
+          const freshProfile = freshProfiles.get(member.userId);
+          return freshProfile
+            ? { ...member, name: freshProfile.name ?? freshProfile.displayName ?? member.name, photoURL: freshProfile.photoURL, globalElo: freshProfile.globalElo, maxRating: freshProfile.maxRating, rank: freshProfile.rank }
+            : member;
+        });
+        setMembers(syncedMembers);
+        setRoom({ ...roomData, members: syncedMembers });
+
+        const syncedMatches = allMatches.map(match => {
+          const p1Profile = freshProfiles.get(match.player1Id);
+          const p2Profile = freshProfiles.get(match.player2Id);
+          const newMatch = JSON.parse(JSON.stringify(match));
+          if (p1Profile) newMatch.player1.name = p1Profile.name ?? p1Profile.displayName ?? match.player1.name;
+          if (p2Profile) newMatch.player2.name = p2Profile.name ?? p2Profile.displayName ?? match.player2.name;
+          const winnerId = match.player1.scores > match.player2.scores ? match.player1Id : match.player2Id;
+          const winnerProfile = freshProfiles.get(winnerId);
+          if (winnerProfile) newMatch.winner = winnerProfile.name ?? winnerProfile.displayName ?? match.winner;
+          return newMatch;
+        });
+        setRecent(syncedMatches.slice().reverse());
+      } else {
+        setMembers([]);
+        setRoom(roomData);
+        setRecent([]);
+      }
+
       setLatestSeason(
-        data.seasonHistory?.slice().reverse()
+        roomData.seasonHistory?.slice().reverse()
           .find(s => Array.isArray(s.summary) || Array.isArray(s.members)) ?? null,
       );
       setIsLoading(false);
     });
 
-    /* 2) Подписка на коллекцию matches текущей комнаты */
-    const unsubMatches = onSnapshot(
-      query(
-        collection(db, 'matches'),
-        where('roomId', '==', roomId),
-      ),
-      snap => {
-        const fresh = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Match));
-
-        // Собираем «первый oldRating» для каждого игрока (start Elo сезона)
-        const starts: Record<string, number> = {};
-        fresh.forEach((m) => {
-          const p1 = m.player1Id, p2 = m.player2Id;
-          if (starts[p1] == null) starts[p1] = m.player1.oldRating;
-          if (starts[p2] == null) starts[p2] = m.player2.oldRating;
-        });
-        setSeasonStarts(starts);
-
-        // Сохраняем отсортированный массив
-        setRecent(fresh.sort((a, b) => tsToMs(b.timestamp) - tsToMs(a.timestamp)));
-      },
-    );
-
     return () => {
       unsubRoom();
-      unsubMatches();
     };
   }, [user, roomId, router]);
+
 
   /* ───────── invite user ───────── */
   const handleInvite = async () => {
@@ -157,7 +194,7 @@ export default function RoomPage() {
       }
       const newMember = {
         userId: uid,
-        name: target.name || target.email!,
+        name: target.name ?? target.displayName ?? target.email!,
         email: target.email!,
         rating: 1000,
         startRating: 1000,
@@ -201,7 +238,7 @@ export default function RoomPage() {
 
     const bad = matchesInput.find(({ score1, score2, side1, side2 }) => {
       const a = +score1, b = +score2;
-      if (!a || !b || !side1 || !side2) return true;
+      if (isNaN(a) || isNaN(b) || !side1 || !side2) return true;
       const hi = Math.max(a, b), lo = Math.min(a, b);
       return hi < 11 || (hi === 11 && lo > 9) || (hi > 11 && hi - lo !== 2);
     });
@@ -212,7 +249,6 @@ export default function RoomPage() {
 
     setIsRecording(true);
     try {
-      // 1) подтягиваем текущие globalElo один раз
       const [snap1, snap2] = await Promise.all([
         getDoc(doc(db, 'users', player1Id)),
         getDoc(doc(db, 'users', player2Id)),
@@ -220,16 +256,10 @@ export default function RoomPage() {
       let currentG1 = snap1.data()?.globalElo ?? 1000;
       let currentG2 = snap2.data()?.globalElo ?? 1000;
 
-      // 2) локальный (черновой) массив участников комнаты
       let draft = JSON.parse(JSON.stringify(members)) as Room['members'];
-
-      // 3) аккумулируем обновления для очерёдной записи истории rankHistories
       const historyUpdates: Record<string, any> = {};
-
-      // 4) для разных матчей в одном батче делаем смещение timestamp на +1 с
       const startDate = new Date();
 
-      // Функция для обновления rankHistories внутри draft
       const pushRank = (tsIso: string) => {
         draft.forEach(mem => {
           const place = [...draft]
@@ -241,16 +271,14 @@ export default function RoomPage() {
           mem.prevPlace = place;
         });
       };
-
+      
       const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-      // 5) Проходим по каждому «под-матчу»
       for (let idx = 0; idx < matchesInput.length; idx++) {
         const row = matchesInput[idx];
         const a = +row.score1, b = +row.score2;
         const winnerId = a > b ? player1Id : player2Id;
 
-        // 5.1) считаем новое globalElo без доп. чтений
         const K = 32;
         const exp1 = 1 / (1 + 10 ** ((currentG2 - currentG1) / 400));
         const exp2 = 1 / (1 + 10 ** ((currentG1 - currentG2) / 400));
@@ -261,12 +289,10 @@ export default function RoomPage() {
         currentG1 = newG1;
         currentG2 = newG2;
 
-        // 5.2) формируем уникальный timestamp
         const ts = new Date(startDate.getTime() + idx * 1000);
         const createdAt = getFinnishFormattedDate(ts);
         const tsIso = ts.toISOString();
 
-        // 5.3) обновляем «черновой» рейтинг и статистику в draft
         const p1 = draft.find(m => m.userId === player1Id)!;
         const p2 = draft.find(m => m.userId === player2Id)!;
         [p1, p2].forEach(p => {
@@ -284,10 +310,8 @@ export default function RoomPage() {
           });
         });
 
-        // 5.4) пушим историю рангов после перерасчёта
         pushRank(tsIso);
 
-        // 5.5) собираем matchDoc и пушим в Firestore
         const matchDoc = {
           roomId,
           createdAt,
@@ -296,58 +320,24 @@ export default function RoomPage() {
           player1Id,
           player2Id,
           players: [player1Id, player2Id],
-          player1: {
-            name: p1.name,
-            scores: a,
-            oldRating: currentG1 - dG1,
-            newRating: currentG1,
-            addedPoints: dG1,
-            roomOldRating: p1.rating - dG1,
-            roomNewRating: p1.rating,
-            roomAddedPoints: dG1,
-            side: row.side1,
-          },
-          player2: {
-            name: p2.name,
-            scores: b,
-            oldRating: currentG2 - dG2,
-            newRating: currentG2,
-            addedPoints: dG2,
-            roomOldRating: p2.rating - dG2,
-            roomNewRating: p2.rating,
-            roomAddedPoints: dG2,
-            side: row.side2,
-          },
+          player1: { name: p1.name, scores: a, oldRating: currentG1 - dG1, newRating: currentG1, addedPoints: dG1, roomOldRating: p1.rating - dG1, roomNewRating: p1.rating, roomAddedPoints: dG1, side: row.side1 },
+          player2: { name: p2.name, scores: b, oldRating: currentG2 - dG2, newRating: currentG2, addedPoints: dG2, roomOldRating: p2.rating - dG2, roomNewRating: p2.rating, roomAddedPoints: dG2, side: row.side2 },
           winner: winnerId === player1Id ? p1.name : p2.name,
-        } satisfies Omit<Match, 'id'>;
+        };
 
-        const docRef = await addDoc(collection(db, 'matches'), matchDoc);
-        setRecent(prev => prev.some(m => m.id === docRef.id)
-          ? prev
-          : [{ id: docRef.id, ...matchDoc } as Match, ...prev]);
-
+        await addDoc(collection(db, 'matches'), matchDoc);
+        
         if (idx < matchesInput.length - 1) {
           await wait(1000);
         }
       }
 
-      // 6) обновляем UI-черновик участников
-      setMembers(draft);
-
-      // 7) сохраняем room с historyUpdates, обновляем globalElo у обоих игроков
+      await updateDoc(doc(db, 'rooms', roomId), { members: draft, ...historyUpdates });
       await Promise.all([
-        updateDoc(doc(db, 'rooms', roomId), { members: draft, ...historyUpdates }),
-        updateDoc(doc(db, 'users', player1Id), {
-          globalElo: currentG1,
-          eloHistory: arrayUnion({ ts: new Date().toISOString(), elo: currentG1 }),
-        }),
-        updateDoc(doc(db, 'users', player2Id), {
-          globalElo: currentG2,
-          eloHistory: arrayUnion({ ts: new Date().toISOString(), elo: currentG2 }),
-        }),
+        updateDoc(doc(db, 'users', player1Id), { globalElo: currentG1, eloHistory: arrayUnion({ ts: new Date().toISOString(), elo: currentG1 }) }),
+        updateDoc(doc(db, 'users', player2Id), { globalElo: currentG2, eloHistory: arrayUnion({ ts: new Date().toISOString(), elo: currentG2 }) }),
       ]);
 
-      // 8) сбрасываем форму
       setPlayer1Id('');
       setPlayer2Id('');
       setMatchesInput([{ score1: '', score2: '', side1: '', side2: '' }]);
@@ -362,7 +352,7 @@ export default function RoomPage() {
 
   /* ───────── season snapshots ───────── */
   const getSeasonEloSnapshots = async (roomId: string): Promise<StartEndElo> => {
-    const qs = query(collection(db, 'matches'), where('roomId', '==', roomId), orderBy('timestamp', 'asc'));
+    const qs = query(collection(db, 'matches'), where('roomId', '==', roomId), orderBy('tsIso', 'asc'));
     const snap = await getDocs(qs);
     const firstSeen: Record<string, number> = {};
     const lastSeen: Record<string, number> = {};
@@ -406,9 +396,9 @@ export default function RoomPage() {
     recent
       .filter(x => x.player1Id === m.userId || x.player2Id === m.userId)
       .slice(0, 5)
-      .reverse()
       .map(x => {
-        const win = x.winner === m.name || x.winner === m.userId;
+        const winnerId = x.player1.scores > x.player2.scores ? x.player1Id : x.player2Id;
+        const win = winnerId === m.userId;
         const youOnLeft = x.player1Id === m.userId;
         const youScore = youOnLeft ? x.player1.scores : x.player2.scores;
         const oppScore = youOnLeft ? x.player2.scores : x.player1.scores;
@@ -422,7 +412,10 @@ export default function RoomPage() {
   const bestWinStreak = (m: any) => {
     const arr = recent
       .filter(x => x.player1Id === m.userId || x.player2Id === m.userId)
-      .map(x => (x.winner === m.name || x.winner === m.userId) ? 1 : 0);
+      .map(x => {
+        const winnerId = x.player1.scores > x.player2.scores ? x.player1Id : x.player2Id;
+        return winnerId === m.userId ? 1 : 0;
+      });
     let max = 0, cur = 0;
     arr.forEach(w => {
       cur = w ? cur + 1 : 0;
@@ -431,16 +424,14 @@ export default function RoomPage() {
     return max;
   };
 
-  /** агрегируем wins / losses из fresh-матчей */
   const matchStats = useMemo(() => {
     const st: Record<string, { wins: number; losses: number }> = {};
     recent.forEach((m) => {
-      [
-        { id: m.player1Id, win: m.winner === m.player1.name },
-        { id: m.player2Id, win: m.winner === m.player2.name },
-      ].forEach(({ id, win }) => {
+      const winnerId = m.player1.scores > m.player2.scores ? m.player1Id : m.player2Id;
+      [m.player1Id, m.player2Id].forEach(id => {
         if (!st[id]) st[id] = { wins: 0, losses: 0 };
-        win ? st[id].wins++ : st[id].losses++;
+        if (id === winnerId) st[id].wins++;
+        else st[id].losses++;
       });
     });
     return st;
@@ -452,8 +443,12 @@ export default function RoomPage() {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
       const total = wins + losses;
-      const globalStart = seasonStarts[m.userId] ?? m.globalElo ?? 0;
-      const globalDelta = (m.globalElo ?? 0) - globalStart;
+      const globalStart = seasonStarts[m.userId] ?? m.globalElo ?? 1000;
+      const globalDelta = (m.globalElo ?? globalStart) - globalStart;
+      
+      const seasonDeltaRoom = (m.rating || 0) - (m.startRating ?? 1000);
+      const avgPtsPerMatch = total > 0 ? seasonDeltaRoom / total : 0;
+
       return {
         ...m,
         ratingVisible: total >= 5,
@@ -461,9 +456,9 @@ export default function RoomPage() {
         losses,
         totalMatches: total,
         winPct: calcWinPct(wins, losses),
-        deltaRoom: deltaRoom(m),
+        deltaRoom: seasonDeltaRoom,
         globalDelta,
-        avgPtsPerMatch: avgPtsPerGame(m),
+        avgPtsPerMatch: avgPtsPerMatch,
         last5Form: last5Form(m),
         longestWinStreak: bestWinStreak(m),
       };
@@ -478,27 +473,7 @@ export default function RoomPage() {
         return factor * a.name.localeCompare(b.name);
       return factor * ((a as any)[key] - (b as any)[key]);
     });
-  }, [members, recent, seasonStarts, sortConfig]);
-
-  /* ───────── load avatars & ranks once per members change ───────── */
-  useEffect(() => {
-    if (!members.length) return;
-    const load = async () => {
-      const upd = await Promise.all(members.map(async m => {
-        const snap = await getDoc(doc(db, 'users', m.userId));
-        const u = snap.exists() ? snap.data() : {};
-        return {
-          ...m,
-          photoURL: u.photoURL || null,
-          rank: u.rank || null,
-          globalElo: u.globalElo || null,
-          maxRating: u.maxRating || null,
-        };
-      }));
-      setMembers(upd);
-    };
-    load();
-  }, [members.length, recent]);
+  }, [members, recent, seasonStarts, sortConfig, matchStats]);
 
   if (isLoading || !room) {
     return (
@@ -508,9 +483,6 @@ export default function RoomPage() {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // UI
-  // ---------------------------------------------------------------------------
   return (
     <ProtectedRoute>
       <div className="container mx-auto py-8 px-4">
@@ -523,7 +495,6 @@ export default function RoomPage() {
           Back to Rooms
         </Button>
 
-        {/* Room header */}
         <Card className="mb-8 shadow-xl">
           <CardHeader className="bg-muted/50 p-6 flex flex-col md:flex-row items-center gap-6">
             <Avatar className="h-24 w-24 border-4 border-background shadow-md">
@@ -537,14 +508,9 @@ export default function RoomPage() {
 
           <CardContent className="p-6 grid md:grid-cols-3 gap-6">
             <MembersBlock
-              members={members}
-              recent={recent}
-              regularPlayers={regularPlayers}
-              isInviting={isInviting}
-              inviteEmail={inviteEmail}
-              setInviteEmail={setInviteEmail}
-              handleInvite={handleInvite}
+              members={regularPlayers}
               room={room}
+              roomId={roomId}
             />
 
             {!latestSeason && (
@@ -562,12 +528,29 @@ export default function RoomPage() {
                 isRecording={isRecording}
               />
             )}
-
+            
             {!latestSeason && (
               <div className="md:col-span-3 text-right">
-                <Button variant="destructive" onClick={handleFinishSeason}>
-                  Finish Season
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Finish Season</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action will close the current season for this room.
+                        All standings will be finalized, and no new matches can be recorded for this season. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleFinishSeason}>
+                        Yes, Finish Season
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             )}
           </CardContent>
@@ -575,7 +558,6 @@ export default function RoomPage() {
 
         <Separator className="my-8" />
 
-        {/* standings */}
         <Card className="shadow-lg mb-8">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -607,127 +589,23 @@ export default function RoomPage() {
           </CardHeader>
 
           <CardContent>
-            {/* ───────── REGULAR ───────── */}
             {viewMode === 'regular' && (
               <ScrollArea>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>#</TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'name',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Player
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'rating',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Room&nbsp;Rating
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'deltaRoom',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Room&nbsp;Δ
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'globalDelta',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Global&nbsp;Δ
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'totalMatches',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Games
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'wins',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Wins
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'losses',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Losses
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'winPct',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Win&nbsp;%
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'avgPtsPerMatch',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Avg&nbsp;Δ&nbsp;/&nbsp;Game
-                      </TableHead>
-                      <TableHead>
-                        Last 5&nbsp;←
-                      </TableHead>
-
-                      <TableHead
-                        className="cursor-pointer"
-                        onClick={() =>
-                          setSortConfig(s => ({
-                            key: 'longestWinStreak',
-                            dir: s.dir === 'asc' ? 'desc' : 'asc',
-                          }))
-                        }
-                      >
-                        Best&nbsp;Streak
-                      </TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'name', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Player</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'rating', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Room&nbsp;Rating</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'deltaRoom', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Room&nbsp;Δ</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'globalDelta', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Global&nbsp;Δ</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'totalMatches', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Games</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'wins', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Wins</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'losses', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Losses</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'winPct', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Win&nbsp;%</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'avgPtsPerMatch', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Avg&nbsp;Δ&nbsp;/&nbsp;Game</TableHead>
+                      <TableHead>Last 5&nbsp;←</TableHead>
+                      <TableHead className="cursor-pointer" onClick={() => setSortConfig(s => ({ key: 'longestWinStreak', dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>Best&nbsp;Streak</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -735,55 +613,27 @@ export default function RoomPage() {
                       <TableRow key={p.userId}>
                         <TableCell>{i + 1}</TableCell>
                         <TableCell>
-                          <a
-                            href={`/profile/${p.userId}`}
-                            className="hover:underline"
-                          >
-                            {p.name}
-                          </a>
-                          {p.userId === room.creator && (
-                            <Crown className="inline ml-1 h-4 w-4 text-yellow-500" />
-                          )}
+                          <a href={`/profile/${p.userId}`} className="hover:underline">{p.name}</a>
+                          {p.userId === room.creator && (<Crown className="inline ml-1 h-4 w-4 text-yellow-500" />)}
                         </TableCell>
-                        <TableCell>
-                          {p.ratingVisible ? p.rating : '—'}
-                        </TableCell>
-                        <TableCell>
-                          {p.ratingVisible ? p.deltaRoom.toFixed(0) : '—'}
-                        </TableCell>
-                        <TableCell>
-                          {p.ratingVisible ? p.globalDelta.toFixed(0) : '—'}
-                        </TableCell>
+                        <TableCell>{p.ratingVisible ? p.rating : '—'}</TableCell>
+                        <TableCell>{p.ratingVisible ? p.deltaRoom.toFixed(0) : '—'}</TableCell>
+                        <TableCell>{p.ratingVisible ? p.globalDelta.toFixed(0) : '—'}</TableCell>
                         <TableCell>{p.totalMatches}</TableCell>
                         <TableCell>{p.wins}</TableCell>
                         <TableCell>{p.losses}</TableCell>
-                        <TableCell>
-                          {p.ratingVisible ? `${p.winPct}%` : '—'}
-                        </TableCell>
-                        <TableCell>
-                          {p.ratingVisible
-                            ? p.avgPtsPerMatch.toFixed(2)
-                            : '—'}
-                        </TableCell>
+                        <TableCell>{p.ratingVisible ? `${p.winPct}%` : '—'}</TableCell>
+                        <TableCell>{p.ratingVisible ? p.avgPtsPerMatch.toFixed(2) : '—'}</TableCell>
                         <TableCell>
                           {p.ratingVisible ? (
                             <div className="flex gap-1">
                               {p.last5Form.map((mm: MiniMatch, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className={`inline-block w-2 h-2 rounded-full ${mm.result === 'W' ? 'bg-green-500' : 'bg-red-500'
-                                    }`}
-                                  title={`${mm.result === 'W' ? 'Win' : 'Loss'} vs ${mm.opponent} (${mm.score})`}
-                                />
+                                <span key={idx} className={`inline-block w-2 h-2 rounded-full ${mm.result === 'W' ? 'bg-green-500' : 'bg-red-500'}`} title={`${mm.result === 'W' ? 'Win' : 'Loss'} vs ${mm.opponent} (${mm.score})`} />
                               ))}
                             </div>
-                          ) : (
-                            '—'
-                          )}
+                          ) : ('—')}
                         </TableCell>
-                        <TableCell>
-                          {p.ratingVisible ? p.longestWinStreak : '—'}
-                        </TableCell>
+                        <TableCell>{p.ratingVisible ? p.longestWinStreak : '—'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -791,7 +641,6 @@ export default function RoomPage() {
               </ScrollArea>
             )}
 
-            {/* ───────── FINAL ───────── */}
             {viewMode === 'final' && latestSeason && (
               <ScrollArea>
                 <Table>
@@ -811,31 +660,17 @@ export default function RoomPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(Array.isArray(latestSeason.summary)
-                      ? latestSeason.summary
-                      : latestSeason.members
-                    ).map((r: any) => (
+                    {(Array.isArray(latestSeason.summary) ? latestSeason.summary : latestSeason.members).map((r: any) => (
                       <TableRow key={r.userId}>
                         <TableCell>{r.place}</TableCell>
-                        <TableCell>
-                          <a
-                            href={`/profile/${r.userId}`}
-                            className="hover:underline"
-                          >
-                            {r.name}
-                          </a>
-                        </TableCell>
+                        <TableCell><a href={`/profile/${r.userId}`} className="hover:underline">{r.name}</a></TableCell>
                         <TableCell>{r.matchesPlayed}</TableCell>
                         <TableCell>{r.wins}</TableCell>
                         <TableCell>{r.losses}</TableCell>
                         <TableCell>{r.longestWinStreak ?? '—'}</TableCell>
                         <TableCell>{r.startGlobalElo ?? '—'}</TableCell>
                         <TableCell>{r.endGlobalElo ?? '—'}</TableCell>
-                        <TableCell>
-                          {r.startGlobalElo != null && r.endGlobalElo != null
-                            ? (r.endGlobalElo - r.startGlobalElo).toFixed(0)
-                            : '—'}
-                        </TableCell>
+                        <TableCell>{r.startGlobalElo != null && r.endGlobalElo != null ? (r.endGlobalElo - r.startGlobalElo).toFixed(0) : '—'}</TableCell>
                         <TableCell>{r.totalAddedPoints?.toFixed(2) ?? '—'}</TableCell>
                         <TableCell>{r.adjPoints?.toFixed(2) ?? '—'}</TableCell>
                       </TableRow>
@@ -845,60 +680,28 @@ export default function RoomPage() {
               </ScrollArea>
             )}
 
-            {/* ───────── HELP TEXT ───────── */}
             <div className="mt-4 text-xs text-muted-foreground leading-relaxed space-y-1">
-              <p>
-                <strong>Room Rating</strong> — Elo score, recalculated based only on matches
-                in this room (starting = 1000).
-              </p>
-              <p>
-                <strong>Room Δ</strong> — vs. starting (1000): current room
-                rating – 1000.
-              </p>
-              <p>
-                <strong>Global Δ</strong> — Change in your overall Elo (across all rooms)
-                since your first match this season.
-              </p>
-              <p>
-                <strong>Games / Wins / Losses</strong> — Matches played and outcomes.
-              </p>
-              <p>
-                <strong>Win %</strong> — (Wins / Games) × 100.
-              </p>
-              <p>
-                <strong>Avg Δ / Game</strong> — Average room Elo change per match.
-              </p>
-              <p>
-                <strong>Last 5</strong> — W = win, L = loss for the last five games.
-              </p>
-              <p>
-                <strong>Best Streak</strong> — Longest consecutive winning streak.
-              </p>
+              <p><strong>Room Rating</strong> — Elo score, recalculated based only on matches in this room (starting = 1000).</p>
+              <p><strong>Room Δ</strong> — vs. starting (1000): current room rating – 1000.</p>
+              <p><strong>Global Δ</strong> — Change in your overall Elo (across all rooms) since your first match this season.</p>
+              <p><strong>Games / Wins / Losses</strong> — Matches played and outcomes.</p>
+              <p><strong>Win %</strong> — (Wins / Games) × 100.</p>
+              <p><strong>Avg Δ / Game</strong> — Average room Elo change per match.</p>
+              <p><strong>Last 5</strong> — W = win, L = loss for the last five games.</p>
+              <p><strong>Best Streak</strong> — Longest consecutive winning streak.</p>
               {viewMode === 'final' && (
                 <>
-                  <p>
-                    <strong>Total Δ</strong> — Sum of all Elo gains/losses
-                    for the season (room-specific).
-                  </p>
-                  <p>
-                    <strong>Adjusted Pts</strong> —<br />
-                    <code>
-                      Total Δ × √(AvgGames / YourGames)
-                    </code>
-                  </p>
+                  <p><strong>Total Δ</strong> — Sum of all Elo gains/losses for the season (room-specific).</p>
+                  <p><strong>Adjusted Pts</strong> —<code>Total Δ × √(AvgGames / YourGames)</code></p>
                 </>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* recent matches */}
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="text-primary" />
-              Recent Matches
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2"><ShieldCheck className="text-primary" />Recent Matches</CardTitle>
           </CardHeader>
           <CardContent>
             {recent.length ? (
@@ -917,25 +720,12 @@ export default function RoomPage() {
                   <TableBody>
                     {recent.map((m) => (
                       <TableRow key={m.id}>
-                        <TableCell>
-                          {m.player1.name} – {m.player2.name}
-                        </TableCell>
-                        <TableCell>
-                          {m.player1.scores} – {m.player2.scores}
-                        </TableCell>
-                        <TableCell>
-                          {m.player1.roomAddedPoints} | {m.player2.roomAddedPoints}
-                        </TableCell>
-                        <TableCell>
-                          {m.player1.newRating} | {m.player2.newRating}
-                        </TableCell>
+                        <TableCell>{m.player1.name} – {m.player2.name}</TableCell>
+                        <TableCell>{m.player1.scores} – {m.player2.scores}</TableCell>
+                        <TableCell>{m.player1.roomAddedPoints} | {m.player2.roomAddedPoints}</TableCell>
+                        <TableCell>{m.player1.newRating} | {m.player2.newRating}</TableCell>
                         <TableCell className="font-semibold">{m.winner}</TableCell>
-                        <TableCell>
-                          {safeFormatDate(
-                            m.timestamp ?? m.createdAt ?? m.tsIso,
-                            'dd.MM.yyyy HH:mm:ss'
-                          )}
-                        </TableCell>
+                        <TableCell>{safeFormatDate(m.timestamp ?? (m as any).createdAt ?? (m as any).tsIso,'dd.MM.yyyy HH:mm:ss')}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -951,81 +741,77 @@ export default function RoomPage() {
   );
 }
 
-/* ------------------------- MembersBlock (unchanged) ------------------------- */
 function MembersBlock({
   members,
-  recent,
-  regularPlayers,
-  isInviting,
-  inviteEmail,
-  setInviteEmail,
-  handleInvite,
   room,
+  roomId,
 }: {
-  members: Room['members'];
-  recent: Match[];
-  regularPlayers: any[];
-  isInviting: boolean;
-  inviteEmail: string;
-  setInviteEmail(v: string): void;
-  handleInvite(): void;
+  members: any[];
   room: Room;
+  roomId: string;
 }) {
-  const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (!members.length) return;
-    const fetchProfiles = async () => {
-      const p: Record<string, any> = {};
-      await Promise.all(
-        members.map(async (m) => {
-          const snap = await getDoc(doc(db, 'users', m.userId));
-          if (snap.exists()) p[m.userId] = snap.data();
-        }),
-      );
-      setProfiles(p);
-    };
-    fetchProfiles();
-  }, [members, recent]);
-
-  const lastRoomRating = useMemo(() => {
-    const map: Record<string, number> = {};
-    members.forEach((mem) => {
-      const lastMatch = recent.find((r) => r.player1Id === mem.userId || r.player2Id === mem.userId);
-      map[mem.userId] = lastMatch
-        ? (lastMatch.player1Id === mem.userId
-          ? lastMatch.player1.roomNewRating
-          : lastMatch.player2.roomNewRating)
-        : mem.rating;
-    });
-    return map;
-  }, [members, recent]);
+  const handleInvite = async () => {
+    if (!inviteEmail.trim() || !room) return;
+    setIsInviting(true);
+    try {
+      const qs = query(collection(db, 'users'), where('email', '==', inviteEmail.trim()));
+      const snap = await getDocs(qs);
+      if (snap.empty) {
+        toast({ title: 'User not found', variant: 'destructive' });
+        return;
+      }
+      const uDoc = snap.docs[0];
+      const target = uDoc.data() as UserProfile;
+      const uid = uDoc.id;
+      if (members.some(m => m.userId === uid)) {
+        toast({ title: 'User already in room' });
+        return;
+      }
+      const newMember = {
+        userId: uid,
+        name: target.name ?? target.displayName ?? target.email!,
+        email: target.email!,
+        rating: 1000,
+        startRating: 1000,
+        wins: 0,
+        losses: 0,
+        date: getFinnishFormattedDate(),
+        role: 'editor' as const,
+      };
+      await updateDoc(doc(db, 'rooms', roomId), { members: arrayUnion(newMember) });
+      toast({ title: 'Invited', description: `${newMember.name} added` });
+      setInviteEmail('');
+    } catch(e) {
+      console.error(e);
+      toast({ title: 'Error', variant: 'destructive' });
+    } finally {
+      setIsInviting(false);
+    }
+  };
 
   return (
     <div>
       <Users className="text-primary" /> <span className="font-semibold">Members ({members.length})</span>
       <ScrollArea className="h-[300px] border rounded-md p-3 bg-background">
-        {regularPlayers.map((p) => {
-          const prof = profiles[p.userId] || {};
-          const globalElo = prof.globalElo ?? '–';
-          const elo = globalElo !== '–' ? globalElo : lastRoomRating[p.userId] ?? p.rating ?? '–';
-          const rank = prof.rank ?? getRank(Number.isFinite(elo) ? elo : 1000);
-
+        {members.map((p) => {
+          const rank = getRank(p.globalElo ?? 1000);
           return (
             <div key={p.userId} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-md transition-colors">
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={prof.photoURL || undefined} />
+                  <AvatarImage src={p.photoURL || undefined} />
                   <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="font-medium leading-none">
-                    <a href={`/profile/${p.userId}`} className="hover:underline">
-                      {p.name}
-                    </a>
+                    <a href={`/profile/${p.userId}`} className="hover:underline">{p.name}</a>
                     {p.userId === room.creator && <Crown className="inline ml-1 h-4 w-4 text-yellow-500" />}
                   </p>
-                  <p className="text-xs text-muted-foreground">MP {p.totalMatches} · W% {p.winPct}% · ELO {globalElo}</p>
+                  <p className="text-xs text-muted-foreground">MP {p.totalMatches} · W% {p.winPct}% · ELO {p.globalElo?.toFixed(0) ?? '–'}</p>
                   <p className="text-[10px] text-muted-foreground">Rank {rank}</p>
                 </div>
               </div>
@@ -1064,7 +850,6 @@ function MembersBlock({
   );
 }
 
-/* ------------------------- RecordBlock (unchanged) ------------------------- */
 function RecordBlock({
   members,
   player1Id,
@@ -1100,9 +885,7 @@ function RecordBlock({
   return (
     <Card className="md:col-span-2 shadow-md">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sword className="text-accent" /> Record Matches
-        </CardTitle>
+        <CardTitle className="flex items-center gap-2"><Sword className="text-accent" /> Record Matches</CardTitle>
         <CardDescription>Select players and scores</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1113,12 +896,8 @@ function RecordBlock({
         {matchesInput.map((row, i) => (
           <MatchRowInput key={i} index={i} data={row} onChange={(d) => setMatchesInput((r: any) => r.map((v: any, idx: number) => (idx === i ? d : v)))} onRemove={() => removeRow(i)} removable={i > 0} />
         ))}
-        <Button variant="outline" className="flex items-center gap-2" onClick={addRow}>
-          <Plus /> Add Match
-        </Button>
-        <Button className="w-full mt-4" disabled={isRecording} onClick={saveMatches}>
-          {isRecording ? 'Recording…' : 'Record & Update ELO'}
-        </Button>
+        <Button variant="outline" className="flex items-center gap-2" onClick={addRow}><Plus /> Add Match</Button>
+        <Button className="w-full mt-4" disabled={isRecording} onClick={saveMatches}>{isRecording ? 'Recording…' : 'Record & Update ELO'}</Button>
       </CardContent>
     </Card>
   );
@@ -1131,9 +910,7 @@ function PlayerSelect({ label, value, onChange, list }: { label: string; value: 
       <select className="w-full border rounded p-2" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Select</option>
         {list.map((o) => (
-          <option key={o.userId} value={o.userId}>
-            {o.name} ({o.rating})
-          </option>
+          <option key={o.userId} value={o.userId}>{o.name} ({o.rating})</option>
         ))}
       </select>
     </div>
@@ -1166,20 +943,8 @@ function MatchRowInput({ index, data, onChange, onRemove, removable }: { index: 
         </div>
       ))}
       {removable && (
-        <Button variant="ghost" className="absolute top-1/2 right-0 -translate-y-1/2" onClick={onRemove}>
-          <Trash2 />
-        </Button>
+        <Button variant="ghost" className="absolute top-1/2 right-0 -translate-y-1/2" onClick={onRemove}><Trash2 /></Button>
       )}
     </div>
   );
-}
-
-function getRank(elo: number) {
-  if (elo < 1001) return 'Ping-Pong Padawan';
-  if (elo < 1100) return 'Table-Tennis Trainee';
-  if (elo < 1200) return 'Racket Rookie';
-  if (elo < 1400) return 'Paddle Prodigy';
-  if (elo < 1800) return 'Spin Sensei';
-  if (elo < 2000) return 'Smash Samurai';
-  return 'Ping-Pong Paladin';
 }

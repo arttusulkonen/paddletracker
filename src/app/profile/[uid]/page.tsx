@@ -11,6 +11,15 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Dialog, // Новый импорт
+  DialogContent, // Новый импорт
+  DialogDescription, // Новый импорт
+  DialogFooter, // Новый импорт
+  DialogHeader, // Новый импорт
+  DialogTitle, // Новый импорт
+  DialogTrigger, // Новый импорт
+  Input, // Новый импорт
+  Label, // Новый импорт
   ScrollArea,
   Select,
   SelectContent,
@@ -26,16 +35,18 @@ import {
 } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase"; // Добавил auth
 import * as Friends from "@/lib/friends";
 import type { Match, UserProfile } from "@/lib/types";
 import { parseFlexDate, safeFormatDate } from "@/lib/utils/date";
+import { updateProfile } from "firebase/auth"; // Новый импорт
 import {
   collection,
   doc,
   getDoc,
   getDocs,
   query,
+  updateDoc, // Новый импорт
   where,
 } from "firebase/firestore";
 
@@ -47,6 +58,7 @@ import {
   Flame,
   LineChart as LineChartIcon,
   ListOrdered,
+  Pencil, // Новый импорт
   Percent,
   PieChart as PieChartIcon,
   TrendingDown,
@@ -77,7 +89,7 @@ import {
   YAxis,
 } from "recharts";
 
-// ---------------- Helpers ----------------
+// ---------------- Helpers (без изменений) ----------------
 
 const getRank = (elo: number) =>
   elo < 1001
@@ -198,7 +210,7 @@ function computeSideStats(list: Match[], uid: string) {
 function groupByMonth(list: Match[], uid: string) {
   const map = new Map<string, { start: number; end: number }>();
   list.forEach((m) => {
-    const d = parseFlexDate(m.timestamp ?? m.playedAt);
+    const d = parseFlexDate(m.timestamp ?? (m as any).playedAt);
     const key = `${d.getUTCFullYear()}-${String(
       d.getUTCMonth() + 1
     ).padStart(2, "0")}`;
@@ -223,10 +235,9 @@ function buildInsights(
   stats: ReturnType<typeof computeStats>,
   side: ReturnType<typeof computeSideStats>,
   monthly: ReturnType<typeof groupByMonth>,
-): Insight[] {
-  const rows: Insight[] = [];
+): any[] {
+  const rows: any[] = [];
 
-  /* last month */
   const last = monthly.at(-1);
   if (last) {
     const up = last.delta >= 0;
@@ -237,7 +248,6 @@ function buildInsights(
     });
   }
 
-  /* best / worst */
   if (monthly.length >= 3) {
     const best = [...monthly].sort((a, b) => b.delta - a.delta)[0];
     const worst = [...monthly].sort((a, b) => a.delta - b.delta)[0];
@@ -253,7 +263,6 @@ function buildInsights(
     });
   }
 
-  /* table sides */
   const lGames = side.leftSideWins + side.leftSideLosses;
   const rGames = side.rightSideWins + side.rightSideLosses;
   if (lGames >= 10 && rGames >= 10) {
@@ -270,7 +279,6 @@ function buildInsights(
     });
   }
 
-  /* streak */
   if (stats.maxWinStreak >= 8)
     rows.push({
       icon: Flame,
@@ -281,7 +289,6 @@ function buildInsights(
   return rows;
 }
 
-// opponent-wise aggregate
 function opponentStats(list: Match[], uid: string) {
   const map = new Map<
     string,
@@ -297,7 +304,7 @@ function opponentStats(list: Match[], uid: string) {
       map.set(oppId, { name: oppName, wins: 0, losses: 0, elo: 0 });
     const rec = map.get(oppId)!;
     win ? rec.wins++ : rec.losses++;
-    rec.elo += me.addedPoints; // cumulative elo diff
+    rec.elo += me.addedPoints;
   });
   return Array.from(map.values())
     .map((r) => ({
@@ -307,7 +314,7 @@ function opponentStats(list: Match[], uid: string) {
     .sort((a, b) => b.winRate - a.winRate);
 }
 
-const CustomTooltip: FC<RechartTooltip["props"]> = ({
+const CustomTooltip: FC<any> = ({
   active,
   payload,
   label,
@@ -315,7 +322,7 @@ const CustomTooltip: FC<RechartTooltip["props"]> = ({
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
-    <div className="bg-white p-2 rounded shadow-lg text-sm">
+    <div className="bg-white p-2 rounded shadow-lg text-sm border">
       <div className="font-semibold mb-1">{label}</div>
       <div>Opponent: {data.opponent}</div>
       <div>Score: {data.score}</div>
@@ -333,7 +340,7 @@ const CustomTooltip: FC<RechartTooltip["props"]> = ({
 export default function ProfileUidPage() {
   const { uid: targetUid } = useParams<{ uid: string }>();
   const router = useRouter();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, refreshUserProfile } = useAuth(); // Добавил refreshUserProfile
   const { toast } = useToast();
 
   const isSelf = targetUid === user?.uid;
@@ -342,13 +349,20 @@ export default function ProfileUidPage() {
   const [friendStatus, setFriendStatus] = useState<
     "none" | "outgoing" | "incoming" | "friends"
   >("none");
+  
+  // --- НОВЫЕ СОСТОЯНИЯ ДЛЯ РЕДАКТИРОВАНИЯ ИМЕНИ ---
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  // --- КОНЕЦ НОВЫХ СОСТОЯНИЙ ---
+
 
   useEffect(() => {
     if (!targetUid || !user) return;
 
-    // Viewing own profile – reuse auth context profile
     if (isSelf && userProfile) {
       setTargetProfile(userProfile);
+      setNewName(userProfile.name ?? userProfile.displayName ?? "");
       setFriendStatus("none");
       return;
     }
@@ -359,7 +373,9 @@ export default function ProfileUidPage() {
         router.push("/profile");
         return;
       }
-      setTargetProfile({ uid: targetUid, ...(snap.data() as any) });
+      const profileData = { uid: targetUid, ...(snap.data() as any) };
+      setTargetProfile(profileData);
+      setNewName(profileData.name ?? profileData.displayName ?? "");
 
       const mySnap = await getDoc(doc(db, "users", user.uid));
       const myData = mySnap.exists() ? (mySnap.data() as any) : {};
@@ -374,7 +390,42 @@ export default function ProfileUidPage() {
     })();
   }, [targetUid, isSelf, user, userProfile, router]);
 
-  // ---------------- Matches ----------------
+  // --- НОВАЯ ФУНКЦИЯ ДЛЯ СОХРАНЕНИЯ ИМЕНИ ---
+  const handleSaveName = async () => {
+    if (!user || !newName.trim() || newName.trim().length < 3) {
+      toast({ title: "Invalid Name", description: "Name must be at least 3 characters.", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      // 1. Обновляем профиль в Firebase Auth
+      await updateProfile(auth.currentUser!, { displayName: newName.trim() });
+
+      // 2. Обновляем документ в Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        name: newName.trim(),
+        displayName: newName.trim(),
+      });
+
+      // 3. Обновляем локальное состояние для мгновенного отображения
+      setTargetProfile(prev => prev ? { ...prev, name: newName.trim(), displayName: newName.trim() } : null);
+      
+      // 4. Обновляем глобальный контекст (если функция доступна)
+      if (refreshUserProfile) {
+        await refreshUserProfile();
+      }
+
+      toast({ title: "Success!", description: "Your name has been updated." });
+      setIsEditingName(false);
+    } catch (error) {
+      console.error("Error updating name:", error);
+      toast({ title: "Error", description: "Could not update your name. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  // --- КОНЕЦ НОВОЙ ФУНКЦИИ ---
 
   const [matches, setMatches] = useState<Match[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
@@ -393,8 +444,8 @@ export default function ProfileUidPage() {
     p2.forEach((d) => rows.push({ id: d.id, ...(d.data() as any) }));
     const uniq = Array.from(new Map(rows.map((r) => [r.id, r])).values()).sort(
       (a, b) =>
-        parseFlexDate(b.timestamp ?? b.playedAt).getTime() -
-        parseFlexDate(a.timestamp ?? a.playedAt).getTime()
+        parseFlexDate(b.timestamp ?? (b as any).playedAt).getTime() -
+        parseFlexDate(a.timestamp ?? (a as any).playedAt).getTime()
     );
     setMatches(uniq);
     setLoadingMatches(false);
@@ -403,8 +454,6 @@ export default function ProfileUidPage() {
   useEffect(() => {
     loadMatches();
   }, [loadMatches]);
-
-  // ---------------- Memoised Derived Data ----------------
 
   const opponents = useMemo(() => {
     const m = new Map<string, string>();
@@ -455,15 +504,15 @@ export default function ProfileUidPage() {
       .slice()
       .sort(
         (a, b) =>
-          parseFlexDate(a.timestamp ?? a.playedAt).getTime() -
-          parseFlexDate(b.timestamp ?? b.playedAt).getTime()
+          parseFlexDate(a.timestamp ?? (a as any).playedAt).getTime() -
+          parseFlexDate(b.timestamp ?? (b as any).playedAt).getTime()
       )
       .map((m) => {
         const isP1 = m.player1Id === targetUid;
         const me = isP1 ? m.player1 : m.player2;
         const opp = isP1 ? m.player2 : m.player1;
         return {
-          label: safeFormatDate(m.timestamp ?? m.playedAt, "dd.MM.yy"),
+          label: safeFormatDate(m.timestamp ?? (m as any).playedAt, "dd.MM.yy"),
           rating: me.newRating,
           diff: me.scores - opp.scores,
           result: me.scores > opp.scores ? 1 : -1,
@@ -475,7 +524,7 @@ export default function ProfileUidPage() {
     : [
       {
         label: "",
-        rating: targetProfile?.rating ?? 0,
+        rating: targetProfile?.globalElo ?? 0,
         diff: 0,
         result: 0,
         opponent: "",
@@ -525,10 +574,8 @@ export default function ProfileUidPage() {
 
   const displayName =
     targetProfile.displayName ?? targetProfile.name ?? "Unknown Player";
-  const rank = getRank(targetProfile.maxRating);
+  const rank = getRank(targetProfile.maxRating ?? targetProfile.globalElo ?? 1000);
   const medalSrc = medalMap[rank];
-
-  // ---------------- Friend Handlers ----------------
 
   const handleAdd = async () => {
     await Friends.sendFriendRequest(user!.uid, targetUid);
@@ -558,13 +605,50 @@ export default function ProfileUidPage() {
           <div className="flex items-center gap-6">
             <div className="relative">
               <Avatar className="h-32 w-32">
+                <AvatarImage src={targetProfile.photoURL ?? undefined} />
                 <AvatarFallback className="text-4xl">
                   {displayName.charAt(0)}
                 </AvatarFallback>
               </Avatar>
             </div>
             <div className="text-left space-y-1">
-              <CardTitle className="text-4xl">{displayName}</CardTitle>
+              {/* --- ИЗМЕНЕННЫЙ БЛОК С ИМЕНЕМ --- */}
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-4xl">{displayName}</CardTitle>
+                {isSelf && (
+                  <Dialog open={isEditingName} onOpenChange={setIsEditingName}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Pencil className="h-5 w-5" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit Your Name</DialogTitle>
+                        <DialogDescription>
+                          This name will be visible to other players.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Label htmlFor="newName">Display Name</Label>
+                        <Input
+                          id="newName"
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          placeholder="Your new name"
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditingName(false)}>Cancel</Button>
+                        <Button onClick={handleSaveName} disabled={isSaving}>
+                          {isSaving ? "Saving..." : "Save"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
+              {/* --- КОНЕЦ ИЗМЕНЕННОГО БЛОКА --- */}
               {isSelf && (
                 <CardDescription>{targetProfile.email}</CardDescription>
               )}
@@ -601,12 +685,12 @@ export default function ProfileUidPage() {
         </CardHeader>
       </Card>
 
-      {/* Quick stats */}
+      {/* Остальная часть компонента без изменений... */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard
           icon={LineChartIcon}
           label="Current ELO"
-          value={targetProfile.globalElo}
+          value={targetProfile.globalElo?.toFixed(0) ?? 'N/A'}
         />
         <StatCard icon={ListOrdered} label="Matches" value={stats.total} />
         <StatCard
@@ -669,7 +753,6 @@ export default function ProfileUidPage() {
 
       <DetailedStatsCard stats={stats} side={sideStats} />
 
-      {/* AI-insights */}
       {insights.length > 0 && (
         <Card>
           <CardHeader>
@@ -683,7 +766,6 @@ export default function ProfileUidPage() {
               {insights.map((i, idx) => (
                 <li key={idx} className="flex items-start gap-3">
                   <i.icon className={`h-5 w-5 ${i.color} shrink-0`} />
-                  {/* eslint-disable-next-line react/no-danger */}
                   <span dangerouslySetInnerHTML={{ __html: i.text }} />
                 </li>
               ))}
@@ -718,7 +800,6 @@ export default function ProfileUidPage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* monthly Δ ELO */}
         <ChartCard title="Monthly Δ ELO" icon={LineChartIcon}>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={monthly}>
@@ -783,7 +864,6 @@ export default function ProfileUidPage() {
         </ChartCard>
       </div>
 
-      {/* Matches table */}
       <MatchesTableCard
         title={`All Matches (${filtered.length})`}
         matches={filtered}
@@ -832,7 +912,7 @@ export default function ProfileUidPage() {
   );
 }
 
-// ---------------- Reusable Components ----------------
+// ---------------- Reusable Components (без изменений) ----------------
 
 function StatCard({
   icon: Icon,
@@ -845,7 +925,7 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardContent className="flex items-center gap-4">
+      <CardContent className="p-4 flex items-center gap-4">
         <Icon className="h-6 w-6 text-primary" />
         <div>
           <p className="text-sm text-muted-foreground">{label}</p>
@@ -997,7 +1077,7 @@ function MatchesTableCard({
                 {matches.map((m) => {
                   const isP1 = m.player1Id === meUid;
                   const date = safeFormatDate(
-                    m.timestamp ?? m.playedAt,
+                    m.timestamp ?? (m as any).playedAt,
                     "dd.MM.yyyy HH.mm.ss"
                   );
                   const opp = isP1 ? m.player2.name : m.player1.name;
