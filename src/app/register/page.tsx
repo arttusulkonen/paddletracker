@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -8,7 +8,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -16,40 +16,63 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { auth, db } from "@/lib/firebase";
-import { getFinnishFormattedDate } from "@/lib/utils";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { UserPlus } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { auth, db } from '@/lib/firebase';
+import { getFinnishFormattedDate } from '@/lib/utils';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { UserPlus } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+import * as z from 'zod';
 
-const registerSchema = z.object({
-  name: z.string().min(3).max(30),
-  email: z.string().email(),
-  password: z.string().min(6),
-});
+let registerSchema: any;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
+  // 1. ВСЕ ХУКИ В НАЧАЛЕ КОМПОНЕНТА
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // Схема валидации определяется здесь, чтобы иметь доступ к `t`
+  registerSchema = z.object({
+    name: z
+      .string()
+      .min(3, { message: t('Name must be at least 3 characters') })
+      .max(30, { message: t('Name must be at most 30 characters') }),
+    email: z.string().email({ message: t('Invalid email address') }),
+    password: z
+      .string()
+      .min(6, { message: t('Password must be at least 6 characters') }),
   });
 
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+    },
+  });
+
+  // 2. ВСЕ ЭФФЕКТЫ ПОСЛЕ ХУКОВ СОСТОЯНИЯ
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  // 3. ВСЕ ОБРАБОТЧИКИ
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
-      // 1) create auth user
       const cred = await createUserWithEmailAndPassword(
         auth,
         data.email,
@@ -57,87 +80,76 @@ export default function RegisterPage() {
       );
       const u = cred.user;
 
-      // 2) set their displayName on Firebase Auth
       await updateProfile(u, { displayName: data.name });
 
-      // 3) create their Firestore profile document in one shot
-      const userRef = doc(db, "users", u.uid);
+      const userRef = doc(db, 'users', u.uid);
       await setDoc(userRef, {
         uid: u.uid,
         email: u.email,
         displayName: data.name,
+        name: data.name,
         globalElo: 1000,
+        maxRating: 1000,
         matchesPlayed: 0,
         wins: 0,
         losses: 0,
         createdAt: getFinnishFormattedDate(),
-        // empty arrays:
         eloHistory: [],
         friends: [],
         incomingRequests: [],
         outgoingRequests: [],
-        achievements: [
-          {
-            type: "eloInit",
-            dateFinished: getFinnishFormattedDate(),
-            finalScore: 1000,
-            wins: 0,
-            losses: 0,
-            matchesPlayed: 0,
-            place: null,
-            roomId: null,
-            roomName: null,
-            totalAddedPoints: 0,
-          },
-        ],
+        achievements: [],
         rooms: [],
       });
 
       toast({
-        title: "Success!",
-        description: "Your account has been created.",
+        title: t('Success!'),
+        description: t('Your account has been created.'),
       });
-      router.push("/");
+      router.push('/');
     } catch (err: any) {
       console.error(err);
       toast({
-        title: "Registration Error",
+        title: t('Registration Error'),
         description:
-          err.code === "auth/email-already-in-use"
-            ? "That email address is already in use."
-            : "Something went wrong. Please try again.",
-        variant: "destructive",
+          err.code === 'auth/email-already-in-use'
+            ? t('That email address is already in use.')
+            : t('Something went wrong. Please try again.'),
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 4. УСЛОВНЫЙ ВОЗВРАТ (GUARD)
+  if (!hasMounted) {
+    return null;
+  }
+
+  // 5. ОСНОВНОЙ РЕНДЕР
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] py-12">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold flex items-center justify-center gap-2">
-            <UserPlus className="h-8 w-8 text-primary" /> Create Account
+    <div className='flex items-center justify-center min-h-[calc(100vh-10rem)] py-12'>
+      <Card className='w-full max-w-md shadow-xl'>
+        <CardHeader className='text-center'>
+          <CardTitle className='text-3xl font-bold flex items-center justify-center gap-2'>
+            <UserPlus className='h-8 w-8 text-primary' /> {t('Create Account')}
           </CardTitle>
           <CardDescription>
-            Join PingPongTracker and start tracking your games!
+            {t('Join PingPongTracker and start tracking your games!')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-6"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
               <FormField
                 control={form.control}
-                name="name"
+                name='name'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Display Name</FormLabel>
+                    <FormLabel>{t('Display Name')}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Your Name" />
+                      <Input {...field} placeholder={t('Your Name')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -145,15 +157,15 @@ export default function RegisterPage() {
               />
               <FormField
                 control={form.control}
-                name="email"
+                name='email'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('Email')}</FormLabel>
                     <FormControl>
                       <Input
-                        type="email"
+                        type='email'
                         {...field}
-                        placeholder="you@example.com"
+                        placeholder={t('you@example.com')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -162,36 +174,32 @@ export default function RegisterPage() {
               />
               <FormField
                 control={form.control}
-                name="password"
+                name='password'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t('Password')}</FormLabel>
                     <FormControl>
                       <Input
-                        type="password"
+                        type='password'
                         {...field}
-                        placeholder="••••••••"
+                        placeholder='••••••••'
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? "Registering..." : "Register"}
+              <Button type='submit' className='w-full' disabled={isLoading}>
+                {isLoading ? t('Registering...') : t('Register')}
               </Button>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex flex-col items-center space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Button variant="link" asChild className="p-0 h-auto">
-              <Link href="/login">Log in here</Link>
+        <CardFooter className='flex flex-col items-center space-y-2'>
+          <p className='text-sm text-muted-foreground'>
+            {t('Already have an account?')}{' '}
+            <Button variant='link' asChild className='p-0 h-auto'>
+              <Link href='/login'>{t('Log in here')}</Link>
             </Button>
           </p>
         </CardFooter>

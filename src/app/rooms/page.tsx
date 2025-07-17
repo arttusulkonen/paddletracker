@@ -43,27 +43,33 @@ import {
 import { PlusCircle, SearchIcon, UsersIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const normalizeDateStr = (str: string) =>
   str.includes(' ') ? str : `${str} 00.00.00`;
 
 export default function RoomsPage() {
+  // 1. Все хуки в начале
+  const { t } = useTranslation();
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
   const [roomName, setRoomName] = useState('');
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
-
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
-
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [myMatches, setMyMatches] = useState<Record<string, number>>({});
   const [roomRating, setRoomRating] = useState<Record<string, number>>({});
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // 2. Все эффекты после хуков состояния
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -97,7 +103,8 @@ export default function RoomsPage() {
         await Promise.all(
           missing.map(async (uid) => {
             const s = await getDoc(doc(db, 'users', uid));
-            if (s.exists()) creatorNameMap[uid] = (s.data() as any).name || 'Unknown';
+            if (s.exists())
+              creatorNameMap[uid] = (s.data() as any).name || t('Unknown');
           })
         );
         list = list.map((r) =>
@@ -119,7 +126,7 @@ export default function RoomsPage() {
       }
     );
     return () => unsub();
-  }, [user]);
+  }, [user, t]);
 
   const loadMyCounts = useCallback(async () => {
     if (!user || !rooms.length) return;
@@ -147,6 +154,7 @@ export default function RoomsPage() {
     );
     setMyMatches(res);
   }, [rooms, user]);
+
   useEffect(() => {
     loadMyCounts();
   }, [loadMyCounts]);
@@ -169,7 +177,9 @@ export default function RoomsPage() {
     const loadCoPlayers = async () => {
       const unionIds = new Set<string>();
       rooms.forEach((r) =>
-        (r.memberIds ?? []).forEach((id: string) => id !== user.uid && unionIds.add(id))
+        (r.memberIds ?? []).forEach(
+          (id: string) => id !== user.uid && unionIds.add(id)
+        )
       );
       const toLoad = Array.from(unionIds).filter(
         (uid) => !friends.some((f) => f.uid === uid)
@@ -182,6 +192,7 @@ export default function RoomsPage() {
     loadCoPlayers();
   }, [rooms, friends, user]);
 
+  // 3. Остальная логика
   const inviteCandidates = useMemo(() => {
     const map = new Map<string, UserProfile>();
     [...friends, ...coPlayers].forEach((p) => map.set(p.uid, p));
@@ -194,11 +205,19 @@ export default function RoomsPage() {
 
   const handleCreateRoom = async () => {
     if (!user) {
-      toast({ title: 'Error', description: 'Log in to create a room', variant: 'destructive' });
+      toast({
+        title: t('Error'),
+        description: t('Log in to create a room'),
+        variant: 'destructive',
+      });
       return;
     }
     if (!roomName.trim()) {
-      toast({ title: 'Error', description: 'Room name cannot be empty', variant: 'destructive' });
+      toast({
+        title: t('Error'),
+        description: t('Room name cannot be empty'),
+        variant: 'destructive',
+      });
       return;
     }
     setIsCreatingRoom(true);
@@ -245,11 +264,20 @@ export default function RoomsPage() {
           updateDoc(doc(db, 'users', uid), { rooms: arrayUnion(ref.id) })
         )
       );
-      toast({ title: 'Success', description: `Room "${roomName}" created` });
+      toast({
+        title: t('Success'),
+        description: t('Room "{{roomName}}" created', {
+          roomName: roomName.trim(),
+        }),
+      });
       setRoomName('');
       setSelectedFriends([]);
     } catch {
-      toast({ title: 'Error', description: 'Failed to create room', variant: 'destructive' });
+      toast({
+        title: t('Error'),
+        description: t('Failed to create room'),
+        variant: 'destructive',
+      });
     } finally {
       setIsCreatingRoom(false);
     }
@@ -265,122 +293,143 @@ export default function RoomsPage() {
     [rooms, searchTerm]
   );
 
+  // 4. Условный возврат (Guard)
+  if (!hasMounted) {
+    return null;
+  }
+
+  // 5. Основной рендер
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-4xl font-bold flex items-center gap-2">
-            <UsersIcon className="h-10 w-10 text-primary" />
-            Match Rooms
+      <div className='container mx-auto py-8 px-4'>
+        <div className='flex flex-col sm:flex-row justify-between items-center mb-8 gap-4'>
+          <h1 className='text-4xl font-bold flex items-center gap-2'>
+            <UsersIcon className='h-10 w-10 text-primary' />
+            {t('Match Rooms')}
           </h1>
           <Dialog>
             <DialogTrigger asChild>
-              <Button size="lg">
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Create New Room
+              <Button size='lg'>
+                <PlusCircle className='mr-2 h-5 w-5' />
+                {t('Create New Room')}
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className='sm:max-w-[425px]'>
               <DialogHeader>
-                <DialogTitle>Create a Match Room</DialogTitle>
+                <DialogTitle>{t('Create a Match Room')}</DialogTitle>
                 <DialogDescription>
-                  Give your room a name and invite friends or past teammates.
+                  {t(
+                    'Give your room a name and invite friends or past teammates.'
+                  )}
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="roomName" className="text-right">
-                    Name
+              <div className='space-y-4 py-4'>
+                <div className='grid grid-cols-4 items-center gap-4'>
+                  <Label htmlFor='roomName' className='text-right'>
+                    {t('Name')}
                   </Label>
                   <Input
-                    id="roomName"
+                    id='roomName'
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
-                    className="col-span-3"
-                    placeholder="Office Ping Pong Champs"
+                    className='col-span-3'
+                    placeholder={t('Office Ping Pong Champs')}
                   />
                 </div>
-                <p className="text-sm font-medium">Invite players:</p>
-                <ScrollArea className="h-40 pr-2">
+                <p className='text-sm font-medium'>{t('Invite players:')}</p>
+                <ScrollArea className='h-40 pr-2'>
                   {inviteCandidates.length ? (
                     inviteCandidates.map((p) => (
-                      <label key={p.uid} className="flex items-center gap-2 py-1">
+                      <label
+                        key={p.uid}
+                        className='flex items-center gap-2 py-1'
+                      >
                         <Checkbox
                           checked={selectedFriends.includes(p.uid)}
                           onCheckedChange={(v) =>
                             v
                               ? setSelectedFriends([...selectedFriends, p.uid])
                               : setSelectedFriends(
-                                selectedFriends.filter((id) => id !== p.uid)
-                              )
+                                  selectedFriends.filter((id) => id !== p.uid)
+                                )
                           }
                         />
                         <span>{p.name ?? p.displayName}</span>
                       </label>
                     ))
                   ) : (
-                    <p className="text-muted-foreground">
-                      No friends or co-players yet
+                    <p className='text-muted-foreground'>
+                      {t('No friends or co-players yet')}
                     </p>
                   )}
                 </ScrollArea>
               </div>
               <DialogFooter>
                 <Button onClick={handleCreateRoom} disabled={isCreatingRoom}>
-                  {isCreatingRoom ? 'Creating…' : 'Create'}
+                  {isCreatingRoom ? t('Creating…') : t('Create')}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
-        <Card className="mb-8 shadow-lg">
+        <Card className='mb-8 shadow-lg'>
           <CardHeader>
-            <CardTitle>Your Rooms</CardTitle>
-            <CardDescription>Click a card to enter and record matches</CardDescription>
-            <div className="relative mt-4">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <CardTitle>{t('Your Rooms')}</CardTitle>
+            <CardDescription>
+              {t('Click a card to enter and record matches')}
+            </CardDescription>
+            <div className='relative mt-4'>
+              <SearchIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground' />
               <Input
-                placeholder="Search by name or creator…"
+                placeholder={t('Search by name or creator…')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full max-w-md"
+                className='pl-10 w-full max-w-md'
               />
             </div>
           </CardHeader>
           <CardContent>
             {isLoadingRooms ? (
-              <div className="flex items-center justify-center h-40">
-                <div className="animate-spin h-12 w-12 rounded-full border-b-2 border-primary" />
+              <div className='flex items-center justify-center h-40'>
+                <div className='animate-spin h-12 w-12 rounded-full border-b-2 border-primary' />
               </div>
             ) : filteredRooms.length ? (
               <ScrollArea>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1">
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1'>
                   {filteredRooms.map((r) => (
-                    <Card key={r.id} className="hover:shadow-md transition-shadow">
+                    <Card
+                      key={r.id}
+                      className='hover:shadow-md transition-shadow'
+                    >
                       <CardHeader>
-                        <CardTitle className="truncate">{r.name}</CardTitle>
-                        <CardDescription>Created by: {r.creatorName}</CardDescription>
+                        <CardTitle className='truncate'>{r.name}</CardTitle>
                         <CardDescription>
-                          Created:{' '}
+                          {t('Created by:')} {r.creatorName}
+                        </CardDescription>
+                        <CardDescription>
+                          {t('Created:')}{' '}
                           {r.createdRaw
-                            ? safeFormatDate(normalizeDateStr(r.createdRaw), 'dd.MM.yyyy')
+                            ? safeFormatDate(
+                                normalizeDateStr(r.createdRaw),
+                                'dd.MM.yyyy'
+                              )
                             : r.roomCreated}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          Members: {r.members.length}
+                        <p className='text-sm text-muted-foreground'>
+                          {t('Members:')} {r.members.length}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          Matches played: {myMatches[r.id] ?? '–'}
+                        <p className='text-sm text-muted-foreground'>
+                          {t('Matches played:')} {myMatches[r.id] ?? '–'}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          Your rating: {roomRating[r.id] ?? '–'}
+                        <p className='text-sm text-muted-foreground'>
+                          {t('Your rating:')} {roomRating[r.id] ?? '–'}
                         </p>
                       </CardContent>
                       <CardFooter>
-                        <Button asChild className="w-full">
-                          <Link href={`/rooms/${r.id}`}>Enter Room</Link>
+                        <Button asChild className='w-full'>
+                          <Link href={`/rooms/${r.id}`}>{t('Enter Room')}</Link>
                         </Button>
                       </CardFooter>
                     </Card>
@@ -388,10 +437,10 @@ export default function RoomsPage() {
                 </div>
               </ScrollArea>
             ) : (
-              <p className="text-center text-muted-foreground py-8">
+              <p className='text-center text-muted-foreground py-8'>
                 {searchTerm
-                  ? 'No rooms match your search'
-                  : 'You are not a member of any rooms yet'}
+                  ? t('No rooms match your search')
+                  : t('You are not a member of any rooms yet')}
               </p>
             )}
           </CardContent>

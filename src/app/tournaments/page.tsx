@@ -24,7 +24,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +33,7 @@ import { getUserLite } from '@/lib/friends';
 import type { TournamentRoom, UserProfile } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { seedKnockoutRounds } from '@/lib/utils/bracketUtils';
-import { parseFlexDate, safeFormatDate } from "@/lib/utils/date";
+import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
 import {
   addDoc,
   arrayUnion,
@@ -42,16 +42,18 @@ import {
   onSnapshot,
   query,
   updateDoc,
-  where
+  where,
 } from 'firebase/firestore';
 import { PlusCircle, SearchIcon, UsersIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const PLAYER_COUNTS = [4, 6, 8, 12] as const;
 
 export default function TournamentRoomsPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
@@ -59,6 +61,21 @@ export default function TournamentRoomsPage() {
   const [tournaments, setTournaments] = useState<TournamentRoom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [playerCount, setPlayerCount] =
+    useState<(typeof PLAYER_COUNTS)[number]>(4);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [creating, setCreating] = useState(false);
+
+  // 🛡️ Хук для защиты от гидратации
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -68,42 +85,39 @@ export default function TournamentRoomsPage() {
     const col = collection(db, 'tournament-rooms');
     const unsub = onSnapshot(
       col,
-      snap => {
-        const arr = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        const filtered = arr.filter(t =>
+      (snap) => {
+        const arr = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        const filtered = arr.filter((t) =>
           (t.participants ?? []).some((p: any) => p.userId === user.uid)
         );
         filtered.sort(
           (a, b) =>
-            parseFlexDate(b.createdAt).getTime() - parseFlexDate(a.createdAt).getTime()
+            parseFlexDate(b.createdAt).getTime() -
+            parseFlexDate(a.createdAt).getTime()
         );
         setTournaments(filtered);
         setIsLoading(false);
       },
-      err => {
+      (err) => {
         console.error(err);
         toast({
-          title: 'Error',
-          description: 'Could not load tournaments.',
-          variant: 'destructive'
+          title: t('Error'),
+          description: t('Could not load tournaments.'),
+          variant: 'destructive',
         });
         setIsLoading(false);
       }
     );
     return () => unsub();
-  }, [user, toast]);
-
-  /* ───────── данные для создания (друзья + co-players) ───────── */
-  const [friends, setFriends] = useState<UserProfile[]>([]);
-  const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
+  }, [user, toast, t]);
 
   useEffect(() => {
     if (!user) return;
-    const unsub = onSnapshot(doc(db, 'users', user.uid), async snap => {
+    const unsub = onSnapshot(doc(db, 'users', user.uid), async (snap) => {
       if (!snap.exists()) return setFriends([]);
       const ids: string[] = snap.data().friends ?? [];
       const loaded = await Promise.all(
-        ids.map(async uid => ({ uid, ...(await getUserLite(uid)) }))
+        ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
       );
       setFriends(loaded);
     });
@@ -116,18 +130,18 @@ export default function TournamentRoomsPage() {
       collection(db, 'rooms'),
       where('memberIds', 'array-contains', user.uid)
     );
-    const unsub = onSnapshot(q, async snap => {
+    const unsub = onSnapshot(q, async (snap) => {
       const set = new Set<string>();
-      snap.docs.forEach(d =>
+      snap.docs.forEach((d) =>
         (d.data().memberIds ?? []).forEach((uid: string) =>
           uid !== user.uid ? set.add(uid) : null
         )
       );
       const toLoad = Array.from(set).filter(
-        uid => !friends.some(f => f.uid === uid)
+        (uid) => !friends.some((f) => f.uid === uid)
       );
       const loaded = await Promise.all(
-        toLoad.map(async uid => ({ uid, ...(await getUserLite(uid)) }))
+        toLoad.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
       );
       setCoPlayers(loaded);
     });
@@ -136,7 +150,7 @@ export default function TournamentRoomsPage() {
 
   const candidates = useMemo(() => {
     const map = new Map<string, UserProfile>();
-    [...friends, ...coPlayers].forEach(p => map.set(p.uid, p));
+    [...friends, ...coPlayers].forEach((p) => map.set(p.uid, p));
     return Array.from(map.values()).sort((a, b) =>
       (a.name ?? a.displayName ?? '').localeCompare(
         b.name ?? b.displayName ?? ''
@@ -144,20 +158,11 @@ export default function TournamentRoomsPage() {
     );
   }, [friends, coPlayers]);
 
-  /* ───────── state для popup ───────── */
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [playerCount, setPlayerCount] =
-    useState<(typeof PLAYER_COUNTS)[number]>(4);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [creating, setCreating] = useState(false);
-
-  /* ───────── helpers ───────── */
   const shuffle = <T,>(arr: T[]) =>
     arr
-      .map(v => ({ v, r: Math.random() }))
+      .map((v) => ({ v, r: Math.random() }))
       .sort((a, b) => a.r - b.r)
-      .map(x => x.v);
+      .map((x) => x.v);
 
   const roundRobinMatches = (arr: { userId: string; name: string }[]) => {
     const res: any[] = [];
@@ -171,41 +176,51 @@ export default function TournamentRoomsPage() {
           scorePlayer1: null,
           scorePlayer2: null,
           matchStatus: 'pending',
-          winner: null
+          winner: null,
         });
     return res;
   };
 
-  /* ───────── создание ───────── */
   const createTournament = async () => {
     if (!user) {
-      toast({ title: 'Error', description: 'Log in', variant: 'destructive' });
+      toast({
+        title: t('Error'),
+        description: t('Log in'),
+        variant: 'destructive',
+      });
       return;
     }
     if (!name.trim()) {
-      toast({ title: 'Error', description: 'Name required', variant: 'destructive' });
+      toast({
+        title: t('Error'),
+        description: t('Name required'),
+        variant: 'destructive',
+      });
       return;
     }
     if (selected.length + 1 !== playerCount) {
       toast({
-        title: 'Error',
-        description: `Select exactly ${playerCount} players (including you)`,
-        variant: 'destructive'
+        title: t('Error'),
+        description: `${t('Select exactly')} ${playerCount} ${t(
+          'players (including you)'
+        )}`,
+        variant: 'destructive',
       });
       return;
     }
-
     setCreating(true);
     try {
       const now = getFinnishFormattedDate();
       const participants = shuffle([
-        { userId: user.uid, name: userProfile?.name ?? userProfile?.displayName ?? '' },
-        ...selected.map(uid => {
-          const p = candidates.find(c => c.uid === uid)!;
+        {
+          userId: user.uid,
+          name: userProfile?.name ?? userProfile?.displayName ?? '',
+        },
+        ...selected.map((uid) => {
+          const p = candidates.find((c) => c.uid === uid)!;
           return { userId: uid, name: p.name ?? p.displayName ?? '' };
-        })
+        }),
       ]).map((p, i) => ({ ...p, seed: i + 1 }));
-
       const bracket: any = {
         stage: 'inProgress',
         currentRound: 0,
@@ -216,14 +231,25 @@ export default function TournamentRoomsPage() {
             roundIndex: 0,
             status: 'inProgress',
             matches: roundRobinMatches(participants),
-            participants
+            participants,
           },
-          { roundIndex: 1, type: 'knockoutSemis', label: 'Semi-finals', status: 'pending', matches: [] },
-          { roundIndex: 2, type: 'knockoutFinal', label: 'Finals', status: 'pending', matches: [] }
-        ]
+          {
+            roundIndex: 1,
+            type: 'knockoutSemis',
+            label: 'Semi-finals',
+            status: 'pending',
+            matches: [],
+          },
+          {
+            roundIndex: 2,
+            type: 'knockoutFinal',
+            label: 'Finals',
+            status: 'pending',
+            matches: [],
+          },
+        ],
       };
       seedKnockoutRounds(bracket, []);
-
       const ref = await addDoc(collection(db, 'tournament-rooms'), {
         name: name.trim(),
         createdAt: now,
@@ -231,86 +257,86 @@ export default function TournamentRoomsPage() {
         participants,
         bracket,
         champion: null,
-        isFinished: false
+        isFinished: false,
       });
-
       await updateDoc(doc(db, 'users', user.uid), {
-        tournaments: arrayUnion(ref.id)
+        tournaments: arrayUnion(ref.id),
       });
       await Promise.all(
-        selected.map(uid =>
+        selected.map((uid) =>
           updateDoc(doc(db, 'users', uid), { tournaments: arrayUnion(ref.id) })
         )
       );
-
-      toast({ title: 'Tournament created' });
+      toast({ title: t('Tournament created') });
       setDialogOpen(false);
       router.push(`/tournaments/${ref.id}`);
     } catch (e) {
       console.error(e);
-      toast({ title: 'Error', description: 'Failed to create', variant: 'destructive' });
+      toast({
+        title: t('Error'),
+        description: t('Failed to create'),
+        variant: 'destructive',
+      });
     } finally {
       setCreating(false);
     }
   };
 
-  /* ───────── фильтрация ───────── */
   const filtered = useMemo(
     () =>
-      tournaments.filter(t =>
+      tournaments.filter((t) =>
         t.name.toLowerCase().includes(searchTerm.toLowerCase())
       ),
     [tournaments, searchTerm]
   );
 
-  /* ───────── UI ───────── */
+  if (!hasMounted) {
+    return null;
+  }
+
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-4xl font-bold flex items-center gap-2">
-            <UsersIcon className="h-8 w-8 text-primary" /> Tournaments
+      <div className='container mx-auto py-8 px-4'>
+        <div className='flex justify-between items-center mb-6'>
+          <h1 className='text-4xl font-bold flex items-center gap-2'>
+            <UsersIcon className='h-8 w-8 text-primary' /> {t('Tournaments')}
           </h1>
-
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <PlusCircle className="mr-2 h-5 w-5" /> New Tournament
+                <PlusCircle className='mr-2 h-5 w-5' /> {t('New Tournament')}
               </Button>
             </DialogTrigger>
-
-            <DialogContent className="sm:max-w-[420px]">
+            <DialogContent className='sm:max-w-[420px]'>
               <DialogHeader>
-                <DialogTitle>Create Tournament</DialogTitle>
+                <DialogTitle>{t('Create Tournament')}</DialogTitle>
                 <DialogDescription>
-                  Give it a name, choose size and pick participants
+                  {t('Give it a name, choose size and pick participants')}
                 </DialogDescription>
               </DialogHeader>
-
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">Name</Label>
+              <div className='space-y-4 py-4'>
+                <div className='grid grid-cols-4 items-center gap-4'>
+                  <Label className='text-right'>{t('Name')}</Label>
                   <Input
                     value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="col-span-3"
+                    onChange={(e) => setName(e.target.value)}
+                    className='col-span-3'
                   />
                 </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">Players</Label>
+                <div className='grid grid-cols-4 items-center gap-4'>
+                  <Label className='text-right'>{t('Players')}</Label>
                   <Select
                     value={String(playerCount)}
-                    onValueChange={v => {
+                    onValueChange={(v) => {
                       setPlayerCount(Number(v) as any);
                       setSelected([]);
                     }}
                   >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Players" />
+                    <SelectTrigger className='col-span-3'>
+                      <SelectValue placeholder={t('Players')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {PLAYER_COUNTS.map(cnt => (
+                      {PLAYER_COUNTS.map((cnt) => (
                         <SelectItem key={cnt} value={String(cnt)}>
                           {cnt}
                         </SelectItem>
@@ -318,34 +344,32 @@ export default function TournamentRoomsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div>
-                  <p className="text-sm font-medium mb-2">
-                    Select participants ({selected.length + 1}/{playerCount})
+                  <p className='text-sm font-medium mb-2'>
+                    {`${t('Select participants')} (${selected.length + 1}/${playerCount})`}
                   </p>
-                  <ScrollArea className="h-48 pr-2">
+                  <ScrollArea className='h-48 pr-2'>
                     {candidates.length ? (
-                      candidates.map(p => {
+                      candidates.map((p) => {
                         const disabled =
                           !selected.includes(p.uid) &&
                           selected.length + 1 >= playerCount;
                         return (
                           <label
                             key={p.uid}
-                            className={`flex items-center gap-2 py-1 ${disabled
-                                ? 'opacity-50 cursor-not-allowed'
-                                : ''
-                              }`}
+                            className={`flex items-center gap-2 py-1 ${
+                              disabled ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           >
                             <Checkbox
                               disabled={disabled}
                               checked={selected.includes(p.uid)}
-                              onCheckedChange={v =>
+                              onCheckedChange={(v) =>
                                 v
                                   ? setSelected([...selected, p.uid])
                                   : setSelected(
-                                    selected.filter(id => id !== p.uid)
-                                  )
+                                      selected.filter((id) => id !== p.uid)
+                                    )
                               }
                             />
                             <span>{p.name ?? p.displayName}</span>
@@ -353,63 +377,72 @@ export default function TournamentRoomsPage() {
                         );
                       })
                     ) : (
-                      <p className="text-muted-foreground">
-                        You have no friends or co-players yet
+                      <p className='text-muted-foreground'>
+                        {t('You have no friends or co-players yet')}
                       </p>
                     )}
                   </ScrollArea>
                 </div>
               </div>
-
               <DialogFooter>
                 <Button onClick={createTournament} disabled={creating}>
-                  {creating ? 'Creating…' : 'Create'}
+                  {creating ? t('Creating…') : t('Create')}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
-
-        <Card className="shadow-lg">
+        <Card className='shadow-lg'>
           <CardHeader>
-            <div className="relative w-full max-w-md">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <div className='relative w-full max-w-md'>
+              <SearchIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground' />
               <Input
-                placeholder="Search tournaments…"
+                placeholder={t('Search tournaments…')}
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className='pl-10 w-full'
               />
             </div>
           </CardHeader>
-
           <CardContent>
             {isLoading ? (
-              <div className="flex items-center justify-center h-40">
-                <div className="animate-spin h-12 w-12 rounded-full border-b-2 border-primary" />
+              <div className='flex items-center justify-center h-40'>
+                <div className='animate-spin h-12 w-12 rounded-full border-b-2 border-primary' />
               </div>
             ) : filtered.length ? (
-              <ScrollArea className="h-[400px]">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1">
-                  {filtered.map(t => (
-                    <Card key={t.id} className="hover:shadow-md transition-shadow">
+              <ScrollArea className='h-[400px]'>
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1'>
+                  {filtered.map((tournament) => (
+                    <Card
+                      key={tournament.id}
+                      className='hover:shadow-md transition-shadow'
+                    >
                       <CardHeader>
-                        <CardTitle className="truncate">{t.name}</CardTitle>
-                        <CardDescription>  
-                          Created: {safeFormatDate(t.createdAt, "dd.MM.yyyy HH:mm")}
+                        <CardTitle className='truncate'>
+                          {tournament.name}
+                        </CardTitle>
+                        <CardDescription>
+                          {t('Created:')}{' '}
+                          {safeFormatDate(
+                            tournament.createdAt,
+                            'dd.MM.yyyy HH:mm'
+                          )}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          Participants: {t.participants?.length ?? 0}
+                        <p className='text-sm text-muted-foreground'>
+                          {t('Participants:')}{' '}
+                          {tournament.participants?.length ?? 0}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          Champion: {t.champion?.name || '—'}
+                        <p className='text-sm text-muted-foreground'>
+                          {t('Champion:')} {tournament.champion?.name || '—'}
                         </p>
                       </CardContent>
                       <CardFooter>
-                        <Button asChild className="w-full">
-                          <Link href={`/tournaments/${t.id}`}>Enter</Link>
+                        <Button asChild className='w-full'>
+                          <Link href={`/tournaments/${tournament.id}`}>
+                            {t('Enter')}
+                          </Link>
                         </Button>
                       </CardFooter>
                     </Card>
@@ -417,10 +450,10 @@ export default function TournamentRoomsPage() {
                 </div>
               </ScrollArea>
             ) : (
-              <p className="text-center text-muted-foreground py-8">
+              <p className='text-center text-muted-foreground py-8'>
                 {searchTerm
-                  ? 'No tournaments match your search'
-                  : 'You are not registered in any tournaments yet'}
+                  ? t('No tournaments match your search')
+                  : t('You are not registered in any tournaments yet')}
               </p>
             )}
           </CardContent>

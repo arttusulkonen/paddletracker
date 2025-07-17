@@ -1,3 +1,5 @@
+// src/components/PlayersTable.tsx
+
 'use client';
 
 import {
@@ -21,17 +23,13 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-} from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /* -------------------------------------------------------------------------- */
-/*  Types                                                                     */
+/* Types                                                                     */
 /* -------------------------------------------------------------------------- */
 interface PlayerStats {
   id: string;
@@ -66,9 +64,10 @@ type SortKey =
   | 'longestWinStreak';
 
 /* -------------------------------------------------------------------------- */
-/*  Component                                                                 */
+/* Component                                                                 */
 /* -------------------------------------------------------------------------- */
 export default function PlayersTable() {
+  const { t } = useTranslation();
   const { user } = useAuth();
 
   /* ---------------- state ---------------- */
@@ -84,7 +83,7 @@ export default function PlayersTable() {
   });
 
   /* ---------------------------------------------------------------------- */
-  /*  Helpers                                                                */
+  /* Helpers                                                                */
   /* ---------------------------------------------------------------------- */
   const parseTimestamp = (ts: string): Date => {
     const [datePart, timePart] = ts.split(' ');
@@ -112,14 +111,17 @@ export default function PlayersTable() {
   const safeName = (n: string) => n ?? '';
 
   /* ---------------------------------------------------------------------- */
-  /*  Fetch players + matches                                                */
+  /* Fetch players + matches                                                */
   /* ---------------------------------------------------------------------- */
   const loadData = useCallback(async () => {
     if (!user) return;
 
     /* 1. Rooms with the current user */
     const roomSnap = await getDocs(
-      query(collection(db, 'rooms'), where('memberIds', 'array-contains', user.uid))
+      query(
+        collection(db, 'rooms'),
+        where('memberIds', 'array-contains', user.uid)
+      )
     );
     const myRoomIds = roomSnap.docs.map((d) => d.id);
 
@@ -140,11 +142,7 @@ export default function PlayersTable() {
         const data = doc.data();
         return {
           id: doc.id,
-          name:
-            data.displayName ??
-            data.name ??
-            data.email ??
-            'Unknown',
+          name: data.displayName ?? data.name ?? data.email ?? t('Unknown'),
           ...data,
         };
       });
@@ -165,14 +163,14 @@ export default function PlayersTable() {
       );
     setMatches(ms);
     setLoading(false);
-  }, [user]);
+  }, [user, t]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   /* ---------------------------------------------------------------------- */
-  /*  Statistics                                                             */
+  /* Statistics                                                             */
   /* ---------------------------------------------------------------------- */
   const stats: PlayerStats[] = useMemo(() => {
     if (loading) return [];
@@ -245,7 +243,7 @@ export default function PlayersTable() {
   }, [players, matches, timeFrame, loading]);
 
   /* ---------------------------------------------------------------------- */
-  /*  Sorting UI                                                             */
+  /* Sorting UI                                                             */
   /* ---------------------------------------------------------------------- */
   const sortedStats = useMemo(() => {
     const arr = [...stats];
@@ -256,8 +254,10 @@ export default function PlayersTable() {
       if (key === 'name')
         return safeName(a.name).localeCompare(safeName(b.name)) * mult;
       if (key === 'rank')
-        return (a.rank - b.rank) * mult ||
-          safeName(a.name).localeCompare(safeName(b.name));
+        return (
+          (a.rank - b.rank) * mult ||
+          safeName(a.name).localeCompare(safeName(b.name))
+        );
       const diff = (a as any)[key] - (b as any)[key];
       return diff === 0
         ? safeName(a.name).localeCompare(safeName(b.name))
@@ -280,7 +280,7 @@ export default function PlayersTable() {
         <TooltipTrigger asChild>
           <th
             onClick={() => toggleSort(k)}
-            className="py-3 px-4 bg-muted text-left text-xs font-medium uppercase tracking-wide cursor-pointer select-none"
+            className='py-3 px-4 bg-muted text-left text-xs font-medium uppercase tracking-wide cursor-pointer select-none'
           >
             {label} {sort.key === k ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}
           </th>
@@ -292,65 +292,75 @@ export default function PlayersTable() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16">
-        <div className="animate-spin h-12 w-12 rounded-full border-b-2 border-primary" />
+      <div className='flex justify-center py-16'>
+        <div className='animate-spin h-12 w-12 rounded-full border-b-2 border-primary' />
       </div>
     );
   }
 
   /* ---------------------------------------------------------------------- */
-  /*  UI                                                                     */
+  /* UI                                                                     */
   /* ---------------------------------------------------------------------- */
   return (
     <>
-      <Card className="mt-16">
+      <Card className='mt-16'>
         <CardHeader>
-          <CardTitle className="text-2xl">Leaderboard</CardTitle>
-          <CardDescription>Players who share a room with you</CardDescription>
+          <CardTitle className='text-2xl'>{t('Leaderboard')}</CardTitle>
+          <CardDescription>
+            {t('Players who share a room with you')}
+          </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          <div className="flex flex-wrap gap-2">
-            {TIME_FRAMES.map((t) => (
-              <TooltipProvider key={t.value}>
+        <CardContent className='space-y-6'>
+          <div className='flex flex-wrap gap-2'>
+            {TIME_FRAMES.map((tf) => (
+              <TooltipProvider key={tf.value}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      size="sm"
-                      variant={timeFrame === t.value ? 'default' : 'outline'}
-                      onClick={() => setTimeFrame(t.value)}
+                      size='sm'
+                      variant={timeFrame === tf.value ? 'default' : 'outline'}
+                      onClick={() => setTimeFrame(tf.value)}
                     >
-                      {t.label}
+                      {t(tf.label)}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{t.info}</TooltipContent>
+                  <TooltipContent>{t(tf.info)}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             ))}
           </div>
 
-          <ScrollArea className="overflow-auto border rounded-md">
+          <ScrollArea className='overflow-auto border rounded-md'>
             <Table>
               <TableHeader>
                 <TableRow>
-                  {header('rank', '#', 'Calculated by final score')}
-                  {header('name', 'Name', 'Player')}
-                  {header('matchesPlayed', 'Matches', 'Total matches')}
-                  {header('wins', 'Wins', 'Matches won')}
-                  {header('losses', 'Losses', 'Matches lost')}
-                  {header('winRate', 'Win %', 'Win percentage')}
-                  {header('totalAddedPoints', '+Pts', 'Total added points')}
-                  {header('longestWinStreak', 'Longest WS', 'Longest win streak')}
+                  {header('rank', t('#'), t('Calculated by final score'))}
+                  {header('name', t('Name'), t('Player'))}
+                  {header('matchesPlayed', t('Matches'), t('Total matches'))}
+                  {header('wins', t('Wins'), t('Matches won'))}
+                  {header('losses', t('Losses'), t('Matches lost'))}
+                  {header('winRate', t('Win %'), t('Win percentage'))}
+                  {header(
+                    'totalAddedPoints',
+                    t('+Pts'),
+                    t('Total added points')
+                  )}
+                  {header(
+                    'longestWinStreak',
+                    t('Longest WS'),
+                    t('Longest win streak')
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedStats.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-muted/50">
+                  <TableRow key={p.id} className='hover:bg-muted/50'>
                     <TableCell>{p.rank}</TableCell>
                     <TableCell>
                       <Link
                         href={`/profile/${p.id}`}
-                        className="text-primary hover:underline"
+                        className='text-primary hover:underline'
                       >
                         {p.name}
                       </Link>
@@ -369,36 +379,42 @@ export default function PlayersTable() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6 bg-muted/50">
+      <Card className='mt-6 bg-muted/50'>
         <CardHeader>
-          <CardTitle className="text-lg">How rankings are calculated</CardTitle>
+          <CardTitle className='text-lg'>
+            {t('How rankings are calculated')}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm">
+        <CardContent className='space-y-4 text-sm'>
           <p>
-            The <strong>final score</strong> for each player is calculated as
-            follows:
+            {t('The final score for each player is calculated as follows:')}
           </p>
-          <ul className="list-disc list-inside space-y-1">
+          <ul className='list-disc list-inside space-y-1'>
             <li>
-              <strong>Wins:</strong> every win gives <strong>+2 pts</strong>.
+              <strong>{t('Wins')}:</strong> {t('every win gives')}{' '}
+              <strong>{t('+2 pts')}</strong>.
             </li>
             <li>
-              <strong>Total Added Points:</strong> bonus points earned in
-              matches are added in full.
+              <strong>{t('Total Added Points')}:</strong>{' '}
+              {t('bonus points earned in matches are added in full.')}
             </li>
             <li>
-              <strong>Longest Win Streak:</strong> each win in your longest
-              streak adds <strong>+2 pts</strong>.
+              <strong>{t('Longest Win Streak')}:</strong>{' '}
+              {t('each win in your longest streak adds')}{' '}
+              <strong>{t('+2 pts')}</strong>.
             </li>
             <li>
-              <strong>Low participation penalty:</strong> if you played fewer
-              matches than the room average, the raw score is reduced by{' '}
+              <strong>{t('Low participation penalty')}:</strong>{' '}
+              {t(
+                'if you played fewer matches than the room average, the raw score is reduced by'
+              )}{' '}
               <strong>10 %</strong>.
             </li>
           </ul>
           <p>
-            Players are sorted by the final score (higher → better). Ties are
-            resolved alphabetically.
+            {t(
+              'Players are sorted by the final score (higher → better). Ties are resolved alphabetically.'
+            )}
           </p>
         </CardContent>
       </Card>
