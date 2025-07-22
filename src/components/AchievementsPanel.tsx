@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { safeFormatDate } from '@/lib/utils/date';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { FaLock, FaMedal, FaTrophy } from 'react-icons/fa';
@@ -28,6 +29,7 @@ interface Props {
   achievements: Achievement[];
   overallMatches: number;
   overallWins: number;
+  overallWinRate: number;
   overallMaxStreak: number;
 }
 
@@ -44,12 +46,20 @@ const SEASON_MATCH_THRESHOLDS = [5, 10, 20, 50, 100, 200, 300];
 const SEASON_WIN_THRESHOLDS = [5, 10, 20, 40, 60, 80, 100, 150, 200];
 const TOURNAMENT_THRESHOLDS = [1, 5, 10, 25, 50, 100, 200, 500];
 
+// ИЗМЕНЕНО: Старая функция больше не нужна, но ее можно оставить, если используется где-то еще.
 const countSeasonsAtOrAbove = (
   arr: Achievement[],
   prop: 'matchesPlayed' | 'wins',
   thr: number
 ) =>
   arr.filter((a) => a.type === 'seasonFinish' && (a[prop] ?? 0) >= thr).length;
+
+// НОВАЯ ФУНКЦИЯ: возвращает массив сезонов, достигших порога
+const getSeasonsAtOrAbove = (
+  arr: Achievement[],
+  prop: 'matchesPlayed' | 'wins',
+  thr: number
+) => arr.filter((a) => a.type === 'seasonFinish' && (a[prop] ?? 0) >= thr);
 
 const datesForPlace = (arr: Achievement[], place: number, type: string) =>
   arr
@@ -63,6 +73,7 @@ export default function AchievementsPanel({
   achievements = [],
   overallMatches = 0,
   overallWins = 0,
+  overallWinRate = 0,
   overallMaxStreak = 0,
 }: Props) {
   const { t } = useTranslation();
@@ -139,7 +150,9 @@ export default function AchievementsPanel({
     unlocked: overallWins >= thr,
     tooltip:
       overallWins >= thr
-        ? `${t('You have')} ${overallWins} ${t('wins')} (>= ${thr})`
+        ? `${t('You have')} ${overallWins} ${t(
+            'wins'
+          )} (${overallWinRate.toFixed(1)}% ${t('win rate')})`
         : `${t('Win')} ${thr} ${t('matches to unlock')}`,
   }));
 
@@ -154,30 +167,53 @@ export default function AchievementsPanel({
   }));
 
   const seasonMatchMilestones = SEASON_MATCH_THRESHOLDS.map((thr) => {
-    const cnt = countSeasonsAtOrAbove(achievements, 'matchesPlayed', thr);
+    const qualifyingSeasons = getSeasonsAtOrAbove(
+      achievements,
+      'matchesPlayed',
+      thr
+    );
+    const cnt = qualifyingSeasons.length;
     return {
       label: `${t('Played')} ${thr}+ ${t('Matches in Season')}`,
       icon: <GiPingPongBat />,
       unlocked: cnt > 0,
       count: cnt,
-      tooltip: cnt
-        ? `${cnt} ${t('seasons achieved')}`
-        : `${t('No season with')} ${thr} ${t('matches yet')}`,
+      tooltip:
+        cnt > 0
+          ? `${t('Achieved in')} ${cnt} ${t('seasons')}:\n${qualifyingSeasons
+              .map(
+                (s) =>
+                  `- ${s.roomName || t('Unnamed Season')}: ${
+                    s.matchesPlayed
+                  } ${t('matches')}`
+              )
+              .join('\n')}`
+          : `${t('No season with')} ${thr}+ ${t('matches yet')}`,
     };
   });
 
   const seasonWinMilestones = SEASON_WIN_THRESHOLDS.map((thr) => {
-    const cnt = countSeasonsAtOrAbove(achievements, 'wins', thr);
+    const qualifyingSeasons = getSeasonsAtOrAbove(achievements, 'wins', thr);
+    const cnt = qualifyingSeasons.length;
     return {
       label: `${t('Won')} ${thr}+ ${t('Matches in Season')}`,
       icon: <FaTrophy />,
       unlocked: cnt > 0,
       count: cnt,
-      tooltip: cnt
-        ? `${cnt} ${t('seasons achieved')}`
-        : `${t('No season with')} ${thr} ${t('wins yet')}`,
+      tooltip:
+        cnt > 0
+          ? `${t('Achieved in')} ${cnt} ${t('seasons')}:\n${qualifyingSeasons
+              .map(
+                (s) =>
+                  `- ${s.roomName || t('Unnamed Season')}: ${s.wins} ${t(
+                    'wins'
+                  )}`
+              )
+              .join('\n')}`
+          : `${t('No season with')} ${thr}+ ${t('wins yet')}`,
     };
   });
+
   const Row: React.FC<{ title: string; items: any[] }> = ({ title, items }) => (
     <div className='mb-6'>
       <h4 className='text-lg font-semibold mb-2'>{title}</h4>

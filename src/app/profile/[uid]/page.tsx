@@ -728,6 +728,7 @@ export default function ProfileUidPage() {
             achievements={targetProfile?.achievements ?? []}
             overallMatches={stats.total}
             overallWins={stats.wins}
+            overallWinRate={stats.winRate}
             overallMaxStreak={stats.maxWinStreak}
           />
         </div>

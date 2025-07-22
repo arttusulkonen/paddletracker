@@ -115,6 +115,7 @@ export default function TranslatePage() {
                 <SelectContent>
                   <SelectItem value='ru'>{t('Russian')}</SelectItem>
                   <SelectItem value='fi'>{t('Finnish')}</SelectItem>
+                  <SelectItem value='ko'>{t('Korean')}</SelectItem>
                 </SelectContent>
               </Select>
               <Input

@@ -266,9 +266,7 @@ export default function RoomsPage() {
       );
       toast({
         title: t('Success'),
-        description: t('Room "{{roomName}}" created', {
-          roomName: roomName.trim(),
-        }),
+        description: `${t('Room')} "${roomName.trim()}" ${t('created')}`,
       });
       setRoomName('');
       setSelectedFriends([]);

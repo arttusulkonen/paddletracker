@@ -336,10 +336,8 @@ export default function Wrap2025() {
         <CardHeader>
           <CardTitle>{t('Win Leaderboard')}</CardTitle>
           <CardDescription>
-            {t('Every player · period {{startYear}}-{{endYear}}', {
-              startYear: new Date(PERIOD_START).getFullYear(),
-              endYear: new Date(PERIOD_END).getFullYear(),
-            })}
+            {t('Every player')} · {new Date(PERIOD_START).getFullYear()}-
+            {new Date(PERIOD_END).getFullYear()}
           </CardDescription>
         </CardHeader>
         <CardContent>

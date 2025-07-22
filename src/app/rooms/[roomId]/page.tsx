@@ -1,3 +1,5 @@
+// src/app/rooms/[roomId]/page.tsx
+
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -126,96 +128,121 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!user) return;
-    const unsubRoom = onSnapshot(doc(db, 'rooms', roomId), async (roomSnap) => {
+
+    // Переменная для хранения функции отписки от слушателя матчей
+    let unsubMatches = () => {};
+
+    // Основной слушатель для данных комнаты
+    const unsubRoom = onSnapshot(doc(db, 'rooms', roomId), (roomSnap) => {
       if (!roomSnap.exists()) {
         router.push('/rooms');
         return;
       }
       const roomData = roomSnap.data() as Room;
+
+      // Отписываемся от предыдущего слушателя матчей, чтобы избежать утечек памяти
+      unsubMatches();
+
+      // Создаем новый слушатель для матчей, который будет работать в реальном времени
       const matchesQuery = query(
         collection(db, 'matches'),
         where('roomId', '==', roomId)
       );
-      const matchesSnap = await getDocs(matchesQuery);
-      const allMatches = matchesSnap.docs
-        .map((d) => ({ id: d.id, ...(d.data() as any) } as Match))
-        .sort(
-          (a, b) => tsToMs((a as any).timestamp) - tsToMs((b as any).timestamp)
+
+      unsubMatches = onSnapshot(matchesQuery, async (matchesSnap) => {
+        // Здесь мы получаем самые свежие данные и о комнате, и о матчах
+        const allMatches = matchesSnap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as any) } as Match))
+          .sort(
+            (a, b) =>
+              tsToMs((a as any).timestamp) - tsToMs((b as any).timestamp)
+          );
+
+        const starts: Record<string, number> = {};
+        allMatches.forEach((m) => {
+          const p1 = m.player1Id,
+            p2 = m.player2Id;
+          if (starts[p1] == null) starts[p1] = m.player1.oldRating;
+          if (starts[p2] == null) starts[p2] = m.player2.oldRating;
+        });
+        setSeasonStarts(starts);
+
+        // Вся ваша существующая логика синхронизации профилей сохранена здесь
+        const initialMembers = roomData.members ?? [];
+        if (initialMembers.length > 0) {
+          const memberIds = initialMembers.map((m) => m.userId);
+          const userDocsPromises = memberIds.map((id) =>
+            getDoc(doc(db, 'users', id))
+          );
+          const userDocsSnaps = await Promise.all(userDocsPromises);
+          const freshProfiles = new Map<string, UserProfile>();
+          userDocsSnaps.forEach((userSnap) => {
+            if (userSnap.exists()) {
+              freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
+            }
+          });
+          const syncedMembers = initialMembers.map((member) => {
+            const freshProfile = freshProfiles.get(member.userId);
+            return freshProfile
+              ? {
+                  ...member,
+                  name:
+                    freshProfile.name ??
+                    freshProfile.displayName ??
+                    member.name,
+                  photoURL: freshProfile.photoURL,
+                  globalElo: freshProfile.globalElo,
+                  maxRating: freshProfile.maxRating,
+                  rank: freshProfile.rank,
+                }
+              : member;
+          });
+          setMembers(syncedMembers);
+          setRoom({ ...roomData, members: syncedMembers });
+
+          // Синхронизируем имена в матчах
+          const syncedMatches = allMatches.map((match) => {
+            const p1Profile = freshProfiles.get(match.player1Id);
+            const p2Profile = freshProfiles.get(match.player2Id);
+            const newMatch = JSON.parse(JSON.stringify(match));
+            if (p1Profile)
+              newMatch.player1.name =
+                p1Profile.name ?? p1Profile.displayName ?? match.player1.name;
+            if (p2Profile)
+              newMatch.player2.name =
+                p2Profile.name ?? p2Profile.displayName ?? match.player2.name;
+            const winnerId =
+              match.player1.scores > match.player2.scores
+                ? match.player1Id
+                : match.player2Id;
+            const winnerProfile = freshProfiles.get(winnerId);
+            if (winnerProfile)
+              newMatch.winner =
+                winnerProfile.name ?? winnerProfile.displayName ?? match.winner;
+            return newMatch;
+          });
+          setRecent(syncedMatches.slice().reverse());
+        } else {
+          setMembers([]);
+          setRoom(roomData);
+          setRecent([]);
+        }
+
+        setLatestSeason(
+          roomData.seasonHistory
+            ?.slice()
+            .reverse()
+            .find(
+              (s) => Array.isArray(s.summary) || Array.isArray(s.members)
+            ) ?? null
         );
-      const starts: Record<string, number> = {};
-      allMatches.forEach((m) => {
-        const p1 = m.player1Id,
-          p2 = m.player2Id;
-        if (starts[p1] == null) starts[p1] = m.player1.oldRating;
-        if (starts[p2] == null) starts[p2] = m.player2.oldRating;
+        setIsLoading(false);
       });
-      setSeasonStarts(starts);
-      const initialMembers = roomData.members ?? [];
-      if (initialMembers.length > 0) {
-        const memberIds = initialMembers.map((m) => m.userId);
-        const userDocsPromises = memberIds.map((id) =>
-          getDoc(doc(db, 'users', id))
-        );
-        const userDocsSnaps = await Promise.all(userDocsPromises);
-        const freshProfiles = new Map<string, UserProfile>();
-        userDocsSnaps.forEach((userSnap) => {
-          if (userSnap.exists()) {
-            freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
-          }
-        });
-        const syncedMembers = initialMembers.map((member) => {
-          const freshProfile = freshProfiles.get(member.userId);
-          return freshProfile
-            ? {
-                ...member,
-                name:
-                  freshProfile.name ?? freshProfile.displayName ?? member.name,
-                photoURL: freshProfile.photoURL,
-                globalElo: freshProfile.globalElo,
-                maxRating: freshProfile.maxRating,
-                rank: freshProfile.rank,
-              }
-            : member;
-        });
-        setMembers(syncedMembers);
-        setRoom({ ...roomData, members: syncedMembers });
-        const syncedMatches = allMatches.map((match) => {
-          const p1Profile = freshProfiles.get(match.player1Id);
-          const p2Profile = freshProfiles.get(match.player2Id);
-          const newMatch = JSON.parse(JSON.stringify(match));
-          if (p1Profile)
-            newMatch.player1.name =
-              p1Profile.name ?? p1Profile.displayName ?? match.player1.name;
-          if (p2Profile)
-            newMatch.player2.name =
-              p2Profile.name ?? p2Profile.displayName ?? match.player2.name;
-          const winnerId =
-            match.player1.scores > match.player2.scores
-              ? match.player1Id
-              : match.player2Id;
-          const winnerProfile = freshProfiles.get(winnerId);
-          if (winnerProfile)
-            newMatch.winner =
-              winnerProfile.name ?? winnerProfile.displayName ?? match.winner;
-          return newMatch;
-        });
-        setRecent(syncedMatches.slice().reverse());
-      } else {
-        setMembers([]);
-        setRoom(roomData);
-        setRecent([]);
-      }
-      setLatestSeason(
-        roomData.seasonHistory
-          ?.slice()
-          .reverse()
-          .find((s) => Array.isArray(s.summary) || Array.isArray(s.members)) ??
-          null
-      );
-      setIsLoading(false);
     });
+
     return () => {
       unsubRoom();
+      unsubMatches();
     };
   }, [user, roomId, router]);
 
@@ -700,13 +727,20 @@ export default function RoomPage() {
             )}
             <div className='mt-4 text-xs text-muted-foreground leading-relaxed space-y-1'>
               <p>
-                <strong>{t('Room Rating')}</strong> — {t('Elo score, recalculated based only on matches in this room (starting = 1000).')}
+                <strong>{t('Room Rating')}</strong> —{' '}
+                {t(
+                  'Elo score, recalculated based only on matches in this room (starting = 1000).'
+                )}
               </p>
               <p>
-                <strong>{t('Room Δ')}</strong> — {t('vs. starting (1000): current room rating – 1000.')}
+                <strong>{t('Room Δ')}</strong> —{' '}
+                {t('vs. starting (1000): current room rating – 1000.')}
               </p>
               <p>
-                <strong>{t('Global Δ')}</strong> — {t('Change in your overall Elo (across all rooms) since your first match this season.')}
+                <strong>{t('Global Δ')}</strong> —{' '}
+                {t(
+                  'Change in your overall Elo (across all rooms) since your first match this season.'
+                )}
               </p>
               <p>
                 <strong>{t('Games / Wins / Losses')}</strong> —{' '}
@@ -716,18 +750,24 @@ export default function RoomPage() {
                 <strong>{t('Win %')}</strong> — {t('(Wins / Games) × 100.')}
               </p>
               <p>
-                <strong>{t('Avg Δ / Game')}</strong> — {t('Average room Elo change per match.')}
+                <strong>{t('Avg Δ / Game')}</strong> —{' '}
+                {t('Average room Elo change per match.')}
               </p>
               <p>
-                <strong>{t('Last 5')}</strong> — {t('W = win, L = loss for the last five games.')}
+                <strong>{t('Last 5')}</strong> —{' '}
+                {t('W = win, L = loss for the last five games.')}
               </p>
               <p>
-                <strong>{t('Best Streak')}</strong> — {t('Longest consecutive winning streak.')}
+                <strong>{t('Best Streak')}</strong> —{' '}
+                {t('Longest consecutive winning streak.')}
               </p>
               {viewMode === 'final' && (
                 <>
                   <p>
-                    <strong>{t('Total Δ')}</strong> — {t('Sum of all Elo gains/losses for the season (room-specific).')}
+                    <strong>{t('Total Δ')}</strong> —{' '}
+                    {t(
+                      'Sum of all Elo gains/losses for the season (room-specific).'
+                    )}
                   </p>
                   <p>
                     <strong>{t('Adjusted Pts')}</strong> —{' '}
@@ -869,7 +909,7 @@ function MembersBlock({
     <div>
       <Users className='text-primary' />{' '}
       <span className='font-semibold'>
-        {t('Members ({{count}})', { count: members.length })}
+        {t('Members')}: {members.length}
       </span>
       <ScrollArea className='border rounded-md p-3 bg-background'>
         {members.map((p) => {
@@ -925,7 +965,7 @@ function MembersBlock({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {t('Invite to {{roomName}}', { roomName: room.name })}
+              {t('Invite to')} {room.name}
             </DialogTitle>
             <DialogDescription>{t('Enter email')}</DialogDescription>
           </DialogHeader>
