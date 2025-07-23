@@ -25,9 +25,14 @@ import {
 } from 'firebase/firestore';
 import {
   ArrowRight,
+  BarChart2,
+  Compass,
   LogIn,
+  Network,
   Percent,
   Rocket,
+  Search,
+  Swords,
   Trophy,
   User,
   UserPlus,
@@ -40,6 +45,71 @@ import { useTranslation } from 'react-i18next';
 const PlayerRank = ({ rank }: { rank: string | null | undefined }) => {
   const { t } = useTranslation();
   return <>{t(rank ?? 'Ping-Pong Padawan')}</>;
+};
+
+// Компонент для карточки с фичей (для неавторизованных пользователей)
+const FeatureCard = ({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <div className='flex flex-col items-center text-center p-6 bg-card rounded-lg shadow-md'>
+    <div className='mb-4 text-primary'>{icon}</div>
+    <h3 className='text-xl font-bold mb-2'>{title}</h3>
+    <p className='text-muted-foreground'>{children}</p>
+  </div>
+);
+
+// Компонент-подсказка для новых пользователей
+const OnboardingCard = () => {
+  const { t } = useTranslation();
+  return (
+    <Card className='bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'>
+      <CardHeader>
+        <CardTitle className='flex items-center gap-2'>
+          <Compass className='h-6 w-6 text-blue-600' />
+          {t("What's next?")}
+        </CardTitle>
+        <CardDescription>
+          {t('Here are some tips to get you started on your journey:')}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className='space-y-4'>
+        <div className='flex items-start gap-3'>
+          <Users className='h-5 w-5 text-blue-500 mt-1 shrink-0' />
+          <div>
+            <h4 className='font-semibold'>{t('Join a Room')}</h4>
+            <p className='text-sm text-muted-foreground'>
+              {t(
+                'Rooms are where the action happens. You can join public rooms to play with others.'
+              )}{' '}
+              <Link
+                href='/rooms'
+                className='text-blue-600 font-semibold hover:underline'
+              >
+                {t('Explore Rooms')}
+              </Link>
+            </p>
+          </div>
+        </div>
+        <div className='flex items-start gap-3'>
+          <Search className='h-5 w-5 text-blue-500 mt-1 shrink-0' />
+          <div>
+            <h4 className='font-semibold'>{t('Find Players')}</h4>
+            <p className='text-sm text-muted-foreground'>
+              {t(
+                'Check out the Global Ranking to find other players. You can view their profiles and send friend requests.'
+              )}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default function Home() {
@@ -100,9 +170,15 @@ export default function Home() {
     return null;
   }
 
+  const isNewUser =
+    userProfile &&
+    (userProfile.rooms?.length ?? 0) < 2 &&
+    (userProfile.friends?.length ?? 0) === 0;
+
   return (
     <div className='bg-background min-h-screen'>
       <main className='container mx-auto px-4 py-12'>
+        {/* --- Секция для всех --- */}
         <section className='text-center mb-16'>
           <h1 className='text-5xl font-extrabold tracking-tight mb-4 sm:text-6xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-400'>
             PingPongTracker
@@ -114,23 +190,29 @@ export default function Home() {
           </p>
         </section>
 
+        {/* --- Отображение в зависимости от статуса авторизации --- */}
         {authLoading ? (
           <div className='flex justify-center py-16'>
             <div className='animate-spin rounded-full h-16 w-16 border-b-4 border-primary'></div>
           </div>
         ) : user && userProfile ? (
+          // --- ДЛЯ АВТОРИЗОВАННЫХ ПОЛЬЗОВАТЕЛЕЙ ---
           <section className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
             <div className='lg:col-span-2 space-y-8'>
               {isFetchingRoom ? (
-                <Button size='lg' className='w-full animate-pulse' disabled>
-                  <Rocket className='mr-2 h-5 w-5' />{' '}
-                  {t('Searching for your last game...')}
-                </Button>
+                <Card className='flex items-center justify-center p-6 h-36'>
+                  <div className='animate-pulse flex items-center space-x-3'>
+                    <Rocket className='h-6 w-6 text-muted-foreground' />
+                    <p className='text-muted-foreground'>
+                      {t('Searching for your last game...')}
+                    </p>
+                  </div>
+                </Card>
               ) : (
                 lastActiveRoom && (
                   <Card className='bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'>
                     <CardHeader>
-                      <CardTitle>{t('Jump Back In!')}</CardTitle>
+                      <CardTitle>{t('Jump back into:')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p>
@@ -148,15 +230,17 @@ export default function Home() {
                           className='flex items-center gap-2'
                         >
                           <Rocket className='h-5 w-5' />
-                          <span>{t('Go to Room')}</span>
+                          <span>{t('Enter Room')}</span>
                         </Link>
                       </Button>
                     </CardFooter>
                   </Card>
                 )
               )}
+              {isNewUser && <OnboardingCard />}
               <PlayersTable />
             </div>
+
             <div className='space-y-8'>
               <Card className='shadow-lg'>
                 <CardHeader>
@@ -186,13 +270,12 @@ export default function Home() {
                     </span>
                     <span className='font-semibold flex items-center gap-1'>
                       <Percent className='h-4 w-4 text-green-500' />
-                      {userProfile.wins + userProfile.losses > 0
-                        ? (
-                            (userProfile.wins /
-                              (userProfile.wins + userProfile.losses)) *
-                            100
-                          ).toFixed(1)
-                        : '0.0'}
+                      {(userProfile.wins + userProfile.losses > 0
+                        ? (userProfile.wins /
+                            (userProfile.wins + userProfile.losses)) *
+                          100
+                        : 0
+                      ).toFixed(1)}
                       %
                     </span>
                   </div>
@@ -230,6 +313,7 @@ export default function Home() {
                   </Button>
                 </CardFooter>
               </Card>
+
               <Card className='shadow-lg bg-gradient-to-br from-blue-500 to-primary text-white'>
                 <CardHeader>
                   <CardTitle>{t('Ping-Pong WRAP ’25')}</CardTitle>
@@ -249,35 +333,70 @@ export default function Home() {
             </div>
           </section>
         ) : (
-          <section className='text-center max-w-lg mx-auto'>
-            <Card className='shadow-xl'>
-              <CardHeader>
-                <CardTitle className='text-3xl'>{t('Get Started')}</CardTitle>
-                <CardDescription>
-                  {t(
-                    'Join the community and start tracking your progress today!'
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className='flex flex-col sm:flex-row gap-4 justify-center'>
-                <Button size='lg' asChild className='flex-1'>
-                  <Link href='/login' className='flex items-center gap-2'>
-                    <LogIn /> {t('Login')}
-                  </Link>
-                </Button>
-                <Button
-                  size='lg'
-                  variant='secondary'
-                  asChild
-                  className='flex-1'
+          // --- ДЛЯ НЕАВТОРИЗОВАННЫХ ПОЛЬЗОВАТЕЛЕЙ ---
+          <>
+            <section className='mb-20'>
+              <h2 className='text-3xl font-bold text-center mb-10'>
+                {t('Why PingPongTracker?')}
+              </h2>
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-8'>
+                <FeatureCard
+                  icon={<BarChart2 size={40} />}
+                  title={t('Advanced ELO System')}
                 >
-                  <Link href='/register' className='flex items-center gap-2'>
-                    <UserPlus /> {t('Register')}
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </section>
+                  {t(
+                    'Track your skill progression with a reliable and accurate rating system.'
+                  )}
+                </FeatureCard>
+                <FeatureCard
+                  icon={<Network size={40} />}
+                  title={t('Community & Rooms')}
+                >
+                  {t(
+                    'Organize casual matches or compete in structured seasons with friends.'
+                  )}
+                </FeatureCard>
+                <FeatureCard
+                  icon={<Swords size={40} />}
+                  title={t('In-depth Statistics')}
+                >
+                  {t(
+                    'Analyze your performance with detailed match history and personal stats.'
+                  )}
+                </FeatureCard>
+              </div>
+            </section>
+
+            <section className='text-center max-w-lg mx-auto'>
+              <Card className='shadow-xl'>
+                <CardHeader>
+                  <CardTitle className='text-3xl'>{t('Get Started')}</CardTitle>
+                  <CardDescription>
+                    {t(
+                      'Join the community and start tracking your progress today!'
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className='flex flex-col sm:flex-row gap-4 justify-center'>
+                  <Button size='lg' asChild className='flex-1'>
+                    <Link href='/login' className='flex items-center gap-2'>
+                      <LogIn /> {t('Login')}
+                    </Link>
+                  </Button>
+                  <Button
+                    size='lg'
+                    variant='secondary'
+                    asChild
+                    className='flex-1'
+                  >
+                    <Link href='/register' className='flex items-center gap-2'>
+                      <UserPlus /> {t('Register')}
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </section>
+          </>
         )}
       </main>
     </div>

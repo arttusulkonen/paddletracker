@@ -14,6 +14,7 @@ export interface UserProfile {
   photoURL?: string | null;
   isDeleted?: boolean;
   rooms: string[];
+  friends?: string[]; 
   eloHistory: {
     date: string;
     elo: number;
@@ -53,6 +54,7 @@ export interface Match {
   roundName?: string;
   player1Score: number;
   player2Score: number;
+  isRanked?: boolean;
 }
 
 export interface Room {
@@ -65,6 +67,7 @@ export interface Room {
   roomCreated: string;
   joinRequests?: string[];
   isPublic: boolean;
+  isRanked?: boolean;
   isArchived?: boolean;
   avatarURL?: string;
   memberIds: string[];

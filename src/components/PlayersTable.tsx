@@ -1,5 +1,3 @@
-// src/components/PlayersTable.tsx
-
 'use client';
 
 import {
@@ -82,7 +80,9 @@ export default function PlayersTable() {
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  const [view, setView] = useState<'global' | 'circle'>('global');
+  const [view, setView] = useState<'global' | 'circle'>(
+    user ? 'circle' : 'global'
+  );
   const [loading, setLoading] = useState(true);
 
   // Состояния для каждого вида
@@ -106,7 +106,7 @@ export default function PlayersTable() {
       const usersQuery = query(
         collection(db, 'users'),
         where('isPublic', '==', true),
-        where('isDeleted', '==', false),
+        where('isDeleted', '!=', true),
         orderBy('globalElo', 'desc'),
         limit(100)
       );

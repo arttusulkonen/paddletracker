@@ -434,6 +434,11 @@ export default function ProfileUidPage() {
     toast({ title: t('Friend removed') });
   };
 
+  const rankedMatches = useMemo(
+    () => visibleMatches.filter((match) => match.isRanked !== false),
+    [visibleMatches]
+  );
+
   const opponents = useMemo(() => {
     const m = new Map<string, string>();
     visibleMatches.forEach((match) => {
@@ -446,7 +451,7 @@ export default function ProfileUidPage() {
     return Array.from(m.entries()).map(([id, name]) => ({ id, name }));
   }, [visibleMatches, targetUid]);
 
-  const filtered = useMemo(
+  const filteredMatches = useMemo(
     () =>
       oppFilter === 'all'
         ? visibleMatches
@@ -455,30 +460,36 @@ export default function ProfileUidPage() {
           ),
     [visibleMatches, oppFilter]
   );
+
+  const filteredRankedMatches = useMemo(
+    () => filteredMatches.filter((match) => match.isRanked !== false),
+    [filteredMatches]
+  );
+
   const stats = useMemo(
-    () => computeStats(filtered, targetUid),
-    [filtered, targetUid]
+    () => computeStats(filteredRankedMatches, targetUid),
+    [filteredRankedMatches, targetUid]
   );
   const sideStats = useMemo(
-    () => computeSideStats(filtered, targetUid),
-    [filtered, targetUid]
+    () => computeSideStats(filteredRankedMatches, targetUid),
+    [filteredRankedMatches, targetUid]
   );
   const monthly = useMemo(
-    () => groupByMonth(filtered, targetUid),
-    [filtered, targetUid]
+    () => groupByMonth(filteredRankedMatches, targetUid),
+    [filteredRankedMatches, targetUid]
   );
   const insights = useMemo(
     () => buildInsights(stats, sideStats, monthly, t),
     [stats, sideStats, monthly, t]
   );
   const oppStats = useMemo(
-    () => opponentStats(filtered, targetUid),
-    [filtered, targetUid]
+    () => opponentStats(filteredRankedMatches, targetUid),
+    [filteredRankedMatches, targetUid]
   );
   const perfData = useMemo(
     () =>
-      filtered.length
-        ? filtered
+      rankedMatches.length
+        ? rankedMatches
             .slice()
             .reverse()
             .map((m) => {
@@ -509,7 +520,7 @@ export default function ProfileUidPage() {
               addedPoints: 0,
             },
           ],
-    [filtered, targetUid, targetProfile]
+    [rankedMatches, targetUid, targetProfile]
   );
   const pieData = useMemo(
     () => [
@@ -678,17 +689,17 @@ export default function ProfileUidPage() {
             />
             <StatCard
               icon={ListOrdered}
-              label={t('Matches')}
+              label={t('Ranked Matches')}
               value={stats.total}
             />
             <StatCard
               icon={Percent}
-              label={t('Win Rate')}
+              label={t('Win Rate (Ranked)')}
               value={`${stats.winRate.toFixed(1)}%`}
             />
             <StatCard
               icon={Flame}
-              label={t('Max Streak')}
+              label={t('Max Streak (Ranked)')}
               value={stats.maxWinStreak}
             />
           </div>
@@ -705,15 +716,19 @@ export default function ProfileUidPage() {
           />
         </div>
         <div className='flex flex-col gap-4'>
-          <PieCard title={t('Win / Loss')} icon={PieChartIcon} data={pieData} />
+          <PieCard
+            title={t('Win / Loss (Ranked)')}
+            icon={PieChartIcon}
+            data={pieData}
+          />
           <div className='flex flex-row gap-4'>
             <PieCard
-              title={t('Left vs Right Wins')}
+              title={t('Left vs Right Wins (Ranked)')}
               icon={PieChartIcon}
               data={sidePieData}
             />
             <PieCard
-              title={t('Left vs Right Losses')}
+              title={t('Left vs Right Losses (Ranked)')}
               icon={PieChartIcon}
               data={sidePieLossData}
             />
@@ -741,9 +756,11 @@ export default function ProfileUidPage() {
         <Card>
           <CardHeader>
             <CardTitle className='flex items-center gap-2'>
-              <LineChartIcon /> {t('Insights')}
+              <LineChartIcon /> {t('Ranked Insights')}
             </CardTitle>
-            <CardDescription>{t('Automatic game analysis')}</CardDescription>
+            <CardDescription>
+              {t('Automatic game analysis on ranked matches')}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ul className='space-y-3'>
@@ -758,7 +775,7 @@ export default function ProfileUidPage() {
         </Card>
       )}
       <div className='space-y-8'>
-        <ChartCard title={t('ELO History')} icon={LineChartIcon}>
+        <ChartCard title={t('ELO History (Ranked)')} icon={LineChartIcon}>
           <ResponsiveContainer width='100%' height={400}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray='3 3' />
@@ -782,7 +799,7 @@ export default function ProfileUidPage() {
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title={t('Monthly Δ ELO')} icon={LineChartIcon}>
+        <ChartCard title={t('Monthly Δ ELO (Ranked)')} icon={LineChartIcon}>
           <ResponsiveContainer width='100%' height={300}>
             <LineChart data={monthly}>
               <CartesianGrid strokeDasharray='3 3' />
@@ -794,7 +811,7 @@ export default function ProfileUidPage() {
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title={t('Match Result')} icon={Activity}>
+        <ChartCard title={t('Match Result (Ranked)')} icon={Activity}>
           <ResponsiveContainer width='100%' height={450}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray='3 3' />
@@ -818,7 +835,7 @@ export default function ProfileUidPage() {
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
-        <ChartCard title={t('Score Difference')} icon={TrendingUp}>
+        <ChartCard title={t('Score Difference (Ranked)')} icon={TrendingUp}>
           <ResponsiveContainer width='100%' height={450}>
             <LineChart data={perfData}>
               <CartesianGrid strokeDasharray='3 3' />
@@ -844,15 +861,15 @@ export default function ProfileUidPage() {
         </ChartCard>
       </div>
       <MatchesTableCard
-        title={`${t('All Matches')} (${filtered.length})`}
-        matches={filtered}
+        title={`${t('All Matches')} (${filteredMatches.length})`}
+        matches={filteredMatches}
         loading={loadingMatches}
         meUid={targetUid}
         t={t}
       />
       <Card>
         <CardHeader>
-          <CardTitle>{t('Performance vs Opponents')}</CardTitle>
+          <CardTitle>{t('Performance vs Opponents (Ranked)')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ScrollArea>
@@ -1325,7 +1342,8 @@ function DetailedStatsCard({
     <Card>
       <CardHeader>
         <CardTitle className='flex items-center gap-2'>
-          <CornerUpLeft /> / <CornerUpRight /> {t('Detailed Statistics')}
+          <CornerUpLeft /> / <CornerUpRight />{' '}
+          {t('Detailed Statistics (Ranked)')}
         </CardTitle>
       </CardHeader>
       <CardContent className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm'>
@@ -1367,14 +1385,12 @@ function MatchesTableCard({
   matches,
   loading,
   meUid,
-  viewerId,
   t,
 }: {
   title: string;
   matches: Match[];
   loading: boolean;
   meUid: string;
-  viewerId: string | undefined;
   t: (key: string) => string;
 }) {
   const [roomData, setRoomData] = useState<Map<string, Room>>(new Map());
@@ -1441,7 +1457,7 @@ function MatchesTableCard({
                   const room = roomData.get(m.roomId!);
                   const isP1 = m.player1Id === meUid;
                   const date = safeFormatDate(
-                    m.timestamp ?? (m as any).playedAt,
+                    (m as any).timestamp ?? (m as any).playedAt,
                     'dd.MM.yyyy HH:mm:ss'
                   );
                   const opp = isP1 ? m.player2.name : m.player1.name;
@@ -1451,12 +1467,17 @@ function MatchesTableCard({
                     ? m.player1.addedPoints
                     : m.player2.addedPoints;
                   const win = myScore > theirScore;
+                  const isRanked = m.isRanked !== false;
+
                   return (
                     <TableRow key={m.id}>
                       <TableCell>{date}</TableCell>
                       <TableCell>{opp}</TableCell>
-                      <TableCell>
+                      <TableCell className='flex items-center gap-2'>
                         {room && <Badge variant='outline'>{room.name}</Badge>}
+                        {!isRanked && (
+                          <Badge variant='secondary'>{t('Unranked')}</Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         {myScore} – {theirScore}
@@ -1468,10 +1489,14 @@ function MatchesTableCard({
                       </TableCell>
                       <TableCell
                         className={
-                          eloΔ >= 0 ? 'text-green-600' : 'text-destructive'
+                          !isRanked
+                            ? 'text-muted-foreground'
+                            : eloΔ >= 0
+                            ? 'text-green-600'
+                            : 'text-destructive'
                         }
                       >
-                        {eloΔ > 0 ? `+${eloΔ}` : eloΔ}
+                        {isRanked ? (eloΔ > 0 ? `+${eloΔ}` : eloΔ) : '–'}
                       </TableCell>
                     </TableRow>
                   );

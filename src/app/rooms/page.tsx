@@ -1,4 +1,3 @@
-// src/app/rooms/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -69,6 +68,7 @@ export default function RoomsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [myMatches, setMyMatches] = useState<Record<string, number>>({});
   const [isPublic, setIsPublic] = useState(false);
+  const [isRanked, setIsRanked] = useState(true); // <-- НОВОЕ СОСТОЯНИЕ
   const [roomRating, setRoomRating] = useState<Record<string, number>>({});
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -293,6 +293,7 @@ export default function RoomsPage() {
         createdAt: now,
         members: initialMembers,
         isPublic,
+        isRanked, // <-- ИЗМЕНЕНИЕ
         memberIds: [user.uid, ...selectedFriends],
         isArchived: false,
       });
@@ -311,6 +312,7 @@ export default function RoomsPage() {
       setRoomName('');
       setSelectedFriends([]);
       setIsPublic(false);
+      setIsRanked(true); // <-- СБРОС СОСТОЯНИЯ
     } catch {
       toast({
         title: t('Error'),
@@ -390,6 +392,19 @@ export default function RoomsPage() {
                     onCheckedChange={(checked) => setIsPublic(Boolean(checked))}
                   />
                   <Label htmlFor='isPublic'>{t('Make room public?')}</Label>
+                </div>
+                <div className='flex items-start space-x-2'>
+                  <Checkbox
+                    id='isRanked'
+                    checked={isRanked}
+                    onCheckedChange={(checked) => setIsRanked(Boolean(checked))}
+                  />
+                  <div className='grid gap-1.5 leading-none'>
+                    <Label htmlFor='isRanked'>{t('Ranked Room')}</Label>
+                    <p className='text-xs text-muted-foreground'>
+                      {t("Matches will affect players' global ELO.")}
+                    </p>
+                  </div>
                 </div>
                 <p className='text-sm font-medium'>{t('Invite players:')}</p>
                 <ScrollArea className='h-40 pr-2'>
