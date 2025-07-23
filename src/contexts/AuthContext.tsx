@@ -1,32 +1,36 @@
 // src/contexts/AuthContext.tsx
-"use client";
+'use client';
 
-import { useToast } from "@/hooks/use-toast";
-import { auth, db } from "@/lib/firebase";
-import type { UserProfile } from "@/lib/types";
+import { useToast } from '@/hooks/use-toast';
+import { auth, db } from '@/lib/firebase';
+import type { UserProfile } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import {
   User as FirebaseUser,
   onAuthStateChanged,
   signOut,
-} from "firebase/auth";
+} from 'firebase/auth';
 import {
   arrayUnion,
+  collection,
   doc,
   onSnapshot,
+  query,
   setDoc,
   updateDoc,
-} from "firebase/firestore";
+  where,
+} from 'firebase/firestore';
 import React, {
   createContext,
   ReactNode,
   useContext,
   useEffect,
   useState,
-} from "react";
+} from 'react';
 
 interface AuthContextType {
   user: FirebaseUser | null;
+  roomRequestCount: number;
   userProfile: UserProfile | null;
   loading: boolean;
   logout: () => Promise<void>;
@@ -37,15 +41,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [roomRequestCount, setRoomRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // 1) Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       if (!firebaseUser) {
-        // signed out
         setUserProfile(null);
         setLoading(false);
       } else {
@@ -55,65 +58,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // 2) When user signs in, subscribe to their Firestore profile
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
 
-    const userRef = doc(db, "users", user.uid);
+    const userRef = doc(db, 'users', user.uid);
     const unsubProfile = onSnapshot(
       userRef,
       async (snap) => {
         if (snap.exists()) {
-          setUserProfile(snap.data() as UserProfile);
+          setUserProfile({ uid: snap.id, ...snap.data() } as UserProfile);
         } else {
-          // first-time sign-in: create profile
-          const baseProfile: Omit<UserProfile, "eloHistory"> = {
+          const initialData: UserProfile = {
             uid: user.uid,
             email: user.email!,
-            displayName: user.displayName || null,
+            displayName: user.displayName || 'New Player',
+            name: user.displayName || 'New Player',
             globalElo: 1000,
             matchesPlayed: 0,
             wins: 0,
             losses: 0,
+            maxRating: 1000,
             createdAt: getFinnishFormattedDate(),
-          };
-          const initialData = {
-            ...baseProfile,
             photoURL: user.photoURL || null,
-            eloHistory: [],
+            eloHistory: [{ date: getFinnishFormattedDate(), elo: 1000 }],
             friends: [],
             incomingRequests: [],
             outgoingRequests: [],
             achievements: [],
             rooms: [],
+            isPublic: true,
+            bio: '',
           };
           await setDoc(userRef, initialData);
-          await updateDoc(userRef, {
-            eloHistory: arrayUnion({
-              date: getFinnishFormattedDate(),
-              elo: 1000,
-            }),
-          });
-          setUserProfile({
-            ...initialData,
-            eloHistory: [{ date: getFinnishFormattedDate(), elo: 1000 }],
-          } as UserProfile);
+          setUserProfile(initialData);
         }
         setLoading(false);
       },
       (error) => {
-        console.error("Profile listener error:", error);
+        console.error('Profile listener error:', error);
         toast({
-          title: "Error",
-          description: "Failed to load profile.",
-          variant: "destructive",
+          title: 'Error',
+          description: 'Failed to load profile.',
+          variant: 'destructive',
         });
         setLoading(false);
       }
     );
 
+    const ownedRoomsQuery = query(
+      collection(db, 'rooms'),
+      where('creator', '==', user.uid)
+    );
+    const unsubRoomRequests = onSnapshot(ownedRoomsQuery, (snapshot) => {
+      let totalRequests = 0;
+      snapshot.forEach((doc) => {
+        const room = doc.data();
+        if (room.joinRequests && Array.isArray(room.joinRequests)) {
+          totalRequests += room.joinRequests.length;
+        }
+      });
+      setRoomRequestCount(totalRequests);
+    });
+
     return () => {
       unsubProfile();
+      unsubRoomRequests();
     };
   }, [user, toast]);
 
@@ -122,19 +131,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signOut(auth);
       setUser(null);
       setUserProfile(null);
-      toast({ title: "Logged out", description: "You have been logged out." });
+      toast({ title: 'Logged out', description: 'You have been logged out.' });
     } catch (err) {
-      console.error("Error logging out:", err);
+      console.error('Error logging out:', err);
       toast({
-        title: "Logout Error",
-        description: "Failed to log out.",
-        variant: "destructive",
+        title: 'Logout Error',
+        description: 'Failed to log out.',
+        variant: 'destructive',
       });
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, logout }}>
+    <AuthContext.Provider
+      value={{ user, userProfile, roomRequestCount, loading, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -142,6 +153,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }

@@ -1,3 +1,4 @@
+// src/app/register/page.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -36,14 +37,12 @@ let registerSchema: any;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  // 1. ВСЕ ХУКИ В НАЧАЛЕ КОМПОНЕНТА
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const [hasMounted, setHasMounted] = useState(false);
 
-  // Схема валидации определяется здесь, чтобы иметь доступ к `t`
   registerSchema = z.object({
     name: z
       .string()
@@ -64,12 +63,10 @@ export default function RegisterPage() {
     },
   });
 
-  // 2. ВСЕ ЭФФЕКТЫ ПОСЛЕ ХУКОВ СОСТОЯНИЯ
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  // 3. ВСЕ ОБРАБОТЧИКИ
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     try {
@@ -95,6 +92,8 @@ export default function RegisterPage() {
         losses: 0,
         createdAt: getFinnishFormattedDate(),
         eloHistory: [],
+        isPublic: true,
+        bio: '',
         friends: [],
         incomingRequests: [],
         outgoingRequests: [],
@@ -122,12 +121,10 @@ export default function RegisterPage() {
     }
   };
 
-  // 4. УСЛОВНЫЙ ВОЗВРАТ (GUARD)
   if (!hasMounted) {
     return null;
   }
 
-  // 5. ОСНОВНОЙ РЕНДЕР
   return (
     <div className='flex items-center justify-center min-h-[calc(100vh-10rem)] py-12'>
       <Card className='w-full max-w-md shadow-xl'>

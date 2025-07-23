@@ -9,6 +9,10 @@ export interface UserProfile {
   wins: number;
   losses: number;
   maxRating: number;
+  isPublic?: boolean;
+  bio?: string;
+  photoURL?: string | null;
+  isDeleted?: boolean;
   rooms: string[];
   eloHistory: {
     date: string;
@@ -29,8 +33,8 @@ export interface UserProfile {
 }
 
 export interface TournamentRoom {
-  id: string
-  name: string
+  id: string;
+  name: string;
   // Add other properties as needed
 }
 
@@ -59,6 +63,11 @@ export interface Room {
   members: Member[];
   createdAt: string;
   roomCreated: string;
+  joinRequests?: string[];
+  isPublic: boolean;
+  isArchived?: boolean;
+  avatarURL?: string;
+  memberIds: string[];
 }
 
 interface Member {

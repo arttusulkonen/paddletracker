@@ -48,14 +48,12 @@ const PingPongIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function Navbar() {
   const { t, i18n } = useTranslation();
-  const { user, userProfile, loading, logout } = useAuth();
+  const { user, userProfile, roomRequestCount, loading, logout } = useAuth();
   const router = useRouter();
 
   // highlight-start
-  // 2. Добавляем состояние для отслеживания монтирования
   const [hasMounted, setHasMounted] = useState(false);
 
-  // 3. Устанавливаем состояние в true только на клиенте
   useEffect(() => {
     setHasMounted(true);
   }, []);
@@ -66,7 +64,8 @@ export function Navbar() {
     router.push('/');
   };
 
-  const reqCount = userProfile?.incomingRequests?.length ?? 0;
+  const friendReqCount = userProfile?.incomingRequests?.length ?? 0;
+  const totalReqCount = friendReqCount + roomRequestCount;
   const visibleName = user?.displayName ?? user?.name;
 
   const changeLanguage = (lng: string) => {
@@ -141,9 +140,9 @@ export function Navbar() {
                   variant='ghost'
                   className='relative h-10 w-10 rounded-full'
                 >
-                  {reqCount > 0 && (
+                  {totalReqCount > 0 && (
                     <span className='absolute -top-0.5 -right-0.5 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[10px] font-medium leading-none text-background'>
-                      {reqCount}
+                      {totalReqCount}
                     </span>
                   )}
                   <Avatar className='relative z-0 h-9 w-9'>
@@ -180,7 +179,7 @@ export function Navbar() {
                   <Link href='/friend-requests'>
                     <Bell className='mr-2 h-4 w-4' />
                     <span>
-                      {t('Requests')} {reqCount > 0 && `(${reqCount})`}
+                      {t('Requests')} {totalReqCount > 0 && `(${totalReqCount})`}
                     </span>
                   </Link>
                 </DropdownMenuItem>

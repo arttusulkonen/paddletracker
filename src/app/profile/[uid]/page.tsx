@@ -2,15 +2,27 @@
 
 import AchievementsPanel from '@/components/AchievementsPanel';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Badge,
   Button,
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -26,18 +38,20 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Slider,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  Textarea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
-import type { Match, UserProfile } from '@/lib/types';
+import type { Match, Room, UserProfile } from '@/lib/types';
 import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
 import { updateProfile } from 'firebase/auth';
 import {
@@ -49,7 +63,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
   Activity,
   ArrowLeftRight,
@@ -58,16 +72,24 @@ import {
   Flame,
   LineChart as LineChartIcon,
   ListOrdered,
-  Pencil,
+  Lock,
   Percent,
   PieChart as PieChartIcon,
+  Settings,
   TrendingDown,
   TrendingUp,
+  UserX,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import ReactCrop, {
+  centerCrop,
+  makeAspectCrop,
+  type Crop,
+} from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import {
   Brush,
   CartesianGrid,
@@ -157,38 +179,19 @@ function computeSideStats(list: Match[], uid: string) {
   let leftSideWins = 0,
     leftSideLosses = 0,
     rightSideWins = 0,
-    rightSideLosses = 0,
-    leftPointsScored = 0,
-    leftPointsConceded = 0,
-    rightPointsScored = 0,
-    rightPointsConceded = 0;
+    rightSideLosses = 0;
   list.forEach((m) => {
     const isP1 = m.player1Id === uid;
     const me = isP1 ? m.player1 : m.player2;
     const opp = isP1 ? m.player2 : m.player1;
     const win = me.scores > opp.scores;
     if (me.side === 'left') {
-      if (win) leftSideWins++;
-      else leftSideLosses++;
-      leftPointsScored += me.scores;
-      leftPointsConceded += opp.scores;
+      win ? leftSideWins++ : leftSideLosses++;
     } else if (me.side === 'right') {
-      if (win) rightSideWins++;
-      else rightSideLosses++;
-      rightPointsScored += me.scores;
-      rightPointsConceded += opp.scores;
+      win ? rightSideWins++ : rightSideLosses++;
     }
   });
-  return {
-    leftSideWins,
-    leftSideLosses,
-    rightSideWins,
-    rightSideLosses,
-    leftPointsScored,
-    leftPointsConceded,
-    rightPointsScored,
-    rightPointsConceded,
-  };
+  return { leftSideWins, leftSideLosses, rightSideWins, rightSideLosses };
 }
 function groupByMonth(list: Match[], uid: string) {
   const map = new Map<string, { start: number; end: number }>();
@@ -224,22 +227,6 @@ function buildInsights(
       text: `${t(up ? 'Gained' : 'Lost')} <b>${Math.abs(
         last.delta
       )} ELO</b> ${t('over the last month')}`,
-    });
-  }
-  if (monthly.length >= 3) {
-    const best = [...monthly].sort((a, b) => b.delta - a.delta)[0];
-    const worst = [...monthly].sort((a, b) => a.delta - b.delta)[0];
-    rows.push({
-      icon: TrendingUp,
-      color: 'text-primary',
-      text: `${t('Best month:')} <b>${best.label}</b> (+${best.delta} ELO)`,
-    });
-    rows.push({
-      icon: TrendingDown,
-      color: 'text-rose-600',
-      text: `${t('Toughest month:')} <b>${worst.label}</b> (${
-        worst.delta
-      } ELO)`,
     });
   }
   const lGames = side.leftSideWins + side.leftSideLosses;
@@ -317,66 +304,62 @@ const CustomTooltip: FC<any> = ({ active, payload, label, t }) => {
 };
 
 export default function ProfileUidPage() {
-  // 1. ВСЕ ХУКИ В НАЧАЛЕ КОМПОНЕНТА
   const { t } = useTranslation();
   const { uid: targetUid } = useParams<{ uid: string }>();
   const router = useRouter();
-  const { user, userProfile, refreshUserProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   const [friendStatus, setFriendStatus] = useState<
     'none' | 'outgoing' | 'incoming' | 'friends'
   >('none');
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [allMatches, setAllMatches] = useState<Match[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [oppFilter, setOppFilter] = useState('all');
+  const [roomData, setRoomData] = useState<Map<string, Room>>(new Map());
 
   const [hasMounted, setHasMounted] = useState(false);
 
-  // 2. ВСЕ ЭФФЕКТЫ ПОСЛЕ ХУКОВ СОСТОЯНИЯ
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
   const isSelf = targetUid === user?.uid;
 
-  useEffect(() => {
-    if (!targetUid || !user) return;
+  const fetchProfileData = useCallback(async () => {
+    if (!targetUid || !db) return;
+
     if (isSelf && userProfile) {
       setTargetProfile(userProfile);
-      setNewName(userProfile.name ?? userProfile.displayName ?? '');
-      setFriendStatus('none');
       return;
     }
-    (async () => {
-      const snap = await getDoc(doc(db, 'users', targetUid));
-      if (!snap.exists()) {
-        router.push('/profile');
-        return;
-      }
-      const profileData = { uid: targetUid, ...(snap.data() as any) };
-      setTargetProfile(profileData);
-      setNewName(profileData.name ?? profileData.displayName ?? '');
 
-      const mySnap = await getDoc(doc(db, 'users', user.uid));
-      const myData = mySnap.exists() ? (mySnap.data() as any) : {};
-      const incoming: string[] = myData.incomingRequests ?? [];
-      const outgoing: string[] = myData.outgoingRequests ?? [];
-      const friendsArr: string[] = myData.friends ?? [];
+    const snap = await getDoc(doc(db, 'users', targetUid));
+    if (!snap.exists() || snap.data()?.isDeleted) {
+      toast({ title: t('Profile not found'), variant: 'destructive' });
+      router.push('/');
+      return;
+    }
+    const profileData = { uid: targetUid, ...(snap.data() as UserProfile) };
+    setTargetProfile(profileData);
 
-      if (friendsArr.includes(targetUid)) setFriendStatus('friends');
-      else if (outgoing.includes(targetUid)) setFriendStatus('outgoing');
-      else if (incoming.includes(targetUid)) setFriendStatus('incoming');
+    if (user && userProfile && !isSelf) {
+      if (userProfile.friends?.includes(targetUid)) setFriendStatus('friends');
+      else if (userProfile.outgoingRequests?.includes(targetUid))
+        setFriendStatus('outgoing');
+      else if (userProfile.incomingRequests?.includes(targetUid))
+        setFriendStatus('incoming');
       else setFriendStatus('none');
-    })();
-  }, [targetUid, isSelf, user, userProfile, router]);
+    }
+  }, [targetUid, isSelf, user, userProfile, router, t, toast]);
 
-  const loadMatches = useCallback(async () => {
-    if (!targetUid) return;
+  useEffect(() => {
+    fetchProfileData();
+  }, [fetchProfileData]);
+
+  const loadMatchesAndRooms = useCallback(async () => {
+    if (!targetUid || !db) return;
     setLoadingMatches(true);
     const ref = collection(db, 'matches');
     const [p1, p2] = await Promise.all([
@@ -391,81 +374,69 @@ export default function ProfileUidPage() {
         parseFlexDate(b.timestamp ?? (b as any).playedAt).getTime() -
         parseFlexDate(a.timestamp ?? (a as any).playedAt).getTime()
     );
-    setMatches(uniq);
+
+    const roomIds = [...new Set(uniq.map((m) => m.roomId).filter(Boolean))];
+    if (roomIds.length > 0) {
+      const roomSnaps = await Promise.all(
+        roomIds.map((id) => getDoc(doc(db, 'rooms', id!)))
+      );
+      const roomMap = new Map<string, Room>();
+      roomSnaps.forEach((snap) => {
+        if (snap.exists()) {
+          roomMap.set(snap.id, { id: snap.id, ...snap.data() } as Room);
+        }
+      });
+      setRoomData(roomMap);
+    }
+
+    setAllMatches(uniq);
     setLoadingMatches(false);
   }, [targetUid]);
 
   useEffect(() => {
-    loadMatches();
-  }, [loadMatches]);
+    if (targetProfile) {
+      loadMatchesAndRooms();
+    }
+  }, [targetProfile, loadMatchesAndRooms]);
 
-  // 3. ВСЕ ОБРАБОТЧИКИ И МЕМОИЗИРОВАННЫЕ ЗНАЧЕНИЯ
-  const handleSaveName = async () => {
-    if (!user || !newName.trim() || newName.trim().length < 3) {
-      toast({
-        title: t('Invalid Name'),
-        description: t('Name must be at least 3 characters.'),
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsSaving(true);
-    try {
-      await updateProfile(auth.currentUser!, { displayName: newName.trim() });
-      const userDocRef = doc(db, 'users', user.uid);
-      await updateDoc(userDocRef, {
-        name: newName.trim(),
-        displayName: newName.trim(),
-      });
-      setTargetProfile((prev) =>
-        prev
-          ? { ...prev, name: newName.trim(), displayName: newName.trim() }
-          : null
-      );
-      if (refreshUserProfile) {
-        await refreshUserProfile();
-      }
-      toast({
-        title: t('Success!'),
-        description: t('Your name has been updated.'),
-      });
-      setIsEditingName(false);
-    } catch (error) {
-      console.error('Error updating name:', error);
-      toast({
-        title: t('Error'),
-        description: t('Could not update your name. Please try again.'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const visibleMatches = useMemo(() => {
+    if (isSelf) return allMatches;
+    return allMatches.filter((m) => {
+      const room = roomData.get(m.roomId!);
+      if (!room) return false;
+      if (room.isPublic) return true;
+      return userProfile?.rooms?.includes(room.id);
+    });
+  }, [allMatches, roomData, userProfile, isSelf]);
 
   const handleAdd = async () => {
-    await Friends.sendFriendRequest(user!.uid, targetUid);
+    if (!user) return;
+    await Friends.sendFriendRequest(user.uid, targetUid);
     setFriendStatus('outgoing');
     toast({ title: t('Request sent') });
   };
   const handleCancel = async () => {
-    await Friends.cancelRequest(user!.uid, targetUid);
+    if (!user) return;
+    await Friends.cancelRequest(user.uid, targetUid);
     setFriendStatus('none');
     toast({ title: t('Request canceled') });
   };
   const handleAccept = async () => {
-    await Friends.acceptRequest(user!.uid, targetUid);
+    if (!user) return;
+    await Friends.acceptRequest(user.uid, targetUid);
     setFriendStatus('friends');
     toast({ title: t('Friend added') });
   };
   const handleRemove = async () => {
-    await Friends.unfriend(user!.uid, targetUid);
+    if (!user) return;
+    await Friends.unfriend(user.uid, targetUid);
     setFriendStatus('none');
     toast({ title: t('Friend removed') });
   };
 
   const opponents = useMemo(() => {
     const m = new Map<string, string>();
-    matches.forEach((match) => {
+    visibleMatches.forEach((match) => {
       const isP1 = match.player1Id === targetUid;
       m.set(
         isP1 ? match.player2Id : match.player1Id,
@@ -473,15 +444,16 @@ export default function ProfileUidPage() {
       );
     });
     return Array.from(m.entries()).map(([id, name]) => ({ id, name }));
-  }, [matches, targetUid]);
+  }, [visibleMatches, targetUid]);
+
   const filtered = useMemo(
     () =>
       oppFilter === 'all'
-        ? matches
-        : matches.filter(
+        ? visibleMatches
+        : visibleMatches.filter(
             (m) => m.player1Id === oppFilter || m.player2Id === oppFilter
           ),
-    [matches, oppFilter]
+    [visibleMatches, oppFilter]
   );
   const stats = useMemo(
     () => computeStats(filtered, targetUid),
@@ -500,19 +472,15 @@ export default function ProfileUidPage() {
     [stats, sideStats, monthly, t]
   );
   const oppStats = useMemo(
-    () => opponentStats(matches, targetUid),
-    [matches, targetUid]
+    () => opponentStats(filtered, targetUid),
+    [filtered, targetUid]
   );
   const perfData = useMemo(
     () =>
       filtered.length
         ? filtered
             .slice()
-            .sort(
-              (a, b) =>
-                parseFlexDate(a.timestamp ?? (a as any).playedAt).getTime() -
-                parseFlexDate(b.timestamp ?? (b as any).playedAt).getTime()
-            )
+            .reverse()
             .map((m) => {
               const isP1 = m.player1Id === targetUid;
               const me = isP1 ? m.player1 : m.player2;
@@ -541,7 +509,7 @@ export default function ProfileUidPage() {
               addedPoints: 0,
             },
           ],
-    [filtered, targetProfile]
+    [filtered, targetUid, targetProfile]
   );
   const pieData = useMemo(
     () => [
@@ -585,7 +553,6 @@ export default function ProfileUidPage() {
     [sideStats, t]
   );
 
-  // 4. УСЛОВНЫЕ ВОЗВРАТЫ (GUARDS)
   if (!hasMounted) {
     return null;
   }
@@ -597,6 +564,9 @@ export default function ProfileUidPage() {
       </div>
     );
   }
+
+  const canViewProfile =
+    targetProfile.isPublic || friendStatus === 'friends' || isSelf;
 
   const displayName =
     targetProfile.displayName ?? targetProfile.name ?? t('Unknown Player');
@@ -610,7 +580,6 @@ export default function ProfileUidPage() {
         'Ping-Pong Padawan'
     ];
 
-  // 5. ОСНОВНОЙ РЕНДЕР
   return (
     <section className='container mx-auto py-8 space-y-8'>
       <Card>
@@ -628,45 +597,27 @@ export default function ProfileUidPage() {
               <div className='flex items-center gap-3'>
                 <CardTitle className='text-4xl'>{displayName}</CardTitle>
                 {isSelf && (
-                  <Dialog open={isEditingName} onOpenChange={setIsEditingName}>
+                  <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant='ghost' size='icon' className='h-8 w-8'>
-                        <Pencil className='h-5 w-5' />
+                      <Button variant='outline' size='icon'>
+                        <Settings className='h-5 w-5' />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>{t('Edit Your Name')}</DialogTitle>
-                        <DialogDescription>
-                          {t('This name will be visible to other players.')}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className='py-4'>
-                        <Label htmlFor='newName'>{t('Display Name')}</Label>
-                        <Input
-                          id='newName'
-                          value={newName}
-                          onChange={(e) => setNewName(e.target.value)}
-                          placeholder={t('Your new name')}
-                        />
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          variant='outline'
-                          onClick={() => setIsEditingName(false)}
-                        >
-                          {t('Cancel')}
-                        </Button>
-                        <Button onClick={handleSaveName} disabled={isSaving}>
-                          {isSaving ? t('Saving...') : t('Save')}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
+                    <ProfileSettingsDialog
+                      profile={targetProfile}
+                      friends={userProfile?.friends ?? []}
+                      onUpdate={fetchProfileData}
+                    />
                   </Dialog>
                 )}
               </div>
               {isSelf && (
                 <CardDescription>{targetProfile.email}</CardDescription>
+              )}
+              {targetProfile.bio && canViewProfile && (
+                <p className='text-sm text-muted-foreground pt-1 max-w-lg'>
+                  {targetProfile.bio}
+                </p>
               )}
               <div className='inline-flex items-center gap-2 rounded-md bg-muted py-1 px-2 text-sm'>
                 <span className='font-medium'>{rank}</span>
@@ -704,24 +655,45 @@ export default function ProfileUidPage() {
           )}
         </CardHeader>
       </Card>
-      <div className='grid grid-cols-1 sm:grid-cols-4 gap-4'>
-        <StatCard
-          icon={LineChartIcon}
-          label={t('Current ELO')}
-          value={targetProfile.globalElo?.toFixed(0) ?? 'N/A'}
-        />
-        <StatCard icon={ListOrdered} label={t('Matches')} value={stats.total} />
-        <StatCard
-          icon={Percent}
-          label={t('Win Rate')}
-          value={`${stats.winRate.toFixed(1)}%`}
-        />
-        <StatCard
-          icon={Flame}
-          label={t('Max Streak')}
-          value={stats.maxWinStreak}
-        />
-      </div>
+
+      {!canViewProfile ? (
+        <Card>
+          <CardContent className='py-12 flex flex-col items-center justify-center text-center'>
+            <Lock className='h-12 w-12 text-muted-foreground mb-4' />
+            <h3 className='text-xl font-semibold'>
+              {t('This Profile is Private')}
+            </h3>
+            <p className='text-muted-foreground mt-2'>
+              {t('Add this player as a friend to view their stats.')}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className='grid grid-cols-1 sm:grid-cols-4 gap-4'>
+            <StatCard
+              icon={LineChartIcon}
+              label={t('Current ELO')}
+              value={targetProfile.globalElo?.toFixed(0) ?? 'N/A'}
+            />
+            <StatCard
+              icon={ListOrdered}
+              label={t('Matches')}
+              value={stats.total}
+            />
+            <StatCard
+              icon={Percent}
+              label={t('Win Rate')}
+              value={`${stats.winRate.toFixed(1)}%`}
+            />
+            <StatCard
+              icon={Flame}
+              label={t('Max Streak')}
+              value={stats.maxWinStreak}
+            />
+          </div>
+        </>
+      )}
       <div className='grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch'>
         <div className='h-full'>
           <AchievementsPanel
@@ -919,7 +891,351 @@ export default function ProfileUidPage() {
   );
 }
 
-// --- Reusable Components ---
+function ProfileSettingsDialog({
+  profile,
+  friends: friendIds,
+  onUpdate,
+}: {
+  profile: UserProfile;
+  friends: string[];
+  onUpdate: () => void;
+}) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const router = useRouter();
+  const { logout } = useAuth();
+  const [name, setName] = useState(profile.displayName ?? profile.name ?? '');
+  const [bio, setBio] = useState(profile.bio ?? '');
+  const [isPublic, setIsPublic] = useState(profile.isPublic ?? true);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    profile.photoURL ?? null
+  );
+  const [crop, setCrop] = useState<Crop>();
+  const [isEditingImage, setIsEditingImage] = useState(false);
+  const [scale, setScale] = useState(1);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (!db) return;
+      const friendProfiles = await Promise.all(
+        friendIds.map((id) => Friends.getUserLite(id))
+      );
+      setFriends(friendProfiles.filter(Boolean));
+    };
+    fetchFriends();
+  }, [friendIds]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) {
+        toast({
+          title: t('File is too large'),
+          description: t('Please select an image smaller than 1MB.'),
+          variant: 'destructive',
+        });
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.addEventListener('load', () =>
+        setImagePreview(reader.result as string)
+      );
+      reader.readAsDataURL(file);
+      setIsEditingImage(true);
+    }
+  };
+
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    const initialCrop = centerCrop(
+      makeAspectCrop({ unit: '%', width: 90 }, 1, width, height),
+      width,
+      height
+    );
+    setCrop(initialCrop);
+  };
+
+  const handleSave = async () => {
+    if (!profile || !db || !storage) {
+      toast({
+        title: t('Connection Error'),
+        description: t('Could not connect to the database.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsSaving(true);
+    console.log('1. Starting save. Profile UID:', profile.uid);
+
+    try {
+      let photoURL = profile.photoURL;
+      console.log('2. Initial photoURL:', photoURL);
+
+      if (imageFile) {
+        console.log('3. Image file found, starting upload...');
+        const storageRef = ref(
+          storage,
+          `avatars/${profile.uid}/${imageFile.name}`
+        );
+        await uploadBytes(storageRef, imageFile);
+        photoURL = await getDownloadURL(storageRef);
+        console.log('4. Upload complete. New photoURL:', photoURL);
+      }
+
+      const updatedData = {
+        name: name.trim(),
+        displayName: name.trim(),
+        bio: bio.trim(),
+        isPublic,
+        photoURL: photoURL ?? null,
+        avatarCrop: crop
+          ? {
+              x: crop.x,
+              y: crop.y,
+              width: crop.width,
+              height: crop.height,
+              scale,
+            }
+          : null,
+      };
+
+      console.log('5. Data to be saved:', updatedData);
+      console.log('6. Document path:', `users/${profile.uid}`);
+
+      await updateDoc(doc(db, 'users', profile.uid), updatedData);
+      console.log('7. Firestore document updated.');
+
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: name.trim(),
+          photoURL: photoURL ?? null,
+        });
+        console.log('8. Firebase Auth profile updated.');
+      }
+
+      toast({ title: t('Profile updated successfully!') });
+      onUpdate();
+    } catch (error) {
+      console.error('Profile update error:', error);
+      toast({ title: t('Failed to update profile'), variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+      console.log('9. Save process finished.');
+    }
+  };
+
+  const handleAccountDelete = async () => {
+    if (!profile || !db) return;
+    try {
+      await updateDoc(doc(db, 'users', profile.uid), {
+        isDeleted: true,
+        deletedAt: new Date().toISOString(),
+        name: t('Deleted Player'),
+        displayName: t('Deleted Player'),
+        email: `deleted-${profile.uid}@deleted.com`,
+        photoURL: null,
+        bio: '',
+        friends: [],
+        incomingRequests: [],
+        outgoingRequests: [],
+      });
+      toast({
+        title: t('Account deleted'),
+        description: t('You will be logged out.'),
+      });
+      if (logout) {
+        await logout();
+      }
+      router.push('/');
+    } catch (error) {
+      toast({ title: t('Failed to delete account'), variant: 'destructive' });
+    }
+  };
+
+  return (
+    <DialogContent className='max-w-3xl'>
+      <DialogHeader>
+        <DialogTitle>{t('Profile Settings')}</DialogTitle>
+      </DialogHeader>
+      <div className='py-4 grid grid-cols-1 md:grid-cols-2 gap-8'>
+        <div className='space-y-4'>
+          <h3 className='font-semibold'>{t('General')}</h3>
+          <div className='space-y-2'>
+            <Label>{t('Profile Picture')}</Label>
+            <div className='flex items-center gap-4'>
+              <Avatar className='h-20 w-20'>
+                <AvatarImage
+                  src={imagePreview ?? profile.photoURL ?? undefined}
+                />
+                <AvatarFallback>{name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <Input
+                id='picture'
+                type='file'
+                accept='image/png, image/jpeg'
+                onChange={handleImageChange}
+                className='max-w-xs'
+              />
+            </div>
+            {isEditingImage && imagePreview && (
+              <Dialog open={isEditingImage} onOpenChange={setIsEditingImage}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{t('Edit your new picture')}</DialogTitle>
+                    <DialogDescription>
+                      {t('Adjust the zoom and position of your avatar.')}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className='p-2 border rounded-md'>
+                    <ReactCrop
+                      crop={crop}
+                      onChange={(c) => setCrop(c)}
+                      aspect={1}
+                      circularCrop
+                    >
+                      <img
+                        ref={imgRef}
+                        src={imagePreview}
+                        alt='Crop preview'
+                        style={{ transform: `scale(${scale})` }}
+                        onLoad={onImageLoad}
+                      />
+                    </ReactCrop>
+                  </div>
+                  <div className='space-y-2'>
+                    <Label>{t('Zoom')}</Label>
+                    <Slider
+                      defaultValue={[1]}
+                      min={1}
+                      max={3}
+                      step={0.1}
+                      onValueChange={(value) => setScale(value[0])}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant='outline'
+                      onClick={() => setIsEditingImage(false)}
+                    >
+                      {t('Cancel')}
+                    </Button>
+                    <Button onClick={() => setIsEditingImage(false)}>
+                      {t('Apply')}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+          <div className='space-y-2'>
+            <Label htmlFor='name'>{t('Display Name')}</Label>
+            <Input
+              id='name'
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className='space-y-2'>
+            <Label htmlFor='bio'>{t('About Me')}</Label>
+            <Textarea
+              id='bio'
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder={t('Tell others a little about yourself...')}
+            />
+          </div>
+          <div className='flex items-center space-x-2'>
+            <Checkbox
+              id='isPublic'
+              checked={isPublic}
+              onCheckedChange={(v) => setIsPublic(!!v)}
+            />
+            <Label htmlFor='isPublic'>{t('Public Profile')}</Label>
+          </div>
+        </div>
+        <div className='space-y-6'>
+          <div>
+            <h3 className='font-semibold mb-2'>{t('Friends')}</h3>
+            <ScrollArea className='h-48 border rounded-md p-2'>
+              {friends.length > 0 ? (
+                friends.map((f) => (
+                  <div
+                    key={f.uid}
+                    className='flex items-center justify-between p-1 hover:bg-muted rounded'
+                  >
+                    <span>{f.name}</span>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      className='h-7 w-7'
+                      onClick={async () => {
+                        await Friends.unfriend(profile.uid, f.uid);
+                        setFriends((current) =>
+                          current.filter((fr) => fr.uid !== f.uid)
+                        );
+                        toast({ title: t('Friend removed') });
+                      }}
+                    >
+                      <UserX className='h-4 w-4 text-destructive' />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className='text-sm text-muted-foreground p-2'>
+                  {t('No friends yet.')}
+                </p>
+              )}
+            </ScrollArea>
+          </div>
+          <div className='space-y-2 p-4 border border-destructive/50 rounded-md'>
+            <h4 className='font-medium text-destructive'>{t('Danger Zone')}</h4>
+            <p className='text-sm text-muted-foreground'>
+              {t(
+                'This action cannot be undone. All your personal data will be removed.'
+              )}
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant='destructive' className='w-full'>
+                  {t('Delete Account')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t('Are you absolutely sure?')}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t(
+                      'This will permanently delete your account and remove all personal information. Your match history will be anonymized.'
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleAccountDelete}>
+                    {t('Yes, Delete My Account')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? t('Saving...') : t('Save Changes')}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
 function StatCard({
   icon: Icon,
   label,
@@ -1051,14 +1367,52 @@ function MatchesTableCard({
   matches,
   loading,
   meUid,
+  viewerId,
   t,
 }: {
   title: string;
   matches: Match[];
   loading: boolean;
   meUid: string;
+  viewerId: string | undefined;
   t: (key: string) => string;
 }) {
+  const [roomData, setRoomData] = useState<Map<string, Room>>(new Map());
+  const { userProfile: viewerProfile } = useAuth();
+
+  useEffect(() => {
+    const fetchRoomData = async () => {
+      if (!db || matches.length === 0) return;
+      const roomIds = [
+        ...new Set(matches.map((m) => m.roomId).filter(Boolean)),
+      ];
+
+      const newIdsToFetch = roomIds.filter((id) => !roomData.has(id!));
+      if (newIdsToFetch.length === 0) return;
+
+      const newRoomData = new Map<string, Room>();
+      for (const roomId of newIdsToFetch) {
+        const roomSnap = await getDoc(doc(db, 'rooms', roomId!));
+        if (roomSnap.exists()) {
+          newRoomData.set(roomId!, { id: roomId, ...roomSnap.data() } as Room);
+        }
+      }
+      if (newRoomData.size > 0) {
+        setRoomData((prev) => new Map([...prev, ...newRoomData]));
+      }
+    };
+    fetchRoomData();
+  }, [matches, roomData]);
+
+  const visibleMatches = useMemo(() => {
+    return matches.filter((m) => {
+      const room = roomData.get(m.roomId!);
+      if (!room) return false;
+      if (room.isPublic) return true;
+      return viewerProfile?.rooms?.includes(room.id);
+    });
+  }, [matches, roomData, viewerProfile]);
+
   return (
     <Card>
       <CardHeader>
@@ -1067,8 +1421,8 @@ function MatchesTableCard({
       <CardContent>
         {loading ? (
           <div className='text-center py-8'>{t('Loading…')}</div>
-        ) : matches.length === 0 ? (
-          <p className='text-center py-8'>{t('No matches found.')}</p>
+        ) : visibleMatches.length === 0 ? (
+          <p className='text-center py-8'>{t('No visible matches found.')}</p>
         ) : (
           <ScrollArea className='h-[400px]'>
             <Table>
@@ -1076,17 +1430,19 @@ function MatchesTableCard({
                 <TableRow>
                   <TableHead>{t('Date')}</TableHead>
                   <TableHead>{t('Opponent')}</TableHead>
+                  <TableHead>{t('Room')}</TableHead>
                   <TableHead>{t('Score')}</TableHead>
                   <TableHead>{t('Result')}</TableHead>
                   <TableHead>{t('ELO Δ')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {matches.map((m) => {
+                {visibleMatches.map((m) => {
+                  const room = roomData.get(m.roomId!);
                   const isP1 = m.player1Id === meUid;
                   const date = safeFormatDate(
                     m.timestamp ?? (m as any).playedAt,
-                    'dd.MM.yyyy HH.mm.ss'
+                    'dd.MM.yyyy HH:mm:ss'
                   );
                   const opp = isP1 ? m.player2.name : m.player1.name;
                   const myScore = isP1 ? m.player1.scores : m.player2.scores;
@@ -1100,16 +1456,19 @@ function MatchesTableCard({
                       <TableCell>{date}</TableCell>
                       <TableCell>{opp}</TableCell>
                       <TableCell>
+                        {room && <Badge variant='outline'>{room.name}</Badge>}
+                      </TableCell>
+                      <TableCell>
                         {myScore} – {theirScore}
                       </TableCell>
                       <TableCell
-                        className={win ? 'text-accent' : 'text-destructive'}
+                        className={win ? 'text-green-600' : 'text-destructive'}
                       >
                         {win ? t('Win') : t('Loss')}
                       </TableCell>
                       <TableCell
                         className={
-                          eloΔ >= 0 ? 'text-accent' : 'text-destructive'
+                          eloΔ >= 0 ? 'text-green-600' : 'text-destructive'
                         }
                       >
                         {eloΔ > 0 ? `+${eloΔ}` : eloΔ}
@@ -1123,29 +1482,5 @@ function MatchesTableCard({
         )}
       </CardContent>
     </Card>
-  );
-}
-function FriendChip({ uid }: { uid: string }) {
-  const [info, setInfo] = useState<{ name?: string; photoURL?: string } | null>(
-    null
-  );
-  useEffect(() => {
-    Friends.getUserLite(uid).then(setInfo);
-  }, [uid]);
-  if (!info?.name) return null;
-  return (
-    <Link
-      href={`/profile/${uid}`}
-      className='inline-flex items-center gap-2 px-3 py-1 rounded-md bg-muted hover:bg-muted/70'
-    >
-      <Avatar className='h-6 w-6'>
-        {info.photoURL ? (
-          <AvatarImage src={info.photoURL} />
-        ) : (
-          <AvatarFallback>{info.name.charAt(0)}</AvatarFallback>
-        )}
-      </Avatar>
-      <span className='text-sm'>{info.name}</span>
-    </Link>
   );
 }

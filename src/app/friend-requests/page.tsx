@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
   ScrollArea,
@@ -12,7 +13,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
-import { doc, getDoc } from 'firebase/firestore';
+import { getFinnishFormattedDate } from '@/lib/utils';
+import {
+  arrayRemove,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -20,49 +32,107 @@ import { useTranslation } from 'react-i18next';
 
 type LiteUser = { uid: string; name: string; photoURL?: string };
 
+type RoomRequest = { fromUser: LiteUser; toRoom: { id: string; name: string } };
+
 export default function FriendRequestsPage() {
   const { t } = useTranslation();
   const { user, userProfile } = useAuth();
-  const [requests, setRequests] = useState<LiteUser[]>([]);
+  const [friendRequests, setFriendRequests] = useState<LiteUser[]>([]);
+  const [roomRequests, setRoomRequests] = useState<RoomRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🛡️ 1. Состояние для защиты от гидратации
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    // 🛡️ 2. Устанавливаем, что компонент смонтирован
     setHasMounted(true);
 
     const load = async () => {
-      if (!userProfile) return;
-      const incoming = userProfile.incomingRequests ?? [];
-      const arr: LiteUser[] = [];
-      for (const uid of incoming) {
-        const snap = await getDoc(doc(db, 'users', uid));
-        if (snap.exists()) {
-          const d = snap.data() as any;
-          arr.push({
+      if (!user) return;
+      setLoading(true);
+      const incomingFriends = userProfile?.incomingRequests ?? [];
+      const friendReqPromises = incomingFriends.map(async (uid) => {
+        const userDoc = await getDoc(doc(db, 'users', uid));
+        if (userDoc.exists()) {
+          const d = userDoc.data();
+          return {
             uid,
             name: d.name ?? d.email ?? t('Unknown'),
             photoURL: d.photoURL,
-          });
+          };
         }
-      }
-      setRequests(arr);
+        return null;
+      });
+      setFriendRequests(
+        (await Promise.all(friendReqPromises)).filter(Boolean) as LiteUser[]
+      );
+
+      const ownedRoomsQuery = query(
+        collection(db, 'rooms'),
+        where('creator', '==', user.uid)
+      );
+      const ownedRoomsSnap = await getDocs(ownedRoomsQuery);
+      const roomReqArr: RoomRequest[] = [];
+      const roomReqPromises = ownedRoomsSnap.docs.map(async (roomDoc) => {
+        const roomData = roomDoc.data();
+        const requestUids = roomData.joinRequests ?? [];
+        for (const uid of requestUids) {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            roomReqArr.push({
+              fromUser: {
+                uid,
+                name: userData.name ?? userData.email ?? t('Unknown'),
+                photoURL: userData.photoURL,
+              },
+              toRoom: { id: roomDoc.id, name: roomData.name },
+            });
+          }
+        }
+      });
+      await Promise.all(roomReqPromises);
+      setRoomRequests(roomReqArr);
+
       setLoading(false);
     };
 
     load();
-  }, [userProfile, t]);
+  }, [user, userProfile, t]);
 
-  const handle = async (uid: string, accept: boolean) => {
+  const handleRoom = async (req: RoomRequest, accept: boolean) => {
     if (!user) return;
-    if (accept) await Friends.acceptRequest(user.uid, uid);
-    else await Friends.rejectRequest(user.uid, uid);
-    setRequests((prev) => prev.filter((p) => p.uid !== uid));
+    const roomRef = doc(db, 'rooms', req.toRoom.id);
+    await updateDoc(roomRef, { joinRequests: arrayRemove(req.fromUser.uid) });
+
+    if (accept) {
+      const userDoc = await getDoc(doc(db, 'users', req.fromUser.uid));
+      if (!userDoc.exists()) return;
+      const userData = userDoc.data();
+      const newMember = {
+        userId: req.fromUser.uid,
+        name: userData.name ?? userData.displayName ?? 'New Player',
+        email: userData.email,
+        rating: 1000,
+        wins: 0,
+        losses: 0,
+        date: getFinnishFormattedDate(),
+        role: 'editor',
+      };
+      await updateDoc(roomRef, {
+        members: arrayUnion(newMember),
+        memberIds: arrayUnion(req.fromUser.uid),
+      });
+    }
+    setRoomRequests((prev) =>
+      prev.filter(
+        (r) =>
+          !(
+            r.fromUser.uid === req.fromUser.uid && r.toRoom.id === req.toRoom.id
+          )
+      )
+    );
   };
 
-  // 🛡️ 3. "Страж", который предотвращает рендер до монтирования на клиенте
   if (!hasMounted) {
     return null;
   }
@@ -71,47 +141,125 @@ export default function FriendRequestsPage() {
     <div className='container mx-auto py-8 max-w-xl'>
       <Card>
         <CardHeader>
-          <CardTitle>{t('Friend requests')}</CardTitle>
+          <CardTitle>{t('Your Requests')}</CardTitle>
+          <CardDescription>
+            {t('Manage friend requests and room join requests.')}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <p className='text-center py-6'>{t('Loading…')}</p>
-          ) : requests.length === 0 ? (
-            <p className='text-center py-6'>{t('No new requests 🎉')}</p>
           ) : (
-            <ScrollArea className='h-[400px] pr-3'>
-              <ul className='space-y-4'>
-                {requests.map((r) => (
-                  <li key={r.uid} className='flex items-center justify-between'>
-                    <div className='flex items-center gap-3'>
-                      <Avatar className='h-10 w-10'>
-                        <AvatarImage src={r.photoURL || undefined} />
-                        <AvatarFallback>{r.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <Link
-                        href={`/profile/${r.uid}`}
-                        className='font-medium hover:underline'
+            <div className='space-y-6'>
+              <div>
+                <h3 className='font-semibold mb-2'>{t('Friend Requests')}</h3>
+                {friendRequests.length === 0 ? (
+                  <p className='text-center text-sm text-muted-foreground py-4'>
+                    {t('No new friend requests.')}
+                  </p>
+                ) : (
+                  <ul className='space-y-3'>
+                    {friendRequests.map((r) => (
+                      <li
+                        key={r.uid}
+                        className='flex items-center justify-between p-2 rounded-md hover:bg-muted/50'
                       >
-                        {r.name}
-                      </Link>
-                    </div>
+                        <div className='flex items-center gap-3'>
+                          <Avatar className='h-10 w-10'>
+                            <AvatarImage src={r.photoURL || undefined} />
+                            <AvatarFallback>{r.name[0]}</AvatarFallback>
+                          </Avatar>
+                          <Link
+                            href={`/profile/${r.uid}`}
+                            className='font-medium hover:underline'
+                          >
+                            {r.name}
+                          </Link>
+                        </div>
+                        <div className='flex gap-2'>
+                          <Button
+                            size='icon'
+                            variant='outline'
+                            onClick={() => handleFriend(r.uid, false)}
+                          >
+                            <X className='h-4 w-4 text-destructive' />
+                          </Button>
+                          <Button
+                            size='icon'
+                            onClick={() => handleFriend(r.uid, true)}
+                          >
+                            <Check className='h-4 w-4' />
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
-                    <div className='flex gap-2'>
-                      <Button
-                        size='icon'
-                        variant='outline'
-                        onClick={() => handle(r.uid, false)}
+              <div>
+                <h3 className='font-semibold mb-2'>
+                  {t('Room Join Requests')}
+                </h3>
+                {roomRequests.length === 0 ? (
+                  <p className='text-center text-sm text-muted-foreground py-4'>
+                    {t('No new room join requests.')}
+                  </p>
+                ) : (
+                  <ul className='space-y-3'>
+                    {roomRequests.map((r) => (
+                      <li
+                        key={`${r.fromUser.uid}-${r.toRoom.id}`}
+                        className='flex items-center justify-between p-2 rounded-md hover:bg-muted/50'
                       >
-                        <X className='h-4 w-4 text-destructive' />
-                      </Button>
-                      <Button size='icon' onClick={() => handle(r.uid, true)}>
-                        <Check className='h-4 w-4' />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </ScrollArea>
+                        <div className='flex items-center gap-3'>
+                          <Avatar className='h-10 w-10'>
+                            <AvatarImage
+                              src={r.fromUser.photoURL || undefined}
+                            />
+                            <AvatarFallback>
+                              {r.fromUser.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <Link
+                              href={`/profile/${r.fromUser.uid}`}
+                              className='font-medium hover:underline'
+                            >
+                              {r.fromUser.name}
+                            </Link>
+                            <p className='text-sm text-muted-foreground'>
+                              {t('wants to join')}{' '}
+                              <Link
+                                href={`/rooms/${r.toRoom.id}`}
+                                className='font-semibold hover:underline'
+                              >
+                                {r.toRoom.name}
+                              </Link>
+                            </p>
+                          </div>
+                        </div>
+                        <div className='flex gap-2'>
+                          <Button
+                            size='icon'
+                            variant='outline'
+                            onClick={() => handleRoom(r, false)}
+                          >
+                            <X className='h-4 w-4 text-destructive' />
+                          </Button>
+                          <Button
+                            size='icon'
+                            onClick={() => handleRoom(r, true)}
+                          >
+                            <Check className='h-4 w-4' />
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

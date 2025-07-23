@@ -1,5 +1,4 @@
 // src/components/PlayersTable.tsx
-
 'use client';
 
 import {
@@ -28,9 +27,6 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-/* -------------------------------------------------------------------------- */
-/* Types                                                                     */
-/* -------------------------------------------------------------------------- */
 interface PlayerStats {
   id: string;
   name: string;
@@ -63,14 +59,10 @@ type SortKey =
   | 'totalAddedPoints'
   | 'longestWinStreak';
 
-/* -------------------------------------------------------------------------- */
-/* Component                                                                 */
-/* -------------------------------------------------------------------------- */
 export default function PlayersTable() {
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  /* ---------------- state ---------------- */
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
@@ -82,9 +74,6 @@ export default function PlayersTable() {
     dir: 'asc',
   });
 
-  /* ---------------------------------------------------------------------- */
-  /* Helpers                                                                */
-  /* ---------------------------------------------------------------------- */
   const parseTimestamp = (ts: string): Date => {
     const [datePart, timePart] = ts.split(' ');
     if (!datePart || !timePart) return new Date(0);
@@ -110,13 +99,9 @@ export default function PlayersTable() {
 
   const safeName = (n: string) => n ?? '';
 
-  /* ---------------------------------------------------------------------- */
-  /* Fetch players + matches                                                */
-  /* ---------------------------------------------------------------------- */
   const loadData = useCallback(async () => {
     if (!user) return;
 
-    /* 1. Rooms with the current user */
     const roomSnap = await getDocs(
       query(
         collection(db, 'rooms'),
@@ -125,7 +110,6 @@ export default function PlayersTable() {
     );
     const myRoomIds = roomSnap.docs.map((d) => d.id);
 
-    /* 2. Set of all member uids */
     const membersSet = new Set<string>();
     roomSnap.docs.forEach((d) => {
       const memberIds: string[] =
@@ -134,10 +118,9 @@ export default function PlayersTable() {
       memberIds.forEach((id) => membersSet.add(id));
     });
 
-    /* 3. Users */
     const usersSnap = await getDocs(collection(db, 'users'));
     const pl = usersSnap.docs
-      .filter((doc) => membersSet.has(doc.id))
+      .filter((doc) => membersSet.has(doc.id) && !doc.data().isDeleted)
       .map((doc) => {
         const data = doc.data();
         return {
@@ -148,7 +131,6 @@ export default function PlayersTable() {
       });
     setPlayers(pl);
 
-    /* 4. Matches from those rooms */
     const matchSnap = await getDocs(collection(db, 'matches'));
     const ms = matchSnap.docs
       .map((d) => {
@@ -169,9 +151,6 @@ export default function PlayersTable() {
     loadData();
   }, [loadData]);
 
-  /* ---------------------------------------------------------------------- */
-  /* Statistics                                                             */
-  /* ---------------------------------------------------------------------- */
   const stats: PlayerStats[] = useMemo(() => {
     if (loading) return [];
 
@@ -242,9 +221,6 @@ export default function PlayersTable() {
     return list;
   }, [players, matches, timeFrame, loading]);
 
-  /* ---------------------------------------------------------------------- */
-  /* Sorting UI                                                             */
-  /* ---------------------------------------------------------------------- */
   const sortedStats = useMemo(() => {
     const arr = [...stats];
     const { key, dir } = sort;
@@ -298,9 +274,6 @@ export default function PlayersTable() {
     );
   }
 
-  /* ---------------------------------------------------------------------- */
-  /* UI                                                                     */
-  /* ---------------------------------------------------------------------- */
   return (
     <>
       <Card className='mt-16'>

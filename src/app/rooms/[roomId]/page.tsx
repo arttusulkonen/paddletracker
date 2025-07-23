@@ -22,6 +22,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Checkbox,
   Dialog,
   DialogClose,
   DialogContent,
@@ -50,6 +51,7 @@ import { getFinnishFormattedDate } from '@/lib/utils';
 import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
 import {
   addDoc,
+  arrayRemove,
   arrayUnion,
   collection,
   doc,
@@ -64,12 +66,16 @@ import {
 import {
   ArrowLeft,
   Crown,
+  LogIn,
+  LogOut,
   MailPlus,
   Plus,
+  Settings,
   ShieldCheck,
   Sword,
   Trash2,
   Users,
+  X,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -129,28 +135,24 @@ export default function RoomPage() {
   useEffect(() => {
     if (!user) return;
 
-    // Переменная для хранения функции отписки от слушателя матчей
     let unsubMatches = () => {};
 
-    // Основной слушатель для данных комнаты
     const unsubRoom = onSnapshot(doc(db, 'rooms', roomId), (roomSnap) => {
       if (!roomSnap.exists()) {
         router.push('/rooms');
         return;
       }
-      const roomData = roomSnap.data() as Room;
+      const roomData = { id: roomSnap.id, ...roomSnap.data() } as Room;
+      setRoom(roomData);
 
-      // Отписываемся от предыдущего слушателя матчей, чтобы избежать утечек памяти
       unsubMatches();
 
-      // Создаем новый слушатель для матчей, который будет работать в реальном времени
       const matchesQuery = query(
         collection(db, 'matches'),
         where('roomId', '==', roomId)
       );
 
       unsubMatches = onSnapshot(matchesQuery, async (matchesSnap) => {
-        // Здесь мы получаем самые свежие данные и о комнате, и о матчах
         const allMatches = matchesSnap.docs
           .map((d) => ({ id: d.id, ...(d.data() as any) } as Match))
           .sort(
@@ -167,7 +169,6 @@ export default function RoomPage() {
         });
         setSeasonStarts(starts);
 
-        // Вся ваша существующая логика синхронизации профилей сохранена здесь
         const initialMembers = roomData.members ?? [];
         if (initialMembers.length > 0) {
           const memberIds = initialMembers.map((m) => m.userId);
@@ -181,42 +182,52 @@ export default function RoomPage() {
               freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
             }
           });
-          const syncedMembers = initialMembers.map((member) => {
-            const freshProfile = freshProfiles.get(member.userId);
-            return freshProfile
-              ? {
-                  ...member,
-                  name:
-                    freshProfile.name ??
-                    freshProfile.displayName ??
-                    member.name,
-                  photoURL: freshProfile.photoURL,
-                  globalElo: freshProfile.globalElo,
-                  maxRating: freshProfile.maxRating,
-                  rank: freshProfile.rank,
-                }
-              : member;
-          });
+          const syncedMembers = initialMembers
+            .filter((member) => !freshProfiles.get(member.userId)?.isDeleted)
+            .map((member) => {
+              const freshProfile = freshProfiles.get(member.userId);
+              return freshProfile
+                ? {
+                    ...member,
+                    name:
+                      freshProfile.name ??
+                      freshProfile.displayName ??
+                      member.name,
+                    photoURL: freshProfile.photoURL,
+                    globalElo: freshProfile.globalElo,
+                    maxRating: freshProfile.maxRating,
+                    rank: freshProfile.rank,
+                    isDeleted: freshProfile.isDeleted ?? false,
+                  }
+                : member;
+            });
           setMembers(syncedMembers);
-          setRoom({ ...roomData, members: syncedMembers });
 
-          // Синхронизируем имена в матчах
           const syncedMatches = allMatches.map((match) => {
             const p1Profile = freshProfiles.get(match.player1Id);
             const p2Profile = freshProfiles.get(match.player2Id);
             const newMatch = JSON.parse(JSON.stringify(match));
-            if (p1Profile)
+
+            if (p1Profile?.isDeleted)
+              newMatch.player1.name = t('Deleted Player');
+            else if (p1Profile)
               newMatch.player1.name =
                 p1Profile.name ?? p1Profile.displayName ?? match.player1.name;
-            if (p2Profile)
+
+            if (p2Profile?.isDeleted)
+              newMatch.player2.name = t('Deleted Player');
+            else if (p2Profile)
               newMatch.player2.name =
                 p2Profile.name ?? p2Profile.displayName ?? match.player2.name;
+
             const winnerId =
               match.player1.scores > match.player2.scores
                 ? match.player1Id
                 : match.player2Id;
             const winnerProfile = freshProfiles.get(winnerId);
-            if (winnerProfile)
+
+            if (winnerProfile?.isDeleted) newMatch.winner = t('Deleted Player');
+            else if (winnerProfile)
               newMatch.winner =
                 winnerProfile.name ?? winnerProfile.displayName ?? match.winner;
             return newMatch;
@@ -224,7 +235,6 @@ export default function RoomPage() {
           setRecent(syncedMatches.slice().reverse());
         } else {
           setMembers([]);
-          setRoom(roomData);
           setRecent([]);
         }
 
@@ -244,7 +254,7 @@ export default function RoomPage() {
       unsubRoom();
       unsubMatches();
     };
-  }, [user, roomId, router]);
+  }, [user, roomId, router, t]);
 
   const getSeasonEloSnapshots = async (
     roomId: string
@@ -293,6 +303,50 @@ export default function RoomPage() {
       });
     }
   };
+
+  const handleRequestToJoin = async () => {
+    if (!user || !room) return;
+    const roomRef = doc(db, 'rooms', roomId);
+    await updateDoc(roomRef, { joinRequests: arrayUnion(user.uid) });
+    toast({
+      title: t('Request Sent'),
+      description: `${t('The room owner has been notified.')}`,
+    });
+  };
+
+  const handleCancelRequestToJoin = async () => {
+    if (!user || !room) return;
+    const roomRef = doc(db, 'rooms', roomId);
+    await updateDoc(roomRef, { joinRequests: arrayRemove(user.uid) });
+    toast({ title: t('Request Canceled') });
+  };
+
+  const hasPendingRequest = useMemo(() => {
+    if (!user || !room?.joinRequests) return false;
+    return room.joinRequests.includes(user.uid);
+  }, [user, room]);
+
+  const handleLeaveRoom = async () => {
+    if (!user || !room) return;
+    const roomRef = doc(db, 'rooms', roomId);
+    const memberToRemove = room.members.find((m) => m.userId === user.uid);
+    if (memberToRemove) {
+      await updateDoc(roomRef, {
+        members: arrayRemove(memberToRemove),
+        memberIds: arrayRemove(user.uid),
+      });
+      toast({
+        title: t('Success'),
+        description: `${t("You've left")} ${room.name}`,
+      });
+      router.push('/rooms');
+    }
+  };
+
+  const isMember = useMemo(() => {
+    if (!user || !room) return false;
+    return room.members.some((m) => m.userId === user.uid);
+  }, [user, room]);
 
   type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
@@ -408,12 +462,68 @@ export default function RoomPage() {
         </Button>
         <Card className='mb-8 shadow-xl'>
           <CardHeader className='bg-muted/50 p-6 flex flex-col md:flex-row items-center gap-6'>
-            <Avatar className='h-24 w-24 border-4 border-background shadow-md'>
-              <AvatarImage src={room.avatarURL || undefined} />
-              <AvatarFallback>{room.name[0]}</AvatarFallback>
-            </Avatar>
-            <div className='text-center md:text-left'>
-              <CardTitle className='text-3xl font-bold'>{room.name}</CardTitle>
+            <div className='flex-1 flex items-center gap-6'>
+              <Avatar className='h-24 w-24 border-4 border-background shadow-md'>
+                <AvatarImage src={room.avatarURL || undefined} />
+                <AvatarFallback>{room.name[0]}</AvatarFallback>
+              </Avatar>
+              <div className='text-center md:text-left'>
+                <CardTitle className='text-3xl font-bold'>
+                  {room.name}
+                </CardTitle>
+              </div>
+            </div>
+            <div>
+              {!isMember &&
+                room.isPublic &&
+                !room.isArchived &&
+                (hasPendingRequest ? (
+                  <Button onClick={handleCancelRequestToJoin} variant='outline'>
+                    <X className='mr-2 h-4 w-4' />
+                    {t('Cancel Request')}
+                  </Button>
+                ) : (
+                  <Button onClick={handleRequestToJoin}>
+                    <LogIn className='mr-2 h-4 w-4' />
+                    {t('Request to Join')}
+                  </Button>
+                ))}
+              {isMember && room.creator !== user?.uid && !room.isArchived && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant='destructive'>
+                      <LogOut className='mr-2 h-4 w-4' />
+                      {t('Leave Room')}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t('Are you sure?')}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t(
+                          "You will lose access to this room's stats and matches. You can rejoin later if it's a public room."
+                        )}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleLeaveRoom}>
+                        {t('Yes, Leave')}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {isMember && room.creator === user?.uid && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant='outline' size='icon'>
+                      <Settings className='h-4 w-4' />
+                    </Button>
+                  </DialogTrigger>
+                  <RoomSettingsDialog room={room} />
+                </Dialog>
+              )}
             </div>
           </CardHeader>
           <CardContent className='p-6 grid md:grid-cols-3 gap-6'>
@@ -423,36 +533,41 @@ export default function RoomPage() {
               roomId={roomId}
               t={t}
             />
-            {!latestSeason && (
+            {isMember && !latestSeason && !room.isArchived && (
               <RecordBlock members={members} roomId={roomId} t={t} />
             )}
-            {!latestSeason && (
-              <div className='md:col-span-3 text-right'>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant='destructive'>{t('Finish Season')}</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        {t('Are you absolutely sure?')}
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {t(
-                          'This action will close the current season for this room. All standings will be finalized, and no new matches can be recorded for this season. This cannot be undone.'
-                        )}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleFinishSeason}>
-                        {t('Yes, Finish Season')}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
+            {isMember &&
+              !latestSeason &&
+              room.creator === user?.uid &&
+              !room.isArchived && (
+                <div className='md:col-span-3 text-right'>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant='destructive'>
+                        {t('Finish Season')}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {t('Are you absolutely sure?')}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t(
+                            'This action will close the current season for this room. All standings will be finalized, and no new matches can be recorded for this season. This cannot be undone.'
+                          )}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleFinishSeason}>
+                          {t('Yes, Finish Season')}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
           </CardContent>
         </Card>
         <Separator className='my-8' />
@@ -610,12 +725,16 @@ export default function RoomPage() {
                       <TableRow key={p.userId}>
                         <TableCell>{i + 1}</TableCell>
                         <TableCell>
-                          <a
-                            href={`/profile/${p.userId}`}
-                            className='hover:underline'
-                          >
-                            {p.name}
-                          </a>
+                          {p.isDeleted ? (
+                            <span>{p.name}</span>
+                          ) : (
+                            <a
+                              href={`/profile/${p.userId}`}
+                              className='hover:underline'
+                            >
+                              {p.name}
+                            </a>
+                          )}
                           {p.userId === room.creator && (
                             <Crown className='inline ml-1 h-4 w-4 text-yellow-500' />
                           )}
@@ -642,8 +761,8 @@ export default function RoomPage() {
                           {p.ratingVisible ? (
                             <div className='flex gap-1'>
                               {p.last5Form
-                                .slice() // Создаем копию, чтобы не изменять исходный массив
-                                .reverse() // Разворачиваем массив
+                                .slice()
+                                .reverse()
                                 .map((mm: MiniMatch, idx: number) => (
                                   <span
                                     key={idx}
@@ -697,12 +816,16 @@ export default function RoomPage() {
                       <TableRow key={r.userId}>
                         <TableCell>{r.place}</TableCell>
                         <TableCell>
-                          <a
-                            href={`/profile/${r.userId}`}
-                            className='hover:underline'
-                          >
-                            {r.name}
-                          </a>
+                          {r.isDeleted ? (
+                            <span>{r.name}</span>
+                          ) : (
+                            <a
+                              href={`/profile/${r.userId}`}
+                              className='hover:underline'
+                            >
+                              {r.name}
+                            </a>
+                          )}
                         </TableCell>
                         <TableCell>{r.matchesPlayed}</TableCell>
                         <TableCell>{r.wins}</TableCell>
@@ -891,6 +1014,7 @@ function MembersBlock({
       };
       await updateDoc(doc(db, 'rooms', roomId), {
         members: arrayUnion(newMember),
+        memberIds: arrayUnion(uid),
       });
       toast({
         title: t('Invited'),
@@ -909,7 +1033,7 @@ function MembersBlock({
     <div>
       <Users className='text-primary' />{' '}
       <span className='font-semibold'>
-        {t('Members')}: {members.length}
+        {t('Members', { context: 'blockTitle' })}: {members.length}
       </span>
       <ScrollArea className='border rounded-md p-3 bg-background'>
         {members.map((p) => {
@@ -926,12 +1050,16 @@ function MembersBlock({
                 </Avatar>
                 <div>
                   <p className='font-medium leading-none'>
-                    <a
-                      href={`/profile/${p.userId}`}
-                      className='hover:underline'
-                    >
-                      {p.name}
-                    </a>
+                    {p.isDeleted ? (
+                      <span>{p.name}</span>
+                    ) : (
+                      <a
+                        href={`/profile/${p.userId}`}
+                        className='hover:underline'
+                      >
+                        {p.name}
+                      </a>
+                    )}
                     {p.userId === room.creator && (
                       <Crown className='inline ml-1 h-4 w-4 text-yellow-500' />
                     )}
@@ -952,41 +1080,6 @@ function MembersBlock({
           );
         })}
       </ScrollArea>
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button
-            className='mt-4 w-full'
-            variant='outline'
-            disabled={isInviting}
-          >
-            <MailPlus className='mr-2 h-4 w-4' /> {t('Invite Player')}
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {t('Invite to')} {room.name}
-            </DialogTitle>
-            <DialogDescription>{t('Enter email')}</DialogDescription>
-          </DialogHeader>
-          <div className='space-y-2 py-2'>
-            <Label htmlFor='invEmail'>{t('Email')}</Label>
-            <Input
-              id='invEmail'
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant='ghost'>{t('Cancel')}</Button>
-            </DialogClose>
-            <Button onClick={handleInvite} disabled={isInviting}>
-              {t('Send')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -1342,5 +1435,138 @@ function MatchRowInput({
         </Button>
       )}
     </div>
+  );
+}
+
+function RoomSettingsDialog({ room }: { room: Room }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [name, setName] = useState(room.name);
+  const [isPublic, setIsPublic] = useState(room.isPublic);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isActing, setIsActing] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateDoc(doc(db, 'rooms', room.id), { name, isPublic });
+      toast({ title: t('Settings saved') });
+    } catch (error) {
+      toast({ title: t('Error saving settings'), variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    setIsActing(true);
+    try {
+      await updateDoc(doc(db, 'rooms', room.id), {
+        isArchived: true,
+        archivedAt: new Date().toISOString(),
+      });
+      toast({ title: t('Room archived') });
+      router.push('/rooms');
+    } catch (error) {
+      toast({ title: t('Error archiving room'), variant: 'destructive' });
+    } finally {
+      setIsActing(false);
+    }
+  };
+
+  const handleUnarchive = async () => {
+    setIsActing(true);
+    try {
+      await updateDoc(doc(db, 'rooms', room.id), {
+        isArchived: false,
+      });
+      toast({ title: t('Room unarchived') });
+    } catch (error) {
+      toast({ title: t('Error unarchiving room'), variant: 'destructive' });
+    } finally {
+      setIsActing(false);
+    }
+  };
+
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>{t('Room Settings')}</DialogTitle>
+        <DialogDescription>
+          {t("Manage your room's details and settings.")}
+        </DialogDescription>
+      </DialogHeader>
+      <div className='space-y-4 py-4'>
+        <div className='space-y-2'>
+          <Label htmlFor='room-name'>{t('Room Name')}</Label>
+          <Input
+            id='room-name'
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+        <div className='flex items-center space-x-2'>
+          <Checkbox
+            id='is-public'
+            checked={isPublic}
+            onCheckedChange={(v) => setIsPublic(!!v)}
+          />
+          <Label htmlFor='is-public'>{t('Public Room')}</Label>
+        </div>
+        <p className='text-xs text-muted-foreground'>
+          {t(
+            'Public rooms are visible to everyone and can be joined by request.'
+          )}
+        </p>
+        <Separator />
+        <div className='space-y-2'>
+          <h4 className='font-medium text-destructive'>{t('Danger Zone')}</h4>
+          {room.isArchived ? (
+            <Button
+              variant='outline'
+              className='w-full'
+              onClick={handleUnarchive}
+              disabled={isActing}
+            >
+              {t('Unarchive Room')}
+            </Button>
+          ) : (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant='destructive'
+                  className='w-full'
+                  disabled={isActing}
+                >
+                  {t('Archive Room')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('Archive this room?')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t(
+                      "The room will be hidden from lists and no new matches can be added. The match history will be preserved for ELO accuracy. This action can't be undone through the UI yet."
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleArchive}>
+                    {t('Yes, Archive')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? t('Saving...') : t('Save Changes')}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
