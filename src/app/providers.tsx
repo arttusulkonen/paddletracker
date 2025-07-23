@@ -24,11 +24,26 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     init();
   }, []);
 
-  // Показываем заглушку, пока подгружаются переводы
   if (!isI18nInitialized) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
-        Loading translations...
+        <div className='loader'></div>
+        <p className='mt-4'></p>
+        <style jsx>{`
+          .loader {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #000;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          }
+          @keyframes spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
       </div>
     );
   }

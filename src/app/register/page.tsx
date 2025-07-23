@@ -1,6 +1,6 @@
-// src/app/register/page.tsx
 'use client';
 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,9 +10,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,11 +22,12 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -42,6 +45,8 @@ export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [hasMounted, setHasMounted] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   registerSchema = z.object({
     name: z
@@ -52,6 +57,10 @@ export default function RegisterPage() {
     password: z
       .string()
       .min(6, { message: t('Password must be at least 6 characters') }),
+    isPublic: z.boolean().default(true),
+    terms: z.boolean().refine((val) => val === true, {
+      message: t('You must accept the terms and conditions'),
+    }),
   });
 
   const form = useForm<RegisterFormValues>({
@@ -60,12 +69,26 @@ export default function RegisterPage() {
       name: '',
       email: '',
       password: '',
+      terms: false,
+      isPublic: true,
     },
   });
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
@@ -77,7 +100,14 @@ export default function RegisterPage() {
       );
       const u = cred.user;
 
-      await updateProfile(u, { displayName: data.name });
+      let photoURL: string | null = null;
+      if (avatarFile) {
+        const storageRef = ref(storage, `avatars/${u.uid}/${avatarFile.name}`);
+        await uploadBytes(storageRef, avatarFile);
+        photoURL = await getDownloadURL(storageRef);
+      }
+
+      await updateProfile(u, { displayName: data.name, photoURL });
 
       const userRef = doc(db, 'users', u.uid);
       await setDoc(userRef, {
@@ -92,13 +122,15 @@ export default function RegisterPage() {
         losses: 0,
         createdAt: getFinnishFormattedDate(),
         eloHistory: [],
-        isPublic: true,
-        bio: '',
         friends: [],
         incomingRequests: [],
         outgoingRequests: [],
         achievements: [],
         rooms: [],
+        isPublic: data.isPublic,
+        bio: '',
+        photoURL: photoURL,
+        isDeleted: false,
       });
 
       toast({
@@ -139,6 +171,28 @@ export default function RegisterPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+              <FormItem className='flex flex-col items-center'>
+                <FormLabel>{t('Profile Picture (Optional)')}</FormLabel>
+                <label htmlFor='avatar-upload' className='cursor-pointer'>
+                  <Avatar className='h-24 w-24'>
+                    <AvatarImage src={avatarPreview ?? undefined} />
+                    <AvatarFallback>
+                      <UserPlus className='h-10 w-10' />
+                    </AvatarFallback>
+                  </Avatar>
+                </label>
+                <FormControl>
+                  <Input
+                    id='avatar-upload'
+                    type='file'
+                    className='hidden'
+                    accept='image/*'
+                    onChange={handleAvatarChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+
               <FormField
                 control={form.control}
                 name='name'
@@ -183,6 +237,66 @@ export default function RegisterPage() {
                       />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='isPublic'
+                render={({ field }) => (
+                  <FormItem className='flex flex-row items-start space-x-3 space-y-0'>
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className='space-y-1 leading-none'>
+                      <FormLabel>{t('Public Profile')}</FormLabel>
+                      <FormDescription>
+                        {t(
+                          'Your profile and stats will be visible to other players.'
+                        )}
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='terms'
+                render={({ field }) => (
+                  <FormItem className='flex flex-row items-start space-x-3 space-y-0'>
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className='space-y-1 leading-none'>
+                      <FormLabel>
+                        {t('I agree to the')}{' '}
+                        <Link
+                          href='/terms'
+                          className='text-primary hover:underline'
+                          target='_blank'
+                        >
+                          {t('Terms of Service')}
+                        </Link>{' '}
+                        {t('and')}{' '}
+                        <Link
+                          href='/privacy'
+                          className='text-primary hover:underline'
+                          target='_blank'
+                        >
+                          {t('Privacy Policy')}
+                        </Link>
+                        .
+                      </FormLabel>
+                      <FormMessage />
+                    </div>
                   </FormItem>
                 )}
               />

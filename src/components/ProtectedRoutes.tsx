@@ -1,3 +1,4 @@
+// src/components/ProtectedRoutes.tsx
 "use client";
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,7 +13,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
-
+console.log('ProtectedRoute rendered', { user, loading });
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login?redirect=' + window.location.pathname);

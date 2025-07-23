@@ -1,3 +1,4 @@
+// src/app/rooms/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';

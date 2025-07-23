@@ -42,7 +42,6 @@ export const fetchAndMergeTranslations = async (lang: string) => {
       i18n.addResourceBundle(lang, 'translation', remoteData, true, true);
       // Принудительно обновляем язык, чтобы React перерисовался
       await i18n.changeLanguage(lang);
-      console.log(`Translations for ${lang} updated from Firestore.`);
     }
   } catch (error) {
     console.error("Failed to fetch remote translations:", error);
