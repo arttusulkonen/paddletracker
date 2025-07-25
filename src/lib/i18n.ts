@@ -25,7 +25,6 @@ i18n
     resources: staticResources, // Загружаем базовые переводы
     supportedLngs: ['en', 'ru', 'fi', 'ko'],
     fallbackLng: 'en',
-    debug: process.env.NODE_ENV === 'development',
     interpolation: { escapeValue: false },
     detection: { order: ['localStorage', 'navigator'], caches: ['localStorage'] },
   });
@@ -44,7 +43,7 @@ export const fetchAndMergeTranslations = async (lang: string) => {
       await i18n.changeLanguage(lang);
     }
   } catch (error) {
-    console.error("Failed to fetch remote translations:", error);
+
   }
 };
 

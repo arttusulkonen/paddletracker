@@ -13,7 +13,6 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
-console.log('ProtectedRoute rendered', { user, loading });
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login?redirect=' + window.location.pathname);

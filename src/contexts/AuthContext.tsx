@@ -47,7 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let unsubRoomRequests: () => void = () => {};
 
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
-      console.log('onAuthStateChanged triggered. User:', firebaseUser);
       unsubProfile();
       unsubRoomRequests();
 

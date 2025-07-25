@@ -13,14 +13,6 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// --- НАЧАЛО: Код для отладки ---
-console.log("Firebase Config Loaded:", {
-  apiKey: firebaseConfig.apiKey ? 'Exists' : 'MISSING!',
-  authDomain: firebaseConfig.authDomain,
-  projectId: firebaseConfig.projectId,
-});
-// --- КОНЕЦ: Код для отладки ---
-
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
@@ -34,13 +26,11 @@ if (!firebaseConfig.apiKey) {
   if (!getApps().length) {
     try {
       app = initializeApp(firebaseConfig);
-      console.log("Firebase App INITIALIZED successfully.");
     } catch (e) {
       console.error('Firebase initialization error:', e);
     }
   } else {
     app = getApp();
-    console.log("Firebase App REUSED successfully.");
   }
 
   if (app) {

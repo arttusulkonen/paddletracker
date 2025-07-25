@@ -987,21 +987,17 @@ function ProfileSettingsDialog({
       return;
     }
     setIsSaving(true);
-    console.log('1. Starting save. Profile UID:', profile.uid);
 
     try {
       let photoURL = profile.photoURL;
-      console.log('2. Initial photoURL:', photoURL);
 
       if (imageFile) {
-        console.log('3. Image file found, starting upload...');
         const storageRef = ref(
           storage,
           `avatars/${profile.uid}/${imageFile.name}`
         );
         await uploadBytes(storageRef, imageFile);
         photoURL = await getDownloadURL(storageRef);
-        console.log('4. Upload complete. New photoURL:', photoURL);
       }
 
       const updatedData = {
@@ -1021,18 +1017,13 @@ function ProfileSettingsDialog({
           : null,
       };
 
-      console.log('5. Data to be saved:', updatedData);
-      console.log('6. Document path:', `users/${profile.uid}`);
-
       await updateDoc(doc(db, 'users', profile.uid), updatedData);
-      console.log('7. Firestore document updated.');
 
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, {
           displayName: name.trim(),
           photoURL: photoURL ?? null,
         });
-        console.log('8. Firebase Auth profile updated.');
       }
 
       toast({ title: t('Profile updated successfully!') });
@@ -1042,7 +1033,6 @@ function ProfileSettingsDialog({
       toast({ title: t('Failed to update profile'), variant: 'destructive' });
     } finally {
       setIsSaving(false);
-      console.log('9. Save process finished.');
     }
   };
 
