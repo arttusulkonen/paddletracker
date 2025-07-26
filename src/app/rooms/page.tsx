@@ -23,6 +23,7 @@ import {
   ScrollArea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { getUserLite } from '@/lib/friends';
@@ -52,6 +53,7 @@ const normalizeDateStr = (str: string) =>
 export default function RoomsPage() {
   const { t } = useTranslation();
   const { user, userProfile } = useAuth();
+  const { sport, config } = useSport();
   const { toast } = useToast();
 
   const [roomName, setRoomName] = useState('');
@@ -68,7 +70,7 @@ export default function RoomsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [myMatches, setMyMatches] = useState<Record<string, number>>({});
   const [isPublic, setIsPublic] = useState(false);
-  const [isRanked, setIsRanked] = useState(true); // <-- НОВОЕ СОСТОЯНИЕ
+  const [isRanked, setIsRanked] = useState(true);
   const [roomRating, setRoomRating] = useState<Record<string, number>>({});
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -83,14 +85,14 @@ export default function RoomsPage() {
     }
     setIsLoadingRooms(true);
 
+    const roomsCollectionName = config.collections.rooms;
+
     const processRooms = async (roomMap: Map<string, any>): Promise<Room[]> => {
       let list = Array.from(roomMap.values());
-
       list = list.map((data) => ({
         ...data,
         createdRaw: data.createdAt || data.roomCreated || '',
       }));
-
       list.sort((a, b) => {
         const da = parseFlexDate(normalizeDateStr(a.createdRaw));
         const db = parseFlexDate(normalizeDateStr(b.createdRaw));
@@ -100,7 +102,6 @@ export default function RoomsPage() {
       const missingCreators = Array.from(
         new Set(list.filter((r) => !r.creatorName).map((r) => r.creator!))
       );
-
       if (missingCreators.length > 0) {
         const creatorNameMap: Record<string, string> = {};
         await Promise.all(
@@ -123,18 +124,16 @@ export default function RoomsPage() {
         ratingMap[r.id] = me?.rating ?? 0;
       });
       setRoomRating((prev) => ({ ...prev, ...ratingMap }));
-
       return list as Room[];
     };
 
     const roomsMap = new Map<string, any>();
-
     const qMyRooms = query(
-      collection(db, 'rooms'),
+      collection(db, roomsCollectionName),
       where('memberIds', 'array-contains', user.uid)
     );
     const qPublicRooms = query(
-      collection(db, 'rooms'),
+      collection(db, roomsCollectionName),
       where('isPublic', '==', true)
     );
 
@@ -160,25 +159,26 @@ export default function RoomsPage() {
       unsubMy();
       unsubPublic();
     };
-  }, [user, t]);
+  }, [user, t, sport, config.collections.rooms]);
 
   const loadMyCounts = useCallback(
     async (roomsToLoad: Room[]) => {
       if (!user || !roomsToLoad.length) return;
+      const matchesCollectionName = config.collections.matches;
       const res: Record<string, number> = {};
       await Promise.all(
         roomsToLoad.map(async (r) => {
           const [s1, s2] = await Promise.all([
             getDocs(
               query(
-                collection(db, 'matches'),
+                collection(db, matchesCollectionName),
                 where('roomId', '==', r.id),
                 where('player1Id', '==', user.uid)
               )
             ),
             getDocs(
               query(
-                collection(db, 'matches'),
+                collection(db, matchesCollectionName),
                 where('roomId', '==', r.id),
                 where('player2Id', '==', user.uid)
               )
@@ -189,7 +189,7 @@ export default function RoomsPage() {
       );
       setMyMatches((prev) => ({ ...prev, ...res }));
     },
-    [user]
+    [user, sport, config.collections.matches]
   );
 
   useEffect(() => {
@@ -242,14 +242,7 @@ export default function RoomsPage() {
   }, [friends, coPlayers]);
 
   const handleCreateRoom = async () => {
-    if (!user || !userProfile) {
-      toast({
-        title: t('Error'),
-        description: t('Log in to create a room'),
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!user || !userProfile) return;
     if (!roomName.trim()) {
       toast({
         title: t('Error'),
@@ -258,8 +251,10 @@ export default function RoomsPage() {
       });
       return;
     }
+
     setIsCreatingRoom(true);
     try {
+      const roomsCollectionName = config.collections.rooms;
       const now = getFinnishFormattedDate();
       const initialMembers = [
         {
@@ -286,25 +281,29 @@ export default function RoomsPage() {
           };
         }),
       ];
-      const ref = await addDoc(collection(db, 'rooms'), {
+
+      const ref = await addDoc(collection(db, roomsCollectionName), {
         name: roomName.trim(),
         creator: user.uid,
         creatorName: userProfile.name ?? userProfile.displayName ?? '',
         createdAt: now,
         members: initialMembers,
         isPublic,
-        isRanked, // <-- ИЗМЕНЕНИЕ
+        isRanked,
         memberIds: [user.uid, ...selectedFriends],
         isArchived: false,
       });
+
+      const roomPath = `sports.${sport}.rooms`;
       await updateDoc(doc(db, 'users', user.uid), {
-        rooms: arrayUnion(ref.id),
+        [roomPath]: arrayUnion(ref.id),
       });
       await Promise.all(
         selectedFriends.map((uid) =>
-          updateDoc(doc(db, 'users', uid), { rooms: arrayUnion(ref.id) })
+          updateDoc(doc(db, 'users', uid), { [roomPath]: arrayUnion(ref.id) })
         )
       );
+
       toast({
         title: t('Success'),
         description: `${t('Room')} "${roomName.trim()}" ${t('created')}`,
@@ -312,8 +311,9 @@ export default function RoomsPage() {
       setRoomName('');
       setSelectedFriends([]);
       setIsPublic(false);
-      setIsRanked(true); // <-- СБРОС СОСТОЯНИЯ
-    } catch {
+      setIsRanked(true);
+    } catch (e) {
+      console.error('Create room error:', e);
       toast({
         title: t('Error'),
         description: t('Failed to create room'),
@@ -333,7 +333,6 @@ export default function RoomsPage() {
       ),
     [activeRooms, searchTerm]
   );
-
   const filteredArchivedRooms = useMemo(
     () =>
       archivedRooms.filter(
@@ -344,9 +343,7 @@ export default function RoomsPage() {
     [archivedRooms, searchTerm]
   );
 
-  if (!hasMounted) {
-    return null;
-  }
+  if (!hasMounted) return null;
 
   return (
     <ProtectedRoute>
@@ -354,7 +351,7 @@ export default function RoomsPage() {
         <div className='flex flex-col sm:flex-row justify-between items-center mb-8 gap-4'>
           <h1 className='text-4xl font-bold flex items-center gap-2'>
             <UsersIcon className='h-10 w-10 text-primary' />
-            {t('Match Rooms')}
+            {t('Match Rooms')} ({config.name})
           </h1>
           <Dialog>
             <DialogTrigger asChild>
@@ -367,9 +364,7 @@ export default function RoomsPage() {
               <DialogHeader>
                 <DialogTitle>{t('Create a Match Room')}</DialogTitle>
                 <DialogDescription>
-                  {t(
-                    'Give your room a name and invite friends or past teammates.'
-                  )}
+                  {t('Give your room a name and invite players.')}
                 </DialogDescription>
               </DialogHeader>
               <div className='space-y-4 py-4'>
@@ -382,7 +377,7 @@ export default function RoomsPage() {
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
                     className='col-span-3'
-                    placeholder={t('Office Ping Pong Champs')}
+                    placeholder={t('Office Champs')}
                   />
                 </div>
                 <div className='flex items-center space-x-2'>
@@ -497,7 +492,7 @@ export default function RoomsPage() {
                           {t('Members', { context: 'cardLabel' })}{' '}
                           {r.members.length}
                         </p>
-                        {r.memberIds.includes(user!.uid) && (
+                        {user && r.memberIds.includes(user.uid) && (
                           <>
                             <p className='text-sm text-muted-foreground'>
                               {t('Matches played:')} {myMatches[r.id] ?? '–'}

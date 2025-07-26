@@ -7,7 +7,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  ScrollArea,
 } from '@/components/ui';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,7 +46,10 @@ export default function FriendRequestsPage() {
     setHasMounted(true);
 
     const load = async () => {
-      if (!user) return;
+      if (!user || !userProfile) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       const incomingFriends = userProfile?.incomingRequests ?? [];
       const friendReqPromises = incomingFriends.map(async (uid) => {
@@ -98,6 +100,21 @@ export default function FriendRequestsPage() {
 
     load();
   }, [user, userProfile, t]);
+
+  // --- НАЧАЛО: ВОССТАНОВЛЕННАЯ ФУНКЦИЯ ---
+  const handleFriend = async (friendUid: string, accept: boolean) => {
+    if (!user) return;
+
+    if (accept) {
+      await Friends.acceptRequest(user.uid, friendUid);
+    } else {
+      await Friends.declineRequest(user.uid, friendUid);
+    }
+
+    // Обновляем состояние, чтобы убрать запрос из списка
+    setFriendRequests((prev) => prev.filter((req) => req.uid !== friendUid));
+  };
+  // --- КОНЕЦ: ВОССТАНОВЛЕННАЯ ФУНКЦИЯ ---
 
   const handleRoom = async (req: RoomRequest, accept: boolean) => {
     if (!user) return;

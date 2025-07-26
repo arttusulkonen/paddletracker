@@ -1,6 +1,8 @@
+// src/app/rooms/[roomId]/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
+import { RecordBlock } from '@/components/RecordBlock';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,7 +43,9 @@ import {
   TableRow,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
+import { processAndSaveMatches } from '@/lib/elo';
 import { db } from '@/lib/firebase';
 import { finalizeSeason } from '@/lib/season';
 import type { Match, Room, UserProfile } from '@/lib/types';
@@ -69,7 +73,9 @@ import {
   MailPlus,
   Plus,
   Settings,
+  Shield,
   ShieldCheck,
+  ShieldOff,
   Sword,
   Trash2,
   Users,
@@ -105,6 +111,7 @@ function getRank(elo: number, t: (key: string) => string) {
 export default function RoomPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { sport, config } = useSport();
   const { toast } = useToast();
   const router = useRouter();
   const roomId = useParams().roomId as string;
@@ -142,7 +149,7 @@ export default function RoomPage() {
     let unsubMatches = () => {};
 
     const unsubRoom = onSnapshot(
-      doc(db, 'rooms', roomId),
+      doc(db, config.collections.rooms, roomId),
       (roomSnap) => {
         if (!roomSnap.exists()) {
           console.error('Room does not exist, redirecting.');
@@ -155,7 +162,7 @@ export default function RoomPage() {
         unsubMatches();
 
         const matchesQuery = query(
-          collection(db, 'matches'),
+          collection(db, config.collections.matches),
           where('roomId', '==', roomId)
         );
 
@@ -211,7 +218,7 @@ export default function RoomPage() {
                             freshProfile.displayName ??
                             member.name,
                           photoURL: freshProfile.photoURL,
-                          globalElo: freshProfile.globalElo,
+                          globalElo: freshProfile.sports?.[sport]?.globalElo,
                           maxRating: freshProfile.maxRating,
                           rank: freshProfile.rank,
                           isDeleted: freshProfile.isDeleted ?? false,
@@ -293,13 +300,13 @@ export default function RoomPage() {
       unsubRoom();
       unsubMatches();
     };
-  }, [user, roomId, router, t]);
+  }, [user, roomId, router, t, sport, config]);
 
   const getSeasonEloSnapshots = async (
     roomId: string
   ): Promise<StartEndElo> => {
     const qs = query(
-      collection(db, 'matches'),
+      collection(db, config.collections.matches),
       where('roomId', '==', roomId),
       orderBy('tsIso', 'asc')
     );
@@ -330,7 +337,7 @@ export default function RoomPage() {
   const handleFinishSeason = async () => {
     try {
       const eloSnapshots = await getSeasonEloSnapshots(roomId);
-      await finalizeSeason(roomId, eloSnapshots);
+      await finalizeSeason(roomId, eloSnapshots, config.collections.rooms);
       toast({ title: t('Season finished') });
       setViewMode('final');
     } catch (err) {
@@ -345,7 +352,7 @@ export default function RoomPage() {
 
   const handleRequestToJoin = async () => {
     if (!user || !room) return;
-    const roomRef = doc(db, 'rooms', roomId);
+    const roomRef = doc(db, config.collections.rooms, roomId);
     await updateDoc(roomRef, { joinRequests: arrayUnion(user.uid) });
     toast({
       title: t('Request Sent'),
@@ -355,7 +362,7 @@ export default function RoomPage() {
 
   const handleCancelRequestToJoin = async () => {
     if (!user || !room) return;
-    const roomRef = doc(db, 'rooms', roomId);
+    const roomRef = doc(db, config.collections.rooms, roomId);
     await updateDoc(roomRef, { joinRequests: arrayRemove(user.uid) });
     toast({ title: t('Request Canceled') });
   };
@@ -367,7 +374,7 @@ export default function RoomPage() {
 
   const handleLeaveRoom = async () => {
     if (!user || !room) return;
-    const roomRef = doc(db, 'rooms', roomId);
+    const roomRef = doc(db, config.collections.rooms, roomId);
     const memberToRemove = room.members.find((m) => m.userId === user.uid);
     if (memberToRemove) {
       await updateDoc(roomRef, {
@@ -573,7 +580,7 @@ export default function RoomPage() {
               t={t}
             />
             {isMember && !latestSeason && !room.isArchived && (
-              <RecordBlock members={members} roomId={roomId} t={t} />
+              <RecordBlock members={members} roomId={roomId} room={room} />
             )}
             {isMember &&
               !latestSeason &&
@@ -1120,270 +1127,6 @@ function MembersBlock({
         })}
       </ScrollArea>
     </div>
-  );
-}
-
-function RecordBlock({
-  members,
-  roomId,
-  t,
-}: {
-  members: Room['members'];
-  roomId: string;
-  t: (key: string, options?: any) => string;
-}) {
-  const [player1Id, setPlayer1Id] = useState('');
-  const [player2Id, setPlayer2Id] = useState('');
-  const [matchesInput, setMatchesInput] = useState([
-    { score1: '', score2: '', side1: '', side2: '' },
-  ]);
-  const [isRecording, setIsRecording] = useState(false);
-  const { toast } = useToast();
-
-  const addRow = () =>
-    setMatchesInput((rows) => {
-      if (!rows.length)
-        return [...rows, { score1: '', score2: '', side1: '', side2: '' }];
-      const last = rows[rows.length - 1];
-      return [
-        ...rows,
-        {
-          score1: '',
-          score2: '',
-          side1: flip(last.side1),
-          side2: flip(last.side2),
-        },
-      ];
-    });
-  const removeRow = (i: number) =>
-    setMatchesInput((r) => r.filter((_, idx) => idx !== i));
-
-  const saveMatches = async () => {
-    if (!player1Id || !player2Id || player1Id === player2Id) {
-      toast({
-        title: t('Select two different players'),
-        variant: 'destructive',
-      });
-      return;
-    }
-    const bad = matchesInput.find(({ score1, score2, side1, side2 }) => {
-      const a = +score1,
-        b = +score2;
-      if (isNaN(a) || isNaN(b) || !side1 || !side2) return true;
-      const hi = Math.max(a, b),
-        lo = Math.min(a, b);
-      return hi < 11 || (hi === 11 && lo > 9) || (hi > 11 && hi - lo !== 2);
-    });
-    if (bad) {
-      toast({ title: t('Check the score values') });
-      return;
-    }
-    setIsRecording(true);
-    try {
-      const [snap1, snap2] = await Promise.all([
-        getDoc(doc(db, 'users', player1Id)),
-        getDoc(doc(db, 'users', player2Id)),
-      ]);
-      let currentG1 = snap1.data()?.globalElo ?? 1000;
-      let currentG2 = snap2.data()?.globalElo ?? 1000;
-      let draft = JSON.parse(JSON.stringify(members)) as Room['members'];
-      const historyUpdates: Record<string, any> = {};
-      const startDate = new Date();
-      const pushRank = (tsIso: string) => {
-        draft.forEach((mem) => {
-          const place =
-            [...draft]
-              .sort((a, b) => b.rating - a.rating)
-              .findIndex((x) => x.userId === mem.userId) + 1;
-          if (mem.prevPlace !== place) {
-            historyUpdates[`rankHistories.${mem.userId}`] = arrayUnion({
-              ts: tsIso,
-              place,
-              rating: mem.rating,
-            });
-          }
-          mem.prevPlace = place;
-        });
-      };
-      const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));
-      for (let idx = 0; idx < matchesInput.length; idx++) {
-        const row = matchesInput[idx];
-        const a = +row.score1,
-          b = +row.score2;
-        const winnerId = a > b ? player1Id : player2Id;
-        const K = 32;
-        const exp1 = 1 / (1 + 10 ** ((currentG2 - currentG1) / 400));
-        const exp2 = 1 / (1 + 10 ** ((currentG1 - currentG2) / 400));
-        const newG1 = Math.round(
-          currentG1 + K * ((winnerId === player1Id ? 1 : 0) - exp1)
-        );
-        const newG2 = Math.round(
-          currentG2 + K * ((winnerId === player2Id ? 1 : 0) - exp2)
-        );
-        const dG1 = newG1 - currentG1;
-        const dG2 = newG2 - currentG2;
-        currentG1 = newG1;
-        currentG2 = newG2;
-        const ts = new Date(startDate.getTime() + idx * 1000);
-        const createdAt = getFinnishFormattedDate(ts);
-        const tsIso = ts.toISOString();
-        const p1 = draft.find((m) => m.userId === player1Id)!;
-        const p2 = draft.find((m) => m.userId === player2Id)!;
-        [p1, p2].forEach((p) => {
-          const delta = p.userId === player1Id ? dG1 : dG2;
-          const win = winnerId === p.userId;
-          const curSt = win ? (p.currentStreak || 0) + 1 : 0;
-          Object.assign(p, {
-            rating: p.rating + delta,
-            wins: p.wins + (win ? 1 : 0),
-            losses: p.losses + (win ? 0 : 1),
-            currentStreak: curSt,
-            longestWinStreak: Math.max(p.longestWinStreak || 0, curSt),
-            totalAddedPoints: (p.totalAddedPoints || 0) + delta,
-            totalMatches: (p.totalMatches || 0) + 1,
-          });
-        });
-        pushRank(tsIso);
-        const matchDoc = {
-          roomId,
-          createdAt,
-          timestamp: createdAt,
-          tsIso,
-          player1Id,
-          player2Id,
-          players: [player1Id, player2Id],
-          player1: {
-            name: p1.name,
-            scores: a,
-            oldRating: currentG1 - dG1,
-            newRating: currentG1,
-            addedPoints: dG1,
-            roomOldRating: p1.rating - dG1,
-            roomNewRating: p1.rating,
-            roomAddedPoints: dG1,
-            side: row.side1,
-          },
-          player2: {
-            name: p2.name,
-            scores: b,
-            oldRating: currentG2 - dG2,
-            newRating: currentG2,
-            addedPoints: dG2,
-            roomOldRating: p2.rating - dG2,
-            roomNewRating: p2.rating,
-            roomAddedPoints: dG2,
-            side: row.side2,
-          },
-          winner: winnerId === player1Id ? p1.name : p2.name,
-        };
-        await addDoc(collection(db, 'matches'), matchDoc);
-        if (idx < matchesInput.length - 1) {
-          await wait(1000);
-        }
-      }
-      await updateDoc(doc(db, 'rooms', roomId), {
-        members: draft,
-        ...historyUpdates,
-      });
-      await Promise.all([
-        updateDoc(doc(db, 'users', player1Id), {
-          globalElo: currentG1,
-          eloHistory: arrayUnion({
-            ts: new Date().toISOString(),
-            elo: currentG1,
-          }),
-        }),
-        updateDoc(doc(db, 'users', player2Id), {
-          globalElo: currentG2,
-          eloHistory: arrayUnion({
-            ts: new Date().toISOString(),
-            elo: currentG2,
-          }),
-        }),
-      ]);
-      setPlayer1Id('');
-      setPlayer2Id('');
-      setMatchesInput([{ score1: '', score2: '', side1: '', side2: '' }]);
-      toast({ title: t('Matches recorded') });
-    } catch (err) {
-      console.error(err);
-      toast({
-        title: t('Error'),
-        description: t('Failed to record matches'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsRecording(false);
-    }
-  };
-
-  useEffect(() => {
-    if (player1Id && player1Id === player2Id) setPlayer2Id('');
-  }, [player1Id, player2Id]);
-
-  const listP1 = members
-    .filter((m) => m.userId !== player2Id)
-    .map((m) => ({ userId: m.userId, name: m.name, rating: m.rating }));
-  const listP2 = members
-    .filter((m) => m.userId !== player1Id)
-    .map((m) => ({ userId: m.userId, name: m.name, rating: m.rating }));
-
-  return (
-    <Card className='md:col-span-2 shadow-md'>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <Sword className='text-accent' /> {t('Record Matches')}
-        </CardTitle>
-        <CardDescription>{t('Select players and scores')}</CardDescription>
-      </CardHeader>
-      <CardContent className='space-y-4'>
-        <div className='grid grid-cols-2 gap-4 items-end'>
-          <PlayerSelect
-            label={t('Player 1')}
-            value={player1Id}
-            onChange={setPlayer1Id}
-            list={listP1}
-            t={t}
-          />
-          <PlayerSelect
-            label={t('Player 2')}
-            value={player2Id}
-            onChange={setPlayer2Id}
-            list={listP2}
-            t={t}
-          />
-        </div>
-        {matchesInput.map((row, i) => (
-          <MatchRowInput
-            key={i}
-            index={i}
-            data={row}
-            onChange={(d) =>
-              setMatchesInput((r: any) =>
-                r.map((v: any, idx: number) => (idx === i ? d : v))
-              )
-            }
-            onRemove={() => removeRow(i)}
-            removable={i > 0}
-            t={t}
-          />
-        ))}
-        <Button
-          variant='outline'
-          className='flex items-center gap-2'
-          onClick={addRow}
-        >
-          <Plus /> {t('Add Match')}
-        </Button>
-        <Button
-          className='w-full mt-4'
-          disabled={isRecording}
-          onClick={saveMatches}
-        >
-          {isRecording ? t('Recording…') : t('Record & Update ELO')}
-        </Button>
-      </CardContent>
-    </Card>
   );
 }
 

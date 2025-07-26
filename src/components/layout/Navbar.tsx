@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
+import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import {
   Bell,
   Globe,
@@ -50,6 +51,7 @@ export function Navbar() {
   const { t, i18n } = useTranslation();
   const { user, userProfile, roomRequestCount, loading, logout } = useAuth();
   const router = useRouter();
+  const { sport, setSport, config } = useSport();
 
   // highlight-start
   const [hasMounted, setHasMounted] = useState(false);
@@ -81,13 +83,13 @@ export function Navbar() {
       <div className='container mx-auto px-4 h-16 flex items-center justify-between'>
         <Link
           href='/'
-          className='flex items-center gap-2 text-primary hover:text-primary/80'
+          className={`flex items-center gap-2 ${config.theme.primary} hover:opacity-80`}
         >
-          <PingPongIcon className='h-8 w-8' />
-          <h1 className='text-2xl font-bold'>PingPongTracker</h1>
+          {config.icon}
+          <h1 className='text-2xl font-bold'>{`${config.name}Tracker`}</h1>
         </Link>
 
-        <nav className='flex items-center gap-2 sm:gap-4'>
+        <nav className='flex items-center gap-1 sm:gap-2'>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' size='icon'>
@@ -110,9 +112,30 @@ export function Navbar() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant='ghost' asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant='ghost' className='flex items-center gap-2'>
+                {config.icon}
+                <span className="hidden sm:inline">{config.name}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end'>
+              {Object.keys(sportConfig).map((sportKey) => (
+                <DropdownMenuItem
+                  key={sportKey}
+                  onClick={() => setSport(sportKey as Sport)}
+                  className='flex items-center gap-2'
+                >
+                  {sportConfig[sportKey as Sport].icon}
+                  <span>{sportConfig[sportKey as Sport].name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+           <Button variant='ghost' asChild>
             <Link href='/' className='flex items-center gap-1'>
-              <HomeIcon size={18} /> {t('Home')}
+              <HomeIcon size={18} /> <span className="hidden sm:inline">{t('Home')}</span>
             </Link>
           </Button>
 
@@ -120,12 +143,12 @@ export function Navbar() {
             <>
               <Button variant='ghost' asChild>
                 <Link href='/rooms' className='flex items-center gap-1'>
-                  <UsersIcon size={18} /> {t('Rooms')}
+                  <UsersIcon size={18} /> <span className="hidden sm:inline">{t('Rooms')}</span>
                 </Link>
               </Button>
               <Button variant='ghost' asChild>
                 <Link href='/tournaments' className='flex items-center gap-1'>
-                  <TrophyIcon size={18} /> {t('Tournaments')}
+                  <TrophyIcon size={18} /> <span className="hidden sm:inline">{t('Tournaments')}</span>
                 </Link>
               </Button>
             </>
@@ -179,7 +202,8 @@ export function Navbar() {
                   <Link href='/friend-requests'>
                     <Bell className='mr-2 h-4 w-4' />
                     <span>
-                      {t('Requests')} {totalReqCount > 0 && `(${totalReqCount})`}
+                      {t('Requests')}{' '}
+                      {totalReqCount > 0 && `(${totalReqCount})`}
                     </span>
                   </Link>
                 </DropdownMenuItem>
