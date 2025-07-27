@@ -6,13 +6,17 @@ import {
   AvatarFallback,
   AvatarImage,
   ScrollArea,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from '@/components/ui';
 import type { Room } from '@/lib/types';
-import { Crown, Users } from 'lucide-react';
+import { ShieldCheck, Users } from 'lucide-react'; // ✅ Заменили Crown на ShieldCheck
 import { useTranslation } from 'react-i18next';
 
 interface MembersListProps {
-  members: any[]; // Assuming extended member type with stats
+  members: any[];
   room: Room;
 }
 
@@ -49,7 +53,7 @@ export function MembersList({ members, room }: MembersListProps) {
                   <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className='font-medium leading-none'>
+                  <p className='font-medium leading-none flex items-center gap-2'>
                     {p.isDeleted ? (
                       <span>{p.name}</span>
                     ) : (
@@ -60,8 +64,18 @@ export function MembersList({ members, room }: MembersListProps) {
                         {p.name}
                       </a>
                     )}
+                    {/* ✅ **ИЗМЕНЕНИЕ**: Заменили иконку и добавили подсказку */}
                     {p.userId === room.creator && (
-                      <Crown className='inline ml-1 h-4 w-4 text-yellow-500' />
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <ShieldCheck className='h-4 w-4 text-primary' />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{t('Room Creator')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </p>
                   <p className='text-xs text-muted-foreground'>

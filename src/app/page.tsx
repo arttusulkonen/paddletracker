@@ -350,7 +350,7 @@ const Dashboard = () => {
 
         {!isNewForSport && (
           <Card
-            className={`shadow-lg bg-gradient-to-br ${config.theme.gradientFrom} ${config.theme.gradientTo} text-white`}
+            className={`shadow-lg bg-gradient-to-br ${config.theme.gradientFrom} ${config.theme.gradientTo} `}
           >
             <CardHeader>
               <CardTitle>

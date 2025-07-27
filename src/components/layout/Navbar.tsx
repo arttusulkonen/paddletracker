@@ -1,5 +1,4 @@
 // src/components/layout/Navbar.tsx
-
 'use client';
 
 import {
@@ -13,6 +12,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Sheet,
+  SheetContent,
+  SheetTrigger,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
@@ -21,45 +23,87 @@ import {
   Globe,
   HomeIcon,
   LogIn,
+  Menu,
   TrophyIcon,
   UserCircle,
   UserPlus,
   UsersIcon,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const PingPongIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    viewBox='0 0 24 24'
-    fill='none'
-    stroke='currentColor'
-    strokeWidth='1.5'
-    strokeLinecap='round'
-    strokeLinejoin='round'
-    {...props}
-  >
-    <path d='M15.11 10.11c-.9-.9-.9-2.32 0-3.22.9-.9 2.32-.9 3.22 0 .47.47.68 1.12.58 1.7-.12.93-.73 1.72-1.54 2.01' />
-    <path d='M12.66 12.65a3.68 3.68 0 0 1-5.2 0 3.68 3.68 0 0 1 0-5.2 3.68 3.68 0 0 1 5.2 0' />
-    <path d='M10.23 10.22 5.66 14.79a2 2 0 0 0 0 2.83 2 2 0 0 0 2.83 0l4.57-4.57' />
-  </svg>
-);
+// --- Компоненты для мобильного меню ---
+const MobileNav = ({ user, t }: { user: any; t: (key: string) => string }) => {
+  const [isOpen, setIsOpen] = useState(false);
 
+  return (
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <Button variant='ghost' size='icon' className='md:hidden'>
+          <Menu className='h-5 w-5' />
+          <span className='sr-only'>Open Menu</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side='left' className='w-64'>
+        <div className='flex flex-col gap-4 py-6'>
+          <NavLink href='/' onClick={() => setIsOpen(false)}>
+            <HomeIcon /> {t('Home')}
+          </NavLink>
+          {user && (
+            <>
+              <NavLink href='/rooms' onClick={() => setIsOpen(false)}>
+                <UsersIcon /> {t('Rooms')}
+              </NavLink>
+              <NavLink href='/tournaments' onClick={() => setIsOpen(false)}>
+                <TrophyIcon /> {t('Tournaments')}
+              </NavLink>
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+const NavLink = ({
+  href,
+  children,
+  onClick,
+}: {
+  href: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+}) => {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+        isActive
+          ? 'bg-muted text-foreground'
+          : 'text-muted-foreground hover:bg-muted/50'
+      }`}
+    >
+      {children}
+    </Link>
+  );
+};
+
+// --- Основной компонент Navbar ---
 export function Navbar() {
   const { t, i18n } = useTranslation();
   const { user, userProfile, roomRequestCount, loading, logout } = useAuth();
   const router = useRouter();
   const { sport, setSport, config } = useSport();
-
-  // highlight-start
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
-  // highlight-end
 
   const handleLogout = async () => {
     await logout();
@@ -68,55 +112,63 @@ export function Navbar() {
 
   const friendReqCount = userProfile?.incomingRequests?.length ?? 0;
   const totalReqCount = friendReqCount + roomRequestCount;
-  const visibleName = user?.displayName ?? user?.name;
-
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
-  };
 
   if (!hasMounted) {
-    return null;
+    return (
+      <header className='bg-card border-b sticky top-0 z-50 shadow-sm'>
+        <div className='container mx-auto px-4 h-16 flex items-center justify-between'>
+          <div className='h-8 w-48 bg-muted rounded animate-pulse' />
+          <div className='flex items-center gap-2'>
+            <div className='h-10 w-10 bg-muted rounded-full animate-pulse' />
+            <div className='h-10 w-10 bg-muted rounded-full animate-pulse' />
+          </div>
+        </div>
+      </header>
+    );
   }
 
   return (
     <header className='bg-card border-b sticky top-0 z-50 shadow-sm'>
       <div className='container mx-auto px-4 h-16 flex items-center justify-between'>
-        <Link
-          href='/'
-          className={`flex items-center gap-2 ${config.theme.primary} hover:opacity-80`}
-        >
-          {config.icon}
-          <h1 className='text-2xl font-bold'>{`${config.name}Tracker`}</h1>
-        </Link>
+        {/* Левая сторона: Меню (моб.), Лого, Навигация (десктоп) */}
+        <div className='flex items-center gap-4'>
+          <MobileNav user={user} t={t} />
+          <Link
+            href='/'
+            className={`flex items-center gap-2 text-foreground hover:opacity-80 transition-opacity`}
+          >
+            {React.cloneElement(config.icon as React.ReactElement, {
+              className: `h-7 w-7 ${config.theme.primary}`,
+            })}
+            <h1 className='text-xl font-bold tracking-tight hidden sm:block'>
+              {`${config.name}Tracker`}
+            </h1>
+          </Link>
+          <nav className='hidden md:flex items-center gap-2'>
+            {user && (
+              <>
+                <NavLink href='/rooms'>
+                  <UsersIcon /> {t('Rooms')}
+                </NavLink>
+                <NavLink href='/tournaments'>
+                  <TrophyIcon /> {t('Tournaments')}
+                </NavLink>
+              </>
+            )}
+          </nav>
+        </div>
 
+        {/* Правая сторона: Действия и Пользователь */}
         <nav className='flex items-center gap-1 sm:gap-2'>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant='ghost' size='icon'>
-                <Globe className='h-5 w-5' />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
-              <DropdownMenuItem onClick={() => changeLanguage('en')}>
-                English
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => changeLanguage('ru')}>
-                Русский
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => changeLanguage('fi')}>
-                Suomi
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => changeLanguage('ko')}>
-                한국어
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant='ghost' className='flex items-center gap-2'>
+              <Button
+                variant='ghost'
+                className='flex items-center gap-2'
+                aria-label='Change sport'
+              >
                 {config.icon}
-                <span className="hidden sm:inline">{config.name}</span>
+                <span className='hidden sm:inline'>{config.name}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
@@ -133,97 +185,99 @@ export function Navbar() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-           <Button variant='ghost' asChild>
-            <Link href='/' className='flex items-center gap-1'>
-              <HomeIcon size={18} /> <span className="hidden sm:inline">{t('Home')}</span>
-            </Link>
-          </Button>
-
-          {user && (
-            <>
-              <Button variant='ghost' asChild>
-                <Link href='/rooms' className='flex items-center gap-1'>
-                  <UsersIcon size={18} /> <span className="hidden sm:inline">{t('Rooms')}</span>
-                </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant='ghost' size='icon' aria-label='Change language'>
+                <Globe className='h-5 w-5' />
               </Button>
-              <Button variant='ghost' asChild>
-                <Link href='/tournaments' className='flex items-center gap-1'>
-                  <TrophyIcon size={18} /> <span className="hidden sm:inline">{t('Tournaments')}</span>
-                </Link>
-              </Button>
-            </>
-          )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end'>
+              <DropdownMenuItem onClick={() => i18n.changeLanguage('en')}>
+                English
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => i18n.changeLanguage('ru')}>
+                Русский
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => i18n.changeLanguage('fi')}>
+                Suomi
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => i18n.changeLanguage('ko')}>
+                한국어
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {loading ? (
-            <div className='h-8 w-20 bg-muted rounded-md animate-pulse' />
+            <div className='h-10 w-10 bg-muted rounded-full animate-pulse' />
           ) : user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <>
+              <Link href='/friend-requests'>
+                {/* ✅ ИСПРАВЛЕНИЕ: Добавлен класс 'relative' для правильного позиционирования значка */}
                 <Button
                   variant='ghost'
-                  className='relative h-10 w-10 rounded-full'
+                  size='icon'
+                  aria-label='Requests'
+                  className='relative'
                 >
                   {totalReqCount > 0 && (
-                    <span className='absolute -top-0.5 -right-0.5 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[10px] font-medium leading-none text-background'>
-                      {totalReqCount}
+                    <span className='absolute top-1.5 right-1.5 flex h-3 w-3'>
+                      <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75'></span>
+                      <span className='relative inline-flex rounded-full h-3 w-3 bg-destructive'></span>
                     </span>
                   )}
-                  <Avatar className='relative z-0 h-9 w-9'>
-                    <AvatarImage src={user.photoURL || undefined} />
-                    <AvatarFallback>
-                      {visibleName ? (
-                        visibleName[0].toUpperCase()
-                      ) : (
-                        <UserCircle />
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Bell className='h-5 w-5' />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className='w-56' align='end' forceMount>
-                <DropdownMenuLabel className='font-normal'>
-                  <div className='flex flex-col space-y-1'>
-                    <p className='text-sm font-medium'>
-                      {visibleName || 'User'}
-                    </p>
-                    <p className='text-xs text-muted-foreground'>
-                      {user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href={`/profile/${user.uid}`}>
-                    <UserCircle className='mr-2 h-4 w-4' />
-                    <span>{t('Profile')}</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href='/friend-requests'>
-                    <Bell className='mr-2 h-4 w-4' />
-                    <span>
-                      {t('Requests')}{' '}
-                      {totalReqCount > 0 && `(${totalReqCount})`}
-                    </span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogIn className='mr-2 h-4 w-4' />
-                  <span>{t('Log out')}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    className='relative h-10 w-10 rounded-full'
+                  >
+                    <Avatar className='h-9 w-9'>
+                      <AvatarImage src={user.photoURL || undefined} />
+                      <AvatarFallback>
+                        {user.displayName ? (
+                          user.displayName[0].toUpperCase()
+                        ) : (
+                          <UserCircle />
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className='w-56' align='end' forceMount>
+                  <DropdownMenuLabel className='font-normal'>
+                    <div className='flex flex-col space-y-1'>
+                      <p className='text-sm font-medium'>
+                        {user.displayName || 'User'}
+                      </p>
+                      <p className='text-xs text-muted-foreground'>
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href={`/profile/${user.uid}`}>
+                      <UserCircle className='mr-2' />
+                      <span>{t('Profile')}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogIn className='mr-2' />
+                    <span>{t('Log out')}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Button variant='ghost' asChild>
-                <Link href='/login' className='flex items-center gap-1'>
-                  <LogIn size={18} /> {t('Login')}
-                </Link>
+                <Link href='/login'>{t('Login')}</Link>
               </Button>
               <Button asChild>
-                <Link href='/register' className='flex items-center gap-1'>
-                  <UserPlus size={18} /> {t('Register')}
-                </Link>
+                <Link href='/register'>{t('Register')}</Link>
               </Button>
             </>
           )}

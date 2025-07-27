@@ -7,21 +7,7 @@ import { MembersList } from '@/components/rooms/MembersList';
 import { RecentMatches } from '@/components/rooms/RecentMatches';
 import { RoomHeader } from '@/components/rooms/RoomHeader';
 import { StandingsTable } from '@/components/rooms/StandingsTable';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Button,
-  Card,
-  CardContent,
-  Separator,
-} from '@/components/ui';
+import { Button, Card, CardContent, Separator } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -47,6 +33,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+// --- Вспомогательные функции ---
 const calcWinPct = (w: number, l: number) => {
   const t = w + l;
   return t ? ((w / t) * 100).toFixed(1) : '0.0';
@@ -66,6 +53,7 @@ export default function RoomPage() {
   const router = useRouter();
   const roomId = useParams().roomId as string;
 
+  // --- Состояния ---
   const [room, setRoom] = useState<Room | null>(null);
   const [rawMatches, setRawMatches] = useState<Match[]>([]);
   const [members, setMembers] = useState<Room['members']>([]);
@@ -79,46 +67,41 @@ export default function RoomPage() {
     setHasMounted(true);
   }, []);
 
+  // Загрузка данных комнаты
   useEffect(() => {
     if (!user || !db) return;
     const unsubRoom = onSnapshot(
       doc(db, config.collections.rooms, roomId),
-      (roomSnap) => {
-        if (!roomSnap.exists()) {
-          toast({ title: t('Room not found'), variant: 'destructive' });
+      (snap) => {
+        if (!snap.exists()) {
           router.push('/rooms');
           return;
         }
-        const roomData = { id: roomSnap.id, ...roomSnap.data() } as Room;
+        const roomData = { id: snap.id, ...snap.data() } as Room;
         setRoom(roomData);
-        const latest =
-          roomData.seasonHistory
-            ?.slice()
-            .reverse()
-            .find(
-              (s) => Array.isArray(s.summary) || Array.isArray(s.members)
-            ) ?? null;
-        setLatestSeason(latest);
+        setLatestSeason(roomData.seasonHistory?.slice().reverse()[0] ?? null);
       }
     );
     return () => unsubRoom();
-  }, [user, roomId, config.collections.rooms, router, t, toast]);
+  }, [user, roomId, config.collections.rooms, router]);
 
+  // Загрузка матчей
   useEffect(() => {
     if (!user || !db) return;
-    const matchesQuery = query(
+    const q = query(
       collection(db, config.collections.matches),
       where('roomId', '==', roomId)
     );
-    const unsubMatches = onSnapshot(matchesQuery, (matchesSnap) => {
-      const allMatches = matchesSnap.docs
+    const unsub = onSnapshot(q, (snap) => {
+      const all = snap.docs
         .map((d) => ({ id: d.id, ...d.data() } as Match))
         .sort((a, b) => tsToMs(a.tsIso) - tsToMs(b.tsIso));
-      setRawMatches(allMatches);
+      setRawMatches(all);
     });
-    return () => unsubMatches();
+    return () => unsub();
   }, [user, roomId, config.collections.matches]);
 
+  // Синхронизация данных
   useEffect(() => {
     if (!room) return;
     if (rawMatches.length === 0 && room.members) {
@@ -183,12 +166,10 @@ export default function RoomPage() {
           player1: { ...match.player1 },
           player2: { ...match.player2 },
         };
-
         if (p1Profile)
           newMatch.player1.name = p1Profile.name ?? p1Profile.displayName;
         if (p2Profile)
           newMatch.player2.name = p2Profile.name ?? p2Profile.displayName;
-
         const winnerId =
           match.player1.scores > match.player2.scores
             ? match.player1Id
@@ -196,86 +177,72 @@ export default function RoomPage() {
         const winnerProfile = freshProfiles.get(winnerId);
         if (winnerProfile)
           newMatch.winner = winnerProfile.name ?? winnerProfile.displayName;
-
         return newMatch;
       });
       setRecentMatches(syncedMatches.slice().reverse());
       setIsLoading(false);
     };
-
     syncData();
   }, [room, rawMatches, sport, t]);
 
-  // ✅ **ИСПРАВЛЕНИЕ**: Возвращаем функцию `last5Form`
-  const last5Form = (m: any): MiniMatch[] =>
-    recentMatches
-      .filter((x) => x.player1Id === m.userId || x.player2Id === m.userId)
-      .slice(0, 5)
-      .map((x) => {
-        const winnerId =
-          x.player1.scores > x.player2.scores ? x.player1Id : x.player2Id;
-        const win = winnerId === m.userId;
-        const isPlayer1 = x.player1Id === m.userId;
-        const youScore = isPlayer1 ? x.player1.scores : x.player2.scores;
-        const oppScore = isPlayer1 ? x.player2.scores : x.player1.scores;
-        const opponent = isPlayer1 ? x.player2.name : x.player1.name;
-        return {
-          result: win ? 'W' : 'L',
-          opponent,
-          score: `${youScore}-${oppScore}`,
-        };
-      });
+  const last5Form = useCallback(
+    (m: any): MiniMatch[] =>
+      recentMatches
+        .filter((x) => x.player1Id === m.userId || x.player2Id === m.userId)
+        .slice(0, 5)
+        .map((x) => {
+          const winnerId =
+            x.player1.scores > x.player2.scores ? x.player1Id : x.player2Id;
+          const win = winnerId === m.userId;
+          const isPlayer1 = x.player1Id === m.userId;
+          const youScore = isPlayer1 ? x.player1.scores : x.player2.scores;
+          const oppScore = isPlayer1 ? x.player2.scores : x.player1.scores;
+          const opponent = isPlayer1 ? x.player2.name : x.player1.name;
+          return {
+            result: win ? 'W' : 'L',
+            opponent,
+            score: `${youScore}-${oppScore}`,
+          };
+        }),
+    [recentMatches]
+  );
 
-  const matchStats = useMemo(() => {
-    const st: Record<string, { wins: number; losses: number }> = {};
+  const regularPlayers = useMemo(() => {
+    const matchStats: Record<string, { wins: number; losses: number }> = {};
     rawMatches.forEach((m) => {
       const winnerId =
         m.player1.scores > m.player2.scores ? m.player1Id : m.player2Id;
       [m.player1Id, m.player2Id].forEach((id) => {
-        if (!st[id]) st[id] = { wins: 0, losses: 0 };
-        id === winnerId ? st[id].wins++ : st[id].losses++;
+        if (!matchStats[id]) matchStats[id] = { wins: 0, losses: 0 };
+        id === winnerId ? matchStats[id].wins++ : matchStats[id].losses++;
       });
     });
-    return st;
-  }, [rawMatches]);
 
-  const tennisStats = useMemo(() => {
-    if (sport !== 'tennis') return {};
-    const stats: Record<
+    const tennisStats: Record<
       string,
       { aces: number; doubleFaults: number; winners: number }
     > = {};
-    rawMatches.forEach((m) => {
-      // Суммируем статистику для каждого игрока из каждого матча
-      const p1Id = m.player1Id;
-      const p2Id = m.player2Id;
-      const p1 = m.player1;
-      const p2 = m.player2;
+    if (sport === 'tennis') {
+      rawMatches.forEach((m) => {
+        const p1Id = m.player1Id,
+          p2Id = m.player2Id;
+        if (!tennisStats[p1Id])
+          tennisStats[p1Id] = { aces: 0, doubleFaults: 0, winners: 0 };
+        if (!tennisStats[p2Id])
+          tennisStats[p2Id] = { aces: 0, doubleFaults: 0, winners: 0 };
+        tennisStats[p1Id].aces += Number(m.player1.aces) || 0;
+        tennisStats[p1Id].doubleFaults += Number(m.player1.doubleFaults) || 0;
+        tennisStats[p1Id].winners += Number(m.player1.winners) || 0;
+        tennisStats[p2Id].aces += Number(m.player2.aces) || 0;
+        tennisStats[p2Id].doubleFaults += Number(m.player2.doubleFaults) || 0;
+        tennisStats[p2Id].winners += Number(m.player2.winners) || 0;
+      });
+    }
 
-      if (!stats[p1Id]) stats[p1Id] = { aces: 0, doubleFaults: 0, winners: 0 };
-      if (!stats[p2Id]) stats[p2Id] = { aces: 0, doubleFaults: 0, winners: 0 };
-
-      stats[p1Id].aces += Number(p1.aces) || 0;
-      stats[p1Id].doubleFaults += Number(p1.doubleFaults) || 0;
-      stats[p1Id].winners += Number(p1.winners) || 0;
-
-      stats[p2Id].aces += Number(p2.aces) || 0;
-      stats[p2Id].doubleFaults += Number(p2.doubleFaults) || 0;
-      stats[p2Id].winners += Number(p2.winners) || 0;
-    });
-    return stats;
-  }, [rawMatches, sport]);
-
-  const regularPlayers = useMemo(() => {
     return members.map((m: any) => {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
       const total = wins + losses;
-      const globalStart = seasonStarts[m.userId] ?? m.globalElo ?? 1000;
-      const globalDelta = (m.globalElo ?? globalStart) - globalStart;
-      const seasonDeltaRoom = (m.rating || 1000) - (m.startRating ?? 1000);
-      const avgPtsPerMatch = total > 0 ? seasonDeltaRoom / total : 0;
-
       let max = 0,
         cur = 0;
       rawMatches.forEach((match) => {
@@ -297,21 +264,78 @@ export default function RoomPage() {
         losses,
         totalMatches: total,
         winPct: calcWinPct(wins, losses),
-        deltaRoom: seasonDeltaRoom,
-        globalDelta,
-        avgPtsPerMatch,
-        last5Form: last5Form(m), // ✅ **ИСПРАВЛЕНИЕ**: Возвращаем вызов функции
+        deltaRoom:
+          (m.rating || 1000) - (seasonStarts[m.userId] ?? m.rating ?? 1000),
+        globalDelta:
+          (m.globalElo ?? 1000) -
+          (seasonStarts[m.userId] ?? m.globalElo ?? 1000),
+        avgPtsPerMatch:
+          total > 0
+            ? ((m.rating || 1000) -
+                (seasonStarts[m.userId] ?? m.rating ?? 1000)) /
+              total
+            : 0,
+        last5Form: last5Form(m),
         longestWinStreak: max,
       };
     });
-  }, [
-    members,
-    rawMatches,
-    matchStats,
-    seasonStarts,
-    tennisStats,
-    recentMatches,
-  ]);
+  }, [members, rawMatches, seasonStarts, sport, last5Form]);
+
+  const getSeasonEloSnapshots = useCallback(
+    async (roomId: string): Promise<StartEndElo> => {
+      const qs = query(
+        collection(db, config.collections.matches),
+        where('roomId', '==', roomId),
+        orderBy('tsIso', 'asc')
+      );
+      const snap = await getDocs(qs);
+      const firstSeen: Record<string, number> = {};
+      const lastSeen: Record<string, number> = {};
+      snap.docs.forEach((d) => {
+        const m = d.data() as any;
+        [
+          {
+            id: m.player1Id,
+            old: m.player1.oldRating,
+            new: m.player1.newRating,
+          },
+          {
+            id: m.player2Id,
+            old: m.player2.oldRating,
+            new: m.player2.newRating,
+          },
+        ].forEach((p) => {
+          if (!(p.id in firstSeen)) firstSeen[p.id] = p.old;
+          lastSeen[p.id] = p.new;
+        });
+      });
+      const out: StartEndElo = {};
+      Object.keys(firstSeen).forEach((uid) => {
+        out[uid] = {
+          start: firstSeen[uid],
+          end: lastSeen[uid] ?? firstSeen[uid],
+        };
+      });
+      return out;
+    },
+    [config.collections.matches]
+  );
+
+  const handleFinishSeason = useCallback(async () => {
+    try {
+      const snapshots = await getSeasonEloSnapshots(roomId);
+      // ✅ **ИСПРАВЛЕНИЕ**: Передаем `sport` в функцию
+      await finalizeSeason(roomId, snapshots, config.collections, sport);
+      toast({ title: t('Season finished') });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: t('Error'),
+        description: t('Failed to finish season'),
+        variant: 'destructive',
+      });
+    }
+  }, [roomId, getSeasonEloSnapshots, config.collections, sport, toast, t]);
 
   const handleRequestToJoin = useCallback(async () => {
     if (!user || !room) return;
@@ -368,8 +392,7 @@ export default function RoomPage() {
           className='mb-6'
           onClick={() => router.push('/rooms')}
         >
-          <ArrowLeft className='mr-2 h-4 w-4' />
-          {t('Back to Rooms')}
+          <ArrowLeft className='mr-2 h-4 w-4' /> {t('Back to Rooms')}
         </Button>
         <RoomHeader
           room={room}
@@ -387,7 +410,13 @@ export default function RoomPage() {
             </div>
             {isMember && !latestSeason && !room.isArchived && (
               <div className='md:col-span-2'>
-                <RecordBlock members={members} roomId={roomId} room={room} />
+                <RecordBlock
+                  members={members}
+                  roomId={roomId}
+                  room={room}
+                  isCreator={isCreator}
+                  onFinishSeason={handleFinishSeason}
+                />
               </div>
             )}
           </CardContent>

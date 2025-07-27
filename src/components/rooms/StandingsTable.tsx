@@ -15,9 +15,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
-import { Crown } from 'lucide-react';
+import { Info, ShieldCheck } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -105,42 +109,144 @@ export function StandingsTable({
         ) : (
           <FinalStandings season={latestSeason} sport={sport} t={t} />
         )}
-        <StandingsLegend viewMode={viewMode} sport={sport} t={t} />
+        {/* The legend is now replaced by tooltips on each header */}
       </CardContent>
     </Card>
   );
 }
 
-// Sub-component for regular standings
+// --- Sub-component for regular standings ---
 function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
-  // ✅ **ИСПРАВЛЕНИЕ**: Полные заголовки для пинг-понга
-  const pingPongHeaders = [
-    { key: 'name', label: 'Player', isSortable: true },
-    { key: 'rating', label: 'Room Rating', isSortable: true },
-    { key: 'deltaRoom', label: 'Room Δ', isSortable: true },
-    { key: 'globalDelta', label: 'Global Δ', isSortable: true },
-    { key: 'totalMatches', label: 'Games', isSortable: true },
-    { key: 'wins', label: 'Wins', isSortable: true },
-    { key: 'losses', label: 'Losses', isSortable: true },
-    { key: 'winPct', label: 'Win %', isSortable: true },
-    { key: 'avgPtsPerMatch', label: 'Avg Δ / Game', isSortable: true },
-    { key: 'last5Form', label: 'Last 5 ←', isSortable: false },
-    { key: 'longestWinStreak', label: 'Best Streak', isSortable: true },
-  ];
+  const headers = useMemo(() => {
+    const common = [
+      {
+        key: 'name',
+        label: 'Player',
+        isSortable: true,
+        description: "The player's display name.",
+      },
+      {
+        key: 'rating',
+        label: 'Room Rating',
+        isSortable: true,
+        description:
+          'Your ELO rating calculated only from matches within this room. Everyone starts at 1000.',
+      },
+    ];
+    const pingPongSpecific = [
+      {
+        key: 'deltaRoom',
+        label: 'Room Δ',
+        isSortable: true,
+        description:
+          'The change in your Room Rating from the starting 1000 points. Example: If your rating is 1029, your Room Δ is +29.',
+      },
+      {
+        key: 'globalDelta',
+        label: 'Global Δ',
+        isSortable: true,
+        description:
+          'The change in your overall global ELO rating since your first match in this season across all rooms.',
+      },
+      {
+        key: 'totalMatches',
+        label: 'Games',
+        isSortable: true,
+        description:
+          "Total number of games you've played this season in this room.",
+      },
+      {
+        key: 'wins',
+        label: 'Wins',
+        isSortable: true,
+        description: 'Total wins this season.',
+      },
+      {
+        key: 'losses',
+        label: 'Losses',
+        isSortable: true,
+        description: 'Total losses this season.',
+      },
+      {
+        key: 'winPct',
+        label: 'Win %',
+        isSortable: true,
+        description:
+          'Percentage of games won. Calculated as (Wins / Total Games) * 100.',
+      },
+      {
+        key: 'avgPtsPerMatch',
+        label: 'Avg Δ / Game',
+        isSortable: true,
+        description:
+          'The average number of Room Rating points you gain or lose per game.',
+      },
+      {
+        key: 'last5Form',
+        label: 'Last 5 ←',
+        isSortable: false,
+        description: 'The result of your last five games (W=Win, L=Loss).',
+      },
+      {
+        key: 'longestWinStreak',
+        label: 'Best Streak',
+        isSortable: true,
+        description: 'Your longest consecutive winning streak this season.',
+      },
+    ];
+    const tennisSpecific = [
+      {
+        key: 'totalMatches',
+        label: 'Sets',
+        isSortable: true,
+        description:
+          "Total number of sets you've played this season in this room.",
+      },
+      {
+        key: 'wins',
+        label: 'Wins',
+        isSortable: true,
+        description: 'Total sets won this season.',
+      },
+      {
+        key: 'losses',
+        label: 'Losses',
+        isSortable: true,
+        description: 'Total sets lost this season.',
+      },
+      {
+        key: 'winPct',
+        label: 'Win %',
+        isSortable: true,
+        description:
+          'Percentage of sets won. Calculated as (Wins / Total Sets) * 100.',
+      },
+      {
+        key: 'aces',
+        label: 'Aces',
+        isSortable: true,
+        description: 'Serves that result directly in a point.',
+      },
+      {
+        key: 'doubleFaults',
+        label: 'DF',
+        isSortable: true,
+        description:
+          'Two consecutive faults during a serve, resulting in the loss of the point.',
+      },
+      {
+        key: 'winners',
+        label: 'Winners',
+        isSortable: true,
+        description:
+          'Shots that win the point outright, without the opponent touching the ball.',
+      },
+    ];
 
-  const tennisHeaders = [
-    { key: 'name', label: 'Player', isSortable: true },
-    { key: 'rating', label: 'Room Rating', isSortable: true },
-    { key: 'totalMatches', label: 'Sets', isSortable: true },
-    { key: 'wins', label: 'Wins', isSortable: true },
-    { key: 'losses', label: 'Losses', isSortable: true },
-    { key: 'winPct', label: 'Win %', isSortable: true },
-    { key: 'aces', label: 'Aces', isSortable: true },
-    { key: 'doubleFaults', label: 'DF', isSortable: true },
-    { key: 'winners', label: 'Winners', isSortable: true },
-  ];
-
-  const headers = sport === 'tennis' ? tennisHeaders : pingPongHeaders;
+    return sport === 'tennis'
+      ? [...common, ...tennisSpecific]
+      : common.concat(pingPongSpecific);
+  }, [sport]);
 
   return (
     <ScrollArea>
@@ -149,12 +255,23 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
           <TableRow>
             <TableHead>#</TableHead>
             {headers.map((h) => (
-              <TableHead
-                key={h.key}
-                className={h.isSortable ? 'cursor-pointer' : ''}
-                onClick={() => h.isSortable && onSort(h.key)}
-              >
-                {t(h.label)}
+              <TableHead key={h.key}>
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className='flex items-center gap-1 cursor-pointer'
+                        onClick={() => h.isSortable && onSort(h.key)}
+                      >
+                        <span>{t(h.label)}</span>
+                        <Info className='h-3 w-3 text-muted-foreground' />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className='max-w-xs'>{t(h.description)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </TableHead>
             ))}
           </TableRow>
@@ -163,21 +280,29 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
           {players.map((p: any, i: number) => (
             <TableRow key={p.userId}>
               <TableCell>{i + 1}</TableCell>
-              {/* ✅ **ИСПРАВЛЕНИЕ**: Динамическое отображение ячеек в зависимости от спорта */}
+              <TableCell>
+                <a
+                  href={`/profile/${p.userId}`}
+                  className='hover:underline flex items-center gap-2'
+                >
+                  {p.name}
+                  {p.userId === creatorId && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <ShieldCheck className='h-4 w-4 text-primary' />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{t('Room Creator')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </a>
+              </TableCell>
+              <TableCell>{p.ratingVisible ? p.rating : '—'}</TableCell>
               {sport === 'pingpong' ? (
                 <>
-                  <TableCell>
-                    <a
-                      href={`/profile/${p.userId}`}
-                      className='hover:underline'
-                    >
-                      {p.name}
-                    </a>
-                    {p.userId === creatorId && (
-                      <Crown className='inline ml-1 h-4 w-4 text-yellow-500' />
-                    )}
-                  </TableCell>
-                  <TableCell>{p.ratingVisible ? p.rating : '—'}</TableCell>
                   <TableCell>
                     {p.ratingVisible ? p.deltaRoom.toFixed(0) : '—'}
                   </TableCell>
@@ -218,18 +343,6 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
               ) : (
                 // Tennis
                 <>
-                  <TableCell>
-                    <a
-                      href={`/profile/${p.userId}`}
-                      className='hover:underline'
-                    >
-                      {p.name}
-                    </a>
-                    {p.userId === creatorId && (
-                      <Crown className='inline ml-1 h-4 w-4 text-yellow-500' />
-                    )}
-                  </TableCell>
-                  <TableCell>{p.ratingVisible ? p.rating : '—'}</TableCell>
                   <TableCell>{p.totalMatches}</TableCell>
                   <TableCell>{p.wins}</TableCell>
                   <TableCell>{p.losses}</TableCell>
@@ -249,70 +362,144 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   );
 }
 
-// Sub-component for final standings (без изменений)
-function FinalStandings({ season, t }: any) {
-  // This can be adapted for sport-specific final views later
-  const data = Array.isArray(season.summary) ? season.summary : season.members;
-  // ...
-  return <p>{t('Final standings view not fully implemented yet.')}</p>;
-}
+// --- Sub-component for final standings ---
+function FinalStandings({ season, sport, t }: any) {
+  const data = useMemo(
+    () => (Array.isArray(season?.summary) ? season.summary : []),
+    [season]
+  );
 
-// Sub-component for legend
-function StandingsLegend({ viewMode, sport, t }: any) {
-  // ✅ **ИСПРАВЛЕНИЕ**: Динамическая легенда
-  const commonItems = [
-    {
-      key: 'Room Rating',
-      desc: 'Elo score, recalculated based only on matches in this room (starting = 1000).',
-    },
-    { key: 'Win %', desc: '(Wins / Games) × 100.' },
-  ];
+  const headers = useMemo(
+    () => [
+      {
+        key: 'place',
+        label: 'Rank',
+        description: 'Your final ranking for the season.',
+      },
+      {
+        key: 'name',
+        label: 'Player',
+        description: "The player's display name.",
+      },
+      {
+        key: 'matchesPlayed',
+        label: sport === 'tennis' ? 'Sets' : 'Games',
+        description:
+          'Total number of games (or sets) played by the player during the season.',
+      },
+      {
+        key: 'wins',
+        label: 'Wins',
+        description: 'Total number of wins during the season.',
+      },
+      {
+        key: 'losses',
+        label: 'Losses',
+        description: 'Total number of losses during the season.',
+      },
+      {
+        key: 'winRate',
+        label: 'Win %',
+        description:
+          'Percentage of games won. Calculated as (Wins / Total Games) * 100.',
+      },
+      {
+        key: 'longestWinStreak',
+        label: 'Best Streak',
+        description:
+          'The longest consecutive winning streak during the season.',
+      },
+      {
+        key: 'startGlobalElo',
+        label: 'Start Elo',
+        description:
+          'Your global ELO rating at the time of your first match in this season.',
+      },
+      {
+        key: 'endGlobalElo',
+        label: 'End Elo',
+        description:
+          'Your global ELO rating after your last match in this season.',
+      },
+      {
+        key: 'eloDelta',
+        label: 'Elo Δ',
+        description:
+          'The total change in your global ELO over the season (End Elo - Start Elo).',
+      },
+      {
+        key: 'totalAddedPoints',
+        label: 'Total Δ',
+        description:
+          "The sum of all ELO points won or lost specifically within this room's matches.",
+      },
+      {
+        key: 'adjPoints',
+        label: 'Adjusted Pts',
+        description:
+          "The main ranking metric. It's your 'Total Δ' adjusted by the number of games you played compared to the room average. This rewards both performance and activity.",
+      },
+    ],
+    [sport]
+  );
 
-  const pingPongItems = [
-    { key: 'Room Δ', desc: 'vs. starting (1000): current room rating – 1000.' },
-    {
-      key: 'Global Δ',
-      desc: 'Change in your overall Elo (across all rooms) since your first match this season.',
-    },
-    { key: 'Avg Δ / Game', desc: 'Average room Elo change per match.' },
-    { key: 'Last 5', desc: 'W = win, L = loss for the last five games.' },
-    { key: 'Best Streak', desc: 'Longest consecutive winning streak.' },
-  ];
-
-  const tennisItems = [
-    { key: 'Sets / Wins / Losses', desc: 'Sets played and outcomes.' },
-    { key: 'Aces', desc: 'Serves that result directly in a point.' },
-    {
-      key: 'DF (Double Faults)',
-      desc: 'Two consecutive faults during a serve, resulting in the loss of the point.',
-    },
-    {
-      key: 'Winners',
-      desc: 'Shots that win the point outright, without the opponent touching the ball.',
-    },
-  ];
-
-  const legendItems =
-    sport === 'tennis'
-      ? [...commonItems.slice(0, 1), ...tennisItems, ...commonItems.slice(1)]
-      : [
-          ...commonItems.slice(0, 1),
-          ...pingPongItems.slice(0, 2),
-          {
-            key: 'Games / Wins / Losses',
-            desc: 'Matches played and outcomes.',
-          },
-          ...commonItems.slice(1),
-          ...pingPongItems.slice(2),
-        ];
+  if (!data.length) {
+    return (
+      <p className='text-muted-foreground text-center py-4'>
+        {t('No final season data available.')}
+      </p>
+    );
+  }
 
   return (
-    <div className='mt-4 text-xs text-muted-foreground leading-relaxed space-y-1'>
-      {legendItems.map((item) => (
-        <p key={item.key}>
-          <strong>{t(item.key)}</strong> — {t(item.desc)}
-        </p>
-      ))}
-    </div>
+    <ScrollArea>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {headers.map((h) => (
+              <TableHead key={h.key}>
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className='flex items-center gap-1'>
+                        <span>{t(h.label)}</span>
+                        <Info className='h-3 w-3 text-muted-foreground' />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className='max-w-xs'>{t(h.description)}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((r: any) => (
+            <TableRow key={r.userId}>
+              <TableCell>{r.place}</TableCell>
+              <TableCell>
+                <a href={`/profile/${r.userId}`} className='hover:underline'>
+                  {r.name}
+                </a>
+              </TableCell>
+              <TableCell>{r.matchesPlayed}</TableCell>
+              <TableCell>{r.wins}</TableCell>
+              <TableCell>{r.losses}</TableCell>
+              <TableCell>{(r.winRate ?? 0).toFixed(1)}%</TableCell>
+              <TableCell>{r.longestWinStreak ?? '—'}</TableCell>
+              <TableCell>{r.startGlobalElo?.toFixed(0) ?? '—'}</TableCell>
+              <TableCell>{r.endGlobalElo?.toFixed(0) ?? '—'}</TableCell>
+              <TableCell>
+                {(r.endGlobalElo - r.startGlobalElo).toFixed(0)}
+              </TableCell>
+              <TableCell>{r.totalAddedPoints?.toFixed(2) ?? '—'}</TableCell>
+              <TableCell>{r.adjPoints?.toFixed(2) ?? '—'}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </ScrollArea>
   );
 }

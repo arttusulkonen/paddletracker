@@ -17,8 +17,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
-// 👇 1. ВОТ ИСПРАВЛЕНИЕ: Импортируем sportConfig
 import { sportConfig, SportContext } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Sport, UserProfile } from '@/lib/types';
@@ -30,7 +35,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { BarChartHorizontal, Crown, Shield } from 'lucide-react';
+import { BarChartHorizontal, Shield, Users } from 'lucide-react'; // ✅ Заменили Crown на Users
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -56,13 +61,12 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
   useEffect(() => {
     const fetchPlayers = async () => {
-      // Убрали зависимость от userProfile, так как он может быть не готов
       setLoading(true);
       try {
         const q = query(
           collection(db, 'users'),
           where('isPublic', '==', true),
-          where(`sports.${sport}.globalElo`, '>', 0), // Убедимся, что у игрока есть ELO для этого спорта
+          where(`sports.${sport}.globalElo`, '>', 0),
           orderBy(`sports.${sport}.globalElo`, 'desc'),
           limit(100)
         );
@@ -91,7 +95,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         setPlayers(fetchedPlayers);
       } catch (error) {
         console.error('Error fetching players:', error);
-        // В случае ошибки (например, нет индекса в Firestore), покажем пустой список
         setPlayers([]);
       } finally {
         setLoading(false);
@@ -124,7 +127,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
   return (
     <Card>
       <CardHeader>
-        {/* Теперь эта строка будет работать, так как sportConfig импортирован */}
         <CardTitle>Leaderboard ({sportConfig[sport].name})</CardTitle>
         <CardDescription>
           {t('Ranking based on performance in rooms you are part of.')}
@@ -191,10 +193,20 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
                   <AvatarImage src={player.photoURL || undefined} />
                   <AvatarFallback>{player.name?.[0]}</AvatarFallback>
                 </Avatar>
-                <span className='font-medium group-hover:underline'>
+                {/* ✅ **ИЗМЕНЕНИЕ**: Заменили иконку и добавили подсказку */}
+                <span className='font-medium group-hover:underline flex items-center'>
                   {player.name}
                   {player.isFriend && (
-                    <Crown className='inline-block ml-2 h-4 w-4 text-yellow-500' />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Users className='inline-block ml-2 h-4 w-4 text-blue-500' />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{t('In your friend list')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </span>
               </a>

@@ -2,8 +2,6 @@
 'use client';
 
 import AchievementsPanel from '@/components/AchievementsPanel';
-import { ProfileContent } from '@/components/profile/ProfileContent';
-import { ProfileSettingsDialog } from '@/components/profile/ProfileSettingsDialog';
 import {
   Badge,
   Card,
@@ -25,9 +23,9 @@ import {
   TableRow,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSport } from '@/contexts/SportContext';
+import { Sport, useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
-import type { Match, Room, SportConfig } from '@/lib/types';
+import type { Match, Room, SportConfig, UserProfile } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
 import { doc, getDoc } from 'firebase/firestore';
 import {
@@ -74,20 +72,22 @@ interface ProfileContentProps {
   opponents: { id: string; name: string }[];
   oppFilter: string;
   setOppFilter: (value: string) => void;
-  filteredMatches: Match[];
+  matches: Match[];
   loadingMatches: boolean;
   meUid: string;
   config: SportConfig;
   oppStats: any[];
-  targetProfile: any;
+  targetProfile: UserProfile;
   tennisStats: any | null;
+  achievements: any[];
+  sport: Sport;
 }
 
 const CustomTooltip: FC<any> = ({ active, payload, label, t }) => {
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
-    <div className='bg-white p-2 rounded shadow-lg text-sm border'>
+    <div className='bg-background p-2 rounded shadow-lg text-sm border'>
       <div className='font-semibold mb-1'>{label}</div>
       {data.opponent && (
         <div>
@@ -391,7 +391,6 @@ function MatchesTableCard({
   );
 }
 
-// --- Основной компонент контента ---
 export const ProfileContent: React.FC<ProfileContentProps> = ({
   canViewProfile,
   stats,
@@ -400,22 +399,23 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   pieData,
   sidePieData,
   sidePieLossData,
-  insights,
+  insights = [],
   perfData,
   monthlyData,
   opponents,
   oppFilter,
   setOppFilter,
-  filteredMatches,
+  matches,
   loadingMatches,
   meUid,
   config,
   oppStats,
   targetProfile,
   tennisStats,
+  achievements,
+  sport,
 }) => {
   const { t } = useTranslation();
-  const { sport } = useSport();
 
   if (!canViewProfile) {
     return (
@@ -434,8 +434,8 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   }
 
   return (
-    <>
-      <div className='grid grid-cols-1 sm:grid-cols-4 gap-4'>
+    <div className='space-y-6'>
+      <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'>
         <StatCard
           icon={LineChartIcon}
           label={t('Current ELO')}
@@ -457,38 +457,16 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           value={stats.maxWinStreak}
         />
       </div>
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch'>
-        <div className='h-full'>
-          <AchievementsPanel
-            achievements={targetProfile?.achievements ?? []}
-            overallMatches={stats.total}
-            overallWins={stats.wins}
-            overallWinRate={stats.winRate}
-            overallMaxStreak={stats.maxWinStreak}
-          />
-        </div>
-        <div className='flex flex-col gap-4'>
-          <PieCard
-            title={t('Win / Loss (Ranked)')}
-            icon={PieChartIcon}
-            data={pieData}
-          />
-          {sport === 'pingpong' && (
-            <div className='flex flex-row gap-4'>
-              <PieCard
-                title={t('Left vs Right Wins (Ranked)')}
-                icon={PieChartIcon}
-                data={sidePieData}
-              />
-              <PieCard
-                title={t('Left vs Right Losses (Ranked)')}
-                icon={PieChartIcon}
-                data={sidePieLossData}
-              />
-            </div>
-          )}
-        </div>
-      </div>
+
+      <AchievementsPanel
+        allAchievements={achievements}
+        sport={sport}
+        sportMatches={stats.total}
+        sportWins={stats.wins}
+        sportWinRate={stats.winRate}
+        sportMaxStreak={stats.maxWinStreak}
+      />
+
       <div className='flex items-center gap-4'>
         <span className='font-medium'>{t('Filter by Opponent')}:</span>
         <Select value={oppFilter} onValueChange={setOppFilter}>
@@ -497,7 +475,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value='all'>{t('All Opponents')}</SelectItem>
-            {opponents.map((o) => (
+            {opponents.map((o: any) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.name}
               </SelectItem>
@@ -505,12 +483,14 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           </SelectContent>
         </Select>
       </div>
+
       {sport === 'pingpong' && (
         <DetailedStatsCard stats={stats} side={sideStats} t={t} />
       )}
       {sport === 'tennis' && tennisStats && (
         <TennisStatsCard stats={tennisStats} t={t} />
       )}
+
       {insights.length > 0 && (
         <Card>
           <CardHeader>
@@ -533,138 +513,15 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           </CardContent>
         </Card>
       )}
-      <div className='space-y-8'>
-        <ChartCard title={t('ELO History (Ranked)')} icon={LineChartIcon}>
-          <ResponsiveContainer width='100%' height={400}>
-            <LineChart data={perfData}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='label' tick={{ fontSize: 12 }} />
-              <YAxis domain={['dataMin-20', 'dataMax+20']} />
-              <RechartTooltip content={<CustomTooltip t={t} />} />
-              <ReLegend />
-              <Line
-                type='monotone'
-                dataKey='rating'
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-              <Brush
-                dataKey='label'
-                height={20}
-                travellerWidth={10}
-                startIndex={Math.floor(perfData.length * 0.8)}
-                endIndex={perfData.length - 1}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title={t('Monthly Δ ELO (Ranked)')} icon={LineChartIcon}>
-          <ResponsiveContainer width='100%' height={300}>
-            {/* ✅ ИСПРАВЛЕНИЕ: monthly -> monthlyData */}
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='label' />
-              <YAxis />
-              <ReLegend />
-              <RechartTooltip />
-              <Line type='monotone' dataKey='delta' strokeWidth={2} dot />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title={t('Match Result (Ranked)')} icon={Activity}>
-          <ResponsiveContainer width='100%' height={450}>
-            <LineChart data={perfData}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='label' tick={{ fontSize: 12 }} />
-              <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} />
-              <RechartTooltip content={<CustomTooltip t={t} />} />
-              <ReLegend />
-              <Line
-                type='stepAfter'
-                dataKey='result'
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-              <Brush
-                dataKey='label'
-                height={20}
-                travellerWidth={10}
-                startIndex={Math.floor(perfData.length * 0.8)}
-                endIndex={perfData.length - 1}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title={t('Score Difference (Ranked)')} icon={TrendingUp}>
-          <ResponsiveContainer width='100%' height={450}>
-            <LineChart data={perfData}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='label' tick={{ fontSize: 12 }} />
-              <YAxis />
-              <RechartTooltip content={<CustomTooltip t={t} />} />
-              <ReLegend />
-              <Line
-                type='monotone'
-                dataKey='diff'
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-              <Brush
-                dataKey='label'
-                height={20}
-                travellerWidth={10}
-                startIndex={Math.floor(perfData.length * 0.8)}
-                endIndex={perfData.length - 1}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
+
       <MatchesTableCard
-        title={`${t('All Matches')} (${filteredMatches.length})`}
-        matches={filteredMatches}
+        title={`${t('Matches')} (${matches.length})`}
+        matches={matches}
         loading={loadingMatches}
         meUid={meUid}
         t={t}
         config={config}
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('Performance vs Opponents (Ranked)')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('Opponent')}</TableHead>
-                  <TableHead>{t('W / L')}</TableHead>
-                  <TableHead>{t('Win %')}</TableHead>
-                  <TableHead>{t('ELO Δ')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {oppStats.map((o) => (
-                  <TableRow key={o.name}>
-                    <TableCell>{o.name}</TableCell>
-                    <TableCell>
-                      {o.wins} / {o.losses}
-                    </TableCell>
-                    <TableCell>{o.winRate.toFixed(1)}%</TableCell>
-                    <TableCell
-                      className={
-                        o.elo >= 0 ? 'text-accent' : 'text-destructive'
-                      }
-                    >
-                      {o.elo > 0 ? `+${o.elo}` : o.elo}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-    </>
+    </div>
   );
 };

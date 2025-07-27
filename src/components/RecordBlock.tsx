@@ -2,10 +2,20 @@
 'use client';
 
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Button,
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
   Label,
@@ -26,7 +36,6 @@ import {
   TennisSetData,
 } from './record-blocks/TennisRecordBlock';
 
-// Общий компонент для выбора игроков, он не меняется
 function PlayerSelect({
   label,
   value,
@@ -59,14 +68,19 @@ function PlayerSelect({
   );
 }
 
+// ✅ Обновлены пропсы компонента
 export function RecordBlock({
   members,
   roomId,
   room,
+  isCreator,
+  onFinishSeason,
 }: {
   members: Room['members'];
   roomId: string;
   room: Room;
+  isCreator: boolean;
+  onFinishSeason: () => void;
 }) {
   const { t } = useTranslation();
   const { sport, config } = useSport();
@@ -97,17 +111,13 @@ export function RecordBlock({
       if (sport === 'tennis') {
         return [...prev, { score1: '', score2: '' }];
       }
-      // Логика для пинг-понга
       const lastMatch = prev[prev.length - 1] as PingPongMatchData;
       const newSide1 = lastMatch.side1 === 'left' ? 'right' : 'left';
       const newSide2 = newSide1 === 'left' ? 'right' : 'left';
-      const newRow = {
-        score1: '',
-        score2: '',
-        side1: newSide1,
-        side2: newSide2,
-      };
-      return [...prev, newRow];
+      return [
+        ...prev,
+        { score1: '', score2: '', side1: newSide1, side2: newSide2 },
+      ];
     });
   };
 
@@ -127,14 +137,12 @@ export function RecordBlock({
       });
       return;
     }
-
     const invalidMatch = matchesInput.find(({ score1, score2 }) => {
       const a = +score1;
       const b = +score2;
       if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
       return !config.validateScore(a, b).isValid;
     });
-
     if (invalidMatch) {
       const { message } = config.validateScore(
         +invalidMatch.score1,
@@ -147,31 +155,17 @@ export function RecordBlock({
       });
       return;
     }
-
     setIsRecording(true);
-
-    const matchesToSave = matchesInput.map((match) => {
-      if (sport === 'tennis') {
-        return {
-          ...match,
-          side1: 'left',
-          side2: 'right',
-        };
-      }
-      return match;
-    });
-
     const success = await processAndSaveMatches(
       roomId,
       room,
       player1Id,
       player2Id,
-      matchesToSave as PingPongMatchData[],
+      matchesInput,
       members,
       sport,
       config
     );
-
     if (success) {
       toast({ title: t('Matches recorded') });
       setPlayer1Id('');
@@ -203,7 +197,7 @@ export function RecordBlock({
     .map((m) => ({ userId: m.userId, name: m.name, rating: m.rating }));
 
   return (
-    <Card className='shadow-md'>
+    <Card className='shadow-md flex flex-col h-full'>
       <CardHeader>
         <CardTitle className='flex items-center gap-2'>
           <Sword className='text-accent' /> {t('Record Matches')}
@@ -214,7 +208,7 @@ export function RecordBlock({
             : t('Select players and scores.')}
         </CardDescription>
       </CardHeader>
-      <CardContent className='space-y-4'>
+      <CardContent className='space-y-4 flex-grow'>
         <div className='grid grid-cols-2 gap-4 items-end'>
           <PlayerSelect
             label={t('Player 1')}
@@ -231,7 +225,6 @@ export function RecordBlock({
             t={t}
           />
         </div>
-
         {sport === 'pingpong' &&
           matchesInput.map((row, i) => (
             <PingPongRowInput
@@ -253,7 +246,6 @@ export function RecordBlock({
               removable={i > 0}
             />
           ))}
-
         <div className='flex justify-between items-center mt-4'>
           <Button
             variant='outline'
@@ -271,6 +263,35 @@ export function RecordBlock({
           </Button>
         </div>
       </CardContent>
+
+      {/* ✅ Новый футер с кнопкой завершения сезона */}
+      {isCreator && (
+        <CardFooter className='justify-end border-t pt-4 mt-auto'>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant='destructive'>{t('Finish Season')}</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t('Are you absolutely sure?')}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t(
+                    'This action will close the current season for this room. All standings will be finalized, and no new matches can be recorded for this season. This cannot be undone.'
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={onFinishSeason}>
+                  {t('Yes, Finish Season')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardFooter>
+      )}
     </Card>
   );
 }
