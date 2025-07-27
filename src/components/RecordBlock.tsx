@@ -8,18 +8,56 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Input,
   Label,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { processAndSaveMatches } from '@/lib/elo';
 import type { Room } from '@/lib/types';
-import { Plus, Sword, Trash2 } from 'lucide-react';
+import { Plus, Sword } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  PingPongMatchData,
+  PingPongRowInput,
+} from './record-blocks/PingPongRecordBlock';
+import {
+  TennisRowInput,
+  TennisSetData,
+} from './record-blocks/TennisRecordBlock';
 
-const flip = (s: string) => (s === 'left' ? 'right' : 'left');
+// Общий компонент для выбора игроков, он не меняется
+function PlayerSelect({
+  label,
+  value,
+  onChange,
+  list,
+  t,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  list: { userId: string; name: string; rating: number }[];
+  t: (key: string) => string;
+}) {
+  return (
+    <div className='space-y-2'>
+      <Label>{label}</Label>
+      <select
+        className='w-full border rounded p-2 bg-input'
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value=''>{t('Select')}</option>
+        {list.map((o) => (
+          <option key={o.userId} value={o.userId}>
+            {o.name} ({Math.round(o.rating)})
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export function RecordBlock({
   members,
@@ -36,29 +74,50 @@ export function RecordBlock({
 
   const [player1Id, setPlayer1Id] = useState('');
   const [player2Id, setPlayer2Id] = useState('');
-  const [matchesInput, setMatchesInput] = useState([
-    { score1: '', score2: '', side1: 'left', side2: 'right' },
-  ]);
   const [isRecording, setIsRecording] = useState(false);
 
-  const addRow = () =>
-    setMatchesInput((rows) => {
-      if (!rows.length)
-        return [...rows, { score1: '', score2: '', side1: '', side2: '' }];
-      const last = rows[rows.length - 1];
-      return [
-        ...rows,
-        {
-          score1: '',
-          score2: '',
-          side1: flip(last.side1),
-          side2: flip(last.side2),
-        },
-      ];
+  const [matchesInput, setMatchesInput] = useState<
+    Array<PingPongMatchData | TennisSetData>
+  >([
+    sport === 'tennis'
+      ? { score1: '', score2: '' }
+      : { score1: '', score2: '', side1: 'left', side2: 'right' },
+  ]);
+
+  useEffect(() => {
+    setMatchesInput([
+      sport === 'tennis'
+        ? { score1: '', score2: '' }
+        : { score1: '', score2: '', side1: 'left', side2: 'right' },
+    ]);
+  }, [sport]);
+
+  const addRow = () => {
+    setMatchesInput((prev) => {
+      if (sport === 'tennis') {
+        return [...prev, { score1: '', score2: '' }];
+      }
+      // Логика для пинг-понга
+      const lastMatch = prev[prev.length - 1] as PingPongMatchData;
+      const newSide1 = lastMatch.side1 === 'left' ? 'right' : 'left';
+      const newSide2 = newSide1 === 'left' ? 'right' : 'left';
+      const newRow = {
+        score1: '',
+        score2: '',
+        side1: newSide1,
+        side2: newSide2,
+      };
+      return [...prev, newRow];
     });
+  };
 
   const removeRow = (i: number) =>
     setMatchesInput((r) => r.filter((_, idx) => idx !== i));
+  const updateRow = (i: number, data: PingPongMatchData | TennisSetData) => {
+    setMatchesInput((prev) =>
+      prev.map((row, index) => (index === i ? data : row))
+    );
+  };
 
   const saveMatches = async () => {
     if (!player1Id || !player2Id || player1Id === player2Id) {
@@ -70,34 +129,44 @@ export function RecordBlock({
     }
 
     const invalidMatch = matchesInput.find(({ score1, score2 }) => {
-      const a = +score1,
-        b = +score2;
-      if (isNaN(a) || isNaN(b) || a < 0 || b < 0) return true; // Базовая проверка
-
-      // Используем функцию валидации из конфига
+      const a = +score1;
+      const b = +score2;
+      if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
       return !config.validateScore(a, b).isValid;
     });
 
     if (invalidMatch) {
-      const validationResult = config.validateScore(
+      const { message } = config.validateScore(
         +invalidMatch.score1,
         +invalidMatch.score2
       );
       toast({
         title: t('Check the score values'),
-        description: t(validationResult.message || 'Invalid score format'),
+        description: t(message || 'Invalid score format'),
         variant: 'destructive',
       });
       return;
     }
 
     setIsRecording(true);
+
+    const matchesToSave = matchesInput.map((match) => {
+      if (sport === 'tennis') {
+        return {
+          ...match,
+          side1: 'left',
+          side2: 'right',
+        };
+      }
+      return match;
+    });
+
     const success = await processAndSaveMatches(
       roomId,
       room,
       player1Id,
       player2Id,
-      matchesInput,
+      matchesToSave as PingPongMatchData[],
       members,
       sport,
       config
@@ -108,7 +177,9 @@ export function RecordBlock({
       setPlayer1Id('');
       setPlayer2Id('');
       setMatchesInput([
-        { score1: '', score2: '', side1: 'left', side2: 'right' },
+        sport === 'tennis'
+          ? { score1: '', score2: '' }
+          : { score1: '', score2: '', side1: 'left', side2: 'right' },
       ]);
     } else {
       toast({
@@ -132,12 +203,16 @@ export function RecordBlock({
     .map((m) => ({ userId: m.userId, name: m.name, rating: m.rating }));
 
   return (
-    <Card className='md:col-span-2 shadow-md'>
+    <Card className='shadow-md'>
       <CardHeader>
         <CardTitle className='flex items-center gap-2'>
           <Sword className='text-accent' /> {t('Record Matches')}
         </CardTitle>
-        <CardDescription>{t('Select players and scores')}</CardDescription>
+        <CardDescription>
+          {sport === 'tennis'
+            ? t('Record each set result.')
+            : t('Select players and scores.')}
+        </CardDescription>
       </CardHeader>
       <CardContent className='space-y-4'>
         <div className='grid grid-cols-2 gap-4 items-end'>
@@ -156,124 +231,46 @@ export function RecordBlock({
             t={t}
           />
         </div>
-        {matchesInput.map((row, i) => (
-          <MatchRowInput
-            key={i}
-            index={i}
-            data={row}
-            onChange={(d) =>
-              setMatchesInput((r) => r.map((v, idx) => (idx === i ? d : v)))
-            }
-            onRemove={() => removeRow(i)}
-            removable={i > 0}
-            t={t}
-          />
-        ))}
-        <Button
-          variant='outline'
-          className='flex items-center gap-2'
-          onClick={addRow}
-        >
-          <Plus /> {t('Add Match')}
-        </Button>
-        <Button
-          className='w-full mt-4'
-          disabled={isRecording}
-          onClick={saveMatches}
-        >
-          {isRecording ? t('Recording…') : t('Record & Update ELO')}
-        </Button>
+
+        {sport === 'pingpong' &&
+          matchesInput.map((row, i) => (
+            <PingPongRowInput
+              key={i}
+              data={row as PingPongMatchData}
+              onChange={(d) => updateRow(i, d)}
+              onRemove={() => removeRow(i)}
+              removable={i > 0}
+            />
+          ))}
+        {sport === 'tennis' &&
+          matchesInput.map((row, i) => (
+            <TennisRowInput
+              key={i}
+              setIndex={i}
+              data={row as TennisSetData}
+              onChange={(d) => updateRow(i, d)}
+              onRemove={() => removeRow(i)}
+              removable={i > 0}
+            />
+          ))}
+
+        <div className='flex justify-between items-center mt-4'>
+          <Button
+            variant='outline'
+            className='flex items-center gap-2'
+            onClick={addRow}
+          >
+            <Plus /> {sport === 'tennis' ? t('Add Set') : t('Add Match')}
+          </Button>
+          <Button
+            className='w-full max-w-xs'
+            disabled={isRecording}
+            onClick={saveMatches}
+          >
+            {isRecording ? t('Recording…') : t('Record & Update ELO')}
+          </Button>
+        </div>
       </CardContent>
     </Card>
-  );
-}
-
-function PlayerSelect({
-  label,
-  value,
-  onChange,
-  list,
-  t,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  list: { userId: string; name: string; rating: number }[];
-  t: (key: string) => string;
-}) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <select
-        className='w-full border rounded p-2'
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value=''>{t('Select')}</option>
-        {list.map((o) => (
-          <option key={o.userId} value={o.userId}>
-            {o.name} ({o.rating})
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function MatchRowInput({
-  data,
-  onChange,
-  onRemove,
-  removable,
-  t,
-}: {
-  index: number;
-  data: any;
-  onChange: (d: any) => void;
-  onRemove: () => void;
-  removable: boolean;
-  t: (key: string) => string;
-}) {
-  return (
-    <div className='grid grid-cols-2 gap-4 mb-2 relative'>
-      {['1', '2'].map((n) => (
-        <div key={n}>
-          <Label>{t(`P${n} Score`)}</Label>
-          <Input
-            type='number'
-            value={data[`score${n}`]}
-            onChange={(e) =>
-              onChange({ ...data, [`score${n}`]: e.target.value })
-            }
-          />
-          <Label className='mt-2'>{t('Side')}</Label>
-          <select
-            className='w-full border rounded p-2'
-            value={data[`side${n}`]}
-            onChange={(e) =>
-              onChange({
-                ...data,
-                [`side${n}`]: e.target.value,
-                [`side${n === '1' ? '2' : '1'}`]:
-                  e.target.value === 'left' ? 'right' : 'left',
-              })
-            }
-          >
-            <option value=''>{t('–')}</option>
-            <option value='left'>{t('Left')}</option>
-            <option value='right'>{t('Right')}</option>
-          </select>
-        </div>
-      ))}
-      {removable && (
-        <Button
-          variant='ghost'
-          className='absolute top-1/2 right-0 -translate-y-1/2'
-          onClick={onRemove}
-        >
-          <Trash2 />
-        </Button>
-      )}
-    </div>
   );
 }

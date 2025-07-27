@@ -25,12 +25,14 @@ import {
   TableRow,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Match, Room, SportConfig } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
 import { doc, getDoc } from 'firebase/firestore';
 import {
   Activity,
+  BarChart,
   CornerUpLeft,
   CornerUpRight,
   Flame,
@@ -78,6 +80,7 @@ interface ProfileContentProps {
   config: SportConfig;
   oppStats: any[];
   targetProfile: any;
+  tennisStats: any | null;
 }
 
 const CustomTooltip: FC<any> = ({ active, payload, label, t }) => {
@@ -108,6 +111,26 @@ const CustomTooltip: FC<any> = ({ active, payload, label, t }) => {
         </div>
       )}
     </div>
+  );
+};
+
+const TennisStatsCard: FC<{ stats: any; t: (k: string) => string }> = ({
+  stats,
+  t,
+}) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className='flex items-center gap-2'>
+          <BarChart /> {t('Tennis Career Stats')}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className='grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm'>
+        <StatItem l={t('Aces')} v={stats.aces} />
+        <StatItem l={t('Double Faults')} v={stats.doubleFaults} />
+        <StatItem l={t('Winners')} v={stats.winners} />
+      </CardContent>
+    </Card>
   );
 };
 
@@ -389,8 +412,10 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   config,
   oppStats,
   targetProfile,
+  tennisStats,
 }) => {
   const { t } = useTranslation();
+  const { sport } = useSport();
 
   if (!canViewProfile) {
     return (
@@ -448,18 +473,20 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
             icon={PieChartIcon}
             data={pieData}
           />
-          <div className='flex flex-row gap-4'>
-            <PieCard
-              title={t('Left vs Right Wins (Ranked)')}
-              icon={PieChartIcon}
-              data={sidePieData}
-            />
-            <PieCard
-              title={t('Left vs Right Losses (Ranked)')}
-              icon={PieChartIcon}
-              data={sidePieLossData}
-            />
-          </div>
+          {sport === 'pingpong' && (
+            <div className='flex flex-row gap-4'>
+              <PieCard
+                title={t('Left vs Right Wins (Ranked)')}
+                icon={PieChartIcon}
+                data={sidePieData}
+              />
+              <PieCard
+                title={t('Left vs Right Losses (Ranked)')}
+                icon={PieChartIcon}
+                data={sidePieLossData}
+              />
+            </div>
+          )}
         </div>
       </div>
       <div className='flex items-center gap-4'>
@@ -478,7 +505,12 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <DetailedStatsCard stats={stats} side={sideStats} t={t} />
+      {sport === 'pingpong' && (
+        <DetailedStatsCard stats={stats} side={sideStats} t={t} />
+      )}
+      {sport === 'tennis' && tennisStats && (
+        <TennisStatsCard stats={tennisStats} t={t} />
+      )}
       {insights.length > 0 && (
         <Card>
           <CardHeader>
