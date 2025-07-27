@@ -1,14 +1,17 @@
 // src/components/AchievementsPanel.tsx
-
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '@/components/ui';
+import { Sport, sportConfig } from '@/contexts/SportContext';
 import { safeFormatDate } from '@/lib/utils/date';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -22,243 +25,182 @@ interface Achievement {
   matchesPlayed?: number;
   wins?: number;
   roomName?: string;
-  description?: string;
+  sport: Sport;
 }
 
 interface Props {
-  achievements: Achievement[];
-  overallMatches: number;
-  overallWins: number;
-  overallWinRate: number;
-  overallMaxStreak: number;
+  allAchievements: Achievement[];
+  sport: Sport;
+  sportMatches: number;
+  sportWins: number;
+  sportWinRate: number;
+  sportMaxStreak: number;
 }
 
-// Kynnysarvot
-const OVERALL_MATCH_THRESHOLDS = [
-  10, 20, 50, 100, 200, 500, 1000, 2000, 3000, 5000,
-];
-const OVERALL_WIN_THRESHOLDS = [
-  10, 20, 50, 100, 200, 500, 1000, 2000, 3000, 5000,
-];
-const OVERALL_STREAK_THRESHOLDS = [5, 10, 15, 20, 25, 30, 50, 75, 100];
+// Achievement Thresholds
+const OVERALL_MATCH_THRESHOLDS = [10, 50, 100, 250, 500, 1000];
+const OVERALL_WIN_THRESHOLDS = [10, 50, 100, 250, 500];
+const OVERALL_STREAK_THRESHOLDS = [5, 10, 15, 20];
+const SEASON_MATCH_THRESHOLDS = [10, 25, 50, 100];
+const SEASON_WIN_THRESHOLDS = [10, 25, 50, 100];
+const TOURNAMENT_THRESHOLDS = [1, 5, 10, 25];
 
-const SEASON_MATCH_THRESHOLDS = [5, 10, 20, 50, 100, 200, 300];
-const SEASON_WIN_THRESHOLDS = [5, 10, 20, 40, 60, 80, 100, 150, 200];
-const TOURNAMENT_THRESHOLDS = [1, 5, 10, 25, 50, 100, 200, 500];
-
-// ИЗМЕНЕНО: Старая функция больше не нужна, но ее можно оставить, если используется где-то еще.
-const countSeasonsAtOrAbove = (
-  arr: Achievement[],
-  prop: 'matchesPlayed' | 'wins',
-  thr: number
-) =>
-  arr.filter((a) => a.type === 'seasonFinish' && (a[prop] ?? 0) >= thr).length;
-
-// НОВАЯ ФУНКЦИЯ: возвращает массив сезонов, достигших порога
+// Helper functions to process achievements
 const getSeasonsAtOrAbove = (
   arr: Achievement[],
   prop: 'matchesPlayed' | 'wins',
   thr: number
 ) => arr.filter((a) => a.type === 'seasonFinish' && (a[prop] ?? 0) >= thr);
 
-const datesForPlace = (arr: Achievement[], place: number, type: string) =>
-  arr
-    .filter((a) => a.type === type && a.place === place)
-    .map((a) => a.dateFinished);
+const getAchievementsByTypeAndPlace = (
+  arr: Achievement[],
+  type: string,
+  place: number
+) => arr.filter((a) => a.type === type && a.place === place);
 
-const tournamentCount = (arr: Achievement[]) =>
-  arr.filter((a) => a.type === 'tournamentFinish').length;
+const countAchievementsByType = (arr: Achievement[], type: string) =>
+  arr.filter((a) => a.type === type).length;
 
 export default function AchievementsPanel({
-  achievements = [],
-  overallMatches = 0,
-  overallWins = 0,
-  overallWinRate = 0,
-  overallMaxStreak = 0,
+  allAchievements = [],
+  sport,
+  sportMatches = 0,
+  sportWins = 0,
+  sportWinRate = 0,
+  sportMaxStreak = 0,
 }: Props) {
   const { t } = useTranslation();
 
-  if (!achievements.length) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('Achievements')}</CardTitle>
-        </CardHeader>
-        <CardContent>{t('No season achievements yet.')}</CardContent>
-      </Card>
+  const achievements = allAchievements.filter((a) => a.sport === sport);
+
+  const seasonPodiums = [1, 2, 3].map((place) => {
+    const qualifying = getAchievementsByTypeAndPlace(
+      achievements,
+      'seasonFinish',
+      place
     );
-  }
-
-  const seasonStars = [1, 2, 3].map((pl) => {
-    const cnt = datesForPlace(achievements, pl, 'seasonFinish').length;
+    const count = qualifying.length;
     return {
-      label: `${t('Season Podium')} #${pl}`,
-      icon: <FaMedal color={['#ffd700', '#c0c0c0', '#cd7f32'][pl - 1]} />,
-      unlocked: cnt > 0,
-      count: cnt,
-      tooltip: cnt
-        ? `${t('Podium #')}${pl} ${t('on:')}\n${datesForPlace(
-            achievements,
-            pl,
-            'seasonFinish'
-          ).join('\n')}`
-        : `${t('Reach podium #')}${pl} ${t('in a season')}`,
+      icon: <FaMedal color={['#ffd700', '#c0c0c0', '#cd7f32'][place - 1]} />,
+      unlocked: count > 0,
+      count,
+      tooltip:
+        count > 0
+          ? `${t('Podium #')}${place} (${count}x):\n${qualifying
+              .map(
+                (s) =>
+                  `- ${s.roomName} (${safeFormatDate(
+                    s.dateFinished,
+                    'dd.MM.yy'
+                  )})`
+              )
+              .join('\n')}`
+          : `${t('Reach podium #')}${place} ${t('in a season')}`,
     };
   });
 
-  const tournStars = [1, 2, 3].map((pl) => {
-    const cnt = datesForPlace(achievements, pl, 'tournamentFinish').length;
+  const tournamentPodiums = [1, 2, 3].map((place) => {
+    const qualifying = getAchievementsByTypeAndPlace(
+      achievements,
+      'tournamentFinish',
+      place
+    );
+    const count = qualifying.length;
     return {
-      label: `${t('Tournament Podium')} #${pl}`,
-      icon: <FaTrophy color={['#ffd700', '#c0c0c0', '#cd7f32'][pl - 1]} />,
-      unlocked: cnt > 0,
-      count: cnt,
-      tooltip: cnt
-        ? `${t('Podium #')}${pl} ${t('on:')}\n${datesForPlace(
-            achievements,
-            pl,
-            'tournamentFinish'
-          ).join('\n')}`
-        : `${t('Reach tournament podium #')}${pl}`,
+      icon: <FaTrophy color={['#ffd700', '#c0c0c0', '#cd7f32'][place - 1]} />,
+      unlocked: count > 0,
+      count,
+      tooltip:
+        count > 0
+          ? `${t('Tournament Podium #')}${place} (${count}x):\n${qualifying
+              .map(
+                (s) =>
+                  `- ${s.roomName} (${safeFormatDate(
+                    s.dateFinished,
+                    'dd.MM.yy'
+                  )})`
+              )
+              .join('\n')}`
+          : `${t('Reach tournament podium #')}${place}`,
     };
   });
 
-  const tPlayed = tournamentCount(achievements);
+  const tournamentsPlayedCount = countAchievementsByType(
+    achievements,
+    'tournamentFinish'
+  );
   const tournamentMilestones = TOURNAMENT_THRESHOLDS.map((thr) => ({
-    label: `${t('Played')} ${thr}+ ${t('Tournaments')}`,
     icon: <FaTrophy />,
-    unlocked: tPlayed >= thr,
-    tooltip:
-      tPlayed >= thr
-        ? `${t('You played')} ${tPlayed} ${t('tournaments')} (>= ${thr})`
-        : `${t('Play')} ${thr} ${t('tournaments to unlock')}`,
+    unlocked: tournamentsPlayedCount >= thr,
+    tooltip: `${t('Tournaments played:')} ${tournamentsPlayedCount} / ${thr}`,
   }));
 
-  const overallMatchMilestones = OVERALL_MATCH_THRESHOLDS.map((thr) => ({
-    label: `${t('Played')} ${thr}+ ${t('Matches')}`,
+  const matchMilestones = OVERALL_MATCH_THRESHOLDS.map((thr) => ({
     icon: <GiPingPongBat />,
-    unlocked: overallMatches >= thr,
-    tooltip:
-      overallMatches >= thr
-        ? `${t('You played')} ${overallMatches} ${t('matches')} (>= ${thr})`
-        : `${t('Play')} ${thr} ${t('matches to unlock')}`,
+    unlocked: sportMatches >= thr,
+    tooltip: `${t('Played')} ${sportMatches} / ${thr} ${t('matches')}`,
   }));
 
-  const overallWinMilestones = OVERALL_WIN_THRESHOLDS.map((thr) => ({
-    label: `${t('Won')} ${thr}+ ${t('Matches')}`,
+  const winMilestones = OVERALL_WIN_THRESHOLDS.map((thr) => ({
     icon: <FaTrophy />,
-    unlocked: overallWins >= thr,
-    tooltip:
-      overallWins >= thr
-        ? `${t('You have')} ${overallWins} ${t(
-            'wins'
-          )} (${overallWinRate.toFixed(1)}% ${t('win rate')})`
-        : `${t('Win')} ${thr} ${t('matches to unlock')}`,
+    unlocked: sportWins >= thr,
+    tooltip: `${t('Won')} ${sportWins} / ${thr} ${t('matches')}`,
   }));
 
-  const overallStreakMilestones = OVERALL_STREAK_THRESHOLDS.map((thr) => ({
-    label: `${t('Win Streak')} ${thr}+`,
+  const streakMilestones = OVERALL_STREAK_THRESHOLDS.map((thr) => ({
     icon: <GiFlame />,
-    unlocked: overallMaxStreak >= thr,
-    tooltip:
-      overallMaxStreak >= thr
-        ? `${t('Your best streak is')} ${overallMaxStreak} (>= ${thr})`
-        : `${t('Get a streak of')} ${thr} ${t('to unlock')}`,
+    unlocked: sportMaxStreak >= thr,
+    tooltip: `${t('Best streak:')} ${sportMaxStreak} / ${thr}`,
   }));
 
   const seasonMatchMilestones = SEASON_MATCH_THRESHOLDS.map((thr) => {
-    const qualifyingSeasons = getSeasonsAtOrAbove(
-      achievements,
-      'matchesPlayed',
-      thr
-    );
-    const cnt = qualifyingSeasons.length;
+    const qualifying = getSeasonsAtOrAbove(achievements, 'matchesPlayed', thr);
     return {
-      label: `${t('Played')} ${thr}+ ${t('Matches in Season')}`,
       icon: <GiPingPongBat />,
-      unlocked: cnt > 0,
-      count: cnt,
+      unlocked: qualifying.length > 0,
+      count: qualifying.length,
       tooltip:
-        cnt > 0
-          ? `${t('Achieved in')} ${cnt} ${t('seasons')}:\n${qualifyingSeasons
-              .map(
-                (s) =>
-                  `- ${s.roomName || t('Unnamed Season')}: ${
-                    s.matchesPlayed
-                  } ${t('matches')}`
-              )
+        qualifying.length > 0
+          ? `${t('Achieved in')} ${qualifying.length} ${t(
+              'seasons'
+            )}:\n${qualifying
+              .map((s) => `- ${s.roomName}: ${s.matchesPlayed} ${t('matches')}`)
               .join('\n')}`
-          : `${t('No season with')} ${thr}+ ${t('matches yet')}`,
+          : `${t('Play')} ${thr}+ ${t('matches in a season')}`,
     };
   });
 
   const seasonWinMilestones = SEASON_WIN_THRESHOLDS.map((thr) => {
-    const qualifyingSeasons = getSeasonsAtOrAbove(achievements, 'wins', thr);
-    const cnt = qualifyingSeasons.length;
+    const qualifying = getSeasonsAtOrAbove(achievements, 'wins', thr);
     return {
-      label: `${t('Won')} ${thr}+ ${t('Matches in Season')}`,
       icon: <FaTrophy />,
-      unlocked: cnt > 0,
-      count: cnt,
+      unlocked: qualifying.length > 0,
+      count: qualifying.length,
       tooltip:
-        cnt > 0
-          ? `${t('Achieved in')} ${cnt} ${t('seasons')}:\n${qualifyingSeasons
-              .map(
-                (s) =>
-                  `- ${s.roomName || t('Unnamed Season')}: ${s.wins} ${t(
-                    'wins'
-                  )}`
-              )
+        qualifying.length > 0
+          ? `${t('Achieved in')} ${qualifying.length} ${t(
+              'seasons'
+            )}:\n${qualifying
+              .map((s) => `- ${s.roomName}: ${s.wins} ${t('wins')}`)
               .join('\n')}`
-          : `${t('No season with')} ${thr}+ ${t('wins yet')}`,
+          : `${t('Win')} ${thr}+ ${t('matches in a season')}`,
     };
   });
-
-  const Row: React.FC<{ title: string; items: any[] }> = ({ title, items }) => (
-    <div className='mb-6'>
-      <h4 className='text-lg font-semibold mb-2'>{title}</h4>
-      <div className='flex flex-wrap gap-4 items-center'>
-        {items.map((it, idx) => (
-          <TooltipProvider key={idx}>
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <div
-                  className='relative text-3xl'
-                  style={{ color: it.unlocked ? undefined : '#ccc' }}
-                >
-                  {it.icon}
-                  {it.count! > 0 && (
-                    <span className='absolute -top-2 -right-2 bg-red-600 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center'>
-                      {it.count}
-                    </span>
-                  )}
-                  {!it.unlocked && (
-                    <FaLock className='absolute -top-2 -right-2 text-lg text-gray-500' />
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side='top'>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{it.tooltip}</div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ))}
-      </div>
-    </div>
-  );
 
   return (
     <Card className='h-full'>
       <CardHeader>
-        <CardTitle>{t('Achievements')}</CardTitle>
+        <CardTitle>
+          {t('Achievements')} ({sportConfig[sport].name})
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <Row title={t('Season Podiums')} items={seasonStars} />
-        <Row title={t('Tournament Podiums')} items={tournStars} />
+        <Row title={t('Season Podiums')} items={seasonPodiums} />
+        <Row title={t('Tournament Podiums')} items={tournamentPodiums} />
         <Row title={t('Tournaments Played')} items={tournamentMilestones} />
-        <Row title={t('Total Matches')} items={overallMatchMilestones} />
-        <Row title={t('Total Wins')} items={overallWinMilestones} />
-        <Row title={t('Longest Win Streak')} items={overallStreakMilestones} />
+        <Row title={t('Total Matches')} items={matchMilestones} />
+        <Row title={t('Total Wins')} items={winMilestones} />
+        <Row title={t('Longest Win Streak')} items={streakMilestones} />
         <Row
           title={t('Matches in a Single Season')}
           items={seasonMatchMilestones}
@@ -268,3 +210,37 @@ export default function AchievementsPanel({
     </Card>
   );
 }
+
+const Row: React.FC<{ title: string; items: any[] }> = ({ title, items }) => (
+  <div className='mb-6'>
+    <h4 className='text-md font-semibold mb-3'>{title}</h4>
+    <div className='flex flex-wrap gap-4 items-center'>
+      {items.map((it, idx) => (
+        <TooltipProvider key={idx} delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={`relative text-3xl transition-opacity ${
+                  it.unlocked ? 'opacity-100' : 'opacity-30'
+                }`}
+              >
+                {it.icon}
+                {it.count > 1 && (
+                  <span className='absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full text-xs w-5 h-5 flex items-center justify-center border-2 border-card'>
+                    {it.count}
+                  </span>
+                )}
+                {!it.unlocked && (
+                  <FaLock className='absolute top-0 right-0 text-lg text-muted-foreground' />
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side='top'>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{it.tooltip}</div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ))}
+    </div>
+  </div>
+);

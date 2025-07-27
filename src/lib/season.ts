@@ -1,6 +1,5 @@
-// src/lib/season.ts  –  обновлено 2025-06-06
-// Final-season helper using symmetric √-penalty + “half-average” floor
-
+// src/lib/season.ts
+import type { Sport, SportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import {
@@ -15,7 +14,6 @@ import {
   where,
 } from 'firebase/firestore';
 
-/* ---------- небольшие утилиты ---------- */
 const toDate = (v: string | Timestamp): Date =>
   typeof v === 'string'
     ? new Date(
@@ -29,25 +27,16 @@ const toDate = (v: string | Timestamp): Date =>
     : v.toDate();
 
 const pickRoomRating = (o: any): number =>
-  o.roomNewRating ??
-  o.rating ??
-  o.newRating ??
-  o.oldRating ??
-  1000;
+  o.roomNewRating ?? o.rating ?? o.newRating ?? o.oldRating ?? 1000;
 
-/* ---------- типы ---------- */
 interface RawMatch extends Record<string, any> { }
-interface StreakMark {
-  w: boolean;
-  ts: Date;
-}
 interface PlayerSeason {
   userId: string;
   name: string;
   wins: number;
   losses: number;
   totalAddedPoints: number;
-  matches: StreakMark[];
+  matches: { w: boolean; ts: Date }[];
   roomRating: number;
 }
 export interface SeasonRow {
@@ -57,25 +46,27 @@ export interface SeasonRow {
   matchesPlayed: number;
   wins: number;
   losses: number;
+  winRate: number; // ✅ Added winRate
   totalAddedPoints: number;
   adjPoints: number;
   longestWinStreak: number;
   roomRating: number;
-  // новые поля для глобального Elo
   startGlobalElo?: number;
   endGlobalElo?: number;
 }
 
-/* ---------- core math ---------- */
 const adjFactor = (ratio: number): number => {
   if (!isFinite(ratio) || ratio <= 0) return 0;
-  return ratio < 1 ? Math.sqrt(ratio) : 1 / Math.sqrt(ratio);
+  // This factor penalizes players who played significantly fewer games than average.
+  return Math.sqrt(ratio);
 };
 
-/* ---------- сбор статистики по матча́м ---------- */
-async function collectStats(roomId: string): Promise<SeasonRow[]> {
+async function collectStats(
+  roomId: string,
+  matchesCollectionName: string
+): Promise<SeasonRow[]> {
   const snap = await getDocs(
-    query(collection(db, 'matches'), where('roomId', '==', roomId))
+    query(collection(db, matchesCollectionName), where('roomId', '==', roomId))
   );
   if (snap.empty) return [];
 
@@ -103,157 +94,128 @@ async function collectStats(roomId: string): Promise<SeasonRow[]> {
       win ? rec.wins++ : rec.losses++;
       rec.totalAddedPoints += info.roomAddedPoints ?? 0;
       rec.matches.push({ w: win, ts: toDate(m.timestamp) });
-      rec.roomRating = pickRoomRating(info); // обновляем, чтобы в конце был последний roomRating
+      rec.roomRating = pickRoomRating(info);
     });
   });
 
-  /* строим массив SeasonRow */
-  const rows: SeasonRow[] = Object.values(map).map((s) => {
-    /* считаем longest win-streak */
-    const ordered = [...s.matches].sort(
-      (a, b) => a.ts.getTime() - b.ts.getTime()
-    );
-    let cur = 0,
-      max = 0;
-    ordered.forEach((m) => {
-      if (m.w) {
-        if (++cur > max) max = cur;
-      } else {
-        cur = 0;
-      }
-    });
+  const rows: Omit<SeasonRow, 'place' | 'adjPoints'>[] = Object.values(map).map(
+    (s) => {
+      const ordered = [...s.matches].sort(
+        (a, b) => a.ts.getTime() - b.ts.getTime()
+      );
+      let cur = 0,
+        max = 0;
+      ordered.forEach((m) => {
+        if (m.w) {
+          if (++cur > max) max = cur;
+        } else {
+          cur = 0;
+        }
+      });
+      const matchesPlayed = s.wins + s.losses;
+      return {
+        userId: s.userId,
+        name: s.name,
+        matchesPlayed,
+        wins: s.wins,
+        losses: s.losses,
+        winRate: matchesPlayed > 0 ? (s.wins / matchesPlayed) * 100 : 0,
+        totalAddedPoints: s.totalAddedPoints,
+        longestWinStreak: max,
+        roomRating: s.roomRating,
+      };
+    }
+  );
 
-    return {
-      userId: s.userId,
-      name: s.name,
-      place: 0,
-      matchesPlayed: s.wins + s.losses,
-      wins: s.wins,
-      losses: s.losses,
-      totalAddedPoints: s.totalAddedPoints,
-      adjPoints: 0, // зададим чуть ниже
-      longestWinStreak: max,
-      roomRating: s.roomRating,
-      // startGlobalElo/endGlobalElo запишутся позже
-    };
-  });
-
-  /* среднее и adj-очки */
   const avgM =
     rows.reduce((sum, r) => sum + r.matchesPlayed, 0) / (rows.length || 1);
 
-  rows.forEach((r) => {
-    const ratio = r.matchesPlayed / avgM || 0;
-    r.adjPoints = r.totalAddedPoints * adjFactor(ratio);
-  });
+  const finalRows: SeasonRow[] = rows.map((r) => ({
+    ...r,
+    place: 0, // Placeholder
+    adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM || 0),
+  }));
 
-  /* разбиваем на major/minor по “половине среднего” */
-  const halfAvg = avgM / 2;
-  const major = rows.filter((r) => r.matchesPlayed >= halfAvg);
-  const minor = rows.filter((r) => r.matchesPlayed < halfAvg);
+  // ✅ **ИСПРАВЛЕНИЕ**: Единая, более справедливая сортировка для всех игроков
+  finalRows.sort(
+    (a, b) =>
+      b.adjPoints - a.adjPoints ||
+      b.totalAddedPoints - a.totalAddedPoints ||
+      b.wins - a.wins ||
+      a.losses - b.losses ||
+      b.longestWinStreak - a.longestWinStreak
+  );
 
-  const sortFn = (a: SeasonRow, b: SeasonRow) =>
-    b.adjPoints - a.adjPoints ||
-    b.totalAddedPoints - a.totalAddedPoints ||
-    b.wins - a.wins ||
-    b.longestWinStreak - a.longestWinStreak;
-
-  major.sort(sortFn);
-  minor.sort(sortFn);
-
-  [...major, ...minor].forEach((r, i) => (r.place = i + 1));
-  return [...major, ...minor];
+  finalRows.forEach((r, i) => (r.place = i + 1));
+  return finalRows;
 }
 
-/* ---------- публичная функция завершения сезона ---------- */
-/**
- * Завершает сезон в комнате roomId.
- * Если передан второй аргумент snapshots, то для каждого игрока в summary будут проставлены
- * поля startGlobalElo и endGlobalElo (рейтинг до начала первого матча и после последнего).
- *
- * @param roomId  Идентификатор комнаты.
- * @param snapshots  Карта: userId → { start: number; end: number }
- */
 export async function finalizeSeason(
   roomId: string,
-  snapshots?: Record<string, { start: number; end: number }>
+  snapshots: Record<string, { start: number; end: number }>,
+  config: SportConfig['collections'],
+  sport: Sport
 ): Promise<void> {
-  // 1) соберём базовый summary по roomRating, adjPoints и прочему
-  const summary = await collectStats(roomId);
+  const summary = await collectStats(roomId, config.matches);
   if (!summary.length) return;
 
-  // 2) получим документ комнаты, чтобы взять roomName и список участников
-  const roomRef = doc(db, 'rooms', roomId);
+  const roomRef = doc(db, config.rooms, roomId);
   const roomSnap = await getDoc(roomRef);
   if (!roomSnap.exists()) return;
   const roomData = roomSnap.data() as any;
 
-  // 3) допишем в каждый объект r поля startGlobalElo и endGlobalElo
-  const enrichedSummary: SeasonRow[] = summary.map((r) => {
-    const userId = r.userId;
-    if (snapshots && snapshots[userId]) {
-      return {
-        ...r,
-        startGlobalElo: snapshots[userId].start,
-        endGlobalElo: snapshots[userId].end,
-      };
-    }
-    // Если snapshots нет (например, вы вызвали без аргумента), можно оставить undefined или поставить текущий roomRating
-    return {
-      ...r,
-      startGlobalElo: r.roomRating,
-      endGlobalElo: r.roomRating,
-    };
-  });
+  // ✅ **ИСПРАВЛЕНИЕ**: Гарантируем, что ELO не будет undefined
+  const enrichedSummary: SeasonRow[] = summary.map((r) => ({
+    ...r,
+    startGlobalElo: snapshots[r.userId]?.start ?? 1000,
+    endGlobalElo: snapshots[r.userId]?.end ?? r.roomRating,
+  }));
 
-  // 4) соберём запись seasonHistory
   const entry = {
     dateFinished: getFinnishFormattedDate(),
     roomId,
     roomName: roomData.name ?? '',
     summary: enrichedSummary,
+    sport,
     type: 'seasonFinish',
   };
 
-  // 5) обновим поле members в комнате (wins, losses, rating → roomRating)
   const updatedMembers = (roomData.members ?? []).map((m: any) => {
     const row = enrichedSummary.find((r) => r.userId === m.userId);
-    if (!row) return m;
-    return {
-      ...m,
-      wins: row.wins,
-      losses: row.losses,
-      rating: row.roomRating,
-    };
+    return row
+      ? { ...m, wins: row.wins, losses: row.losses, rating: row.roomRating }
+      : m;
   });
 
-  // 6) сохраним в Firestore: добавим новую запись в seasonHistory и обновим members
   await updateDoc(roomRef, {
     seasonHistory: arrayUnion(entry),
     members: updatedMembers,
   });
 
-  // 7) добавим “achievements” каждому участнику (опционально)
   for (const r of enrichedSummary) {
+    // ✅ **ИСПРАВЛЕНИЕ**: Создаем чистый объект для ачивки, чтобы избежать undefined
+    const achievement = {
+      type: 'seasonFinish',
+      sport,
+      roomId,
+      roomName: roomData.name ?? '',
+      dateFinished: entry.dateFinished,
+      userId: r.userId,
+      name: r.name,
+      place: r.place,
+      matchesPlayed: r.matchesPlayed,
+      wins: r.wins,
+      losses: r.losses,
+      winRate: r.winRate,
+      totalAddedPoints: r.totalAddedPoints,
+      adjPoints: r.adjPoints,
+      longestWinStreak: r.longestWinStreak,
+      roomRating: r.roomRating,
+      startGlobalElo: r.startGlobalElo,
+      endGlobalElo: r.endGlobalElo,
+    };
     await updateDoc(doc(db, 'users', r.userId), {
-      achievements: arrayUnion({
-        type: 'seasonFinish',
-        roomId,
-        roomName: roomData.name ?? '',
-        dateFinished: entry.dateFinished,
-        userId: r.userId,
-        name: r.name,
-        place: r.place,
-        matchesPlayed: r.matchesPlayed,
-        wins: r.wins,
-        losses: r.losses,
-        totalAddedPoints: r.totalAddedPoints,
-        adjPoints: r.adjPoints,
-        longestWinStreak: r.longestWinStreak,
-        roomRating: r.roomRating,
-        startGlobalElo: r.startGlobalElo,
-        endGlobalElo: r.endGlobalElo,
-      }),
+      achievements: arrayUnion(achievement),
     });
   }
 }

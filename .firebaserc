@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "tabletennis-f4c23"
-  }
+    "default": "tabletennis-f4c23",
+    "dev": "pingpong-dev-fa6d2"
+  },
+  "targets": {},
+  "etags": {}
 }

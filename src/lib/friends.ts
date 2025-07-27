@@ -1,4 +1,4 @@
-import { arrayRemove, arrayUnion, doc, getDoc, updateDoc } from "firebase/firestore";
+import { arrayRemove, arrayUnion, collection, doc, getDoc, getDocs, query, updateDoc, where } from "firebase/firestore";
 import { db } from "./firebase";
 
 export async function sendFriendRequest(fromUid: string, toUid: string) {
@@ -42,12 +42,40 @@ export async function unfriend(uidA: string, uidB: string) {
   ]);
 }
 
-export async function getUserLite(uid: string) {
+export async function getUserLite(uid: string): Promise<(UserProfile & { uid: string }) | null> {
   const snap = await getDoc(doc(db, "users", uid));
-  if (!snap.exists()) return null;
-  return { uid, ...(snap.data() as any) };
+  if (!snap.exists() || snap.data()?.isDeleted) return null;
+  return { uid, ...(snap.data() as UserProfile) };
 }
 
 export function toggleFriend(uid: string, targetUid: string, targetProfile: UserProfile): void {
   throw new Error('Function not implemented.');
+}
+
+/**
+ * NEW FUNCTION: Efficiently fetches multiple lightweight user profiles.
+ * @param uids - An array of user IDs to fetch.
+ * @returns A promise that resolves to an array of user profiles.
+ */
+export async function getMultipleUsersLite(uids: string[]): Promise<(UserProfile & { uid: string })[]> {
+  if (!uids || uids.length === 0) {
+    return [];
+  }
+  // Firestore 'in' query is limited to 30 items per query.
+  const chunks = [];
+  for (let i = 0; i < uids.length; i += 30) {
+    chunks.push(uids.slice(i, i + 30));
+  }
+
+  const results: (UserProfile & { uid: string })[] = [];
+  for (const chunk of chunks) {
+    const q = query(collection(db, "users"), where("uid", "in", chunk));
+    const snap = await getDocs(q);
+    snap.forEach((doc) => {
+      if (!doc.data().isDeleted) {
+        results.push({ uid: doc.id, ...(doc.data() as UserProfile) });
+      }
+    });
+  }
+  return results;
 }

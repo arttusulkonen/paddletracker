@@ -1,10 +1,10 @@
-// src/app/providers.tsx
 'use client';
 
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { SportProvider } from '@/contexts/SportContext';
 import i18n, { fetchAndMergeTranslations } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -14,11 +14,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const init = async () => {
-      // Определяем текущий язык
       const currentLang = i18n.language;
-      // Подгружаем для него переводы из Firestore
       await fetchAndMergeTranslations(currentLang);
-      // Устанавливаем флаг, что все готово
       setIsI18nInitialized(true);
     };
     init();
@@ -51,10 +48,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <I18nextProvider i18n={i18n}>
       <AuthProvider>
-        <Navbar />
-        <main className='flex-grow'>{children}</main>
-        <Footer />
-        <Toaster />
+        <SportProvider>
+          <Navbar />
+          <main className='flex-grow'>{children}</main>
+          <Footer />
+          <Toaster />
+        </SportProvider>
       </AuthProvider>
     </I18nextProvider>
   );

@@ -1,0 +1,342 @@
+// src/components/rooms/CreateRoomDialog.tsx
+'use client';
+
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Input,
+  Label,
+  ScrollArea,
+  Textarea, // ✅ Импортируем Textarea
+} from '@/components/ui';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSport } from '@/contexts/SportContext';
+import { useToast } from '@/hooks/use-toast';
+import { db, storage } from '@/lib/firebase'; // ✅ Импортируем storage
+import { getUserLite } from '@/lib/friends';
+import type { UserProfile } from '@/lib/types';
+import { getFinnishFormattedDate } from '@/lib/utils';
+import { addDoc, collection, doc, onSnapshot } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'; // ✅ Импорты для загрузки файлов
+import { Image as ImageIcon, PlusCircle, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+// ✅ Пропсы для onSuccess колбэка
+interface CreateRoomDialogProps {
+  onSuccess?: () => void;
+}
+
+export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
+  const { t } = useTranslation();
+  const { user, userProfile } = useAuth();
+  const { config } = useSport();
+  const { toast } = useToast();
+
+  // Состояние для открытия/закрытия диалога
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Состояния формы
+  const [roomName, setRoomName] = useState('');
+  const [roomDescription, setRoomDescription] = useState(''); // ✅ Состояние для описания
+  const [isPublic, setIsPublic] = useState(false);
+  const [isRanked, setIsRanked] = useState(true);
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+
+  // ✅ Состояния для загрузки аватара
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Загрузка списка друзей при открытии диалога
+  useEffect(() => {
+    if (!user || !isOpen) return;
+
+    const unsubFriends = onSnapshot(
+      doc(db, 'users', user.uid),
+      async (snap) => {
+        if (!snap.exists()) return setFriends([]);
+        const ids: string[] = snap.data().friends ?? [];
+        const loaded = await Promise.all(
+          ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
+        );
+        setFriends(loaded.filter(Boolean) as UserProfile[]);
+      }
+    );
+
+    return () => unsubFriends();
+  }, [user, isOpen]);
+
+  const inviteCandidates = useMemo(() => {
+    return friends.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+  }, [friends]);
+
+  // ✅ Обработчик выбора файла
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  // ✅ Сброс состояния формы
+  const resetForm = () => {
+    setRoomName('');
+    setRoomDescription('');
+    setIsPublic(false);
+    setIsRanked(true);
+    setSelectedFriends([]);
+    setAvatarFile(null);
+    setAvatarPreview(null);
+  };
+
+  const handleCreateRoom = async () => {
+    if (!user || !userProfile || !roomName.trim()) {
+      toast({
+        title: t('Error'),
+        description: t('Room name cannot be empty'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsCreatingRoom(true);
+
+    try {
+      let avatarURL = '';
+      // 1. Загружаем аватар, если он есть
+      if (avatarFile) {
+        const filePath = `room-avatars/${config.id}/${Date.now()}_${
+          avatarFile.name
+        }`;
+        const storageRef = ref(storage, filePath);
+        const uploadResult = await uploadBytes(storageRef, avatarFile);
+        avatarURL = await getDownloadURL(uploadResult.ref);
+      }
+
+      // 2. Создаем документ комнаты
+      const now = getFinnishFormattedDate();
+      const initialMembers = [
+        {
+          userId: user.uid,
+          name: userProfile.name ?? userProfile.displayName ?? '',
+          email: userProfile.email ?? '',
+          rating: 1000,
+          wins: 0,
+          losses: 0,
+          date: now,
+          role: 'admin' as const,
+        },
+        ...selectedFriends.map((uid) => {
+          const f = inviteCandidates.find((x) => x.uid === uid)!;
+          return {
+            userId: uid,
+            name: f.name ?? f.displayName ?? '',
+            email: f.email ?? '',
+            rating: 1000,
+            wins: 0,
+            losses: 0,
+            date: now,
+            role: 'editor' as const,
+          };
+        }),
+      ];
+
+      await addDoc(collection(db, config.collections.rooms), {
+        name: roomName.trim(),
+        description: roomDescription.trim(), // ✅ Сохраняем описание
+        avatarURL, // ✅ Сохраняем ссылку на аватар
+        creator: user.uid,
+        creatorName: userProfile.name ?? userProfile.displayName ?? '',
+        createdAt: now,
+        members: initialMembers,
+        isPublic,
+        isRanked,
+        memberIds: [user.uid, ...selectedFriends],
+        isArchived: false,
+        seasonHistory: [],
+      });
+
+      toast({
+        title: t('Success'),
+        description: `${t('Room')} "${roomName.trim()}" ${t('created')}`,
+      });
+
+      resetForm();
+      setIsOpen(false); // Закрываем диалог
+      onSuccess?.(); // Вызываем колбэк при успехе
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: t('Error'),
+        description: t('Failed to create room'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingRoom(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button size='lg'>
+          <PlusCircle className='mr-2 h-5 w-5' />
+          {t('Create New Room')}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className='sm:max-w-lg'>
+        <DialogHeader>
+          <DialogTitle>{t('Create a Match Room')}</DialogTitle>
+          <DialogDescription>
+            {t(
+              'Set up a new space to track matches and stats with your friends.'
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className='grid gap-6 py-4'>
+          {/* ✅ Блок загрузки аватара */}
+          <div className='flex flex-col items-center gap-4'>
+            <Avatar className='h-24 w-24'>
+              <AvatarImage src={avatarPreview ?? undefined} />
+              <AvatarFallback>
+                <ImageIcon className='h-10 w-10 text-muted-foreground' />
+              </AvatarFallback>
+            </Avatar>
+            <div className='flex gap-2'>
+              <Button
+                variant='outline'
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {t('Upload Image')}
+              </Button>
+              {avatarPreview && (
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  onClick={() => {
+                    setAvatarFile(null);
+                    setAvatarPreview(null);
+                  }}
+                >
+                  <X className='h-4 w-4' />
+                </Button>
+              )}
+            </div>
+            <Input
+              type='file'
+              ref={fileInputRef}
+              className='hidden'
+              accept='image/png, image/jpeg, image/webp'
+              onChange={handleFileChange}
+            />
+          </div>
+
+          <div className='grid gap-2'>
+            <Label htmlFor='roomName'>{t('Room Name')}</Label>
+            <Input
+              id='roomName'
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              placeholder={t('Office Champs')}
+            />
+          </div>
+
+          {/* ✅ Поле для описания */}
+          <div className='grid gap-2'>
+            <Label htmlFor='roomDescription'>
+              {t('Description')} (optional)
+            </Label>
+            <Textarea
+              id='roomDescription'
+              value={roomDescription}
+              onChange={(e) => setRoomDescription(e.target.value)}
+              placeholder={t('A brief description of your room')}
+            />
+          </div>
+
+          <div className='space-y-4'>
+            <div className='flex items-center space-x-2'>
+              <Checkbox
+                id='isPublic'
+                checked={isPublic}
+                onCheckedChange={(c) => setIsPublic(Boolean(c))}
+              />
+              <Label htmlFor='isPublic'>{t('Make room public?')}</Label>
+            </div>
+            <div className='flex items-start space-x-2'>
+              <Checkbox
+                id='isRanked'
+                checked={isRanked}
+                onCheckedChange={(c) => setIsRanked(Boolean(c))}
+              />
+              <div className='grid gap-1.5 leading-none'>
+                <Label htmlFor='isRanked'>{t('Ranked Room')}</Label>
+                <p className='text-xs text-muted-foreground'>
+                  {t("Matches will affect players' global ELO.")}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <Label className='text-sm font-medium'>
+              {t('Invite players:')}
+            </Label>
+            <ScrollArea className='h-32 mt-2 border rounded-md p-2'>
+              {inviteCandidates.length > 0 ? (
+                inviteCandidates.map((p) => (
+                  <label
+                    key={p.uid}
+                    className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
+                  >
+                    <Checkbox
+                      checked={selectedFriends.includes(p.uid)}
+                      onCheckedChange={(v) =>
+                        v
+                          ? setSelectedFriends([...selectedFriends, p.uid])
+                          : setSelectedFriends(
+                              selectedFriends.filter((id) => id !== p.uid)
+                            )
+                      }
+                    />
+                    <div className='flex items-center gap-2'>
+                      <Avatar className='h-6 w-6'>
+                        <AvatarImage src={p.photoURL ?? undefined} />
+                        <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <span>{p.name ?? p.displayName}</span>
+                    </div>
+                  </label>
+                ))
+              ) : (
+                <p className='text-muted-foreground text-sm text-center py-4'>
+                  {t('No friends available to invite.')}
+                </p>
+              )}
+            </ScrollArea>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={handleCreateRoom} disabled={isCreatingRoom}>
+            {isCreatingRoom ? t('Creating…') : t('Create Room')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

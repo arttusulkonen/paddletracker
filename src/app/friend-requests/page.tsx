@@ -7,10 +7,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  ScrollArea,
 } from '@/components/ui';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
+import { Sport, sportConfig, useSport } from '@/contexts/SportContext'; // ✅ 1. ИМПОРТ
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import { getFinnishFormattedDate } from '@/lib/utils';
@@ -30,9 +30,17 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+// --- Обновленные типы для поддержки мультиспортивности ---
 type LiteUser = { uid: string; name: string; photoURL?: string };
 
-type RoomRequest = { fromUser: LiteUser; toRoom: { id: string; name: string } };
+type RoomRequest = {
+  fromUser: LiteUser;
+  toRoom: {
+    id: string;
+    name: string;
+    collectionName: string; // ✅ 2. ДОБАВЛЕНО ПОЛЕ ДЛЯ ИМЕНИ КОЛЛЕКЦИИ
+  };
+};
 
 export default function FriendRequestsPage() {
   const { t } = useTranslation();
@@ -45,96 +53,132 @@ export default function FriendRequestsPage() {
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
 
-    const load = async () => {
-      if (!user) return;
+  useEffect(() => {
+    const loadRequests = async () => {
+      if (!user || !userProfile) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
+
+      // --- Загрузка запросов в друзья (без изменений) ---
       const incomingFriends = userProfile?.incomingRequests ?? [];
-      const friendReqPromises = incomingFriends.map(async (uid) => {
-        const userDoc = await getDoc(doc(db, 'users', uid));
-        if (userDoc.exists()) {
-          const d = userDoc.data();
-          return {
-            uid,
-            name: d.name ?? d.email ?? t('Unknown'),
-            photoURL: d.photoURL,
-          };
-        }
-        return null;
-      });
+      const friendReqPromises = incomingFriends.map((uid) =>
+        Friends.getUserLite(uid)
+      );
       setFriendRequests(
         (await Promise.all(friendReqPromises)).filter(Boolean) as LiteUser[]
       );
 
-      const ownedRoomsQuery = query(
-        collection(db, 'rooms'),
-        where('creator', '==', user.uid)
-      );
-      const ownedRoomsSnap = await getDocs(ownedRoomsQuery);
-      const roomReqArr: RoomRequest[] = [];
-      const roomReqPromises = ownedRoomsSnap.docs.map(async (roomDoc) => {
-        const roomData = roomDoc.data();
-        const requestUids = roomData.joinRequests ?? [];
-        for (const uid of requestUids) {
-          const userDoc = await getDoc(doc(db, 'users', uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            roomReqArr.push({
-              fromUser: {
-                uid,
-                name: userData.name ?? userData.email ?? t('Unknown'),
-                photoURL: userData.photoURL,
-              },
-              toRoom: { id: roomDoc.id, name: roomData.name },
-            });
+      // --- ✅ 3. ИСПРАВЛЕНА ЗАГРУЗКА ЗАПРОСОВ В КОМНАТЫ ---
+      const allRoomRequests: RoomRequest[] = [];
+
+      // Перебираем все сконфигурированные виды спорта
+      for (const sportKey in sportConfig) {
+        const config = sportConfig[sportKey as Sport];
+        const roomsCollectionName = config.collections.rooms;
+
+        const ownedRoomsQuery = query(
+          collection(db, roomsCollectionName),
+          where('creator', '==', user.uid)
+        );
+
+        const ownedRoomsSnap = await getDocs(ownedRoomsQuery);
+
+        // Для каждой комнаты, которой владеет пользователь, проверяем запросы
+        for (const roomDoc of ownedRoomsSnap.docs) {
+          const roomData = roomDoc.data();
+          const requestUids = roomData.joinRequests ?? [];
+
+          for (const uid of requestUids) {
+            const userSnap = await getDoc(doc(db, 'users', uid));
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              allRoomRequests.push({
+                fromUser: {
+                  uid,
+                  name: userData.name ?? userData.email ?? t('Unknown'),
+                  photoURL: userData.photoURL,
+                },
+                toRoom: {
+                  id: roomDoc.id,
+                  name: roomData.name,
+                  collectionName: roomsCollectionName, // Сохраняем имя коллекции
+                },
+              });
+            }
           }
         }
-      });
-      await Promise.all(roomReqPromises);
-      setRoomRequests(roomReqArr);
+      }
 
+      setRoomRequests(allRoomRequests);
       setLoading(false);
     };
 
-    load();
-  }, [user, userProfile, t]);
-
-  const handleRoom = async (req: RoomRequest, accept: boolean) => {
-    if (!user) return;
-    const roomRef = doc(db, 'rooms', req.toRoom.id);
-    await updateDoc(roomRef, { joinRequests: arrayRemove(req.fromUser.uid) });
-
-    if (accept) {
-      const userDoc = await getDoc(doc(db, 'users', req.fromUser.uid));
-      if (!userDoc.exists()) return;
-      const userData = userDoc.data();
-      const newMember = {
-        userId: req.fromUser.uid,
-        name: userData.name ?? userData.displayName ?? 'New Player',
-        email: userData.email,
-        rating: 1000,
-        wins: 0,
-        losses: 0,
-        date: getFinnishFormattedDate(),
-        role: 'editor',
-      };
-      await updateDoc(roomRef, {
-        members: arrayUnion(newMember),
-        memberIds: arrayUnion(req.fromUser.uid),
-      });
+    if (hasMounted && user) {
+      loadRequests();
     }
-    setRoomRequests((prev) =>
-      prev.filter(
-        (r) =>
-          !(
-            r.fromUser.uid === req.fromUser.uid && r.toRoom.id === req.toRoom.id
-          )
-      )
-    );
+  }, [user, userProfile, t, hasMounted]);
+
+  const handleFriendRequest = async (friendUid: string, accept: boolean) => {
+    if (!user) return;
+    try {
+      if (accept) {
+        await Friends.acceptRequest(user.uid, friendUid);
+      } else {
+        await Friends.declineRequest(user.uid, friendUid);
+      }
+      setFriendRequests((prev) => prev.filter((req) => req.uid !== friendUid));
+    } catch (error) {
+      toast({ title: t('Error'), variant: 'destructive' });
+    }
+  };
+
+  const handleRoomRequest = async (req: RoomRequest, accept: boolean) => {
+    if (!user) return;
+
+    // ✅ 4. ИСПОЛЬЗУЕМ ПРАВИЛЬНОЕ ИМЯ КОЛЛЕКЦИИ
+    const roomRef = doc(db, req.toRoom.collectionName, req.toRoom.id);
+
+    try {
+      await updateDoc(roomRef, { joinRequests: arrayRemove(req.fromUser.uid) });
+      if (accept) {
+        const userDoc = await getDoc(doc(db, 'users', req.fromUser.uid));
+        if (!userDoc.exists()) return;
+        const userData = userDoc.data();
+        const newMember = {
+          userId: req.fromUser.uid,
+          name: userData.name ?? userData.displayName ?? 'New Player',
+          email: userData.email,
+          rating: 1000,
+          wins: 0,
+          losses: 0,
+          date: getFinnishFormattedDate(),
+          role: 'editor',
+        };
+        await updateDoc(roomRef, {
+          members: arrayUnion(newMember),
+          memberIds: arrayUnion(req.fromUser.uid),
+        });
+      }
+      setRoomRequests((prev) =>
+        prev.filter(
+          (r) =>
+            !(
+              r.fromUser.uid === req.fromUser.uid &&
+              r.toRoom.id === req.toRoom.id
+            )
+        )
+      );
+    } catch (error) {
+      toast({ title: t('Error'), variant: 'destructive' });
+    }
   };
 
   if (!hasMounted) {
-    return null;
+    return null; // Или скелет загрузки
   }
 
   return (
@@ -180,13 +224,13 @@ export default function FriendRequestsPage() {
                           <Button
                             size='icon'
                             variant='outline'
-                            onClick={() => handleFriend(r.uid, false)}
+                            onClick={() => handleFriendRequest(r.uid, false)}
                           >
                             <X className='h-4 w-4 text-destructive' />
                           </Button>
                           <Button
                             size='icon'
-                            onClick={() => handleFriend(r.uid, true)}
+                            onClick={() => handleFriendRequest(r.uid, true)}
                           >
                             <Check className='h-4 w-4' />
                           </Button>
@@ -196,7 +240,6 @@ export default function FriendRequestsPage() {
                   </ul>
                 )}
               </div>
-
               <div>
                 <h3 className='font-semibold mb-2'>
                   {t('Room Join Requests')}
@@ -243,13 +286,13 @@ export default function FriendRequestsPage() {
                           <Button
                             size='icon'
                             variant='outline'
-                            onClick={() => handleRoom(r, false)}
+                            onClick={() => handleRoomRequest(r, false)}
                           >
                             <X className='h-4 w-4 text-destructive' />
                           </Button>
                           <Button
                             size='icon'
-                            onClick={() => handleRoom(r, true)}
+                            onClick={() => handleRoomRequest(r, true)}
                           >
                             <Check className='h-4 w-4' />
                           </Button>
