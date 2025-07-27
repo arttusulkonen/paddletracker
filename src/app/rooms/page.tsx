@@ -1,8 +1,8 @@
 // src/app/rooms/page.tsx
 'use client';
-
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
-import { RoomCard } from '@/components/rooms/RoomCard'; // ✅ Импортируем новый компонент
+import { CreateRoomDialog } from '@/components/rooms/CreateRoomDialog';
+import { RoomCard } from '@/components/rooms/RoomCard';
 import {
   Button,
   Card,
@@ -61,15 +61,7 @@ export default function RoomsPage() {
   const [roomRating, setRoomRating] = useState<Record<string, number>>({});
   const [hasMounted, setHasMounted] = useState(false);
 
-  // States for 'Create Room' dialog
-  const [roomName, setRoomName] = useState('');
-  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [friends, setFriends] = useState<UserProfile[]>([]);
-  const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
-  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
-  const [isPublic, setIsPublic] = useState(false);
-  const [isRanked, setIsRanked] = useState(true);
-
   useEffect(() => {
     setHasMounted(true);
   }, []);
@@ -292,89 +284,7 @@ export default function RoomsPage() {
             <UsersIcon className='h-10 w-10 text-primary' />
             {t('Match Rooms')} ({config.name})
           </h1>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button size='lg'>
-                <PlusCircle className='mr-2 h-5 w-5' />
-                {t('Create New Room')}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className='sm:max-w-[425px]'>
-              <DialogHeader>
-                <DialogTitle>{t('Create a Match Room')}</DialogTitle>
-                <DialogDescription>
-                  {t('Give your room a name and invite players.')}
-                </DialogDescription>
-              </DialogHeader>
-              <div className='space-y-4 py-4'>
-                <div className='grid grid-cols-4 items-center gap-4'>
-                  <Label htmlFor='roomName' className='text-right'>
-                    {t('Name')}
-                  </Label>
-                  <Input
-                    id='roomName'
-                    value={roomName}
-                    onChange={(e) => setRoomName(e.target.value)}
-                    className='col-span-3'
-                    placeholder={t('Office Champs')}
-                  />
-                </div>
-                <div className='flex items-center space-x-2'>
-                  <Checkbox
-                    id='isPublic'
-                    checked={isPublic}
-                    onCheckedChange={(c) => setIsPublic(Boolean(c))}
-                  />
-                  <Label htmlFor='isPublic'>{t('Make room public?')}</Label>
-                </div>
-                <div className='flex items-start space-x-2'>
-                  <Checkbox
-                    id='isRanked'
-                    checked={isRanked}
-                    onCheckedChange={(c) => setIsRanked(Boolean(c))}
-                  />
-                  <div className='grid gap-1.5 leading-none'>
-                    <Label htmlFor='isRanked'>{t('Ranked Room')}</Label>
-                    <p className='text-xs text-muted-foreground'>
-                      {t("Matches will affect players' global ELO.")}
-                    </p>
-                  </div>
-                </div>
-                <p className='text-sm font-medium'>{t('Invite players:')}</p>
-                <ScrollArea className='h-40 pr-2'>
-                  {inviteCandidates.length ? (
-                    inviteCandidates.map((p) => (
-                      <label
-                        key={p.uid}
-                        className='flex items-center gap-2 py-1'
-                      >
-                        <Checkbox
-                          checked={selectedFriends.includes(p.uid)}
-                          onCheckedChange={(v) =>
-                            v
-                              ? setSelectedFriends([...selectedFriends, p.uid])
-                              : setSelectedFriends(
-                                  selectedFriends.filter((id) => id !== p.uid)
-                                )
-                          }
-                        />
-                        <span>{p.name ?? p.displayName}</span>
-                      </label>
-                    ))
-                  ) : (
-                    <p className='text-muted-foreground'>
-                      {t('No friends available to invite.')}
-                    </p>
-                  )}
-                </ScrollArea>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCreateRoom} disabled={isCreatingRoom}>
-                  {isCreatingRoom ? t('Creating…') : t('Create')}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <CreateRoomDialog />
         </div>
         <Card className='mb-8 shadow-lg'>
           <CardHeader>

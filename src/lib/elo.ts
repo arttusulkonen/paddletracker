@@ -90,11 +90,14 @@ export async function processAndSaveMatches(
       p1Member.rating += dG1;
       p2Member.rating += dG2;
 
+      p1Member.globalElo = newG1;
+      p2Member.globalElo = newG2;
+
+
       const ts = new Date(startDate.getTime() + i * 1000);
       const createdAt = getFinnishFormattedDate(ts);
       const tsIso = ts.toISOString();
 
-      // ✅ **ИСПРАВЛЕНИЕ**: Создаем правильные объекты для каждого игрока
       let player1Data: any = {};
       let player2Data: any = {};
 

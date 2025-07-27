@@ -12,7 +12,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui';
 import type { Room } from '@/lib/types';
-import { ShieldCheck, Users } from 'lucide-react'; // ✅ Заменили Crown на ShieldCheck
+import { ShieldCheck, Users } from 'lucide-react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface MembersListProps {
@@ -33,6 +34,10 @@ function getRank(elo: number, t: (key: string) => string) {
 export function MembersList({ members, room }: MembersListProps) {
   const { t } = useTranslation();
 
+  const sortedMembers = React.useMemo(() => {
+    return [...members].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  }, [members]);
+
   return (
     <div>
       <h3 className='font-semibold text-lg mb-2 flex items-center gap-2'>
@@ -40,7 +45,7 @@ export function MembersList({ members, room }: MembersListProps) {
         {t('Members')} ({members.length})
       </h3>
       <ScrollArea className='border rounded-md p-3 bg-background h-[400px]'>
-        {members.map((p) => {
+        {sortedMembers.map((p) => {
           const rank = getRank(p.globalElo ?? 1000, t);
           return (
             <div

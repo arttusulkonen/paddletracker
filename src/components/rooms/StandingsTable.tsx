@@ -249,116 +249,120 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   }, [sport]);
 
   return (
-    <ScrollArea>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>#</TableHead>
-            {headers.map((h) => (
-              <TableHead key={h.key}>
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        className='flex items-center gap-1 cursor-pointer'
-                        onClick={() => h.isSortable && onSort(h.key)}
-                      >
-                        <span>{t(h.label)}</span>
-                        <Info className='h-3 w-3 text-muted-foreground' />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className='max-w-xs'>{t(h.description)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {players.map((p: any, i: number) => (
-            <TableRow key={p.userId}>
-              <TableCell>{i + 1}</TableCell>
-              <TableCell>
-                <a
-                  href={`/profile/${p.userId}`}
-                  className='hover:underline flex items-center gap-2'
-                >
-                  {p.name}
-                  {p.userId === creatorId && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <ShieldCheck className='h-4 w-4 text-primary' />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{t('Room Creator')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </a>
-              </TableCell>
-              <TableCell>{p.ratingVisible ? p.rating : '—'}</TableCell>
-              {sport === 'pingpong' ? (
-                <>
-                  <TableCell>
-                    {p.ratingVisible ? p.deltaRoom.toFixed(0) : '—'}
-                  </TableCell>
-                  <TableCell>
-                    {p.ratingVisible ? p.globalDelta.toFixed(0) : '—'}
-                  </TableCell>
-                  <TableCell>{p.totalMatches}</TableCell>
-                  <TableCell>{p.wins}</TableCell>
-                  <TableCell>{p.losses}</TableCell>
-                  <TableCell>
-                    {p.ratingVisible ? `${p.winPct}%` : '—'}
-                  </TableCell>
-                  <TableCell>
-                    {p.ratingVisible ? p.avgPtsPerMatch.toFixed(2) : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <div className='flex gap-1'>
-                      {(p.last5Form || [])
-                        .slice()
-                        .reverse()
-                        .map((mm: MiniMatch, idx: number) => (
-                          <span
-                            key={idx}
-                            className={`inline-block w-2 h-2 rounded-full ${
-                              mm.result === 'W' ? 'bg-green-500' : 'bg-red-500'
-                            }`}
-                            title={`${t(
-                              mm.result === 'W' ? 'Win' : 'Loss'
-                            )} ${t('vs')} ${mm.opponent} (${mm.score})`}
-                          />
-                        ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {p.ratingVisible ? p.longestWinStreak : '—'}
-                  </TableCell>
-                </>
-              ) : (
-                // Tennis
-                <>
-                  <TableCell>{p.totalMatches}</TableCell>
-                  <TableCell>{p.wins}</TableCell>
-                  <TableCell>{p.losses}</TableCell>
-                  <TableCell>
-                    {p.ratingVisible ? `${p.winPct}%` : '—'}
-                  </TableCell>
-                  <TableCell>{p.aces ?? 0}</TableCell>
-                  <TableCell>{p.doubleFaults ?? 0}</TableCell>
-                  <TableCell>{p.winners ?? 0}</TableCell>
-                </>
-              )}
+    <div className='overflow-x-auto'>
+      <ScrollArea>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              {headers.map((h) => (
+                <TableHead key={h.key}>
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className='flex items-center gap-1 cursor-pointer'
+                          onClick={() => h.isSortable && onSort(h.key)}
+                        >
+                          <span>{t(h.label)}</span>
+                          <Info className='h-3 w-3 text-muted-foreground' />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className='max-w-xs'>{t(h.description)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableHead>
+              ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ScrollArea>
+          </TableHeader>
+          <TableBody>
+            {players.map((p: any, i: number) => (
+              <TableRow key={p.userId}>
+                <TableCell>{i + 1}</TableCell>
+                <TableCell>
+                  <a
+                    href={`/profile/${p.userId}`}
+                    className='hover:underline flex items-center gap-2'
+                  >
+                    {p.name}
+                    {p.userId === creatorId && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <ShieldCheck className='h-4 w-4 text-primary' />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{t('Room Creator')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </a>
+                </TableCell>
+                <TableCell>{p.ratingVisible ? p.rating : '—'}</TableCell>
+                {sport === 'pingpong' ? (
+                  <>
+                    <TableCell>
+                      {p.ratingVisible ? p.deltaRoom.toFixed(0) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {p.ratingVisible ? p.globalDelta.toFixed(0) : '—'}
+                    </TableCell>
+                    <TableCell>{p.totalMatches}</TableCell>
+                    <TableCell>{p.wins}</TableCell>
+                    <TableCell>{p.losses}</TableCell>
+                    <TableCell>
+                      {p.ratingVisible ? `${p.winPct}%` : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {p.ratingVisible ? p.avgPtsPerMatch.toFixed(2) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className='flex gap-1'>
+                        {(p.last5Form || [])
+                          .slice()
+                          .reverse()
+                          .map((mm: MiniMatch, idx: number) => (
+                            <span
+                              key={idx}
+                              className={`inline-block w-2 h-2 rounded-full ${
+                                mm.result === 'W'
+                                  ? 'bg-green-500'
+                                  : 'bg-red-500'
+                              }`}
+                              title={`${t(
+                                mm.result === 'W' ? 'Win' : 'Loss'
+                              )} ${t('vs')} ${mm.opponent} (${mm.score})`}
+                            />
+                          ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {p.ratingVisible ? p.longestWinStreak : '—'}
+                    </TableCell>
+                  </>
+                ) : (
+                  // Tennis
+                  <>
+                    <TableCell>{p.totalMatches}</TableCell>
+                    <TableCell>{p.wins}</TableCell>
+                    <TableCell>{p.losses}</TableCell>
+                    <TableCell>
+                      {p.ratingVisible ? `${p.winPct}%` : '—'}
+                    </TableCell>
+                    <TableCell>{p.aces ?? 0}</TableCell>
+                    <TableCell>{p.doubleFaults ?? 0}</TableCell>
+                    <TableCell>{p.winners ?? 0}</TableCell>
+                  </>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ScrollArea>
+    </div>
   );
 }
 
@@ -452,54 +456,56 @@ function FinalStandings({ season, sport, t }: any) {
   }
 
   return (
-    <ScrollArea>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {headers.map((h) => (
-              <TableHead key={h.key}>
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className='flex items-center gap-1'>
-                        <span>{t(h.label)}</span>
-                        <Info className='h-3 w-3 text-muted-foreground' />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className='max-w-xs'>{t(h.description)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((r: any) => (
-            <TableRow key={r.userId}>
-              <TableCell>{r.place}</TableCell>
-              <TableCell>
-                <a href={`/profile/${r.userId}`} className='hover:underline'>
-                  {r.name}
-                </a>
-              </TableCell>
-              <TableCell>{r.matchesPlayed}</TableCell>
-              <TableCell>{r.wins}</TableCell>
-              <TableCell>{r.losses}</TableCell>
-              <TableCell>{(r.winRate ?? 0).toFixed(1)}%</TableCell>
-              <TableCell>{r.longestWinStreak ?? '—'}</TableCell>
-              <TableCell>{r.startGlobalElo?.toFixed(0) ?? '—'}</TableCell>
-              <TableCell>{r.endGlobalElo?.toFixed(0) ?? '—'}</TableCell>
-              <TableCell>
-                {(r.endGlobalElo - r.startGlobalElo).toFixed(0)}
-              </TableCell>
-              <TableCell>{r.totalAddedPoints?.toFixed(2) ?? '—'}</TableCell>
-              <TableCell>{r.adjPoints?.toFixed(2) ?? '—'}</TableCell>
+    <div className='overflow-x-auto'>
+      <ScrollArea>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {headers.map((h) => (
+                <TableHead key={h.key}>
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className='flex items-center gap-1'>
+                          <span>{t(h.label)}</span>
+                          <Info className='h-3 w-3 text-muted-foreground' />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className='max-w-xs'>{t(h.description)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableHead>
+              ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ScrollArea>
+          </TableHeader>
+          <TableBody>
+            {data.map((r: any) => (
+              <TableRow key={r.userId}>
+                <TableCell>{r.place}</TableCell>
+                <TableCell>
+                  <a href={`/profile/${r.userId}`} className='hover:underline'>
+                    {r.name}
+                  </a>
+                </TableCell>
+                <TableCell>{r.matchesPlayed}</TableCell>
+                <TableCell>{r.wins}</TableCell>
+                <TableCell>{r.losses}</TableCell>
+                <TableCell>{(r.winRate ?? 0).toFixed(1)}%</TableCell>
+                <TableCell>{r.longestWinStreak ?? '—'}</TableCell>
+                <TableCell>{r.startGlobalElo?.toFixed(0) ?? '—'}</TableCell>
+                <TableCell>{r.endGlobalElo?.toFixed(0) ?? '—'}</TableCell>
+                <TableCell>
+                  {(r.endGlobalElo - r.startGlobalElo).toFixed(0)}
+                </TableCell>
+                <TableCell>{r.totalAddedPoints?.toFixed(2) ?? '—'}</TableCell>
+                <TableCell>{r.adjPoints?.toFixed(2) ?? '—'}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ScrollArea>
+    </div>
   );
 }

@@ -1,4 +1,3 @@
-// src/components/rooms/RoomSettings.tsx
 'use client';
 
 import {
@@ -11,6 +10,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
   Button,
   Checkbox,
   DialogContent,
@@ -21,13 +23,20 @@ import {
   Input,
   Label,
   Separator,
+  // ✅ Импортируем нужные компоненты
+  Textarea,
 } from '@/components/ui';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
+// ✅ Импортируем storage для загрузки файлов
+import { useSport } from '@/contexts/SportContext';
+import { db, storage } from '@/lib/firebase';
 import type { Room } from '@/lib/types';
 import { doc, updateDoc } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+// ✅ Добавляем useRef для файлового инпута
+import { Image as ImageIcon, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface RoomSettingsDialogProps {
@@ -38,17 +47,56 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const { toast } = useToast();
+  const { config, sport } = useSport();
+
+  // Состояния формы
   const [name, setName] = useState(room.name);
+  const [description, setDescription] = useState(room.description ?? ''); // ✅ Состояние для описания
   const [isPublic, setIsPublic] = useState(room.isPublic);
   const [isSaving, setIsSaving] = useState(false);
   const [isActing, setIsActing] = useState(false);
 
+  // ✅ Состояния для аватара
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    room.avatarURL ?? null
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ✅ Обработчик выбора файла
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  // ✅ Функция сохранения теперь умеет загружать аватар
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, 'rooms', room.id), { name, isPublic });
-      toast({ title: t('Settings saved') });
+      const updateData: Partial<Room> = {
+        name,
+        description,
+        isPublic,
+      };
+
+      if (avatarFile) {
+        const filePath = `room-avatars/${sport}/${Date.now()}_${
+          avatarFile.name
+        }`;
+        const storageRef = ref(storage, filePath);
+        const uploadResult = await uploadBytes(storageRef, avatarFile);
+        updateData.avatarURL = await getDownloadURL(uploadResult.ref);
+      }
+
+      await updateDoc(doc(db, config.collections.rooms, room.id), updateData);
+      toast({ title: t('Settings saved successfully') });
+      // Можно добавить перезагрузку страницы или обновление состояния, чтобы изменения были видны сразу
+      router.refresh();
     } catch (error) {
+      console.error(error);
       toast({ title: t('Error saving settings'), variant: 'destructive' });
     } finally {
       setIsSaving(false);
@@ -84,14 +132,51 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   };
 
   return (
-    <DialogContent>
+    <DialogContent className='sm:max-w-lg'>
       <DialogHeader>
         <DialogTitle>{t('Room Settings')}</DialogTitle>
         <DialogDescription>
           {t("Manage your room's details and settings.")}
         </DialogDescription>
       </DialogHeader>
-      <div className='space-y-4 py-4'>
+      <div className='space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-4'>
+        {/* ✅ Блок загрузки аватара */}
+        <div className='flex flex-col items-center gap-4'>
+          <Avatar className='h-24 w-24'>
+            <AvatarImage src={avatarPreview ?? undefined} />
+            <AvatarFallback>
+              <ImageIcon className='h-10 w-10 text-muted-foreground' />
+            </AvatarFallback>
+          </Avatar>
+          <div className='flex gap-2'>
+            <Button
+              variant='outline'
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {t('Change Image')}
+            </Button>
+            {avatarPreview && room.avatarURL && (
+              <Button
+                variant='ghost'
+                size='icon'
+                onClick={() => {
+                  setAvatarFile(null);
+                  setAvatarPreview(room.avatarURL);
+                }}
+              >
+                <X className='h-4 w-4' />
+              </Button>
+            )}
+          </div>
+          <Input
+            type='file'
+            ref={fileInputRef}
+            className='hidden'
+            accept='image/png, image/jpeg, image/webp'
+            onChange={handleFileChange}
+          />
+        </div>
+
         <div className='space-y-2'>
           <Label htmlFor='room-name'>{t('Room Name')}</Label>
           <Input
@@ -100,7 +185,19 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
             onChange={(e) => setName(e.target.value)}
           />
         </div>
-        <div className='flex items-center space-x-2'>
+
+        {/* ✅ Поле для описания */}
+        <div className='space-y-2'>
+          <Label htmlFor='room-description'>{t('Description')}</Label>
+          <Textarea
+            id='room-description'
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('A brief description about this room')}
+          />
+        </div>
+
+        <div className='flex items-center space-x-2 pt-2'>
           <Checkbox
             id='is-public'
             checked={isPublic}
@@ -108,6 +205,8 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
           />
           <Label htmlFor='is-public'>{t('Public Room')}</Label>
         </div>
+
+        <Separator />
         <p className='text-xs text-muted-foreground'>
           {t(
             'Public rooms are visible to everyone and can be joined by request.'

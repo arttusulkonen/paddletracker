@@ -67,7 +67,7 @@ export const sportConfig: Record<Sport, SportConfig> = {
     name: 'Ping-Pong',
     icon: <PingPongIcon className='h-6 w-6' />,
     collections: {
-      rooms: 'rooms',
+      rooms: 'rooms-pingpong',
       matches: 'matches-pingpong',
       tournaments: 'tournament-rooms',
     },

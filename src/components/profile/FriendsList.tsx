@@ -64,7 +64,7 @@ export function FriendsList({ targetProfile }: FriendsListProps) {
   }
 
   if (friends.length === 0) {
-    return null; // Не показываем блок, если нет друзей
+    return null; 
   }
 
   return (
@@ -92,11 +92,6 @@ export function FriendsList({ targetProfile }: FriendsListProps) {
             </Link>
           ))}
         </div>
-        {friends.length > PREVIEW_COUNT && (
-          <Button variant='outline' className='w-full mt-4'>
-            {t('Show All')}
-          </Button>
-        )}
       </CardContent>
     </Card>
   );

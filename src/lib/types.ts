@@ -71,6 +71,7 @@ export interface Room {
   isArchived?: boolean;
   avatarURL?: string;
   memberIds: string[];
+  seasonHistory?: any[];
 }
 
 interface Member {
@@ -83,4 +84,5 @@ interface Member {
   maxRating?: number;
   date: string;
   role: string;
+  globalElo?: number;
 }

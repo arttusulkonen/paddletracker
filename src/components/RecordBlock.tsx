@@ -50,7 +50,7 @@ function PlayerSelect({
   t: (key: string) => string;
 }) {
   return (
-    <div className='space-y-2'>
+    <div className='space-y-2 w-full'>
       <Label>{label}</Label>
       <select
         className='w-full border rounded p-2 bg-input'
@@ -209,7 +209,7 @@ export function RecordBlock({
         </CardDescription>
       </CardHeader>
       <CardContent className='space-y-4 flex-grow'>
-        <div className='grid grid-cols-2 gap-4 items-end'>
+        <div className='flex flex-col sm:flex-row gap-4 items-end'>
           <PlayerSelect
             label={t('Player 1')}
             value={player1Id}
@@ -246,16 +246,18 @@ export function RecordBlock({
               removable={i > 0}
             />
           ))}
-        <div className='flex justify-between items-center mt-4'>
+
+        {/* ✅ Блок с кнопками стал адаптивным */}
+        <div className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-4'>
           <Button
             variant='outline'
-            className='flex items-center gap-2'
+            className='flex items-center gap-2' // Убрали w-full, так как контейнер управляет шириной
             onClick={addRow}
           >
             <Plus /> {sport === 'tennis' ? t('Add Set') : t('Add Match')}
           </Button>
           <Button
-            className='w-full max-w-xs'
+            className='w-full sm:w-auto sm:max-w-xs'
             disabled={isRecording}
             onClick={saveMatches}
           >
@@ -264,7 +266,30 @@ export function RecordBlock({
         </div>
       </CardContent>
 
-      {/* ✅ Новый футер с кнопкой завершения сезона */}
+      {sport === 'tennis' && (
+        <CardFooter className='flex-col items-start gap-4 border-t pt-4 text-xs text-muted-foreground'>
+          <p className='font-semibold'>{t('Tennis Terms:')}</p>
+          <ul className='list-disc pl-5 space-y-1'>
+            <li>
+              <strong>{t('Aces')}:</strong>{' '}
+              {t('Serves that result directly in a point.')}
+            </li>
+            <li>
+              <strong>{t('Double Faults')}:</strong>{' '}
+              {t(
+                'Two consecutive faults during a serve, resulting in the loss of the point.'
+              )}
+            </li>
+            <li>
+              <strong>{t('Winners')}:</strong>{' '}
+              {t(
+                'Shots that win the point outright, without the opponent touching the ball.'
+              )}
+            </li>
+          </ul>
+        </CardFooter>
+      )}
+
       {isCreator && (
         <CardFooter className='justify-end border-t pt-4 mt-auto'>
           <AlertDialog>

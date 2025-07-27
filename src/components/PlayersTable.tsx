@@ -171,56 +171,57 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className='w-[50px]'>#</TableHead>
-          <TableHead>{t('Player')}</TableHead>
-          <TableHead className='text-right'>{t('ELO')}</TableHead>
-          <TableHead className='text-right'>{t('W / L')}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {players.map((player, index) => (
-          <TableRow key={player.id}>
-            <TableCell>{index + 1}</TableCell>
-            <TableCell>
-              <a
-                href={`/profile/${player.id}`}
-                className='flex items-center gap-3 group'
-              >
-                <Avatar className='h-9 w-9'>
-                  <AvatarImage src={player.photoURL || undefined} />
-                  <AvatarFallback>{player.name?.[0]}</AvatarFallback>
-                </Avatar>
-                {/* ✅ **ИЗМЕНЕНИЕ**: Заменили иконку и добавили подсказку */}
-                <span className='font-medium group-hover:underline flex items-center'>
-                  {player.name}
-                  {player.isFriend && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Users className='inline-block ml-2 h-4 w-4 text-blue-500' />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{t('In your friend list')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </span>
-              </a>
-            </TableCell>
-            <TableCell className='text-right font-bold'>
-              {player.globalElo.toFixed(0)}
-            </TableCell>
-            <TableCell className='text-right'>
-              {player.wins} / {player.losses}
-            </TableCell>
+    <div className='overflow-x-auto'>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className='w-[50px]'>#</TableHead>
+            <TableHead>{t('Player')}</TableHead>
+            <TableHead className='text-right'>{t('ELO')}</TableHead>
+            <TableHead className='text-right'>{t('W / L')}</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {players.map((player, index) => (
+            <TableRow key={player.id}>
+              <TableCell>{index + 1}</TableCell>
+              <TableCell>
+                <a
+                  href={`/profile/${player.id}`}
+                  className='flex items-center gap-3 group'
+                >
+                  <Avatar className='h-9 w-9'>
+                    <AvatarImage src={player.photoURL || undefined} />
+                    <AvatarFallback>{player.name?.[0]}</AvatarFallback>
+                  </Avatar>
+                  <span className='font-medium group-hover:underline flex items-center'>
+                    {player.name}
+                    {player.isFriend && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Users className='inline-block ml-2 h-4 w-4 text-blue-500' />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{t('In your friend list')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </span>
+                </a>
+              </TableCell>
+              <TableCell className='text-right font-bold'>
+                {player.globalElo.toFixed(0)}
+              </TableCell>
+              <TableCell className='text-right'>
+                {player.wins} / {player.losses}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 

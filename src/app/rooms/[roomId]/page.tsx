@@ -61,13 +61,15 @@ export default function RoomPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [latestSeason, setLatestSeason] = useState<any | null>(null);
   const [seasonStarts, setSeasonStarts] = useState<Record<string, number>>({});
+  const [seasonRoomStarts, setSeasonRoomStarts] = useState<
+    Record<string, number>
+  >({});
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  // Загрузка данных комнаты
   useEffect(() => {
     if (!user || !db) return;
     const unsubRoom = onSnapshot(
@@ -113,14 +115,17 @@ export default function RoomPage() {
 
     const syncData = async () => {
       const starts: Record<string, number> = {};
+      const roomStarts: Record<string, number> = {};
       rawMatches.forEach((m) => {
         const p1 = m.player1Id,
           p2 = m.player2Id;
         if (starts[p1] == null) starts[p1] = m.player1.oldRating;
         if (starts[p2] == null) starts[p2] = m.player2.oldRating;
+        if (roomStarts[p1] == null) roomStarts[p1] = m.player1.roomOldRating;
+        if (roomStarts[p2] == null) roomStarts[p2] = m.player2.roomOldRating;
       });
       setSeasonStarts(starts);
-
+      setSeasonRoomStarts(roomStarts);
       const initialMembers = room.members ?? [];
       if (initialMembers.length === 0) {
         setMembers([]);
@@ -209,12 +214,15 @@ export default function RoomPage() {
 
   const regularPlayers = useMemo(() => {
     const matchStats: Record<string, { wins: number; losses: number }> = {};
+    const latestRoomRatings: Record<string, number> = {};
     rawMatches.forEach((m) => {
       const winnerId =
         m.player1.scores > m.player2.scores ? m.player1Id : m.player2Id;
       [m.player1Id, m.player2Id].forEach((id) => {
         if (!matchStats[id]) matchStats[id] = { wins: 0, losses: 0 };
         id === winnerId ? matchStats[id].wins++ : matchStats[id].losses++;
+        latestRoomRatings[m.player1Id] = m.player1.roomNewRating;
+        latestRoomRatings[m.player2Id] = m.player2.roomNewRating;
       });
     });
 
@@ -242,6 +250,7 @@ export default function RoomPage() {
     return members.map((m: any) => {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
+      const currentRating = latestRoomRatings[m.userId] ?? m.rating ?? 1000;
       const total = wins + losses;
       let max = 0,
         cur = 0;
@@ -259,20 +268,20 @@ export default function RoomPage() {
       return {
         ...m,
         ...tennisStats[m.userId],
+        rating: currentRating,
         ratingVisible: total >= 5,
         wins,
         losses,
         totalMatches: total,
         winPct: calcWinPct(wins, losses),
         deltaRoom:
-          (m.rating || 1000) - (seasonStarts[m.userId] ?? m.rating ?? 1000),
+          currentRating - (seasonRoomStarts[m.userId] ?? currentRating),
         globalDelta:
           (m.globalElo ?? 1000) -
           (seasonStarts[m.userId] ?? m.globalElo ?? 1000),
         avgPtsPerMatch:
           total > 0
-            ? ((m.rating || 1000) -
-                (seasonStarts[m.userId] ?? m.rating ?? 1000)) /
+            ? (currentRating - +(seasonRoomStarts[m.userId] ?? currentRating)) /
               total
             : 0,
         last5Form: last5Form(m),
@@ -404,7 +413,7 @@ export default function RoomPage() {
           onLeave={handleLeaveRoom}
         />
         <Card>
-          <CardContent className='p-6 grid md:grid-cols-3 gap-6'>
+          <CardContent className='grid md:grid-cols-3 gap-6'>
             <div className='md:col-span-1'>
               <MembersList members={regularPlayers} room={room} />
             </div>
