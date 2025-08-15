@@ -19,6 +19,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
+import { isAdmin } from '@/lib/config';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import type { Match, UserProfile } from '@/lib/types';
@@ -52,7 +53,6 @@ export default function ProfileUidPage() {
   const { user, userProfile: viewerProfile } = useAuth();
   const { toast } = useToast();
 
-  // Состояния
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [friendStatus, setFriendStatus] = useState<
@@ -345,7 +345,8 @@ export default function ProfileUidPage() {
                 <ProfileContent
                   key={viewedSport}
                   canViewProfile={
-                    targetProfile.isPublic ||
+                    isAdmin(user?.uid) ||
+                    !targetProfile.isPrivate ||
                     isSelf ||
                     friendStatus === 'friends'
                   }
@@ -379,7 +380,10 @@ export default function ProfileUidPage() {
         <div className='lg:col-span-4 xl:col-span-3'>
           <ProfileSidebar
             canViewProfile={
-              targetProfile.isPublic || isSelf || friendStatus === 'friends'
+              isAdmin(user?.uid) ||
+              !targetProfile.isPrivate ||
+              isSelf ||
+              friendStatus === 'friends'
             }
             targetProfile={targetProfile}
           />

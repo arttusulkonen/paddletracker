@@ -13,7 +13,8 @@ import {
   CardTitle,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { sportConfig } from '@/contexts/SportContext';
+import { Sport, sportConfig } from '@/contexts/SportContext';
+import { isAdmin } from '@/lib/config';
 import { db } from '@/lib/firebase';
 import type { Room, UserProfile } from '@/lib/types';
 import {
@@ -30,15 +31,9 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const SPORTS = ['pingpong', 'tennis'];
+const SPORTS: Sport[] = ['pingpong', 'tennis'];
 
-function RoomListItem({
-  room,
-  isOwnProfile,
-}: {
-  room: Room;
-  isOwnProfile: boolean;
-}) {
+function RoomListItem({ room }: { room: Room }) {
   const { t } = useTranslation();
   const isFinished = (room.seasonHistory?.length ?? 0) > 0;
   const status = room.isArchived
@@ -65,7 +60,7 @@ function RoomListItem({
             <div>
               <p className='font-bold flex items-center gap-2'>
                 {room.name}
-                {!room.isPublic && isOwnProfile && (
+                {!room.isPublic && (
                   <LockIcon className='h-3 w-3 text-muted-foreground' />
                 )}
               </p>
@@ -89,11 +84,12 @@ export default function UserRoomsPage() {
   const { t } = useTranslation();
   const params = useParams();
   const uid = params.uid as string;
-  const { user } = useAuth();
+  const { user, userProfile: viewerProfile } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const isOwnProfile = user?.uid === uid;
+
   useEffect(() => {
     if (!uid) return;
 
@@ -106,14 +102,11 @@ export default function UserRoomsPage() {
         }
 
         const promises = SPORTS.map((sport) => {
-          const collectionName = sportConfig[sport as keyof typeof sportConfig].collections.rooms;
-          let q = query(
+          const collectionName = sportConfig[sport].collections.rooms;
+          const q = query(
             collection(db, collectionName),
             where('memberIds', 'array-contains', uid)
           );
-          if (!isOwnProfile) {
-            q = query(q, where('isPublic', '==', true));
-          }
           return getDocs(q).then((snapshot) =>
             snapshot.docs.map(
               (doc) => ({ id: doc.id, ...doc.data(), sport } as Room)
@@ -124,8 +117,18 @@ export default function UserRoomsPage() {
         const results = await Promise.all(promises);
         const allUserRooms = results.flat();
 
-        // Сортировка: сначала Активные, потом Завершенные, потом Архивные
-        allUserRooms.sort((a, b) => {
+        const viewerIsAdmin = isAdmin(user?.uid);
+        const viewerIsFriend = viewerProfile?.friends?.includes(uid);
+        const viewerRoomIds = new Set(viewerProfile?.rooms ?? []);
+
+        const filteredRooms = allUserRooms.filter((room) => {
+          if (viewerIsAdmin || isOwnProfile) return true;
+          if (room.isPublic) return true;
+          if (viewerIsFriend && viewerRoomIds.has(room.id)) return true;
+          return false;
+        });
+
+        filteredRooms.sort((a, b) => {
           const getScore = (r: Room) => {
             if (r.isArchived) return 2;
             if ((r.seasonHistory?.length ?? 0) > 0) return 1;
@@ -134,7 +137,7 @@ export default function UserRoomsPage() {
           return getScore(a) - getScore(b);
         });
 
-        setRooms(allUserRooms);
+        setRooms(filteredRooms);
       } catch (e) {
         console.error("Failed to fetch user's rooms:", e);
       } finally {
@@ -143,13 +146,13 @@ export default function UserRoomsPage() {
     };
 
     fetchUserData();
-  }, [uid, isOwnProfile]);
+  }, [uid, isOwnProfile, user, viewerProfile]);
 
   const displayName = userProfile?.displayName ?? userProfile?.name ?? 'User';
-  const pageTitle = isOwnProfile ? t('My Rooms') : t('All Public Rooms');
+  const pageTitle = t('Rooms');
   const emptyStateText = isOwnProfile
     ? t("You haven't joined any rooms yet.")
-    : t("This user isn't in any public rooms.");
+    : t("This user isn't in any visible rooms.");
 
   return (
     <ProtectedRoute>
@@ -162,7 +165,7 @@ export default function UserRoomsPage() {
         </Button>
         <Card>
           <CardHeader>
-            <CardTitle className='text-2xl'>{t('All Public Rooms')}</CardTitle>
+            <CardTitle className='text-2xl'>{pageTitle}</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -177,16 +180,12 @@ export default function UserRoomsPage() {
             ) : rooms.length > 0 ? (
               <div className='space-y-4'>
                 {rooms.map((room) => (
-                  <RoomListItem
-                    key={room.id}
-                    room={room}
-                    isOwnProfile={isOwnProfile}
-                  />
+                  <RoomListItem key={room.id} room={room} />
                 ))}
               </div>
             ) : (
               <p className='text-center text-muted-foreground py-8'>
-                {t("This user isn't in any public rooms.")}
+                {emptyStateText}
               </p>
             )}
           </CardContent>
