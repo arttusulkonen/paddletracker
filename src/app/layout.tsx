@@ -18,6 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'PingPongTracker',
   description: 'Track your ping-pong matches, manage tournaments, and analyze your ELO rating.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
