@@ -35,7 +35,13 @@ export function MembersList({ members, room }: MembersListProps) {
   const { t } = useTranslation();
 
   const sortedMembers = React.useMemo(() => {
-    return [...members].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    // ✅ ИСПРАВЛЕНИЕ: Сортируем так, чтобы игроки без видимого рейтинга были внизу
+    return [...members].sort((a, b) => {
+      if (a.ratingVisible !== b.ratingVisible) {
+        return a.ratingVisible ? -1 : 1;
+      }
+      return (b.rating ?? 0) - (a.rating ?? 0);
+    });
   }, [members]);
 
   return (
@@ -69,7 +75,6 @@ export function MembersList({ members, room }: MembersListProps) {
                         {p.name}
                       </a>
                     )}
-                    {/* ✅ **ИЗМЕНЕНИЕ**: Заменили иконку и добавили подсказку */}
                     {p.userId === room.creator && (
                       <TooltipProvider>
                         <Tooltip>
@@ -93,7 +98,7 @@ export function MembersList({ members, room }: MembersListProps) {
                 </div>
               </div>
               <span className='text-sm font-semibold text-primary'>
-                {p.rating}&nbsp;{t('pts')}
+                {p.ratingVisible ? `${p.rating} ${t('pts')}` : '—'}
               </span>
             </div>
           );

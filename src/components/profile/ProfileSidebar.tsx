@@ -10,36 +10,48 @@ import { RoomsList } from './RoomsList';
 
 interface ProfileSidebarProps {
   targetProfile: UserProfile;
+  canViewProfile: boolean;
 }
 
-export function ProfileSidebar({ targetProfile }: ProfileSidebarProps) {
+export function ProfileSidebar({
+  targetProfile,
+  canViewProfile,
+}: ProfileSidebarProps) {
   const { t } = useTranslation();
 
   return (
-    <div className='space-y-6'>
-      <div>
-        <FriendsList targetProfile={targetProfile} />
-        {targetProfile.friends && targetProfile.friends.length > 0 && (
-          <Link
-            href={`/profile/${targetProfile.uid}/friends`}
-            passHref
-            className='mt-4 block'
-          >
-            <Button variant='outline' className='w-full'>
-              {t('View All Friends')}
-            </Button>
-          </Link>
-        )}
-      </div>
+    canViewProfile && (
+      <div className='space-y-6'>
+        <div>
+          <FriendsList targetProfile={targetProfile} />
+          {targetProfile.friends && targetProfile.friends.length > 0 && (
+            <Link
+              href={`/profile/${targetProfile.uid}/friends`}
+              passHref
+              className='mt-4 block'
+            >
+              <Button variant='outline' className='w-full'>
+                {t('View All Friends')}
+              </Button>
+            </Link>
+          )}
+        </div>
 
-      <div className='space-y-4'>
-        <RoomsList targetUid={targetProfile.uid} />
-        <Link href={`/profile/${targetProfile.uid}/rooms`} passHref className='mt-4 block'>
-          <Button variant='outline' className='w-full'>
-            {t('View All Rooms')}
-          </Button>
-        </Link>
+        <div className='space-y-4'>
+          <RoomsList targetUid={targetProfile.uid} />
+          {targetProfile.rooms && targetProfile.rooms.length > 0 && (
+            <Link
+              href={`/profile/${targetProfile.uid}/rooms`}
+              passHref
+              className='mt-4 block'
+            >
+              <Button variant='outline' className='w-full'>
+                {t('View All Rooms')}
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
-    </div>
+    )
   );
 }

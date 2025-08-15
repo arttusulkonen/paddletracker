@@ -1,3 +1,4 @@
+// src/app/forgot-password/page.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -29,34 +30,47 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import * as z from 'zod';
 
-let forgotSchema: any;
-type ForgotFormValues = z.infer<typeof forgotSchema>;
+// ✅ Схема вынесена за пределы компонента для стабильности
+const getForgotSchema = (t: (key: string) => string) =>
+  z.object({
+    email: z.string().email({ message: t('Must be a valid email address') }),
+  });
 
 export default function ForgotPasswordPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-
-  // 🛡️ 1. Состояние для защиты от гидратации
   const [hasMounted, setHasMounted] = useState(false);
 
-  forgotSchema = z.object({
-    email: z.string().email({ message: t('Must be a valid email address') }),
-  });
+  // ✅ Схема инициализируется один раз
+  const forgotSchema = getForgotSchema(t);
+  type ForgotFormValues = z.infer<typeof forgotSchema>;
 
   const form = useForm<ForgotFormValues>({
     resolver: zodResolver(forgotSchema),
     defaultValues: { email: '' },
   });
 
-  // 🛡️ 2. Эффект, который запускается только на клиенте
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
   const onSubmit = async (data: ForgotFormValues) => {
     setIsLoading(true);
+
+    // ✅ Добавлена проверка на наличие объекта auth
+    if (!auth) {
+      toast({
+        title: t('Error'),
+        description:
+          'Authentication service is not available. Please try again later.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
     try {
       await sendPasswordResetEmail(auth, data.email);
       toast({
@@ -65,13 +79,13 @@ export default function ForgotPasswordPage() {
       });
       router.push('/login');
     } catch (err: any) {
-      console.error('Reset error:', err);
+      console.error('Password reset error:', err);
       toast({
         title: t('Reset Failed'),
         description:
           err.code === 'auth/user-not-found'
             ? t('No account found for that email.')
-            : err.message,
+            : t('An unexpected error occurred. Please try again.'),
         variant: 'destructive',
       });
     } finally {
@@ -79,7 +93,6 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  // 🛡️ 3. "Страж", который предотвращает рендер до монтирования на клиенте
   if (!hasMounted) {
     return null;
   }

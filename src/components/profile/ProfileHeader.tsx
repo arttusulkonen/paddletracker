@@ -18,8 +18,20 @@ import { useToast } from '@/hooks/use-toast';
 import * as Friends from '@/lib/friends';
 import { UserProfile } from '@/lib/types';
 import { Settings } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProfileSettingsDialog } from './ProfileSettingsDialog';
+
+interface ProfileHeaderProps {
+  targetProfile: UserProfile;
+  friendStatus: 'none' | 'outgoing' | 'incoming' | 'friends';
+  handleFriendAction: (action: 'add' | 'cancel' | 'accept' | 'remove') => void;
+  isSelf: boolean;
+  rank: string | null;
+  medalSrc: string | null;
+  onUpdate: () => void;
+}
 
 export function ProfileHeader({
   targetProfile,
@@ -30,6 +42,8 @@ export function ProfileHeader({
   medalSrc,
   onUpdate,
 }: ProfileHeaderProps) {
+  const pathname = usePathname();
+
   const { t } = useTranslation();
   const { userProfile } = useAuth();
   const displayName =
@@ -78,9 +92,11 @@ export function ProfileHeader({
               </p>
             )}
 
-            <div className='inline-flex items-center gap-2 rounded-md bg-muted py-1 px-2 text-sm'>
-              <span className='font-medium'>{rank}</span>
-            </div>
+            {rank && (
+              <div className='inline-flex items-center gap-2 rounded-md bg-muted py-1 px-2 text-sm'>
+                <span className='font-medium'>{rank}</span>
+              </div>
+            )}
 
             {!isSelf && (
               <div className='pt-2 flex flex-col sm:flex-row gap-2 w-full max-w-xs mx-auto sm:mx-0'>
@@ -122,7 +138,7 @@ export function ProfileHeader({
           </div>
         </div>
 
-        {medalSrc && (
+        {medalSrc && rank && (
           <div className='flex-shrink-0'>
             <img
               src={medalSrc}

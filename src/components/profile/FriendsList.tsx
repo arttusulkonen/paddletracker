@@ -36,7 +36,12 @@ export function FriendsList({ targetProfile }: FriendsListProps) {
         const friendData = await Friends.getMultipleUsersLite(
           targetProfile.friends
         );
-        setFriends(friendData.sort((a, b) => a.name.localeCompare(b.name)));
+        const sortedFriends = friendData.sort((a, b) =>
+          (a.name || a.displayName || '').localeCompare(
+            b.name || b.displayName || ''
+          )
+        );
+        setFriends(sortedFriends);
       } else {
         setFriends([]);
       }
@@ -64,7 +69,7 @@ export function FriendsList({ targetProfile }: FriendsListProps) {
   }
 
   if (friends.length === 0) {
-    return null; 
+    return null;
   }
 
   return (
@@ -84,10 +89,12 @@ export function FriendsList({ targetProfile }: FriendsListProps) {
             >
               <Avatar className='h-14 w-14'>
                 <AvatarImage src={friend.photoURL ?? undefined} />
-                <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback>
+                  {(friend.name || friend.displayName || '?').charAt(0)}
+                </AvatarFallback>
               </Avatar>
               <p className='text-xs font-medium group-hover:underline truncate w-full'>
-                {friend.name}
+                {friend.name || friend.displayName}
               </p>
             </Link>
           ))}

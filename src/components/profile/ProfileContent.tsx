@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Label,
   ScrollArea,
   Select,
   SelectContent,
@@ -23,13 +24,12 @@ import {
   TableRow,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sport, useSport } from '@/contexts/SportContext';
+import { Sport, SportConfig, sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
-import type { Match, Room, SportConfig, UserProfile } from '@/lib/types';
+import type { Match, Room, UserProfile } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
 import { doc, getDoc } from 'firebase/firestore';
 import {
-  Activity,
   BarChart,
   CornerUpLeft,
   CornerUpRight,
@@ -38,28 +38,15 @@ import {
   ListOrdered,
   Lock,
   Percent,
-  PieChart as PieChartIcon,
-  TrendingUp,
 } from 'lucide-react';
-import { FC, useEffect, useMemo, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Brush,
-  CartesianGrid,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  Tooltip as RechartTooltip,
-  Legend as ReLegend,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from 'recharts';
 
-// --- Типы и Вспомогательные Компоненты ---
 interface ProfileContentProps {
   canViewProfile: boolean;
+  sport: Sport;
+  playedSports: Sport[];
+  onSportChange: (sport: Sport) => void;
   stats: any;
   sportProfile: any;
   sideStats: any;
@@ -70,8 +57,6 @@ interface ProfileContentProps {
   perfData: any[];
   monthlyData: any[];
   opponents: { id: string; name: string }[];
-  oppFilter: string;
-  setOppFilter: (value: string) => void;
   matches: Match[];
   loadingMatches: boolean;
   meUid: string;
@@ -80,55 +65,35 @@ interface ProfileContentProps {
   targetProfile: UserProfile;
   tennisStats: any | null;
   achievements: any[];
-  sport: Sport;
 }
 
-const CustomTooltip: FC<any> = ({ active, payload, label, t }) => {
-  if (!active || !payload?.length) return null;
-  const data = payload[0].payload;
-  return (
-    <div className='bg-background p-2 rounded shadow-lg text-sm border'>
-      <div className='font-semibold mb-1'>{label}</div>
-      {data.opponent && (
-        <div>
-          {t('Opponent')}: {data.opponent}
-        </div>
-      )}
-      {data.score && (
-        <div>
-          {t('Score')}: {data.score}
-        </div>
-      )}
-      {data.addedPoints && (
-        <div>
-          {t('Δ Points')}:{' '}
-          {data.addedPoints > 0 ? `+${data.addedPoints}` : data.addedPoints}
-        </div>
-      )}
-      {data.rating && (
-        <div>
-          {t('Your ELO')}: {data.rating}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const TennisStatsCard: FC<{ stats: any; t: (k: string) => string }> = ({
-  stats,
-  t,
-}) => {
+// ✅ ОБНОВЛЕННЫЙ КОМПОНЕНТ СТАТИСТИКИ ТЕННИСА
+const TennisStatsCard: FC<{
+  stats: any;
+  tennisStats: any;
+  t: (k: string) => string;
+}> = ({ stats, tennisStats, t }) => {
   return (
     <Card>
       <CardHeader>
         <CardTitle className='flex items-center gap-2'>
-          <BarChart /> {t('Tennis Career Stats')}
+          <BarChart /> {t('Tennis Statistics (Ranked)')}
         </CardTitle>
       </CardHeader>
-      <CardContent className='grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm'>
-        <StatItem l={t('Aces')} v={stats.aces} />
-        <StatItem l={t('Double Faults')} v={stats.doubleFaults} />
-        <StatItem l={t('Winners')} v={stats.winners} />
+      <CardContent className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm'>
+        {/* Статистика по сетам */}
+        <StatItem l={t('Sets Played')} v={stats.total} />
+        <StatItem l={t('Sets W / L')} v={`${stats.wins} / ${stats.losses}`} />
+        <StatItem l={t('Set Win Rate')} v={`${stats.winRate.toFixed(2)}%`} />
+        <StatItem l={t('Max Win Streak')} v={stats.maxWinStreak} />
+        {/* Статистика по геймам */}
+        <StatItem l={t('Games Won')} v={stats.pointsScored} />
+        <StatItem l={t('Games Lost')} v={stats.pointsConceded} />
+        <StatItem l={t('Game Difference')} v={stats.pointsDiff} />
+        {/* Специфичная для тенниса статистика */}
+        <StatItem l={t('Aces')} v={tennisStats.aces} />
+        <StatItem l={t('Double Faults')} v={tennisStats.doubleFaults} />
+        <StatItem l={t('Winners')} v={tennisStats.winners} />
       </CardContent>
     </Card>
   );
@@ -151,63 +116,6 @@ function StatCard({
           <p className='text-sm text-muted-foreground'>{label}</p>
           <p className='text-2xl font-semibold'>{value}</p>
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ChartCard({
-  title,
-  icon: Icon,
-  children,
-}: {
-  title: string;
-  icon: any;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <Icon /> {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
-function PieCard({
-  title,
-  icon: Icon,
-  data,
-}: {
-  title: string;
-  icon: any;
-  data: { name: string; value: number; fill: string }[];
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <Icon /> {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className='h-[350px] w-full'>
-        <ResponsiveContainer width='100%' height='100%'>
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey='value'
-              nameKey='name'
-              cx='50%'
-              cy='50%'
-              outerRadius={80}
-              label
-            />
-            <ReLegend />
-          </PieChart>
-        </ResponsiveContainer>
       </CardContent>
     </Card>
   );
@@ -312,7 +220,7 @@ function MatchesTableCard({
       const room = roomData.get(m.roomId!);
       if (!room) return false;
       if (room.isPublic) return true;
-      return viewerProfile?.memberOfRooms?.includes(room.id);
+      return room.memberIds.includes(viewerProfile?.uid ?? '');
     });
   }, [matches, roomData, viewerProfile]);
 
@@ -343,7 +251,10 @@ function MatchesTableCard({
                 {visibleMatches.map((m) => {
                   const room = roomData.get(m.roomId!);
                   const isP1 = m.player1Id === meUid;
-                  const date = safeFormatDate(m.tsIso, 'dd.MM.yyyy HH:mm:ss');
+                  const date = safeFormatDate(
+                    m.tsIso ?? m.timestamp ?? m.createdAt ?? m.playedAt,
+                    'dd.MM.yyyy HH:mm:ss'
+                  );
                   const opp = isP1 ? m.player2.name : m.player1.name;
                   const myScore = isP1 ? m.player1.scores : m.player2.scores;
                   const theirScore = isP1 ? m.player2.scores : m.player1.scores;
@@ -393,18 +304,12 @@ function MatchesTableCard({
 
 export const ProfileContent: React.FC<ProfileContentProps> = ({
   canViewProfile,
+  sport,
+  playedSports,
+  onSportChange,
   stats,
   sportProfile,
   sideStats,
-  pieData,
-  sidePieData,
-  sidePieLossData,
-  insights = [],
-  perfData,
-  monthlyData,
-  opponents,
-  oppFilter,
-  setOppFilter,
   matches,
   loadingMatches,
   meUid,
@@ -413,9 +318,24 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   targetProfile,
   tennisStats,
   achievements,
-  sport,
+  insights,
+  opponents,
+  ...props
 }) => {
   const { t } = useTranslation();
+  const [oppFilter, setOppFilter] = useState('all');
+
+  const filteredMatches = useMemo(
+    () =>
+      oppFilter === 'all'
+        ? matches
+        : matches.filter(
+            (m) =>
+              (m.player1Id === meUid && m.player2Id === oppFilter) ||
+              (m.player2Id === meUid && m.player1Id === oppFilter)
+          ),
+    [matches, oppFilter, meUid]
+  );
 
   if (!canViewProfile) {
     return (
@@ -435,6 +355,31 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
 
   return (
     <div className='space-y-6'>
+      {playedSports.length > 1 && (
+        <Card>
+          <CardContent className='p-4'>
+            <div className='flex items-center gap-4'>
+              <Label className='font-semibold'>Viewing Stats For:</Label>
+              <Select
+                value={sport}
+                onValueChange={(v) => onSportChange(v as Sport)}
+              >
+                <SelectTrigger className='w-auto'>
+                  <SelectValue placeholder='Select a sport' />
+                </SelectTrigger>
+                <SelectContent>
+                  {playedSports.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {sportConfig[s].name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'>
         <StatCard
           icon={LineChartIcon}
@@ -488,7 +433,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         <DetailedStatsCard stats={stats} side={sideStats} t={t} />
       )}
       {sport === 'tennis' && tennisStats && (
-        <TennisStatsCard stats={tennisStats} t={t} />
+        <TennisStatsCard stats={stats} tennisStats={tennisStats} t={t} />
       )}
 
       {insights.length > 0 && (
@@ -515,8 +460,8 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
       )}
 
       <MatchesTableCard
-        title={`${t('Matches')} (${matches.length})`}
-        matches={matches}
+        title={`${t('Matches')} (${filteredMatches.length})`}
+        matches={filteredMatches}
         loading={loadingMatches}
         meUid={meUid}
         t={t}

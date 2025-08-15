@@ -6,14 +6,23 @@ import { OverallStatsCard } from '@/components/profile/OverallStatsCard';
 import { ProfileContent } from '@/components/profile/ProfileContent';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
+import {
+  Card,
+  CardContent,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import type { Match, UserProfile } from '@/lib/types';
-import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
+import { parseFlexDate } from '@/lib/utils/date';
 import {
   buildInsights,
   computeSideStats,
@@ -54,29 +63,36 @@ export default function ProfileUidPage() {
     tennis: [],
   });
   const [loadingMatches, setLoadingMatches] = useState(true);
+  const [viewedSport, setViewedSport] = useState<Sport | null>(null);
 
   const isSelf = targetUid === user?.uid;
 
-  const playedSports = useMemo(
-    () =>
-      targetProfile?.sports
-        ? (Object.keys(targetProfile.sports) as Sport[])
-        : [],
-    [targetProfile]
-  );
+  const playedSports = useMemo(() => {
+    if (!targetProfile?.sports) return [];
+    return (Object.keys(targetProfile.sports) as Sport[]).filter(
+      (sport) =>
+        (targetProfile.sports?.[sport]?.wins ?? 0) +
+          (targetProfile.sports?.[sport]?.losses ?? 0) >
+        0
+    );
+  }, [targetProfile]);
+
+  useEffect(() => {
+    if (targetProfile) {
+      const defaultSport =
+        targetProfile.activeSport &&
+        playedSports.includes(targetProfile.activeSport)
+          ? targetProfile.activeSport
+          : playedSports[0] || null;
+      setViewedSport(defaultSport);
+    }
+  }, [targetProfile, playedSports]);
 
   const hasPlayedAnyMatches = useMemo(
-    () =>
-      playedSports.some(
-        (sport) =>
-          (targetProfile?.sports?.[sport]?.wins ?? 0) +
-            (targetProfile?.sports?.[sport]?.losses ?? 0) >
-          0
-      ),
-    [targetProfile, playedSports]
+    () => playedSports.length > 0,
+    [playedSports]
   );
 
-  // Загрузка данных
   const fetchProfileAndMatches = useCallback(async () => {
     if (!targetUid) return;
     setLoading(true);
@@ -105,10 +121,15 @@ export default function ProfileUidPage() {
       const matchSnap = await getDocs(q);
       allMatches[sport] = matchSnap.docs
         .map((d) => ({ id: d.id, ...d.data() } as Match))
-        .sort(
-          (a, b) =>
-            parseFlexDate(b.tsIso).getTime() - parseFlexDate(a.tsIso).getTime()
-        );
+        .sort((a, b) => {
+          const dateA = parseFlexDate(
+            a.tsIso ?? a.timestamp ?? a.createdAt ?? a.playedAt
+          ).getTime();
+          const dateB = parseFlexDate(
+            b.tsIso ?? b.timestamp ?? b.createdAt ?? b.playedAt
+          ).getTime();
+          return dateB - dateA;
+        });
     }
     setMatchesBySport(allMatches as Record<Sport, Match[]>);
 
@@ -166,147 +187,62 @@ export default function ProfileUidPage() {
     }
   };
 
-  if (loading || !targetProfile) {
-    return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <div className='animate-spin h-16 w-16 rounded-full border-b-4 border-primary' />
-      </div>
-    );
-  }
+  const { rank, medalSrc } = useMemo(() => {
+    if (!viewedSport || !targetProfile?.sports?.[viewedSport]) {
+      return { rank: null, medalSrc: null };
+    }
+    const sportElo = targetProfile.sports[viewedSport]?.globalElo ?? 1000;
+    const calculatedRank = getRank(sportElo, t);
+    const medalKey =
+      Object.keys(medalMap).find((key) => t(key) === calculatedRank) ??
+      'Ping-Pong Padawan';
+    return { rank: calculatedRank, medalSrc: medalMap[medalKey] };
+  }, [viewedSport, targetProfile, t]);
 
-  const rank = getRank(targetProfile.globalElo ?? 1000, t);
-  const medalKey =
-    Object.keys(medalMap).find((key) => t(key) === rank) ?? 'Ping-Pong Padawan';
+  const sportSpecificData = useMemo(() => {
+    if (!viewedSport || !targetProfile) return null;
 
-  return (
-    <section className='container mx-auto py-8 space-y-8'>
-      <ProfileHeader
-        targetProfile={targetProfile}
-        friendStatus={friendStatus}
-        handleFriendAction={handleFriendAction}
-        isSelf={isSelf}
-        onUpdate={fetchProfileAndMatches}
-        rank={rank}
-        medalSrc={medalMap[medalKey]}
-      />
-
-      <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
-        {/* === Основной контент (Статистика) === */}
-        <div className='lg:col-span-8 xl:col-span-9 space-y-6'>
-          {!hasPlayedAnyMatches ? (
-            <NewPlayerCard isSelf={isSelf} playerName={targetProfile.name} />
-          ) : (
-            <ProfileStatsTabs
-              profile={targetProfile}
-              matchesBySport={matchesBySport}
-              loading={loadingMatches}
-              isSelf={isSelf}
-            />
-          )}
-        </div>
-
-        {/* === Сайдбар (Друзья, Комнаты) === */}
-        <div className='lg:col-span-4 xl:col-span-3'>
-          <ProfileSidebar targetProfile={targetProfile} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ... (остальной код файла без изменений) ...
-
-function ProfileStatsTabs({
-  profile,
-  matchesBySport,
-  loading,
-  isSelf,
-}: {
-  profile: UserProfile;
-  matchesBySport: Record<Sport, Match[]>;
-  loading: boolean;
-  isSelf: boolean;
-}) {
-  const { t } = useTranslation();
-  const { userProfile: viewerProfile } = useAuth();
-  const playedSports = useMemo(
-    () => (profile.sports ? (Object.keys(profile.sports) as Sport[]) : []),
-    [profile]
-  );
-  const [viewedSport, setViewedSport] = useState<Sport | 'overview'>(
-    playedSports.length > 0 ? 'overview' : playedSports[0] || 'overview'
-  );
-  const [oppFilter, setOppFilter] = useState('all');
-
-  const matches = matchesBySport[viewedSport as Sport] ?? [];
-
-  const filteredMatches = useMemo(
-    () =>
-      oppFilter === 'all'
-        ? matches
-        : matches.filter(
-            (m) => m.player1Id === oppFilter || m.player2Id === oppFilter
-          ),
-    [matches, oppFilter]
-  );
-  const rankedMatches = useMemo(
-    () => filteredMatches.filter((match) => match.isRanked !== false),
-    [filteredMatches]
-  );
-  const stats = useMemo(
-    () => computeStats(rankedMatches, profile.uid),
-    [rankedMatches, profile.uid]
-  );
-  const sideStats = useMemo(
-    () => computeSideStats(rankedMatches, profile.uid),
-    [rankedMatches, profile.uid]
-  );
-  const monthlyData = useMemo(
-    () => groupByMonth(rankedMatches, profile.uid),
-    [rankedMatches, profile.uid]
-  );
-  const insights = useMemo(
-    () => buildInsights(stats, sideStats, monthlyData, t),
-    [stats, sideStats, monthlyData, t]
-  );
-  const oppStats = useMemo(
-    () => opponentStats(rankedMatches, profile.uid),
-    [rankedMatches, profile.uid]
-  );
-  const tennisStats = useMemo(
-    () =>
+    const matches = matchesBySport[viewedSport] ?? [];
+    const rankedMatches = matches.filter((match) => match.isRanked !== false);
+    const stats = computeStats(rankedMatches, targetProfile.uid);
+    const sideStats = computeSideStats(rankedMatches, targetProfile.uid);
+    const monthlyData = groupByMonth(rankedMatches, targetProfile.uid);
+    const insights = buildInsights(stats, sideStats, monthlyData, t);
+    const oppStats = opponentStats(rankedMatches, targetProfile.uid);
+    const tennisStats =
       viewedSport === 'tennis'
-        ? computeTennisStats(rankedMatches, profile.uid, profile, 'tennis')
-        : null,
-    [rankedMatches, profile.uid, profile, viewedSport]
-  );
-  const sportProfile = profile.sports?.[viewedSport as Sport];
-
-  const opponents = useMemo(() => {
-    const m = new Map<string, string>();
-    matches.forEach((match) => {
-      const isP1 = match.player1Id === profile.uid;
-      m.set(
-        isP1 ? match.player2Id : match.player1Id,
-        isP1 ? match.player2.name : match.player1.name
+        ? computeTennisStats(
+            rankedMatches,
+            targetProfile.uid,
+            targetProfile,
+            'tennis'
+          )
+        : null;
+    const sportProfile = targetProfile.sports?.[viewedSport];
+    const opponents = Array.from(
+      new Set(
+        matches.map((m) =>
+          m.player1Id === targetProfile.uid ? m.player2.name : m.player1.name
+        )
+      )
+    ).map((name) => {
+      const match = matches.find(
+        (m) => m.player1.name === name || m.player2.name === name
       );
+      const id =
+        match?.player1.name === name ? match.player1Id : match?.player2Id;
+      return { id: id!, name };
     });
-    return Array.from(m.entries()).map(([id, name]) => ({ id, name }));
-  }, [matches, profile.uid]);
 
-  const pieData = useMemo(
-    () => [
+    const pieData = [
       { name: t('Wins'), value: stats.wins, fill: 'hsl(var(--primary))' },
       {
         name: t('Losses'),
         value: stats.losses,
         fill: 'hsl(var(--destructive))',
       },
-    ],
-    [stats, t]
-  );
-  const sidePieData = useMemo(
-    () => [
+    ];
+    const sidePieData = [
       {
         name: t('Left Wins'),
         value: sideStats.leftSideWins,
@@ -317,11 +253,8 @@ function ProfileStatsTabs({
         value: sideStats.rightSideWins,
         fill: 'hsl(var(--accent))',
       },
-    ],
-    [sideStats, t]
-  );
-  const sidePieLossData = useMemo(
-    () => [
+    ];
+    const sidePieLossData = [
       {
         name: t('Left Losses'),
         value: sideStats.leftSideLosses,
@@ -332,22 +265,18 @@ function ProfileStatsTabs({
         value: sideStats.rightSideLosses,
         fill: 'hsl(var(--muted))',
       },
-    ],
-    [sideStats, t]
-  );
-
-  const perfData = useMemo(
-    () =>
+    ];
+    const perfData =
       rankedMatches.length > 0
         ? rankedMatches
             .slice()
             .reverse()
             .map((m) => {
-              const isP1 = m.player1Id === profile.uid;
+              const isP1 = m.player1Id === targetProfile.uid;
               const me = isP1 ? m.player1 : m.player2;
               const opp = isP1 ? m.player2 : m.player1;
               return {
-                label: safeFormatDate(m.tsIso, 'dd.MM.yy'),
+                label: parseFlexDate(m.tsIso).toLocaleDateString(),
                 rating: me.newRating,
                 diff: me.scores - opp.scores,
                 result: me.scores > opp.scores ? 1 : -1,
@@ -366,57 +295,96 @@ function ProfileStatsTabs({
               score: '',
               addedPoints: 0,
             },
-          ],
-    [rankedMatches, profile.uid, sportProfile]
-  );
+          ];
+
+    return {
+      stats,
+      sideStats,
+      matches,
+      monthlyData,
+      insights,
+      oppStats,
+      tennisStats,
+      sportProfile,
+      opponents,
+      pieData,
+      sidePieData,
+      sidePieLossData,
+      perfData,
+    };
+  }, [viewedSport, matchesBySport, targetProfile, t]);
+
+  if (loading || !targetProfile) {
+    return (
+      <div className='flex items-center justify-center min-h-screen'>
+        <div className='animate-spin h-16 w-16 rounded-full border-b-4 border-primary' />
+      </div>
+    );
+  }
 
   return (
-    <Tabs value={viewedSport} onValueChange={(v) => setViewedSport(v as any)}>
-      <TabsList
-        className={`grid w-full grid-cols-${
-          playedSports.length > 0 ? playedSports.length + 1 : 1
-        }`}
-      >
-        <TabsTrigger value='overview'>{t('Overview')}</TabsTrigger>
-        {playedSports.map((sport) => (
-          <TabsTrigger key={sport} value={sport}>
-            {sportConfig[sport].name}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-      <TabsContent value='overview' className='mt-6'>
-        <OverallStatsCard profile={profile} />
-      </TabsContent>
-      {playedSports.map((sport) => (
-        <TabsContent key={sport} value={sport} className='mt-6'>
-          {viewedSport === sport && (
-            <ProfileContent
-              canViewProfile={profile.isPublic || isSelf}
-              stats={stats}
-              sportProfile={sportProfile}
-              sideStats={sideStats}
-              matches={filteredMatches}
-              loadingMatches={loading}
-              meUid={profile.uid}
-              config={sportConfig[sport]}
-              oppStats={oppStats}
-              opponents={opponents}
-              oppFilter={oppFilter}
-              setOppFilter={setOppFilter}
-              targetProfile={profile}
-              tennisStats={tennisStats}
-              achievements={profile.achievements ?? []}
-              sport={sport}
-              pieData={pieData}
-              sidePieData={sidePieData}
-              sidePieLossData={sidePieLossData}
-              insights={insights}
-              perfData={perfData}
-              monthlyData={monthlyData}
-            />
+    <section className='container mx-auto py-8 space-y-8'>
+      <ProfileHeader
+        targetProfile={targetProfile}
+        friendStatus={friendStatus}
+        handleFriendAction={handleFriendAction}
+        isSelf={isSelf}
+        onUpdate={fetchProfileAndMatches}
+        rank={rank}
+        medalSrc={medalSrc}
+      />
+
+      <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
+        <div className='lg:col-span-8 xl:col-span-9 space-y-6'>
+          {!hasPlayedAnyMatches ? (
+            <NewPlayerCard isSelf={isSelf} playerName={targetProfile.name} />
+          ) : (
+            <>
+              <OverallStatsCard profile={targetProfile} />
+              {viewedSport && sportSpecificData && (
+                <ProfileContent
+                  key={viewedSport}
+                  canViewProfile={
+                    targetProfile.isPublic ||
+                    isSelf ||
+                    friendStatus === 'friends'
+                  }
+                  sport={viewedSport}
+                  playedSports={playedSports}
+                  onSportChange={setViewedSport}
+                  stats={sportSpecificData.stats}
+                  sportProfile={sportSpecificData.sportProfile}
+                  sideStats={sportSpecificData.sideStats}
+                  matches={sportSpecificData.matches}
+                  loadingMatches={loadingMatches}
+                  meUid={targetProfile.uid}
+                  config={sportConfig[viewedSport]}
+                  oppStats={sportSpecificData.oppStats}
+                  opponents={sportSpecificData.opponents}
+                  targetProfile={targetProfile}
+                  tennisStats={sportSpecificData.tennisStats}
+                  achievements={targetProfile.achievements ?? []}
+                  pieData={sportSpecificData.pieData}
+                  sidePieData={sportSpecificData.sidePieData}
+                  sidePieLossData={sportSpecificData.sidePieLossData}
+                  insights={sportSpecificData.insights}
+                  perfData={sportSpecificData.perfData}
+                  monthlyData={sportSpecificData.monthlyData}
+                />
+              )}
+            </>
           )}
-        </TabsContent>
-      ))}
-    </Tabs>
+        </div>
+
+        <div className='lg:col-span-4 xl:col-span-3'>
+          <ProfileSidebar
+            canViewProfile={
+              targetProfile.isPublic || isSelf || friendStatus === 'friends'
+            }
+            targetProfile={targetProfile}
+          />
+        </div>
+      </div>
+    </section>
   );
 }

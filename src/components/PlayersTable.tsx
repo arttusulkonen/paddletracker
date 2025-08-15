@@ -26,6 +26,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { sportConfig, SportContext } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
+import * as Friends from '@/lib/friends';
 import type { Sport, UserProfile } from '@/lib/types';
 import {
   collection,
@@ -35,7 +36,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { BarChartHorizontal, Shield, Users } from 'lucide-react'; // ✅ Заменили Crown на Users
+import { BarChartHorizontal, Shield, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -57,7 +58,9 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
   const { t } = useTranslation();
   const { userProfile } = useAuth();
   const [players, setPlayers] = useState<PlayerData[]>([]);
+  const [myCirclesPlayers, setMyCirclesPlayers] = useState<PlayerData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingFriends, setLoadingFriends] = useState(true);
 
   useEffect(() => {
     const fetchPlayers = async () => {
@@ -77,12 +80,15 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
         querySnapshot.forEach((doc) => {
           const data = doc.data() as UserProfile;
-          const sportData = data.sports?.[sport];
+          if (data.isDeleted) {
+            return;
+          }
 
+          const sportData = data.sports?.[sport];
           if (sportData) {
             fetchedPlayers.push({
               id: doc.id,
-              name: data.name || 'Anonymous',
+              name: data.name || data.displayName || 'Anonymous',
               photoURL: data.photoURL,
               globalElo: sportData.globalElo ?? 1000,
               wins: sportData.wins ?? 0,
@@ -104,9 +110,58 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
     fetchPlayers();
   }, [userProfile, sport]);
 
-  const myCirclesPlayers = players.filter((p) => p.isFriend);
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (!userProfile?.friends || userProfile.friends.length === 0) {
+        setMyCirclesPlayers([]);
+        setLoadingFriends(false);
+        return;
+      }
 
-  if (loading) {
+      setLoadingFriends(true);
+      try {
+        const friendProfiles = await Friends.getMultipleUsersLite(
+          userProfile.friends
+        );
+        const friendData: PlayerData[] = friendProfiles
+          .map((friend) => {
+            // ✅ ИСПРАВЛЕНИЕ: Предоставляем дефолтные значения, если у друга нет данных по этому спорту
+            const sportData = friend.sports?.[sport];
+            const effectiveSportData = sportData || {
+              globalElo: 1000,
+              wins: 0,
+              losses: 0,
+            };
+
+            return {
+              id: friend.uid,
+              name: friend.name || friend.displayName || 'Anonymous',
+              photoURL: friend.photoURL,
+              globalElo: effectiveSportData.globalElo ?? 1000,
+              wins: effectiveSportData.wins ?? 0,
+              losses: effectiveSportData.losses ?? 0,
+              isFriend: true,
+            };
+          })
+          .filter(Boolean) as PlayerData[];
+
+        friendData.sort((a, b) => b.globalElo - a.globalElo);
+
+        setMyCirclesPlayers(friendData);
+      } catch (error) {
+        console.error('Error fetching friends:', error);
+        setMyCirclesPlayers([]);
+      } finally {
+        setLoadingFriends(false);
+      }
+    };
+
+    fetchFriends();
+  }, [userProfile, sport]);
+
+  const isOverallLoading = loading || loadingFriends;
+
+  if (isOverallLoading) {
     return (
       <Card>
         <CardHeader>

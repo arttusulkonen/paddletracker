@@ -1,31 +1,50 @@
-import { arrayRemove, arrayUnion, collection, doc, getDoc, getDocs, query, updateDoc, where } from "firebase/firestore";
-import { db } from "./firebase";
+import {
+  arrayRemove,
+  arrayUnion,
+  collection,
+  doc,
+  documentId, // ✅ 1. Импортируем documentId
+  getDoc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
+import { db } from './firebase';
 
 export async function sendFriendRequest(fromUid: string, toUid: string) {
   if (fromUid === toUid) return;
   await Promise.all([
-    updateDoc(doc(db, "users", fromUid), { outgoingRequests: arrayUnion(toUid) }),
-    updateDoc(doc(db, "users", toUid), { incomingRequests: arrayUnion(fromUid) })
+    updateDoc(doc(db, 'users', fromUid), {
+      outgoingRequests: arrayUnion(toUid),
+    }),
+    updateDoc(doc(db, 'users', toUid), {
+      incomingRequests: arrayUnion(fromUid),
+    }),
   ]);
 }
 
 export async function cancelRequest(fromUid: string, toUid: string) {
   await Promise.all([
-    updateDoc(doc(db, "users", fromUid), { outgoingRequests: arrayRemove(toUid) }),
-    updateDoc(doc(db, "users", toUid), { incomingRequests: arrayRemove(fromUid) })
+    updateDoc(doc(db, 'users', fromUid), {
+      outgoingRequests: arrayRemove(toUid),
+    }),
+    updateDoc(doc(db, 'users', toUid), {
+      incomingRequests: arrayRemove(fromUid),
+    }),
   ]);
 }
 
 export async function acceptRequest(myUid: string, fromUid: string) {
   await Promise.all([
-    updateDoc(doc(db, "users", myUid), {
+    updateDoc(doc(db, 'users', myUid), {
       incomingRequests: arrayRemove(fromUid),
-      friends: arrayUnion(fromUid)
+      friends: arrayUnion(fromUid),
     }),
-    updateDoc(doc(db, "users", fromUid), {
+    updateDoc(doc(db, 'users', fromUid), {
       outgoingRequests: arrayRemove(myUid),
-      friends: arrayUnion(myUid)
-    })
+      friends: arrayUnion(myUid),
+    }),
   ]);
 }
 
@@ -37,18 +56,24 @@ export const rejectRequest = declineRequest;
 
 export async function unfriend(uidA: string, uidB: string) {
   await Promise.all([
-    updateDoc(doc(db, "users", uidA), { friends: arrayRemove(uidB) }),
-    updateDoc(doc(db, "users", uidB), { friends: arrayRemove(uidA) })
+    updateDoc(doc(db, 'users', uidA), { friends: arrayRemove(uidB) }),
+    updateDoc(doc(db, 'users', uidB), { friends: arrayRemove(uidA) }),
   ]);
 }
 
-export async function getUserLite(uid: string): Promise<(UserProfile & { uid: string }) | null> {
-  const snap = await getDoc(doc(db, "users", uid));
+export async function getUserLite(
+  uid: string
+): Promise<(UserProfile & { uid: string }) | null> {
+  const snap = await getDoc(doc(db, 'users', uid));
   if (!snap.exists() || snap.data()?.isDeleted) return null;
   return { uid, ...(snap.data() as UserProfile) };
 }
 
-export function toggleFriend(uid: string, targetUid: string, targetProfile: UserProfile): void {
+export function toggleFriend(
+  uid: string,
+  targetUid: string,
+  targetProfile: UserProfile
+): void {
   throw new Error('Function not implemented.');
 }
 
@@ -57,7 +82,9 @@ export function toggleFriend(uid: string, targetUid: string, targetProfile: User
  * @param uids - An array of user IDs to fetch.
  * @returns A promise that resolves to an array of user profiles.
  */
-export async function getMultipleUsersLite(uids: string[]): Promise<(UserProfile & { uid: string })[]> {
+export async function getMultipleUsersLite(
+  uids: string[]
+): Promise<(UserProfile & { uid: string })[]> {
   if (!uids || uids.length === 0) {
     return [];
   }
@@ -69,7 +96,8 @@ export async function getMultipleUsersLite(uids: string[]): Promise<(UserProfile
 
   const results: (UserProfile & { uid: string })[] = [];
   for (const chunk of chunks) {
-    const q = query(collection(db, "users"), where("uid", "in", chunk));
+    // ✅ 2. ИСПРАВЛЕНИЕ: Используем documentId() для запроса по ID документов
+    const q = query(collection(db, 'users'), where(documentId(), 'in', chunk));
     const snap = await getDocs(q);
     snap.forEach((doc) => {
       if (!doc.data().isDeleted) {

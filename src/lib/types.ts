@@ -14,7 +14,7 @@ export interface UserProfile {
   photoURL?: string | null;
   isDeleted?: boolean;
   rooms: string[];
-  friends?: string[]; 
+  friends?: string[];
   eloHistory: {
     date: string;
     elo: number;
@@ -31,12 +31,28 @@ export interface UserProfile {
     roomName: string | null;
     totalAddedPoints: number;
   }[];
+  sports?: {
+    [key in Sport]?: SportProfile;
+  };
+  activeSport?: Sport;
 }
+
+export type Sport = 'pingpong' | 'tennis';
+
+export interface SportProfile {
+  globalElo: number;
+  wins: number;
+  losses: number;
+  rank: string;
+  aces?: number;
+  doubleFaults?: number;
+  winners?: number;
+}
+
 
 export interface TournamentRoom {
   id: string;
   name: string;
-  // Add other properties as needed
 }
 
 export interface Match {
@@ -55,6 +71,10 @@ export interface Match {
   player1Score: number;
   player2Score: number;
   isRanked?: boolean;
+  tsIso?: string;
+  timestamp?: any;
+  createdAt?: any;
+  [key: string]: any; 
 }
 
 export interface Room {
@@ -72,6 +92,8 @@ export interface Room {
   avatarURL?: string;
   memberIds: string[];
   seasonHistory?: any[];
+  description?: string;
+  sport?: Sport;
 }
 
 interface Member {

@@ -3,10 +3,10 @@ import { format } from "date-fns";
 import { Timestamp } from "firebase/firestore";
 
 /** Robust date parser for many legacy formats */
-export function parseFlexDate(d: string | Timestamp): Date {
+export function parseFlexDate(d: any): Date {
   /* Fire­store Timestamp ------------------------------- */
   if (typeof d === "object" && d !== null && "toDate" in d) {
-    return d.toDate(); // already a JS Date
+    return d.toDate();
   }
 
   if (typeof d !== "string") return new Date(NaN);
@@ -23,37 +23,30 @@ export function parseFlexDate(d: string | Timestamp): Date {
     .replace(/\s+/g, " ")
     .trim();
 
-  /* dd.MM.yyyy HH.mm.ss -------------------------------- */
+  /* dd.MM.yyyy HH.mm.ss or dd.MM.yyyy HH.mm ------------ */
   let m = str.match(
-    /^(\d{1,2})\.(\d{1,2})\.(\d{4}) (\d{1,2})\.(\d{1,2})\.(\d{1,2})$/
+    /^(\d{1,2})\.(\d{1,2})\.(\d{4}) (\d{1,2})\.(\d{1,2})(?:\.(\d{1,2}))?$/
   );
   if (m) {
-    const [, day, mon, yr, h, mi, s] = m;
+    const [, day, mon, yr, h, mi, s = '0'] = m;
     return new Date(
       `${yr}-${mon.padStart(2, "0")}-${day.padStart(2, "0")}T` +
       `${h.padStart(2, "0")}:${mi.padStart(2, "0")}:${s.padStart(2, "0")}`
     );
   }
 
-  /* dd.MM.yyyy HH.mm ----------------------------------- */
-  m = str.match(
-    /^(\d{1,2})\.(\d{1,2})\.(\d{4}) (\d{1,2})\.(\d{1,2})$/
-  );
-  if (m) {
-    const [, day, mon, yr, h, mi] = m;
-    return new Date(
-      `${yr}-${mon.padStart(2, "0")}-${day.padStart(2, "0")}T` +
-      `${h.padStart(2, "0")}:${mi.padStart(2, "0")}:00`
-    );
+  /* Fallback to built-in parser ------------------------ */
+  const fallbackDate = new Date(str);
+  if (!isNaN(fallbackDate.getTime())) {
+    return fallbackDate;
   }
 
-  /* Fallback to built-in parser ------------------------ */
-  return new Date(str);
+  return new Date(NaN);
 }
 
 /** Safe formatter — returns fallback on error */
 export function safeFormatDate(
-  dateLike: string | Timestamp,
+  dateLike: any,
   fmt: string,
   fallback = "Invalid date"
 ) {

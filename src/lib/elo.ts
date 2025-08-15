@@ -27,7 +27,9 @@ const calculateElo = (
   return newRating1;
 };
 
-type MatchInputData = { score1: string; score2: string; side1: string; side2: string } | TennisSetData;
+type MatchInputData =
+  | { score1: string; score2: string; side1: string; side2: string }
+  | TennisSetData;
 
 export async function processAndSaveMatches(
   roomId: string,
@@ -67,32 +69,50 @@ export async function processAndSaveMatches(
       const score1 = +row.score1;
       const score2 = +row.score2;
 
-      const oldG1 = currentG1;
-      const oldG2 = currentG2;
-
-      const newG1 = calculateElo(oldG1, oldG2, score1, score2);
-      const newG2 = calculateElo(oldG2, oldG1, score2, score1);
-
-      const dG1 = newG1 - oldG1;
-      const dG2 = newG2 - oldG2;
-
-      currentG1 = newG1;
-      currentG2 = newG2;
-
-      score1 > score2 ? totalWinsP1++ : totalWinsP2++;
-
       const p1Member = draft.find((m) => m.userId === player1Id)!;
       const p2Member = draft.find((m) => m.userId === player2Id)!;
 
+      const oldG1 = currentG1;
+      const oldG2 = currentG2;
       const p1OldRoomRating = p1Member.rating;
       const p2OldRoomRating = p2Member.rating;
 
-      p1Member.rating += dG1;
-      p2Member.rating += dG2;
+      // ✅ 1. Всегда рассчитываем изменение рейтинга в комнате
+      const p1NewRoomRating = calculateElo(
+        p1OldRoomRating,
+        p2OldRoomRating,
+        score1,
+        score2
+      );
+      const p2NewRoomRating = calculateElo(
+        p2OldRoomRating,
+        p1OldRoomRating,
+        score2,
+        score1
+      );
+      const dR1 = p1NewRoomRating - p1OldRoomRating;
+      const dR2 = p2NewRoomRating - p2OldRoomRating;
 
-      p1Member.globalElo = newG1;
-      p2Member.globalElo = newG2;
+      p1Member.rating = p1NewRoomRating;
+      p2Member.rating = p2NewRoomRating;
 
+      let newG1 = oldG1;
+      let newG2 = oldG2;
+      let dG1 = 0;
+      let dG2 = 0;
+
+      if (room.isRanked !== false) {
+        newG1 = calculateElo(oldG1, oldG2, score1, score2);
+        newG2 = calculateElo(oldG2, oldG1, score2, score1);
+        dG1 = newG1 - oldG1;
+        dG2 = newG2 - oldG2;
+        currentG1 = newG1;
+        currentG2 = newG2;
+        p1Member.globalElo = newG1; 
+        p2Member.globalElo = newG2;
+      }
+
+      score1 > score2 ? totalWinsP1++ : totalWinsP2++;
 
       const ts = new Date(startDate.getTime() + i * 1000);
       const createdAt = getFinnishFormattedDate(ts);
@@ -113,7 +133,6 @@ export async function processAndSaveMatches(
           doubleFaults: Number(setData.doubleFaults2) || 0,
           winners: Number(setData.winners2) || 0,
         };
-        // Суммируем для финального инкремента в профиле
         tennisStatsP1.aces += player1Data.aces;
         tennisStatsP1.doubleFaults += player1Data.doubleFaults;
         tennisStatsP1.winners += player1Data.winners;
@@ -121,24 +140,41 @@ export async function processAndSaveMatches(
         tennisStatsP2.doubleFaults += player2Data.doubleFaults;
         tennisStatsP2.winners += player2Data.winners;
       } else {
-        const pingPongData = row as { side1: string, side2: string };
+        const pingPongData = row as { side1: string; side2: string };
         player1Data.side = pingPongData.side1;
         player2Data.side = pingPongData.side2;
       }
 
       const matchDoc: Omit<Match, 'id'> = {
-        roomId, createdAt, timestamp: createdAt, tsIso,
+        roomId,
+        createdAt,
+        timestamp: createdAt,
+        tsIso,
         isRanked: room.isRanked !== false,
-        player1Id, player2Id, players: [player1Id, player2Id],
+        player1Id,
+        player2Id,
+        players: [player1Id, player2Id],
         player1: {
-          name: p1Member.name, scores: score1, oldRating: oldG1, newRating: newG1,
-          addedPoints: dG1, roomOldRating: p1OldRoomRating, roomNewRating: p1Member.rating,
-          roomAddedPoints: dG1, ...player1Data,
+          name: p1Member.name,
+          scores: score1,
+          oldRating: oldG1,
+          newRating: newG1,
+          addedPoints: dG1,
+          roomOldRating: p1OldRoomRating,
+          roomNewRating: p1Member.rating,
+          roomAddedPoints: dR1,
+          ...player1Data,
         },
         player2: {
-          name: p2Member.name, scores: score2, oldRating: oldG2, newRating: newG2,
-          addedPoints: dG2, roomOldRating: p2OldRoomRating, roomNewRating: p2Member.rating,
-          roomAddedPoints: dG2, ...player2Data,
+          name: p2Member.name,
+          scores: score2,
+          oldRating: oldG2,
+          newRating: newG2,
+          addedPoints: dG2,
+          roomOldRating: p2OldRoomRating,
+          roomNewRating: p2Member.rating,
+          roomAddedPoints: dR2,
+          ...player2Data,
         },
         winner: score1 > score2 ? p1Member.name : p2Member.name,
       };
@@ -146,35 +182,53 @@ export async function processAndSaveMatches(
       await addDoc(collection(db, config.collections.matches), matchDoc);
 
       if (matchesInput.length > 1 && i < matchesInput.length - 1) {
-        await new Promise(res => setTimeout(res, 1000));
+        await new Promise((res) => setTimeout(res, 1000));
       }
     }
 
-    await updateDoc(doc(db, config.collections.rooms, roomId), { members: draft });
+    await updateDoc(doc(db, config.collections.rooms, roomId), {
+      members: draft,
+    });
+
+    const p1Update: any = {
+      [`sports.${sport}.wins`]: increment(totalWinsP1),
+      [`sports.${sport}.losses`]: increment(totalWinsP2),
+    };
+
+    const p2Update: any = {
+      [`sports.${sport}.wins`]: increment(totalWinsP2),
+      [`sports.${sport}.losses`]: increment(totalWinsP1),
+    };
+
+    if (sport === 'tennis') {
+      p1Update[`sports.tennis.aces`] = increment(tennisStatsP1.aces);
+      p1Update[`sports.tennis.doubleFaults`] = increment(
+        tennisStatsP1.doubleFaults
+      );
+      p1Update[`sports.tennis.winners`] = increment(tennisStatsP1.winners);
+      p2Update[`sports.tennis.aces`] = increment(tennisStatsP2.aces);
+      p2Update[`sports.tennis.doubleFaults`] = increment(
+        tennisStatsP2.doubleFaults
+      );
+      p2Update[`sports.tennis.winners`] = increment(tennisStatsP2.winners);
+    }
+
+    if (room.isRanked !== false) {
+      p1Update[`sports.${sport}.globalElo`] = currentG1;
+      p1Update[`sports.${sport}.eloHistory`] = arrayUnion({
+        ts: new Date().toISOString(),
+        elo: currentG1,
+      });
+      p2Update[`sports.${sport}.globalElo`] = currentG2;
+      p2Update[`sports.${sport}.eloHistory`] = arrayUnion({
+        ts: new Date().toISOString(),
+        elo: currentG2,
+      });
+    }
 
     await Promise.all([
-      updateDoc(doc(db, 'users', player1Id), {
-        [`sports.${sport}.globalElo`]: currentG1,
-        [`sports.${sport}.eloHistory`]: arrayUnion({ ts: new Date().toISOString(), elo: currentG1 }),
-        [`sports.${sport}.wins`]: increment(totalWinsP1),
-        [`sports.${sport}.losses`]: increment(totalWinsP2),
-        ...(sport === 'tennis' && {
-          [`sports.${sport}.aces`]: increment(tennisStatsP1.aces),
-          [`sports.${sport}.doubleFaults`]: increment(tennisStatsP1.doubleFaults),
-          [`sports.${sport}.winners`]: increment(tennisStatsP1.winners),
-        })
-      }),
-      updateDoc(doc(db, 'users', player2Id), {
-        [`sports.${sport}.globalElo`]: currentG2,
-        [`sports.${sport}.eloHistory`]: arrayUnion({ ts: new Date().toISOString(), elo: currentG2 }),
-        [`sports.${sport}.wins`]: increment(totalWinsP2),
-        [`sports.${sport}.losses`]: increment(totalWinsP1),
-        ...(sport === 'tennis' && {
-          [`sports.${sport}.aces`]: increment(tennisStatsP2.aces),
-          [`sports.${sport}.doubleFaults`]: increment(tennisStatsP2.doubleFaults),
-          [`sports.${sport}.winners`]: increment(tennisStatsP2.winners),
-        })
-      }),
+      updateDoc(doc(db, 'users', player1Id), p1Update),
+      updateDoc(doc(db, 'users', player2Id), p2Update),
     ]);
 
     return true;

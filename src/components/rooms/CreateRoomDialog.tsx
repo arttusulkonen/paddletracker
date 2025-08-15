@@ -298,30 +298,36 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
             </Label>
             <ScrollArea className='h-32 mt-2 border rounded-md p-2'>
               {inviteCandidates.length > 0 ? (
-                inviteCandidates.map((p) => (
-                  <label
-                    key={p.uid}
-                    className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
-                  >
-                    <Checkbox
-                      checked={selectedFriends.includes(p.uid)}
-                      onCheckedChange={(v) =>
-                        v
-                          ? setSelectedFriends([...selectedFriends, p.uid])
-                          : setSelectedFriends(
-                              selectedFriends.filter((id) => id !== p.uid)
-                            )
-                      }
-                    />
-                    <div className='flex items-center gap-2'>
-                      <Avatar className='h-6 w-6'>
-                        <AvatarImage src={p.photoURL ?? undefined} />
-                        <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <span>{p.name ?? p.displayName}</span>
-                    </div>
-                  </label>
-                ))
+                inviteCandidates.map((p) => {
+                  // ✅ ИСПРАВЛЕНИЕ: Безопасно получаем имя для отображения
+                  const displayName = p.name ?? p.displayName ?? '?';
+                  return (
+                    <label
+                      key={p.uid}
+                      className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
+                    >
+                      <Checkbox
+                        checked={selectedFriends.includes(p.uid)}
+                        onCheckedChange={(v) =>
+                          v
+                            ? setSelectedFriends([...selectedFriends, p.uid])
+                            : setSelectedFriends(
+                                selectedFriends.filter((id) => id !== p.uid)
+                              )
+                        }
+                      />
+                      <div className='flex items-center gap-2'>
+                        <Avatar className='h-6 w-6'>
+                          <AvatarImage src={p.photoURL ?? undefined} />
+                          <AvatarFallback>
+                            {displayName.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{displayName}</span>
+                      </div>
+                    </label>
+                  );
+                })
               ) : (
                 <p className='text-muted-foreground text-sm text-center py-4'>
                   {t('No friends available to invite.')}

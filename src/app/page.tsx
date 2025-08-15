@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Room, UserProfile } from '@/lib/types';
+import { getRank } from '@/lib/utils/profileUtils'; // ✅ 1. Импортируем утилиту getRank
 import {
   collection,
   doc,
@@ -47,7 +48,7 @@ import { useTranslation } from 'react-i18next';
 
 const PlayerRank = ({ rank }: { rank: string | null | undefined }) => {
   const { t } = useTranslation();
-  return <>{t(rank ?? 'Unranked')}</>; // Изменено для ясности
+  return <>{t(rank ?? 'Unranked')}</>;
 };
 
 const FeatureCard = ({
@@ -136,7 +137,7 @@ const DefaultSportSelector = () => {
               <CardHeader className='items-center text-center p-8'>
                 <div className={`mb-4 ${config.theme.primary}`}>
                   {React.cloneElement(config.icon as React.ReactElement, {
-                    size: 48,
+                    className: 'h-12 w-12',
                   })}
                 </div>
                 <CardTitle className='text-2xl'>{config.name}</CardTitle>
@@ -159,12 +160,16 @@ const Dashboard = () => {
   >(null);
   const [isFetchingRoom, setIsFetchingRoom] = useState(true);
 
-  // ✅ ИСПРАВЛЕНО: Безопасно получаем данные для текущего спорта
   const sportProfile = userProfile?.sports?.[sport];
   const wins = sportProfile?.wins ?? 0;
   const losses = sportProfile?.losses ?? 0;
   const matchesPlayed = wins + losses;
   const isNewForSport = matchesPlayed === 0;
+
+  // ✅ 2. Динамически вычисляем ранг на основе ELO текущего спорта
+  const rank = sportProfile
+    ? getRank(sportProfile.globalElo ?? 1000, t)
+    : t('Unranked');
 
   useEffect(() => {
     const fetchLastActiveRoom = async () => {
@@ -253,7 +258,6 @@ const Dashboard = () => {
 
         {isNewForSport && <OnboardingCard />}
 
-        {/* ✅ ИСПРАВЛЕНО: Передаем `sport` в PlayersTable */}
         <PlayersTable sport={sport} />
       </div>
 
@@ -278,7 +282,8 @@ const Dashboard = () => {
               <div className='flex justify-between items-center'>
                 <span className='text-muted-foreground'>{t('Rank')}</span>
                 <span className='font-semibold'>
-                  <PlayerRank rank={sportProfile.rank} />
+                  {/* ✅ 3. Используем вычисленный ранг */}
+                  <PlayerRank rank={rank} />
                 </span>
               </div>
               <div className='flex justify-between items-center'>
@@ -443,7 +448,7 @@ const LandingPage = () => {
 // --- Основной компонент-обертка, который решает, что показывать (без изменений) ---
 export default function HomePageWrapper() {
   const { user, userProfile, loading: authLoading } = useAuth();
-  const { sport, config, loading: sportLoading } = useSport();
+  const { sport, config } = useSport();
   const { t } = useTranslation();
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -451,7 +456,7 @@ export default function HomePageWrapper() {
     setHasMounted(true);
   }, []);
 
-  if (authLoading || sportLoading || !hasMounted) {
+  if (authLoading || !hasMounted) {
     return (
       <div className='flex justify-center items-center min-h-screen'>
         <div className='animate-spin rounded-full h-16 w-16 border-b-4 border-primary'></div>
