@@ -13,7 +13,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function TournamentPage() {
-  // 1. Все хуки в начале
   const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
@@ -25,7 +24,6 @@ export default function TournamentPage() {
   const [loading, setLoading] = useState(true);
   const [hasMounted, setHasMounted] = useState(false);
 
-  // 2. Все эффекты после хуков состояния
   useEffect(() => {
     setHasMounted(true);
   }, []);
@@ -61,15 +59,13 @@ export default function TournamentPage() {
   }, [tournamentId, router, toast, t]);
 
   useEffect(() => {
-    // Не запускаем fetch до монтирования на клиенте
     if (hasMounted) {
       fetchTournament();
     }
   }, [fetchTournament, hasMounted]);
 
-  // 3. Условные возвраты (Guards)
   if (!hasMounted) {
-    return null; // Защита от гидратации
+    return null; 
   }
 
   if (loading || !tournament) {

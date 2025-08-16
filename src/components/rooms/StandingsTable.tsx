@@ -109,7 +109,6 @@ export function StandingsTable({
         ) : (
           <FinalStandings season={latestSeason} sport={sport} t={t} />
         )}
-        {/* The legend is now replaced by tooltips on each header */}
       </CardContent>
     </Card>
   );
@@ -133,7 +132,7 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
           'Your ELO rating calculated only from matches within this room. Everyone starts at 1000.',
       },
     ];
-    const pingPongSpecific = [
+    const rallyGameSpecific = [
       {
         key: 'deltaRoom',
         label: 'Room Δ',
@@ -243,10 +242,11 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
       },
     ];
 
+    // Для бадминтона используем ту же схему, что и для пинг-понга
     return sport === 'tennis'
       ? [...common, ...tennisSpecific]
-      : common.concat(pingPongSpecific);
-  }, [sport]);
+      : common.concat(rallyGameSpecific);
+  }, [sport, t]);
 
   return (
     <div className='overflow-x-auto'>
@@ -302,7 +302,22 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
                   </a>
                 </TableCell>
                 <TableCell>{p.ratingVisible ? p.rating : '—'}</TableCell>
-                {sport === 'pingpong' ? (
+
+                {sport === 'tennis' ? (
+                  // Tennis
+                  <>
+                    <TableCell>{p.totalMatches}</TableCell>
+                    <TableCell>{p.wins}</TableCell>
+                    <TableCell>{p.losses}</TableCell>
+                    <TableCell>
+                      {p.ratingVisible ? `${p.winPct}%` : '—'}
+                    </TableCell>
+                    <TableCell>{p.aces ?? 0}</TableCell>
+                    <TableCell>{p.doubleFaults ?? 0}</TableCell>
+                    <TableCell>{p.winners ?? 0}</TableCell>
+                  </>
+                ) : (
+                  // Ping-pong & Badminton
                   <>
                     <TableCell>
                       {p.ratingVisible ? p.deltaRoom.toFixed(0) : '—'}
@@ -342,19 +357,6 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
                     <TableCell>
                       {p.ratingVisible ? p.longestWinStreak : '—'}
                     </TableCell>
-                  </>
-                ) : (
-                  // Tennis
-                  <>
-                    <TableCell>{p.totalMatches}</TableCell>
-                    <TableCell>{p.wins}</TableCell>
-                    <TableCell>{p.losses}</TableCell>
-                    <TableCell>
-                      {p.ratingVisible ? `${p.winPct}%` : '—'}
-                    </TableCell>
-                    <TableCell>{p.aces ?? 0}</TableCell>
-                    <TableCell>{p.doubleFaults ?? 0}</TableCell>
-                    <TableCell>{p.winners ?? 0}</TableCell>
                   </>
                 )}
               </TableRow>
@@ -444,7 +446,7 @@ function FinalStandings({ season, sport, t }: any) {
           "The main ranking metric. It's your 'Total Δ' adjusted by the number of games you played compared to the room average. This rewards both performance and activity.",
       },
     ],
-    [sport]
+    [sport, t]
   );
 
   if (!data.length) {

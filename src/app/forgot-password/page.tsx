@@ -30,7 +30,6 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import * as z from 'zod';
 
-// ✅ Схема вынесена за пределы компонента для стабильности
 const getForgotSchema = (t: (key: string) => string) =>
   z.object({
     email: z.string().email({ message: t('Must be a valid email address') }),
@@ -43,7 +42,6 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
-  // ✅ Схема инициализируется один раз
   const forgotSchema = getForgotSchema(t);
   type ForgotFormValues = z.infer<typeof forgotSchema>;
 
@@ -59,7 +57,6 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotFormValues) => {
     setIsLoading(true);
 
-    // ✅ Добавлена проверка на наличие объекта auth
     if (!auth) {
       toast({
         title: t('Error'),

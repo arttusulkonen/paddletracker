@@ -1,5 +1,6 @@
 // src/components/profile/RoomsList.tsx
 'use client';
+
 import {
   Avatar,
   AvatarFallback,
@@ -10,10 +11,9 @@ import {
   CardTitle,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { sportConfig } from '@/contexts/SportContext';
+import { Sport, sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Room } from '@/lib/types';
-// ✅ Убираем `where` из импортов, так как он будет использоваться в условной логике
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -21,37 +21,32 @@ import { useTranslation } from 'react-i18next';
 
 interface RoomsListProps {
   targetUid: string;
+  onVisibleCountChange?: (count: number) => void;
 }
 
 const PREVIEW_COUNT = 4;
-const SPORTS = ['pingpong', 'tennis'];
+const SPORTS: Sport[] = ['pingpong', 'tennis', 'badminton'];
 
-export function RoomsList({ targetUid }: RoomsListProps) {
+export function RoomsList({ targetUid, onVisibleCountChange }: RoomsListProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const [activeRooms, setActiveRooms] = useState<Room[]>([]);
+  const { user, userProfile: viewerProfile, isGlobalAdmin } = useAuth();
+  const [visibleRooms, setVisibleRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isOwnProfile = user?.uid === targetUid;
 
   useEffect(() => {
-    const fetchRooms = async () => {
+    if (!targetUid) return;
+
+    const fetchAndFilterRooms = async () => {
       setLoading(true);
       try {
         const promises = SPORTS.map((sport) => {
-          const collectionName = sportConfig[sport as keyof typeof sportConfig].collections.rooms;
-
-          // ✅ Создаем базовый запрос
-          let q = query(
+          const collectionName = sportConfig[sport].collections.rooms;
+          const q = query(
             collection(db, collectionName),
             where('memberIds', 'array-contains', targetUid)
           );
-
-          // ✅ Если мы на чужой странице, добавляем фильтр по публичным комнатам
-          if (!isOwnProfile) {
-            q = query(q, where('isPublic', '==', true));
-          }
-
           return getDocs(q).then((snapshot) =>
             snapshot.docs.map(
               (doc) => ({ id: doc.id, ...doc.data(), sport } as Room)
@@ -62,44 +57,59 @@ export function RoomsList({ targetUid }: RoomsListProps) {
         const results = await Promise.all(promises);
         const allUserRooms = results.flat();
 
-        // Фильтруем комнаты, оставляя только активные (эта логика не меняется)
-        const filteredActiveRooms = allUserRooms.filter(
+        const viewerIsFriend = viewerProfile?.friends?.includes(targetUid);
+        const viewerRoomIds = new Set(viewerProfile?.rooms ?? []);
+
+        const filteredRooms = allUserRooms.filter((room) => {
+          if (isGlobalAdmin || isOwnProfile) return true;
+          if (room.isPublic) return true;
+          if (viewerIsFriend && viewerRoomIds.has(room.id)) return true;
+          return false;
+        });
+
+        const activeRooms = filteredRooms.filter(
           (room) => !room.isArchived && (room.seasonHistory?.length ?? 0) === 0
         );
 
-        setActiveRooms(filteredActiveRooms);
+        setVisibleRooms(activeRooms);
+        onVisibleCountChange?.(activeRooms.length);
       } catch (e) {
         console.error("Failed to fetch user's active rooms:", e);
       } finally {
         setLoading(false);
       }
     };
-    fetchRooms();
-  }, [targetUid, isOwnProfile]); // ✅ Добавляем isOwnProfile в зависимости
+
+    fetchAndFilterRooms();
+  }, [
+    targetUid,
+    isOwnProfile,
+    user,
+    viewerProfile,
+    isGlobalAdmin,
+    onVisibleCountChange,
+  ]);
 
   if (loading) {
     return <Card className='h-48 animate-pulse bg-muted'></Card>;
   }
 
-  if (activeRooms.length === 0) {
+  if (visibleRooms.length === 0) {
     return null;
   }
 
-  // ✅ Заголовок теперь тоже динамический
-  const cardTitle = isOwnProfile
-    ? t('My Active Rooms')
-    : t('Active Public Rooms');
+  const cardTitle = t('Active Rooms');
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          {cardTitle} ({activeRooms.length})
+          {cardTitle} ({visibleRooms.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className='space-y-3'>
-          {activeRooms.slice(0, PREVIEW_COUNT).map((room) => (
+          {visibleRooms.slice(0, PREVIEW_COUNT).map((room) => (
             <Link
               href={`/rooms/${room.id}`}
               key={room.id}
@@ -112,7 +122,7 @@ export function RoomsList({ targetUid }: RoomsListProps) {
                 />
                 <AvatarFallback>{room.name.charAt(0)}</AvatarFallback>
 
-                {!room.isPublic && isOwnProfile && (
+                {!room.isPublic && (
                   <div className='absolute bottom-0 right-0 bg-secondary p-0.5 rounded-full border-2 border-card'>
                     <svg
                       xmlns='http://www.w3.org/2000/svg'

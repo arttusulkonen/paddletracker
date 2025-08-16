@@ -30,7 +30,6 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// --- Обновленные типы для поддержки мультиспортивности ---
 type LiteUser = { uid: string; name: string; photoURL?: string };
 
 type RoomRequest = {
@@ -38,7 +37,7 @@ type RoomRequest = {
   toRoom: {
     id: string;
     name: string;
-    collectionName: string; // ✅ 2. ДОБАВЛЕНО ПОЛЕ ДЛЯ ИМЕНИ КОЛЛЕКЦИИ
+    collectionName: string;
   };
 };
 
@@ -63,7 +62,6 @@ export default function FriendRequestsPage() {
       }
       setLoading(true);
 
-      // --- Загрузка запросов в друзья (без изменений) ---
       const incomingFriends = userProfile?.incomingRequests ?? [];
       const friendReqPromises = incomingFriends.map((uid) =>
         Friends.getUserLite(uid)
@@ -72,10 +70,8 @@ export default function FriendRequestsPage() {
         (await Promise.all(friendReqPromises)).filter(Boolean) as LiteUser[]
       );
 
-      // --- ✅ 3. ИСПРАВЛЕНА ЗАГРУЗКА ЗАПРОСОВ В КОМНАТЫ ---
       const allRoomRequests: RoomRequest[] = [];
 
-      // Перебираем все сконфигурированные виды спорта
       for (const sportKey in sportConfig) {
         const config = sportConfig[sportKey as Sport];
         const roomsCollectionName = config.collections.rooms;
@@ -87,7 +83,6 @@ export default function FriendRequestsPage() {
 
         const ownedRoomsSnap = await getDocs(ownedRoomsQuery);
 
-        // Для каждой комнаты, которой владеет пользователь, проверяем запросы
         for (const roomDoc of ownedRoomsSnap.docs) {
           const roomData = roomDoc.data();
           const requestUids = roomData.joinRequests ?? [];
@@ -105,7 +100,7 @@ export default function FriendRequestsPage() {
                 toRoom: {
                   id: roomDoc.id,
                   name: roomData.name,
-                  collectionName: roomsCollectionName, // Сохраняем имя коллекции
+                  collectionName: roomsCollectionName,
                 },
               });
             }
@@ -139,7 +134,6 @@ export default function FriendRequestsPage() {
   const handleRoomRequest = async (req: RoomRequest, accept: boolean) => {
     if (!user) return;
 
-    // ✅ 4. ИСПОЛЬЗУЕМ ПРАВИЛЬНОЕ ИМЯ КОЛЛЕКЦИИ
     const roomRef = doc(db, req.toRoom.collectionName, req.toRoom.id);
 
     try {
@@ -178,7 +172,7 @@ export default function FriendRequestsPage() {
   };
 
   if (!hasMounted) {
-    return null; // Или скелет загрузки
+    return null;
   }
 
   return (

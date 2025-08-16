@@ -70,7 +70,6 @@ export default function TournamentRoomsPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
 
-  // 🛡️ Хук для защиты от гидратации
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {

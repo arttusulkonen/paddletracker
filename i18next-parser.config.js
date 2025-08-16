@@ -13,13 +13,11 @@ module.exports = {
 
   input: ['src/**/*.{js,jsx,ts,tsx}'],
 
-  // Добавь это!
-  keySeparator: false, // Если используешь plain ключи, без вложенности
+  keySeparator: false,
   namespaceSeparator: false,
 
-  // 🗝️ Явно укажи функции
   func: {
-    list: ['t'], // ищет t('...')
+    list: ['t'],
     extensions: ['.js', '.jsx', '.ts', '.tsx']
   },
 

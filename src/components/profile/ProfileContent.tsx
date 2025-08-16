@@ -67,7 +67,6 @@ interface ProfileContentProps {
   achievements: any[];
 }
 
-// ✅ ОБНОВЛЕННЫЙ КОМПОНЕНТ СТАТИСТИКИ ТЕННИСА
 const TennisStatsCard: FC<{
   stats: any;
   tennisStats: any;
@@ -81,16 +80,13 @@ const TennisStatsCard: FC<{
         </CardTitle>
       </CardHeader>
       <CardContent className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm'>
-        {/* Статистика по сетам */}
         <StatItem l={t('Sets Played')} v={stats.total} />
         <StatItem l={t('Sets W / L')} v={`${stats.wins} / ${stats.losses}`} />
         <StatItem l={t('Set Win Rate')} v={`${stats.winRate.toFixed(2)}%`} />
         <StatItem l={t('Max Win Streak')} v={stats.maxWinStreak} />
-        {/* Статистика по геймам */}
         <StatItem l={t('Games Won')} v={stats.pointsScored} />
         <StatItem l={t('Games Lost')} v={stats.pointsConceded} />
         <StatItem l={t('Game Difference')} v={stats.pointsDiff} />
-        {/* Специфичная для тенниса статистика */}
         <StatItem l={t('Aces')} v={tennisStats.aces} />
         <StatItem l={t('Double Faults')} v={tennisStats.doubleFaults} />
         <StatItem l={t('Winners')} v={tennisStats.winners} />
@@ -429,7 +425,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         </Select>
       </div>
 
-      {sport === 'pingpong' && (
+      {(sport === 'pingpong' || sport === 'badminton') && (
         <DetailedStatsCard stats={stats} side={sideStats} t={t} />
       )}
       {sport === 'tennis' && tennisStats && (

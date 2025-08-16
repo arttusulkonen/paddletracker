@@ -64,6 +64,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@svgr/webpack": "^8.1.0",
     "@types/express": "^5.0.1",
     "@types/node": "^20",
     "@types/react": "18.3.21",
@@ -75,6 +76,7 @@
     "i18next-parser": "^9.3.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.4",
-    "typescript": "5.8.3"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

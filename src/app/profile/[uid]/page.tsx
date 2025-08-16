@@ -6,18 +6,17 @@ import { OverallStatsCard } from '@/components/profile/OverallStatsCard';
 import { ProfileContent } from '@/components/profile/ProfileContent';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
+import { CreateRoomDialog } from '@/components/rooms/CreateRoomDialog';
 import {
+  Button,
   Card,
   CardContent,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sport, sportConfig } from '@/contexts/SportContext';
+import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
@@ -41,6 +40,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -49,19 +49,23 @@ export default function ProfileUidPage() {
   const { t } = useTranslation();
   const { uid: targetUid } = useParams<{ uid: string }>();
   const router = useRouter();
-  const { user, userProfile: viewerProfile } = useAuth();
+  const { user, userProfile: viewerProfile, isGlobalAdmin } = useAuth();
+  const { sport: selectedSport } = useSport();
   const { toast } = useToast();
 
-  // Состояния
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [friendStatus, setFriendStatus] = useState<
     'none' | 'outgoing' | 'incoming' | 'friends'
   >('none');
+
   const [matchesBySport, setMatchesBySport] = useState<Record<Sport, Match[]>>({
     pingpong: [],
     tennis: [],
+    badminton: [],
   });
+
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [viewedSport, setViewedSport] = useState<Sport | null>(null);
 
@@ -70,23 +74,23 @@ export default function ProfileUidPage() {
   const playedSports = useMemo(() => {
     if (!targetProfile?.sports) return [];
     return (Object.keys(targetProfile.sports) as Sport[]).filter(
-      (sport) =>
-        (targetProfile.sports?.[sport]?.wins ?? 0) +
-          (targetProfile.sports?.[sport]?.losses ?? 0) >
+      (s) =>
+        (targetProfile.sports?.[s]?.wins ?? 0) +
+          (targetProfile.sports?.[s]?.losses ?? 0) >
         0
     );
   }, [targetProfile]);
 
+  const canView =
+    isGlobalAdmin ||
+    isSelf ||
+    (targetProfile?.isPublic ?? true) ||
+    friendStatus === 'friends';
+
   useEffect(() => {
-    if (targetProfile) {
-      const defaultSport =
-        targetProfile.activeSport &&
-        playedSports.includes(targetProfile.activeSport)
-          ? targetProfile.activeSport
-          : playedSports[0] || null;
-      setViewedSport(defaultSport);
-    }
-  }, [targetProfile, playedSports]);
+    if (!targetProfile) return;
+    setViewedSport(selectedSport);
+  }, [targetProfile, selectedSport]);
 
   const hasPlayedAnyMatches = useMemo(
     () => playedSports.length > 0,
@@ -106,20 +110,25 @@ export default function ProfileUidPage() {
     const profileData = { uid: targetUid, ...(snap.data() as UserProfile) };
     setTargetProfile(profileData);
 
-    const played = profileData.sports
+    const allMatches: Record<Sport, Match[]> = {
+      pingpong: [],
+      tennis: [],
+      badminton: [],
+    };
+
+    const sportsToFetch = profileData.sports
       ? (Object.keys(profileData.sports) as Sport[])
       : [];
-    const allMatches: Record<string, Match[]> = {};
 
     setLoadingMatches(true);
-    for (const sport of played) {
-      const config = sportConfig[sport];
+    for (const s of sportsToFetch) {
+      const config = sportConfig[s];
       const q = query(
         collection(db, config.collections.matches),
         where('players', 'array-contains', targetUid)
       );
       const matchSnap = await getDocs(q);
-      allMatches[sport] = matchSnap.docs
+      allMatches[s] = matchSnap.docs
         .map((d) => ({ id: d.id, ...d.data() } as Match))
         .sort((a, b) => {
           const dateA = parseFlexDate(
@@ -131,8 +140,7 @@ export default function ProfileUidPage() {
           return dateB - dateA;
         });
     }
-    setMatchesBySport(allMatches as Record<Sport, Match[]>);
-
+    setMatchesBySport(allMatches);
     setLoading(false);
     setLoadingMatches(false);
   }, [targetUid, router, t, toast]);
@@ -178,7 +186,7 @@ export default function ProfileUidPage() {
       };
       await actions[action]();
       toast({ title: t('Success!') });
-    } catch (error) {
+    } catch {
       toast({
         title: t('Error'),
         description: t('Something went wrong'),
@@ -205,7 +213,15 @@ export default function ProfileUidPage() {
     const matches = matchesBySport[viewedSport] ?? [];
     const rankedMatches = matches.filter((match) => match.isRanked !== false);
     const stats = computeStats(rankedMatches, targetProfile.uid);
-    const sideStats = computeSideStats(rankedMatches, targetProfile.uid);
+    const sideStats =
+      viewedSport === 'tennis'
+        ? {
+            leftSideWins: 0,
+            leftSideLosses: 0,
+            rightSideWins: 0,
+            rightSideLosses: 0,
+          }
+        : computeSideStats(rankedMatches, targetProfile.uid);
     const monthlyData = groupByMonth(rankedMatches, targetProfile.uid);
     const insights = buildInsights(stats, sideStats, monthlyData, t);
     const oppStats = opponentStats(rankedMatches, targetProfile.uid);
@@ -219,20 +235,14 @@ export default function ProfileUidPage() {
           )
         : null;
     const sportProfile = targetProfile.sports?.[viewedSport];
-    const opponents = Array.from(
-      new Set(
-        matches.map((m) =>
-          m.player1Id === targetProfile.uid ? m.player2.name : m.player1.name
-        )
-      )
-    ).map((name) => {
-      const match = matches.find(
-        (m) => m.player1.name === name || m.player2.name === name
-      );
-      const id =
-        match?.player1.name === name ? match.player1Id : match?.player2Id;
-      return { id: id!, name };
-    });
+    const opponentsMap = new Map<string, string>();
+    for (const m of matches) {
+      const isP1 = m.player1Id === targetProfile.uid;
+      const oppId = isP1 ? m.player2Id : m.player1Id;
+      const oppName = isP1 ? m.player2.name : m.player1.name;
+      if (oppId && !opponentsMap.has(oppId)) opponentsMap.set(oppId, oppName);
+    }
+    const opponents = Array.from(opponentsMap, ([id, name]) => ({ id, name }));
 
     const pieData = [
       { name: t('Wins'), value: stats.wins, fill: 'hsl(var(--primary))' },
@@ -314,6 +324,11 @@ export default function ProfileUidPage() {
     };
   }, [viewedSport, matchesBySport, targetProfile, t]);
 
+  const hasMatchesInViewed = useMemo(() => {
+    if (!viewedSport) return false;
+    return (matchesBySport[viewedSport]?.length ?? 0) > 0;
+  }, [viewedSport, matchesBySport]);
+
   if (loading || !targetProfile) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
@@ -321,6 +336,17 @@ export default function ProfileUidPage() {
       </div>
     );
   }
+
+  const emptySelfTitle = t('No matches yet in {{sport}}', {
+    sport: sportConfig[viewedSport ?? selectedSport].name,
+  });
+  const emptySelfDesc = t(
+    'Browse available rooms for this sport or create your own and start collecting stats!'
+  );
+  const emptyOtherTitle = t('This player has no matches in {{sport}}', {
+    sport: sportConfig[viewedSport ?? selectedSport].name,
+  });
+  const emptyOtherDesc = t('Invite them to a room and start playing together!');
 
   return (
     <section className='container mx-auto py-8 space-y-8'>
@@ -341,14 +367,14 @@ export default function ProfileUidPage() {
           ) : (
             <>
               <OverallStatsCard profile={targetProfile} />
-              {viewedSport && sportSpecificData && (
+
+              {viewedSport &&
+              canView &&
+              hasMatchesInViewed &&
+              sportSpecificData ? (
                 <ProfileContent
                   key={viewedSport}
-                  canViewProfile={
-                    targetProfile.isPublic ||
-                    isSelf ||
-                    friendStatus === 'friends'
-                  }
+                  canViewProfile={canView}
                   sport={viewedSport}
                   playedSports={playedSports}
                   onSportChange={setViewedSport}
@@ -371,6 +397,25 @@ export default function ProfileUidPage() {
                   perfData={sportSpecificData.perfData}
                   monthlyData={sportSpecificData.monthlyData}
                 />
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      {isSelf ? emptySelfTitle : emptyOtherTitle}
+                    </CardTitle>
+                    <CardDescription>
+                      {isSelf ? emptySelfDesc : emptyOtherDesc}
+                    </CardDescription>
+                  </CardHeader>
+                  {isSelf && (
+                    <CardContent className='flex gap-3'>
+                      <Button asChild variant='outline'>
+                        <Link href='/rooms'>{t('Browse Rooms')}</Link>
+                      </Button>
+                      <CreateRoomDialog onSuccess={fetchProfileAndMatches} />
+                    </CardContent>
+                  )}
+                </Card>
               )}
             </>
           )}
@@ -378,9 +423,7 @@ export default function ProfileUidPage() {
 
         <div className='lg:col-span-4 xl:col-span-3'>
           <ProfileSidebar
-            canViewProfile={
-              targetProfile.isPublic || isSelf || friendStatus === 'friends'
-            }
+            canViewProfile={canView}
             targetProfile={targetProfile}
           />
         </div>

@@ -7,11 +7,23 @@ import { MembersList } from '@/components/rooms/MembersList';
 import { RecentMatches } from '@/components/rooms/RecentMatches';
 import { RoomHeader } from '@/components/rooms/RoomHeader';
 import { StandingsTable } from '@/components/rooms/StandingsTable';
-import { Button, Card, CardContent, Separator } from '@/components/ui';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Label,
+  ScrollArea,
+  Separator,
+} from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
+import * as Friends from '@/lib/friends';
 import { finalizeSeason } from '@/lib/season';
 import type { Match, Room, UserProfile } from '@/lib/types';
 import { parseFlexDate } from '@/lib/utils/date';
@@ -27,13 +39,13 @@ import {
   query,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { ArrowLeft } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// --- Вспомогательные функции ---
 const calcWinPct = (w: number, l: number) => {
   const t = w + l;
   return t ? ((w / t) * 100).toFixed(1) : '0.0';
@@ -47,13 +59,12 @@ type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
 export default function RoomPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, userProfile, isGlobalAdmin } = useAuth();
   const { sport, config } = useSport();
   const { toast } = useToast();
   const router = useRouter();
   const roomId = useParams().roomId as string;
 
-  // --- Состояния ---
   const [room, setRoom] = useState<Room | null>(null);
   const [rawMatches, setRawMatches] = useState<Match[]>([]);
   const [members, setMembers] = useState<Room['members']>([]);
@@ -65,6 +76,10 @@ export default function RoomPage() {
     Record<string, number>
   >({});
   const [hasMounted, setHasMounted] = useState(false);
+
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
@@ -87,7 +102,13 @@ export default function RoomPage() {
     return () => unsubRoom();
   }, [user, roomId, config.collections.rooms, router]);
 
-  // Загрузка матчей
+  const canManageRoom = useMemo(() => {
+    if (!room || !user) return false;
+    const isRoomAdmin =
+      Array.isArray(room.adminIds) && room.adminIds.includes(user.uid);
+    return isGlobalAdmin || isRoomAdmin || room.creator === user.uid;
+  }, [room, user, isGlobalAdmin]);
+
   useEffect(() => {
     if (!user || !db) return;
     const q = query(
@@ -103,11 +124,28 @@ export default function RoomPage() {
     return () => unsub();
   }, [user, roomId, config.collections.matches]);
 
-  // Синхронизация данных
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (userProfile?.friends && userProfile.friends.length > 0) {
+        const friendProfiles = await Friends.getMultipleUsersLite(
+          userProfile.friends
+        );
+        setFriends(friendProfiles);
+      }
+    };
+    fetchFriends();
+  }, [userProfile]);
+
+  const inviteCandidates = useMemo(() => {
+    if (!room) return [];
+    const memberIds = new Set(room?.members.map((m) => m.userId));
+    return friends.filter((friend) => !memberIds.has(friend.uid));
+  }, [friends, room]);
+
   useEffect(() => {
     if (!room) return;
-    if (rawMatches.length === 0 && room.members) {
-      setMembers(room.members);
+    if (rawMatches.length === 0 && room?.members) {
+      setMembers(room?.members);
       setRecentMatches([]);
       setIsLoading(false);
       return;
@@ -126,7 +164,7 @@ export default function RoomPage() {
       });
       setSeasonStarts(starts);
       setSeasonRoomStarts(roomStarts);
-      const initialMembers = room.members ?? [];
+      const initialMembers = room?.members ?? [];
       if (initialMembers.length === 0) {
         setMembers([]);
         setRecentMatches([]);
@@ -213,8 +251,11 @@ export default function RoomPage() {
   );
 
   const regularPlayers = useMemo(() => {
+    const baseMembers = room?.members ?? [];
+
     const matchStats: Record<string, { wins: number; losses: number }> = {};
     const latestRoomRatings: Record<string, number> = {};
+
     rawMatches.forEach((m) => {
       const winnerId =
         m.player1.scores > m.player2.scores ? m.player1Id : m.player2Id;
@@ -247,11 +288,12 @@ export default function RoomPage() {
       });
     }
 
-    return members.map((m: any) => {
+    return baseMembers.map((m: any) => {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
       const currentRating = latestRoomRatings[m.userId] ?? m.rating ?? 1000;
       const total = wins + losses;
+
       let max = 0,
         cur = 0;
       rawMatches.forEach((match) => {
@@ -288,7 +330,14 @@ export default function RoomPage() {
         longestWinStreak: max,
       };
     });
-  }, [members, rawMatches, seasonStarts, sport, last5Form]);
+  }, [
+    room?.members,
+    rawMatches,
+    seasonStarts,
+    seasonRoomStarts,
+    sport,
+    last5Form,
+  ]);
 
   const getSeasonEloSnapshots = useCallback(
     async (roomId: string): Promise<StartEndElo> => {
@@ -333,7 +382,6 @@ export default function RoomPage() {
   const handleFinishSeason = useCallback(async () => {
     try {
       const snapshots = await getSeasonEloSnapshots(roomId);
-      // ✅ **ИСПРАВЛЕНИЕ**: Передаем `sport` в функцию
       await finalizeSeason(roomId, snapshots, config.collections, sport);
       toast({ title: t('Season finished') });
     } catch (err) {
@@ -364,7 +412,7 @@ export default function RoomPage() {
 
   const handleLeaveRoom = useCallback(async () => {
     if (!user || !room) return;
-    const memberToRemove = room.members.find((m) => m.userId === user.uid);
+    const memberToRemove = room?.members.find((m) => m.userId === user.uid);
     if (memberToRemove) {
       await updateDoc(doc(db, config.collections.rooms, roomId), {
         members: arrayRemove(memberToRemove),
@@ -374,6 +422,122 @@ export default function RoomPage() {
       router.push('/rooms');
     }
   }, [user, room, roomId, config.collections.rooms, router, toast, t]);
+
+  const handleInviteFriends = async () => {
+    if (!user || !room || selectedFriends.length === 0) {
+      toast({
+        title: 'Select friends to invite',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsInviting(true);
+    try {
+      const isStillMember = room?.members.some((m) => m.userId === user.uid);
+
+      if (!isStillMember) {
+        toast({
+          title: t('Permission Denied'),
+          description: t('You are no longer a member of this room.'),
+          variant: 'destructive',
+        });
+        setIsInviting(false);
+        return;
+      }
+
+      const batch = writeBatch(db);
+      const roomRef = doc(db, config.collections.rooms, roomId);
+
+      const newMembers = selectedFriends.map((uid) => {
+        const friend = friends.find((f) => f.uid === uid);
+        const userRef = doc(db, 'users', uid);
+        batch.update(userRef, { rooms: arrayUnion(roomId) });
+        return {
+          userId: uid,
+          name: friend?.name ?? friend?.displayName ?? 'New Player',
+          email: friend?.email ?? '',
+          rating: 1000,
+          wins: 0,
+          losses: 0,
+          date: new Date().toISOString(),
+          role: 'editor',
+        };
+      });
+
+      batch.update(roomRef, {
+        members: arrayUnion(...newMembers),
+        memberIds: arrayUnion(...selectedFriends),
+      });
+
+      await batch.commit();
+
+      toast({
+        title: t('Invitations Sent'),
+        description: t('Your friends have been added to the room.'),
+      });
+      setSelectedFriends([]);
+    } catch (error) {
+      console.error('Failed to invite friends:', error);
+      toast({
+        title: t('Error'),
+        description: t('Failed to invite friends.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleRemovePlayer = async (userIdToRemove: string) => {
+    if (!room || !user) return;
+
+    const memberToRemove = room?.members.find(
+      (m) => m.userId === userIdToRemove
+    );
+    if (!memberToRemove) {
+      toast({ title: 'Player not found in this room', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const isStillCreator = room.creator === user.uid;
+      const isRoomAdmin =
+        Array.isArray(room.adminIds) && room.adminIds.includes(user.uid);
+      const canManage = isGlobalAdmin || isStillCreator || isRoomAdmin;
+
+      if (!canManage) {
+        toast({
+          title: t('Permission Denied'),
+          description: t('You do not have rights to remove players.'),
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const batch = writeBatch(db);
+      const roomRef = doc(db, config.collections.rooms, roomId);
+      batch.update(roomRef, {
+        members: arrayRemove(memberToRemove),
+        memberIds: arrayRemove(userIdToRemove),
+      });
+
+      const userRef = doc(db, 'users', userIdToRemove);
+      batch.update(userRef, {
+        rooms: arrayRemove(roomId),
+      });
+
+      await batch.commit();
+
+      toast({ title: 'Player removed successfully' });
+    } catch (error) {
+      console.error('Failed to remove player:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to remove player from the room.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const isMember = useMemo(
     () => room?.members.some((m) => m.userId === user?.uid),
@@ -413,17 +577,83 @@ export default function RoomPage() {
           onLeave={handleLeaveRoom}
         />
         <Card>
-          <CardContent className='grid md:grid-cols-3 gap-6'>
-            <div className='md:col-span-1'>
-              <MembersList members={regularPlayers} room={room} />
+          <CardContent className='grid md:grid-cols-3 gap-6 p-4'>
+            <div className='md:col-span-1 space-y-4'>
+              <MembersList
+                members={regularPlayers}
+                room={room}
+                isCreator={isCreator}
+                canManage={canManageRoom}
+                currentUser={user}
+                onRemovePlayer={handleRemovePlayer}
+              />
+              {isMember && (
+                <div className='pt-4 border-t'>
+                  <Label className='text-sm font-medium'>
+                    {t('Invite players:')}
+                  </Label>
+                  <ScrollArea className='h-32 mt-2 border rounded-md p-2'>
+                    {inviteCandidates.length > 0 ? (
+                      inviteCandidates.map((p) => {
+                        const displayName = p.name ?? p.displayName ?? '?';
+                        return (
+                          <label
+                            key={p.uid}
+                            className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
+                          >
+                            <Checkbox
+                              checked={selectedFriends.includes(p.uid)}
+                              onCheckedChange={(v) =>
+                                v
+                                  ? setSelectedFriends([
+                                      ...selectedFriends,
+                                      p.uid,
+                                    ])
+                                  : setSelectedFriends(
+                                      selectedFriends.filter(
+                                        (id) => id !== p.uid
+                                      )
+                                    )
+                              }
+                            />
+                            <div className='flex items-center gap-2'>
+                              <Avatar className='h-6 w-6'>
+                                <AvatarImage src={p.photoURL ?? undefined} />
+                                <AvatarFallback>
+                                  {displayName.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{displayName}</span>
+                            </div>
+                          </label>
+                        );
+                      })
+                    ) : (
+                      <p className='text-muted-foreground text-sm text-center py-4'>
+                        {t('No friends available to invite.')}
+                      </p>
+                    )}
+                  </ScrollArea>
+                  <Button
+                    onClick={handleInviteFriends}
+                    disabled={isInviting || selectedFriends.length === 0}
+                    className='w-full mt-2'
+                  >
+                    {isInviting
+                      ? t('Inviting...')
+                      : t('Invite to {{roomName}}', { roomName: room.name })}
+                  </Button>
+                </div>
+              )}
             </div>
             {isMember && !latestSeason && !room.isArchived && (
               <div className='md:col-span-2'>
                 <RecordBlock
-                  members={members}
+                  members={room?.members}
                   roomId={roomId}
                   room={room}
                   isCreator={isCreator}
+                  isGlobalAdmin={isGlobalAdmin}
                   onFinishSeason={handleFinishSeason}
                 />
               </div>

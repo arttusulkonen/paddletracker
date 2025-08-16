@@ -1,80 +1,67 @@
-export interface UserProfile {
-  email: string;
-  name: string;
-  displayName: string;
-  uid: string;
-  rank: string;
+export type Sport = 'pingpong' | 'tennis' | 'badminton';
+
+export interface SportProfile {
   globalElo: number;
-  matchesPlayed: number;
   wins: number;
   losses: number;
-  maxRating: number;
+  rank?: string;
+  aces?: number;
+  doubleFaults?: number;
+  winners?: number;
+  eloHistory?: {
+    ts: string;
+    elo: number;
+  }[];
+}
+
+export interface Achievement {
+  type: string;
+  sport?: Sport;
+  dateFinished?: string;
+  userId?: string | null;
+  name?: string | null;
+  place?: number | null;
+  matchesPlayed?: number;
+  wins?: number;
+  losses?: number;
+  winRate?: number;
+  totalAddedPoints?: number;
+  adjPoints?: number;
+  longestWinStreak?: number;
+  roomRating?: number;
+  startGlobalElo?: number;
+  endGlobalElo?: number;
+  roomId?: string | null;
+  roomName?: string | null;
+  finalScore?: number;
+}
+
+export interface UserProfile {
+  uid: string;
+  email?: string;
+  name?: string;
+  displayName?: string;
+  rank?: string;
+  globalElo?: number;
+  matchesPlayed?: number;
+  wins?: number;
+  losses?: number;
+  maxRating?: number;
   isPublic?: boolean;
   bio?: string;
   photoURL?: string | null;
   isDeleted?: boolean;
   rooms: string[];
   friends?: string[];
-  eloHistory: {
+  eloHistory?: {
     date: string;
     elo: number;
   }[];
-  achievements: {
-    type: string;
-    dateFinished: string;
-    finalScore: number;
-    wins: number;
-    losses: number;
-    matchesPlayed: number;
-    place: number | null;
-    roomId: string | null;
-    roomName: string | null;
-    totalAddedPoints: number;
-  }[];
+  achievements?: Achievement[];
   sports?: {
     [key in Sport]?: SportProfile;
   };
   activeSport?: Sport;
-}
-
-export type Sport = 'pingpong' | 'tennis';
-
-export interface SportProfile {
-  globalElo: number;
-  wins: number;
-  losses: number;
-  rank: string;
-  aces?: number;
-  doubleFaults?: number;
-  winners?: number;
-}
-
-
-export interface TournamentRoom {
-  id: string;
-  name: string;
-}
-
-export interface Match {
-  id: string;
-  player1Id: string;
-  player2Id: string;
-  player1Name?: string;
-  player2Name?: string;
-  winnerId: string;
-  playedAt: string;
-  eloChangePlayer1: number;
-  eloChangePlayer2: number;
-  roomId?: string;
-  tournamentId?: string;
-  roundName?: string;
-  player1Score: number;
-  player2Score: number;
-  isRanked?: boolean;
-  tsIso?: string;
-  timestamp?: any;
-  createdAt?: any;
-  [key: string]: any; 
 }
 
 export interface Room {
@@ -96,7 +83,7 @@ export interface Room {
   sport?: Sport;
 }
 
-interface Member {
+export interface Member {
   userId: string;
   name: string;
   email?: string;
@@ -107,4 +94,50 @@ interface Member {
   date: string;
   role: string;
   globalElo?: number;
+}
+
+export interface Match {
+  id: string;
+  roomId: string;
+  tsIso?: string;
+  timestamp?: string;
+  createdAt?: string;
+  playedAt?: string;
+  isRanked?: boolean;
+  player1Id: string;
+  player2Id: string;
+  players?: string[];
+  player1: MatchSide;
+  player2: MatchSide;
+  winner: string;
+  player1Name?: string;
+  player2Name?: string;
+  winnerId?: string;
+  player1Score?: number;
+  player2Score?: number;
+  eloChangePlayer1?: number;
+  eloChangePlayer2?: number;
+  tournamentId?: string;
+  roundName?: string;
+  [key: string]: any;
+}
+
+export interface MatchSide {
+  name: string;
+  scores: number;
+  oldRating: number;
+  newRating: number;
+  addedPoints: number;
+  roomOldRating: number;
+  roomNewRating: number;
+  roomAddedPoints: number;
+  side?: 'left' | 'right';
+  aces?: number;
+  doubleFaults?: number;
+  winners?: number;
+}
+
+export interface TournamentRoom {
+  id: string;
+  name: string;
 }

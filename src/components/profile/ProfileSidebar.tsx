@@ -4,6 +4,7 @@
 import { Button } from '@/components/ui';
 import type { UserProfile } from '@/lib/types';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FriendsList } from './FriendsList';
 import { RoomsList } from './RoomsList';
@@ -18,6 +19,7 @@ export function ProfileSidebar({
   canViewProfile,
 }: ProfileSidebarProps) {
   const { t } = useTranslation();
+  const [visibleRoomsCount, setVisibleRoomsCount] = useState<number>(0);
 
   return (
     canViewProfile && (
@@ -27,7 +29,6 @@ export function ProfileSidebar({
           {targetProfile.friends && targetProfile.friends.length > 0 && (
             <Link
               href={`/profile/${targetProfile.uid}/friends`}
-              passHref
               className='mt-4 block'
             >
               <Button variant='outline' className='w-full'>
@@ -38,11 +39,13 @@ export function ProfileSidebar({
         </div>
 
         <div className='space-y-4'>
-          <RoomsList targetUid={targetProfile.uid} />
-          {targetProfile.rooms && targetProfile.rooms.length > 0 && (
+          <RoomsList
+            targetUid={targetProfile.uid}
+            onVisibleCountChange={setVisibleRoomsCount}
+          />
+          {visibleRoomsCount > 0 && (
             <Link
               href={`/profile/${targetProfile.uid}/rooms`}
-              passHref
               className='mt-4 block'
             >
               <Button variant='outline' className='w-full'>
