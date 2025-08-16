@@ -30,7 +30,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const SPORTS: Sport[] = ['pingpong', 'tennis'];
+const SPORTS: Sport[] = ['pingpong', 'tennis', 'badminton'];
 
 function RoomListItem({ room }: { room: Room }) {
   const { t } = useTranslation();
@@ -144,7 +144,7 @@ export default function UserRoomsPage() {
     };
 
     fetchUserData();
-  }, [uid, isOwnProfile, user, viewerProfile]);
+  }, [uid, isOwnProfile, user, viewerProfile, isGlobalAdmin]);
 
   const displayName = userProfile?.displayName ?? userProfile?.name ?? 'User';
   const pageTitle = t('Rooms');

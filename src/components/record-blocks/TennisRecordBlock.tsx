@@ -5,7 +5,6 @@ import { Button, Input, Label } from '@/components/ui';
 import { Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-// ✅ Расширенный тип для данных сета в теннисе
 export type TennisSetData = {
   score1: string;
   score2: string;
@@ -56,7 +55,6 @@ export function TennisRowInput({
         )}
       </div>
 
-      {/* --- Основной счет --- */}
       <div className='grid grid-cols-2 gap-4'>
         <div className='space-y-1'>
           <Label>{t('P1 Games')}</Label>
@@ -80,7 +78,6 @@ export function TennisRowInput({
         </div>
       </div>
 
-      {/* --- Дополнительная статистика --- */}
       <div className='grid grid-cols-2 gap-x-4 gap-y-2 text-sm'>
         {/* Aces */}
         <StatInput

@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Room, UserProfile } from '@/lib/types';
-import { getRank } from '@/lib/utils/profileUtils'; // ✅ 1. Импортируем утилиту getRank
+import { getRank } from '@/lib/utils/profileUtils';
 import {
   collection,
   doc,
@@ -468,7 +468,7 @@ export default function HomePageWrapper() {
           <>
             <section className='text-center mb-16'>
               <h1
-                className={`text-5xl font-extrabold tracking-tight mb-4 sm:text-6xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-r ${config.theme.gradientFrom} ${config.theme.gradientTo}`}
+                className={`text-5xl font-extrabold tracking-tight mb-4 sm:text-6xl md:text-7xl bg-clip-text bg-gradient-to-r ${config.theme.gradientFrom} ${config.theme.gradientTo}`}
               >
                 {`${config.name}Tracker`}
               </h1>

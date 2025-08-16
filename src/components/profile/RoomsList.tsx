@@ -21,12 +21,13 @@ import { useTranslation } from 'react-i18next';
 
 interface RoomsListProps {
   targetUid: string;
+  onVisibleCountChange?: (count: number) => void;
 }
 
 const PREVIEW_COUNT = 4;
-const SPORTS: Sport[] = ['pingpong', 'tennis'];
+const SPORTS: Sport[] = ['pingpong', 'tennis', 'badminton'];
 
-export function RoomsList({ targetUid }: RoomsListProps) {
+export function RoomsList({ targetUid, onVisibleCountChange }: RoomsListProps) {
   const { t } = useTranslation();
   const { user, userProfile: viewerProfile, isGlobalAdmin } = useAuth();
   const [visibleRooms, setVisibleRooms] = useState<Room[]>([]);
@@ -71,6 +72,7 @@ export function RoomsList({ targetUid }: RoomsListProps) {
         );
 
         setVisibleRooms(activeRooms);
+        onVisibleCountChange?.(activeRooms.length);
       } catch (e) {
         console.error("Failed to fetch user's active rooms:", e);
       } finally {
@@ -79,7 +81,14 @@ export function RoomsList({ targetUid }: RoomsListProps) {
     };
 
     fetchAndFilterRooms();
-  }, [targetUid, isOwnProfile, user, viewerProfile]);
+  }, [
+    targetUid,
+    isOwnProfile,
+    user,
+    viewerProfile,
+    isGlobalAdmin,
+    onVisibleCountChange,
+  ]);
 
   if (loading) {
     return <Card className='h-48 animate-pulse bg-muted'></Card>;

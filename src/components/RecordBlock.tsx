@@ -27,6 +27,11 @@ import type { Room } from '@/lib/types';
 import { Plus, Sword } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import {
+  BadmintonMatchData,
+  BadmintonRowInput,
+} from './record-blocks/BadmintonRecordBlock';
 import {
   PingPongMatchData,
   PingPongRowInput,
@@ -92,7 +97,7 @@ export function RecordBlock({
   const [isRecording, setIsRecording] = useState(false);
 
   const [matchesInput, setMatchesInput] = useState<
-    Array<PingPongMatchData | TennisSetData>
+    Array<PingPongMatchData | TennisSetData | BadmintonMatchData>
   >([
     sport === 'tennis'
       ? { score1: '', score2: '' }
@@ -112,8 +117,10 @@ export function RecordBlock({
       if (sport === 'tennis') {
         return [...prev, { score1: '', score2: '' }];
       }
-      const lastMatch = prev[prev.length - 1] as PingPongMatchData;
-      const newSide1 = lastMatch.side1 === 'left' ? 'right' : 'left';
+      const last = prev[prev.length - 1] as
+        | PingPongMatchData
+        | BadmintonMatchData;
+      const newSide1 = last.side1 === 'left' ? 'right' : 'left';
       const newSide2 = newSide1 === 'left' ? 'right' : 'left';
       return [
         ...prev,
@@ -124,7 +131,11 @@ export function RecordBlock({
 
   const removeRow = (i: number) =>
     setMatchesInput((r) => r.filter((_, idx) => idx !== i));
-  const updateRow = (i: number, data: PingPongMatchData | TennisSetData) => {
+
+  const updateRow = (
+    i: number,
+    data: PingPongMatchData | TennisSetData | BadmintonMatchData
+  ) => {
     setMatchesInput((prev) =>
       prev.map((row, index) => (index === i ? data : row))
     );
@@ -138,7 +149,7 @@ export function RecordBlock({
       });
       return;
     }
-    const invalidMatch = matchesInput.find(({ score1, score2 }) => {
+    const invalidMatch = matchesInput.find(({ score1, score2 }: any) => {
       const a = +score1;
       const b = +score2;
       if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
@@ -146,8 +157,8 @@ export function RecordBlock({
     });
     if (invalidMatch) {
       const { message } = config.validateScore(
-        +invalidMatch.score1,
-        +invalidMatch.score2
+        +(invalidMatch as any).score1,
+        +(invalidMatch as any).score2
       );
       toast({
         title: t('Check the score values'),
@@ -162,7 +173,7 @@ export function RecordBlock({
       room,
       player1Id,
       player2Id,
-      matchesInput,
+      matchesInput as any,
       members,
       sport,
       config
@@ -226,6 +237,7 @@ export function RecordBlock({
             t={t}
           />
         </div>
+
         {sport === 'pingpong' &&
           matchesInput.map((row, i) => (
             <PingPongRowInput
@@ -236,6 +248,18 @@ export function RecordBlock({
               removable={i > 0}
             />
           ))}
+
+        {sport === 'badminton' &&
+          matchesInput.map((row, i) => (
+            <BadmintonRowInput
+              key={i}
+              data={row as BadmintonMatchData}
+              onChange={(d) => updateRow(i, d)}
+              onRemove={() => removeRow(i)}
+              removable={i > 0}
+            />
+          ))}
+
         {sport === 'tennis' &&
           matchesInput.map((row, i) => (
             <TennisRowInput
@@ -251,7 +275,7 @@ export function RecordBlock({
         <div className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-4'>
           <Button
             variant='outline'
-            className='flex items-center gap-2' 
+            className='flex items-center gap-2'
             onClick={addRow}
           >
             <Plus /> {sport === 'tennis' ? t('Add Set') : t('Add Match')}

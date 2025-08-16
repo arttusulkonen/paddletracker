@@ -1,5 +1,4 @@
 // src/lib/elo.ts
-
 import { TennisSetData } from '@/components/record-blocks/TennisRecordBlock';
 import {
   addDoc,
@@ -27,9 +26,8 @@ const calculateElo = (
   return newRating1;
 };
 
-type MatchInputData =
-  | { score1: string; score2: string; side1: string; side2: string }
-  | TennisSetData;
+type NonTennisRow = { score1: string; score2: string; side1: string; side2: string };
+type MatchInputData = NonTennisRow | TennisSetData;
 
 export async function processAndSaveMatches(
   roomId: string,
@@ -51,11 +49,9 @@ export async function processAndSaveMatches(
     const p1Profile = p1Snap.data() as UserProfile;
     const p2Profile = p2Snap.data() as UserProfile;
 
-    // текущее глобальное ELO
     let currentG1 = p1Profile.sports?.[sport]?.globalElo ?? 1000;
     let currentG2 = p2Profile.sports?.[sport]?.globalElo ?? 1000;
 
-    // локальная «копия» членов комнаты
     let draft = JSON.parse(JSON.stringify(currentMembers)) as Room['members'];
     const startDate = new Date();
 
@@ -66,7 +62,7 @@ export async function processAndSaveMatches(
     let tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
 
     for (let i = 0; i < matchesInput.length; i++) {
-      const row = matchesInput[i];
+      const row = matchesInput[i] as any;
       const score1 = +row.score1;
       const score2 = +row.score2;
 
@@ -79,32 +75,26 @@ export async function processAndSaveMatches(
       const p1OldRoomRating = p1Member.rating;
       const p2OldRoomRating = p2Member.rating;
 
-      // значения, которые попадут в документ матча
       let newG1 = oldG1;
       let newG2 = oldG2;
-      let d1 = 0; // ЕДИНЫЙ Δ, который пишем в addedPoints
+      let d1 = 0;
       let d2 = 0;
 
       if (room.isRanked !== false) {
-        // РАНКЕД: считаем Δ по ГЛОБАЛЬНОМУ ELO
         newG1 = calculateElo(oldG1, oldG2, score1, score2);
         newG2 = calculateElo(oldG2, oldG1, score2, score1);
         d1 = newG1 - oldG1;
         d2 = newG2 - oldG2;
 
-        // комната: просто сдвигаем локальный рейтинг на тот же Δ
         p1Member.rating = p1OldRoomRating + d1;
         p2Member.rating = p2OldRoomRating + d2;
 
-        // поддерживаем текущие глобальные для следующих сетов/игр
         currentG1 = newG1;
         currentG2 = newG2;
 
-        // полезно показывать в UI
         p1Member.globalElo = newG1;
         p2Member.globalElo = newG2;
       } else {
-        // НЕ РАНКЕД: глобальный ELO не трогаем, считаем локально
         const p1NewRoomRating = calculateElo(
           p1OldRoomRating,
           p2OldRoomRating,
@@ -117,7 +107,7 @@ export async function processAndSaveMatches(
           score2,
           score1
         );
-        d1 = p1NewRoomRating - p1OldRoomRating; // пишем в addedPoints
+        d1 = p1NewRoomRating - p1OldRoomRating;
         d2 = p2NewRoomRating - p2OldRoomRating;
 
         p1Member.rating = p1NewRoomRating;
@@ -153,9 +143,9 @@ export async function processAndSaveMatches(
         tennisStatsP2.doubleFaults += player2Data.doubleFaults;
         tennisStatsP2.winners += player2Data.winners;
       } else {
-        const pingPongData = row as { side1: string; side2: string };
-        player1Data.side = pingPongData.side1;
-        player2Data.side = pingPongData.side2;
+        const nonTennis = row as NonTennisRow;
+        player1Data.side = nonTennis.side1;
+        player2Data.side = nonTennis.side2;
       }
 
       const matchDoc: Omit<Match, 'id'> = {
@@ -170,9 +160,9 @@ export async function processAndSaveMatches(
         player1: {
           name: p1Member.name,
           scores: score1,
-          oldRating: oldG1,       
-          newRating: newG1,       
-          addedPoints: d1,        
+          oldRating: oldG1,
+          newRating: newG1,
+          addedPoints: d1,
           roomOldRating: p1OldRoomRating,
           roomNewRating: p1Member.rating,
           roomAddedPoints: d1,
