@@ -68,7 +68,6 @@ function PlayerSelect({
   );
 }
 
-// ✅ Обновлены пропсы компонента
 export function RecordBlock({
   members,
   roomId,
@@ -249,11 +248,10 @@ export function RecordBlock({
             />
           ))}
 
-        {/* ✅ Блок с кнопками стал адаптивным */}
         <div className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-4'>
           <Button
             variant='outline'
-            className='flex items-center gap-2' // Убрали w-full, так как контейнер управляет шириной
+            className='flex items-center gap-2' 
             onClick={addRow}
           >
             <Plus /> {sport === 'tennis' ? t('Add Set') : t('Add Match')}
