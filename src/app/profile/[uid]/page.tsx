@@ -1,6 +1,5 @@
 // src/app/profile/[uid]/page.tsx
 'use client';
-
 import { NewPlayerCard } from '@/components/profile/NewPlayerCard';
 import { OverallStatsCard } from '@/components/profile/OverallStatsCard';
 import { ProfileContent } from '@/components/profile/ProfileContent';
@@ -19,7 +18,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
-import { isAdmin } from '@/lib/config';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import type { Match, UserProfile } from '@/lib/types';
@@ -50,11 +48,12 @@ export default function ProfileUidPage() {
   const { t } = useTranslation();
   const { uid: targetUid } = useParams<{ uid: string }>();
   const router = useRouter();
-  const { user, userProfile: viewerProfile } = useAuth();
+  const { user, userProfile: viewerProfile, isGlobalAdmin } = useAuth();
   const { toast } = useToast();
 
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [friendStatus, setFriendStatus] = useState<
     'none' | 'outgoing' | 'incoming' | 'friends'
   >('none');
@@ -76,6 +75,12 @@ export default function ProfileUidPage() {
         0
     );
   }, [targetProfile]);
+
+  const canView =
+    isGlobalAdmin ||
+    isSelf ||
+    (targetProfile?.isPublic ?? true) ||
+    friendStatus === 'friends';
 
   useEffect(() => {
     if (targetProfile) {
@@ -219,20 +224,16 @@ export default function ProfileUidPage() {
           )
         : null;
     const sportProfile = targetProfile.sports?.[viewedSport];
-    const opponents = Array.from(
-      new Set(
-        matches.map((m) =>
-          m.player1Id === targetProfile.uid ? m.player2.name : m.player1.name
-        )
-      )
-    ).map((name) => {
-      const match = matches.find(
-        (m) => m.player1.name === name || m.player2.name === name
-      );
-      const id =
-        match?.player1.name === name ? match.player1Id : match?.player2Id;
-      return { id: id!, name };
-    });
+    const opponentsMap = new Map<string, string>(); // id -> name
+    for (const m of matches) {
+      const isP1 = m.player1Id === targetProfile.uid;
+      const oppId = isP1 ? m.player2Id : m.player1Id;
+      const oppName = isP1 ? m.player2.name : m.player1.name;
+      if (oppId && !opponentsMap.has(oppId)) {
+        opponentsMap.set(oppId, oppName);
+      }
+    }
+    const opponents = Array.from(opponentsMap, ([id, name]) => ({ id, name }));
 
     const pieData = [
       { name: t('Wins'), value: stats.wins, fill: 'hsl(var(--primary))' },
@@ -344,12 +345,7 @@ export default function ProfileUidPage() {
               {viewedSport && sportSpecificData && (
                 <ProfileContent
                   key={viewedSport}
-                  canViewProfile={
-                    isAdmin(user?.uid) ||
-                    !targetProfile.isPrivate ||
-                    isSelf ||
-                    friendStatus === 'friends'
-                  }
+                  canViewProfile={canView}
                   sport={viewedSport}
                   playedSports={playedSports}
                   onSportChange={setViewedSport}
@@ -379,12 +375,7 @@ export default function ProfileUidPage() {
 
         <div className='lg:col-span-4 xl:col-span-3'>
           <ProfileSidebar
-            canViewProfile={
-              isAdmin(user?.uid) ||
-              !targetProfile.isPrivate ||
-              isSelf ||
-              friendStatus === 'friends'
-            }
+            canViewProfile={canView}
             targetProfile={targetProfile}
           />
         </div>

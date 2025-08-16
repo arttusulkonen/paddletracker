@@ -12,7 +12,6 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig } from '@/contexts/SportContext';
-import { isAdmin } from '@/lib/config';
 import { db } from '@/lib/firebase';
 import type { Room } from '@/lib/types';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -29,7 +28,7 @@ const SPORTS: Sport[] = ['pingpong', 'tennis'];
 
 export function RoomsList({ targetUid }: RoomsListProps) {
   const { t } = useTranslation();
-  const { user, userProfile: viewerProfile } = useAuth();
+  const { user, userProfile: viewerProfile, isGlobalAdmin } = useAuth();
   const [visibleRooms, setVisibleRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,12 +56,11 @@ export function RoomsList({ targetUid }: RoomsListProps) {
         const results = await Promise.all(promises);
         const allUserRooms = results.flat();
 
-        const viewerIsAdmin = isAdmin(user?.uid);
         const viewerIsFriend = viewerProfile?.friends?.includes(targetUid);
         const viewerRoomIds = new Set(viewerProfile?.rooms ?? []);
 
         const filteredRooms = allUserRooms.filter((room) => {
-          if (viewerIsAdmin || isOwnProfile) return true;
+          if (isGlobalAdmin || isOwnProfile) return true;
           if (room.isPublic) return true;
           if (viewerIsFriend && viewerRoomIds.has(room.id)) return true;
           return false;

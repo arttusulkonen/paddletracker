@@ -1,4 +1,5 @@
 // src/lib/friends.ts
+import { isGlobalAdminClient } from '@/lib/auth/isGlobalAdmin';
 import {
   arrayRemove,
   arrayUnion,
@@ -11,14 +12,13 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { isAdmin } from './config';
 import { db } from './firebase';
 import type { UserProfile } from './types';
 
 export async function sendFriendRequest(fromUid: string, toUid: string) {
   if (fromUid === toUid) return;
 
-  if (isAdmin(fromUid)) {
+  if (await isGlobalAdminClient()) {
     await Promise.all([
       updateDoc(doc(db, 'users', fromUid), {
         friends: arrayUnion(toUid),

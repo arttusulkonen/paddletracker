@@ -31,7 +31,7 @@ interface MembersListProps {
   members: any[];
   room: Room;
   isCreator: boolean;
-  isAdmin: boolean;
+  canManage: boolean;
   currentUser: User | null;
   onRemovePlayer: (userId: string) => void;
 }
@@ -50,7 +50,7 @@ export function MembersList({
   members,
   room,
   isCreator,
-  isAdmin,
+  canManage,
   currentUser,
   onRemovePlayer,
 }: MembersListProps) {
@@ -65,8 +65,8 @@ export function MembersList({
     });
   }, [members]);
 
-  const canRemovePlayers = isCreator || isAdmin;
-
+  const canRemovePlayers = isCreator || canManage;
+  
   return (
     <div>
       <h3 className='font-semibold text-lg mb-2 flex items-center gap-2'>
@@ -88,7 +88,7 @@ export function MembersList({
                   <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className='min-w-0'>
-                  <p className='font-medium leading-none flex items-center gap-2 truncate'>
+                  <div className='font-medium leading-none flex items-center gap-2 truncate'>
                     {p.isDeleted ? (
                       <span className='truncate'>{p.name}</span>
                     ) : (
@@ -106,16 +106,18 @@ export function MembersList({
                             <ShieldCheck className='h-4 w-4 text-primary flex-shrink-0' />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{t('Room Creator')}</p>
+                            <span>{t('Room Creator')}</span>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     )}
-                  </p>
+                  </div>
+
                   <p className='text-xs text-muted-foreground truncate'>
                     {t('MP')} {p.totalMatches} · {t('W%')} {p.winPct}% ·{' '}
                     {t('ELO')} {p.globalElo?.toFixed(0) ?? '–'}
                   </p>
+
                   <p className='text-[10px] text-muted-foreground truncate'>
                     {t('Rank')} {rank}
                   </p>

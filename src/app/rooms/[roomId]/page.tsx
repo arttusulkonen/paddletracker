@@ -22,7 +22,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
-import { isAdmin } from '@/lib/config';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import { finalizeSeason } from '@/lib/season';
@@ -60,7 +59,7 @@ type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
 export default function RoomPage() {
   const { t } = useTranslation();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, isGlobalAdmin } = useAuth();
   const { sport, config } = useSport();
   const { toast } = useToast();
   const router = useRouter();
@@ -102,6 +101,13 @@ export default function RoomPage() {
     );
     return () => unsubRoom();
   }, [user, roomId, config.collections.rooms, router]);
+
+  const canManageRoom = useMemo(() => {
+    if (!room || !user) return false;
+    const isRoomAdmin =
+      Array.isArray(room.adminIds) && room.adminIds.includes(user.uid);
+    return isGlobalAdmin || isRoomAdmin || room.creator === user.uid;
+  }, [room, user, isGlobalAdmin]);
 
   useEffect(() => {
     if (!user || !db) return;
@@ -407,7 +413,7 @@ export default function RoomPage() {
   }, [user, room, roomId, config.collections.rooms, router, toast, t]);
 
   const handleInviteFriends = async () => {
-    if (selectedFriends.length === 0) {
+    if (!user || !room || selectedFriends.length === 0) {
       toast({
         title: 'Select friends to invite',
         variant: 'destructive',
@@ -416,6 +422,18 @@ export default function RoomPage() {
     }
     setIsInviting(true);
     try {
+      const isStillMember = room.members.some((m) => m.userId === user.uid);
+
+      if (!isStillMember) {
+        toast({
+          title: t('Permission Denied'),
+          description: t('You are no longer a member of this room.'),
+          variant: 'destructive',
+        });
+        setIsInviting(false);
+        return;
+      }
+
       const batch = writeBatch(db);
       const roomRef = doc(db, config.collections.rooms, roomId);
 
@@ -460,7 +478,7 @@ export default function RoomPage() {
   };
 
   const handleRemovePlayer = async (userIdToRemove: string) => {
-    if (!room) return;
+    if (!room || !user) return;
 
     const memberToRemove = room.members.find(
       (m) => m.userId === userIdToRemove
@@ -471,6 +489,20 @@ export default function RoomPage() {
     }
 
     try {
+      const isStillCreator = room.creator === user.uid;
+      const isRoomAdmin =
+        Array.isArray(room.adminIds) && room.adminIds.includes(user.uid);
+      const canManage = isGlobalAdmin || isStillCreator || isRoomAdmin;
+
+      if (!canManage) {
+        toast({
+          title: t('Permission Denied'),
+          description: t('You do not have rights to remove players.'),
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const batch = writeBatch(db);
       const roomRef = doc(db, config.collections.rooms, roomId);
       batch.update(roomRef, {
@@ -540,7 +572,7 @@ export default function RoomPage() {
                 members={regularPlayers}
                 room={room}
                 isCreator={isCreator}
-                isAdmin={isAdmin(user?.uid)}
+                canManage={canManageRoom}
                 currentUser={user}
                 onRemovePlayer={handleRemovePlayer}
               />

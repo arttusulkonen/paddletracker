@@ -17,22 +17,22 @@ import {
   Input,
   Label,
   ScrollArea,
-  Textarea, // ✅ Импортируем Textarea
+  Textarea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
-import { db, storage } from '@/lib/firebase'; // ✅ Импортируем storage
+import { db, storage } from '@/lib/firebase';
 import { getUserLite } from '@/lib/friends';
+import { getSuperAdminIds, withSuperAdmins } from '@/lib/superAdmins';
 import type { UserProfile } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { addDoc, collection, doc, onSnapshot } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'; // ✅ Импорты для загрузки файлов
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { Image as ImageIcon, PlusCircle, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// ✅ Пропсы для onSuccess колбэка
 interface CreateRoomDialogProps {
   onSuccess?: () => void;
 }
@@ -43,24 +43,20 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const { config } = useSport();
   const { toast } = useToast();
 
-  // Состояние для открытия/закрытия диалога
   const [isOpen, setIsOpen] = useState(false);
 
-  // Состояния формы
   const [roomName, setRoomName] = useState('');
-  const [roomDescription, setRoomDescription] = useState(''); // ✅ Состояние для описания
+  const [roomDescription, setRoomDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [isRanked, setIsRanked] = useState(true);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
 
-  // ✅ Состояния для загрузки аватара
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Загрузка списка друзей при открытии диалога
   useEffect(() => {
     if (!user || !isOpen) return;
 
@@ -154,10 +150,13 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         }),
       ];
 
+      const superAdmins = await getSuperAdminIds(true); // берём свежие, игнорируя кэш
+      const adminIds = withSuperAdmins(user.uid, superAdmins);
+
       await addDoc(collection(db, config.collections.rooms), {
         name: roomName.trim(),
-        description: roomDescription.trim(), // ✅ Сохраняем описание
-        avatarURL, // ✅ Сохраняем ссылку на аватар
+        description: roomDescription.trim(),
+        avatarURL,
         creator: user.uid,
         creatorName: userProfile.name ?? userProfile.displayName ?? '',
         createdAt: now,
@@ -165,6 +164,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         isPublic,
         isRanked,
         memberIds: [user.uid, ...selectedFriends],
+        adminIds,
         isArchived: false,
         seasonHistory: [],
       });
@@ -175,8 +175,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       });
 
       resetForm();
-      setIsOpen(false); // Закрываем диалог
-      onSuccess?.(); // Вызываем колбэк при успехе
+      setIsOpen(false);
+      onSuccess?.();
     } catch (e) {
       console.error(e);
       toast({

@@ -27,6 +27,7 @@ import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { getUserLite } from '@/lib/friends';
+import { getSuperAdminIds, withSuperAdmins } from '@/lib/superAdmins';
 import type { Room, UserProfile } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { parseFlexDate } from '@/lib/utils/date';
@@ -226,6 +227,8 @@ export default function RoomsPage() {
           };
         }),
       ];
+      const superAdmins = await getSuperAdminIds(true); // берём свежие, игнорируя кэш
+      const adminIds = withSuperAdmins(user.uid, superAdmins);
       await addDoc(collection(db, config.collections.rooms), {
         name: roomName.trim(),
         creator: user.uid,
@@ -234,6 +237,7 @@ export default function RoomsPage() {
         members: initialMembers,
         isPublic,
         isRanked,
+        adminIds,
         memberIds: [user.uid, ...selectedFriends],
         isArchived: false,
       });
