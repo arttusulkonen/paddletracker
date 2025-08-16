@@ -126,7 +126,11 @@ export function MembersList({
 
               {/* Column 2: Points (fixed width, aligned right) */}
               <span className='text-sm font-semibold text-primary text-right w-24 flex-shrink-0'>
-                {p.ratingVisible ? `${Math.round(p.rating)} ${t('pts')}` : '—'}
+                {p.ratingVisible
+                  ? (typeof p.rating === 'number'
+                      ? `${Math.round(p.rating)} ${t('pts')}`
+                      : '—')
+                  : '—'}
               </span>
 
               {/* Column 3: Delete Button (fixed width container) */}
