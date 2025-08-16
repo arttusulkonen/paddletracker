@@ -40,7 +40,6 @@ export default function TranslatePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 🛡️ Хук для защиты от гидратации
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -96,7 +95,6 @@ export default function TranslatePage() {
         .includes(searchTerm.toLowerCase())
   );
 
-  // 🛡️ "Страж" гидратации
   if (!hasMounted) {
     return null;
   }

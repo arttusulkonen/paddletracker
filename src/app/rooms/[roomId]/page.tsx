@@ -138,14 +138,14 @@ export default function RoomPage() {
 
   const inviteCandidates = useMemo(() => {
     if (!room) return [];
-    const memberIds = new Set(room.members.map((m) => m.userId));
+    const memberIds = new Set(room?.members.map((m) => m.userId));
     return friends.filter((friend) => !memberIds.has(friend.uid));
   }, [friends, room]);
 
   useEffect(() => {
     if (!room) return;
-    if (rawMatches.length === 0 && room.members) {
-      setMembers(room.members);
+    if (rawMatches.length === 0 && room?.members) {
+      setMembers(room?.members);
       setRecentMatches([]);
       setIsLoading(false);
       return;
@@ -164,7 +164,7 @@ export default function RoomPage() {
       });
       setSeasonStarts(starts);
       setSeasonRoomStarts(roomStarts);
-      const initialMembers = room.members ?? [];
+      const initialMembers = room?.members ?? [];
       if (initialMembers.length === 0) {
         setMembers([]);
         setRecentMatches([]);
@@ -251,8 +251,11 @@ export default function RoomPage() {
   );
 
   const regularPlayers = useMemo(() => {
+    const baseMembers = room?.members ?? [];
+
     const matchStats: Record<string, { wins: number; losses: number }> = {};
     const latestRoomRatings: Record<string, number> = {};
+
     rawMatches.forEach((m) => {
       const winnerId =
         m.player1.scores > m.player2.scores ? m.player1Id : m.player2Id;
@@ -285,11 +288,12 @@ export default function RoomPage() {
       });
     }
 
-    return members.map((m: any) => {
+    return baseMembers.map((m: any) => {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
       const currentRating = latestRoomRatings[m.userId] ?? m.rating ?? 1000;
       const total = wins + losses;
+
       let max = 0,
         cur = 0;
       rawMatches.forEach((match) => {
@@ -326,7 +330,14 @@ export default function RoomPage() {
         longestWinStreak: max,
       };
     });
-  }, [members, rawMatches, seasonStarts, sport, last5Form]);
+  }, [
+    room?.members,
+    rawMatches,
+    seasonStarts,
+    seasonRoomStarts,
+    sport,
+    last5Form,
+  ]);
 
   const getSeasonEloSnapshots = useCallback(
     async (roomId: string): Promise<StartEndElo> => {
@@ -401,7 +412,7 @@ export default function RoomPage() {
 
   const handleLeaveRoom = useCallback(async () => {
     if (!user || !room) return;
-    const memberToRemove = room.members.find((m) => m.userId === user.uid);
+    const memberToRemove = room?.members.find((m) => m.userId === user.uid);
     if (memberToRemove) {
       await updateDoc(doc(db, config.collections.rooms, roomId), {
         members: arrayRemove(memberToRemove),
@@ -422,7 +433,7 @@ export default function RoomPage() {
     }
     setIsInviting(true);
     try {
-      const isStillMember = room.members.some((m) => m.userId === user.uid);
+      const isStillMember = room?.members.some((m) => m.userId === user.uid);
 
       if (!isStillMember) {
         toast({
@@ -480,7 +491,7 @@ export default function RoomPage() {
   const handleRemovePlayer = async (userIdToRemove: string) => {
     if (!room || !user) return;
 
-    const memberToRemove = room.members.find(
+    const memberToRemove = room?.members.find(
       (m) => m.userId === userIdToRemove
     );
     if (!memberToRemove) {
@@ -638,10 +649,11 @@ export default function RoomPage() {
             {isMember && !latestSeason && !room.isArchived && (
               <div className='md:col-span-2'>
                 <RecordBlock
-                  members={members}
+                  members={room?.members}
                   roomId={roomId}
                   room={room}
                   isCreator={isCreator}
+                  isGlobalAdmin={isGlobalAdmin}
                   onFinishSeason={handleFinishSeason}
                 />
               </div>

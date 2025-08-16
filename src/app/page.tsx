@@ -44,8 +44,6 @@ import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// --- Вспомогательные компоненты ---
-
 const PlayerRank = ({ rank }: { rank: string | null | undefined }) => {
   const { t } = useTranslation();
   return <>{t(rank ?? 'Unranked')}</>;
@@ -114,7 +112,6 @@ const OnboardingCard = () => {
   );
 };
 
-// --- Компонент выбора спорта по умолчанию ---
 const DefaultSportSelector = () => {
   const { t } = useTranslation();
   const { updateActiveSport } = useSport();
@@ -150,7 +147,6 @@ const DefaultSportSelector = () => {
   );
 };
 
-// --- Дашборд для авторизованных пользователей ---
 const Dashboard = () => {
   const { t } = useTranslation();
   const { user, userProfile } = useAuth();
@@ -166,7 +162,6 @@ const Dashboard = () => {
   const matchesPlayed = wins + losses;
   const isNewForSport = matchesPlayed === 0;
 
-  // ✅ 2. Динамически вычисляем ранг на основе ELO текущего спорта
   const rank = sportProfile
     ? getRank(sportProfile.globalElo ?? 1000, t)
     : t('Unranked');
@@ -383,7 +378,6 @@ const Dashboard = () => {
   );
 };
 
-// --- Лендинг для неавторизованных пользователей (без изменений) ---
 const LandingPage = () => {
   const { t } = useTranslation();
   return (
@@ -445,7 +439,6 @@ const LandingPage = () => {
   );
 };
 
-// --- Основной компонент-обертка, который решает, что показывать (без изменений) ---
 export default function HomePageWrapper() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { sport, config } = useSport();

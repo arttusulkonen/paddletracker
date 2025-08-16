@@ -46,15 +46,16 @@ export async function processAndSaveMatches(
       getDoc(doc(db, 'users', player1Id)),
       getDoc(doc(db, 'users', player2Id)),
     ]);
-
     if (!p1Snap.exists() || !p2Snap.exists()) return false;
 
     const p1Profile = p1Snap.data() as UserProfile;
     const p2Profile = p2Snap.data() as UserProfile;
 
+    // текущее глобальное ELO
     let currentG1 = p1Profile.sports?.[sport]?.globalElo ?? 1000;
     let currentG2 = p2Profile.sports?.[sport]?.globalElo ?? 1000;
 
+    // локальная «копия» членов комнаты
     let draft = JSON.parse(JSON.stringify(currentMembers)) as Room['members'];
     const startDate = new Date();
 
@@ -74,45 +75,57 @@ export async function processAndSaveMatches(
 
       const oldG1 = currentG1;
       const oldG2 = currentG2;
+
       const p1OldRoomRating = p1Member.rating;
       const p2OldRoomRating = p2Member.rating;
 
-      // ✅ 1. Всегда рассчитываем изменение рейтинга в комнате
-      const p1NewRoomRating = calculateElo(
-        p1OldRoomRating,
-        p2OldRoomRating,
-        score1,
-        score2
-      );
-      const p2NewRoomRating = calculateElo(
-        p2OldRoomRating,
-        p1OldRoomRating,
-        score2,
-        score1
-      );
-      const dR1 = p1NewRoomRating - p1OldRoomRating;
-      const dR2 = p2NewRoomRating - p2OldRoomRating;
-
-      p1Member.rating = p1NewRoomRating;
-      p2Member.rating = p2NewRoomRating;
-
+      // значения, которые попадут в документ матча
       let newG1 = oldG1;
       let newG2 = oldG2;
-      let dG1 = 0;
-      let dG2 = 0;
+      let d1 = 0; // ЕДИНЫЙ Δ, который пишем в addedPoints
+      let d2 = 0;
 
       if (room.isRanked !== false) {
+        // РАНКЕД: считаем Δ по ГЛОБАЛЬНОМУ ELO
         newG1 = calculateElo(oldG1, oldG2, score1, score2);
         newG2 = calculateElo(oldG2, oldG1, score2, score1);
-        dG1 = newG1 - oldG1;
-        dG2 = newG2 - oldG2;
+        d1 = newG1 - oldG1;
+        d2 = newG2 - oldG2;
+
+        // комната: просто сдвигаем локальный рейтинг на тот же Δ
+        p1Member.rating = p1OldRoomRating + d1;
+        p2Member.rating = p2OldRoomRating + d2;
+
+        // поддерживаем текущие глобальные для следующих сетов/игр
         currentG1 = newG1;
         currentG2 = newG2;
-        p1Member.globalElo = newG1; 
+
+        // полезно показывать в UI
+        p1Member.globalElo = newG1;
         p2Member.globalElo = newG2;
+      } else {
+        // НЕ РАНКЕД: глобальный ELO не трогаем, считаем локально
+        const p1NewRoomRating = calculateElo(
+          p1OldRoomRating,
+          p2OldRoomRating,
+          score1,
+          score2
+        );
+        const p2NewRoomRating = calculateElo(
+          p2OldRoomRating,
+          p1OldRoomRating,
+          score2,
+          score1
+        );
+        d1 = p1NewRoomRating - p1OldRoomRating; // пишем в addedPoints
+        d2 = p2NewRoomRating - p2OldRoomRating;
+
+        p1Member.rating = p1NewRoomRating;
+        p2Member.rating = p2NewRoomRating;
       }
 
-      score1 > score2 ? totalWinsP1++ : totalWinsP2++;
+      if (score1 > score2) totalWinsP1++;
+      else totalWinsP2++;
 
       const ts = new Date(startDate.getTime() + i * 1000);
       const createdAt = getFinnishFormattedDate(ts);
@@ -157,12 +170,12 @@ export async function processAndSaveMatches(
         player1: {
           name: p1Member.name,
           scores: score1,
-          oldRating: oldG1,
-          newRating: newG1,
-          addedPoints: dG1,
+          oldRating: oldG1,       
+          newRating: newG1,       
+          addedPoints: d1,        
           roomOldRating: p1OldRoomRating,
           roomNewRating: p1Member.rating,
-          roomAddedPoints: dR1,
+          roomAddedPoints: d1,
           ...player1Data,
         },
         player2: {
@@ -170,10 +183,10 @@ export async function processAndSaveMatches(
           scores: score2,
           oldRating: oldG2,
           newRating: newG2,
-          addedPoints: dG2,
+          addedPoints: d2,
           roomOldRating: p2OldRoomRating,
           roomNewRating: p2Member.rating,
-          roomAddedPoints: dR2,
+          roomAddedPoints: d2,
           ...player2Data,
         },
         winner: score1 > score2 ? p1Member.name : p2Member.name,
@@ -194,7 +207,6 @@ export async function processAndSaveMatches(
       [`sports.${sport}.wins`]: increment(totalWinsP1),
       [`sports.${sport}.losses`]: increment(totalWinsP2),
     };
-
     const p2Update: any = {
       [`sports.${sport}.wins`]: increment(totalWinsP2),
       [`sports.${sport}.losses`]: increment(totalWinsP1),

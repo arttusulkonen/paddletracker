@@ -61,7 +61,6 @@ export default function BracketView({ tournament, onUpdate }: Props) {
     const date = getFinnishFormattedDate();
     const ts = Timestamp.fromDate(new Date());
 
-    /** временно собираем данные, чтобы потом сформировать матчи */
     const stash: Record<
       string,
       {
@@ -73,7 +72,6 @@ export default function BracketView({ tournament, onUpdate }: Props) {
       }
     > = {};
 
-    /* ―― обновляем пользователей ―― */
     await Promise.all(
       next.finalStats.map(async (p: any) => {
         const delta = computeDelta(p.place);

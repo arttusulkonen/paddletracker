@@ -52,7 +52,6 @@ export const PERIOD_START = new Date('2024-07-30T00:00:00Z').getTime();
 export const PERIOD_END = new Date('2025-07-30T00:00:00Z').getTime();
 /* ────────────────────────────────────────────────────────────── */
 
-// --- Типы для агрегированных данных ---
 type UserStats = {
   wins: number;
   losses: number;
@@ -64,7 +63,6 @@ type UserStats = {
   streak: number;
   maxStreak: number;
   rivals: Map<string, { name: string; wins: number; losses: number }>;
-  // Теннис-специфичные поля
   aces?: number;
   doubleFaults?: number;
   winners?: number;
@@ -79,7 +77,6 @@ type AggregationResult = {
   userStats: UserStats;
 };
 
-// --- Функция агрегации данных ---
 function aggregate(
   matches: Match[],
   userId: string,
@@ -133,7 +130,6 @@ function aggregate(
       userStats.winners! += Number(me.winners) || 0;
     }
 
-    // Статистика по соперникам
     if (!userStats.rivals.has(oppId)) {
       userStats.rivals.set(oppId, { name: opp.name, wins: 0, losses: 0 });
     }
@@ -201,7 +197,6 @@ export default function Wrap2025() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // 1. Найти все комнаты пользователя для данного вида спорта
         const roomsQuery = query(
           collection(db, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid)
@@ -210,12 +205,11 @@ export default function Wrap2025() {
         const roomIds = roomsSnap.docs.map((doc) => doc.id);
 
         if (roomIds.length === 0) {
-          setAgg(null); // Пользователь не состоит в комнатах
+          setAgg(null); 
           setLoading(false);
           return;
         }
 
-        // 2. Загрузить все матчи из этих комнат
         const matchesQuery = query(
           collection(db, config.collections.matches),
           where('roomId', 'in', roomIds)
@@ -225,7 +219,6 @@ export default function Wrap2025() {
           (d) => ({ id: d.id, ...d.data() } as Match)
         );
 
-        // 3. Агрегировать статистику
         const aggregatedData = aggregate(allMatches, user.uid, sport);
         setAgg(aggregatedData);
       } catch (error) {
@@ -246,7 +239,7 @@ export default function Wrap2025() {
         [t('Wins')]: data.wins,
         [t('Losses')]: data.losses,
       }))
-      .slice(0, 15); // Показываем топ-15 соперников
+      .slice(0, 15);
   }, [agg, t]);
 
   if (!hasMounted || loading) {
@@ -303,7 +296,6 @@ export default function Wrap2025() {
         </CardHeader>
       </Card>
 
-      {/* --- Основная статистика --- */}
       <div className='grid grid-cols-2 md:grid-cols-4 gap-6 mb-10'>
         <Stat
           icon={PlayCircle}
@@ -323,7 +315,6 @@ export default function Wrap2025() {
         />
       </div>
 
-      {/* --- Дополнительная статистика в зависимости от спорта --- */}
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-10'>
         <Stat
           icon={Calendar}
@@ -421,7 +412,6 @@ export default function Wrap2025() {
   );
 }
 
-// Вспомогательный компонент (без изменений)
 function Stat({
   icon: Icon,
   label,

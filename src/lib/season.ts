@@ -136,7 +136,6 @@ async function collectStats(
     adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM || 0),
   }));
 
-  // ✅ **ИСПРАВЛЕНИЕ**: Единая, более справедливая сортировка для всех игроков
   finalRows.sort(
     (a, b) =>
       b.adjPoints - a.adjPoints ||
@@ -164,7 +163,6 @@ export async function finalizeSeason(
   if (!roomSnap.exists()) return;
   const roomData = roomSnap.data() as any;
 
-  // ✅ **ИСПРАВЛЕНИЕ**: Гарантируем, что ELO не будет undefined
   const enrichedSummary: SeasonRow[] = summary.map((r) => ({
     ...r,
     startGlobalElo: snapshots[r.userId]?.start ?? 1000,
@@ -193,7 +191,6 @@ export async function finalizeSeason(
   });
 
   for (const r of enrichedSummary) {
-    // ✅ **ИСПРАВЛЕНИЕ**: Создаем чистый объект для ачивки, чтобы избежать undefined
     const achievement = {
       type: 'seasonFinish',
       sport,

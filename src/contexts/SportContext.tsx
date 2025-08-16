@@ -41,7 +41,23 @@ const TennisIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export type Sport = 'pingpong' | 'tennis';
+const BadmintonIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox='0 0 24 24'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='1.5'
+    strokeLinecap='round'
+    strokeLinejoin='round'
+    {...props}
+  >
+    <path d='M15.11 10.11c-.9-.9-.9-2.32 0-3.22.9-.9 2.32-.9 3.22 0 .47.47.68 1.12.58 1.7-.12.93-.73 1.72-1.54 2.01' />
+    <path d='M12.66 12.65a3.68 3.68 0 0 1-5.2 0 3.68 3.68 0 0 1 0-5.2 3.68 3.68 0 0 1 5.2 0' />
+    <path d='M10.23 10.22 5.66 14.79a2 2 0 0 0 0 2.83 2 2 0 0 0 2.83 0l4.57-4.57' />
+  </svg>
+);
+
+export type Sport = 'pingpong' | 'tennis' | 'badminton';
 
 export interface SportConfig {
   name: string;
@@ -109,6 +125,30 @@ export const sportConfig: Record<Sport, SportConfig> = {
       return {
         isValid,
         message: 'Invalid tennis set score.',
+      };
+    },
+  },
+  badminton: {
+    name: 'Badminton',
+    icon: <BadmintonIcon className='h-6 w-6' />,
+    collections: {
+      rooms: 'rooms-badminton',
+      matches: 'matches-badminton',
+      tournaments: 'tournaments-badminton',
+    },
+    theme: {
+      primary: 'text-teal-500',
+      gradientFrom: 'from-teal-500',
+      gradientTo: 'to-cyan-500',
+    },
+    validateScore: (score1, score2) => {
+      const isValid =
+        (score1 >= 21 && score1 - score2 >= 2) ||
+        (score2 >= 21 && score2 - score1 >= 2);
+      return {
+        isValid,
+        message:
+          'A badminton game is won by the first player to score 21 points with a 2-point margin.',
       };
     },
   },

@@ -90,7 +90,6 @@ async function backfillOneCollection(coll: string) {
       ...extraAdmins,
     ]);
 
-    // ничего не меняем — пропускаем
     if (
       nextAdmins.length === currentAdmins.length &&
       nextAdmins.every((x) => currentAdmins.includes(x))

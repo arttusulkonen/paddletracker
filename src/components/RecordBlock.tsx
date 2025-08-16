@@ -74,12 +74,14 @@ export function RecordBlock({
   roomId,
   room,
   isCreator,
+  isGlobalAdmin,
   onFinishSeason,
 }: {
   members: Room['members'];
   roomId: string;
   room: Room;
   isCreator: boolean;
+  isGlobalAdmin: boolean;
   onFinishSeason: () => void;
 }) {
   const { t } = useTranslation();
@@ -290,7 +292,7 @@ export function RecordBlock({
         </CardFooter>
       )}
 
-      {isCreator && (
+      {(isCreator || isGlobalAdmin) && (
         <CardFooter className='justify-end border-t pt-4 mt-auto'>
           <AlertDialog>
             <AlertDialogTrigger asChild>
