@@ -20,7 +20,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSport } from '@/contexts/SportContext';
+import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
 import { getUserLite } from '@/lib/friends';
@@ -51,7 +51,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, userProfile } = useAuth();
-  const { config } = useSport();
+  const { sport, config } = useSport();
   const { toast } = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -114,34 +114,26 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     return () => unsubRooms();
   }, [user, isOpen, config.collections.rooms]);
 
-  const { friendsInSport, othersInSport, allCandidates } = useMemo(() => {
+  const { friendsAll, othersInSport, allCandidates } = useMemo(() => {
     const friendSet = new Set(friends.map((f) => f.uid));
-    const merge = (base: UserProfile, sup?: UserProfile) =>
-      ({ ...base, ...(sup ?? {}) } as UserProfile);
-
-    const mergedFriends = coPlayers
-      .filter((p) => friendSet.has(p.uid))
-      .map((p) => {
-        const f = friends.find((x) => x.uid === p.uid);
-        return merge(p, f);
-      });
-
-    const mergedOthers = coPlayers
-      .filter((p) => !friendSet.has(p.uid))
-      .map((p) => merge(p));
+    const others = coPlayers.filter((p) => !friendSet.has(p.uid));
 
     const byName = (a: UserProfile, b: UserProfile) =>
       (a.name ?? a.displayName ?? '').localeCompare(
         b.name ?? b.displayName ?? ''
       );
 
-    mergedFriends.sort(byName);
-    mergedOthers.sort(byName);
+    const friendsSorted = [...friends].sort(byName);
+    const othersSorted = [...others].sort(byName);
+
+    const map = new Map<string, UserProfile>();
+    for (const p of friendsSorted) map.set(p.uid, p);
+    for (const p of othersSorted) if (!map.has(p.uid)) map.set(p.uid, p);
 
     return {
-      friendsInSport: mergedFriends,
-      othersInSport: mergedOthers,
-      allCandidates: [...mergedFriends, ...mergedOthers],
+      friendsAll: friendsSorted,
+      othersInSport: othersSorted,
+      allCandidates: Array.from(map.values()),
     };
   }, [coPlayers, friends]);
 
@@ -156,8 +148,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   };
 
   const filteredFriends = useMemo(
-    () => friendsInSport.filter(filterFn),
-    [friendsInSport, search]
+    () => friendsAll.filter(filterFn),
+    [friendsAll, search]
   );
   const filteredOthers = useMemo(
     () => othersInSport.filter(filterFn),
@@ -196,7 +188,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     try {
       let avatarURL = '';
       if (avatarFile) {
-        const filePath = `room-avatars/${config.id}/${Date.now()}_${
+        const filePath = `room-avatars/${sport}/${Date.now()}_${
           avatarFile.name
         }`;
         const storageRef = ref(storage, filePath);
@@ -271,7 +263,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       onSuccess?.();
       router.push(`/rooms/${docRef.id}`);
     } catch (e) {
-      console.error(e);
       toast({
         title: t('Error'),
         description: t('Failed to create room'),
@@ -292,7 +283,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       </DialogTrigger>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>{t('Create a Match Room')}</DialogTitle>
+          <DialogTitle>{t('Create a Match Room')} <span className="text-muted-foreground">({config.name})</span></DialogTitle>
           <DialogDescription>
             {t(
               'Set up a new space to track matches and stats with your friends.'
@@ -398,7 +389,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   {filteredFriends.length > 0 && (
                     <>
                       <div className='px-2 pt-1 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
-                        {t('Friends in this sport')}
+                        {t('Friends')}
                       </div>
                       {filteredFriends.map((p) => {
                         const displayName = p.name ?? p.displayName ?? '?';

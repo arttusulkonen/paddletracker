@@ -1,7 +1,7 @@
-// src/app/layout.tsx
 import Providers from '@/app/providers';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 import PWAInit from '@/components/pwa/PWAInit';
+import DynamicTitle from '@/components/seo/DynamicTitle';
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
@@ -16,13 +16,13 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#22c55e', 
 };
 
 export const metadata: Metadata = {
   title: 'Smashlog',
   description: 'Track matches, manage tournaments, and analyze your ELO.',
   manifest: '/manifest.webmanifest',
-  themeColor: '#22c55e',
   icons: {
     icon: [
       { url: '/icons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
@@ -63,6 +63,7 @@ export default function RootLayout({
       >
         <Providers>
           <PWAInit />
+          <DynamicTitle />
           <InstallPrompt />
           {children}
         </Providers>

@@ -24,6 +24,7 @@ import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
+import { getUserLite } from '@/lib/friends';
 import { finalizeSeason } from '@/lib/season';
 import type { Match, Room, UserProfile } from '@/lib/types';
 import { parseFlexDate } from '@/lib/utils/date';
@@ -78,6 +79,7 @@ export default function RoomPage() {
   const [hasMounted, setHasMounted] = useState(false);
 
   const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [isInviting, setIsInviting] = useState(false);
 
@@ -101,6 +103,58 @@ export default function RoomPage() {
     );
     return () => unsubRoom();
   }, [user, roomId, config.collections.rooms, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const roomsQ = query(
+      collection(db, config.collections.rooms),
+      where('memberIds', 'array-contains', user.uid)
+    );
+    const unsub = onSnapshot(roomsQ, async (snap) => {
+      const idsSet = new Set<string>();
+      const currentMemberIds = new Set<string>(room?.memberIds ?? []);
+      snap.forEach((d) => {
+        const memberIds: string[] = d.data()?.memberIds ?? [];
+        for (const id of memberIds) {
+          if (!id) continue;
+          if (id === user.uid) continue;
+          if (currentMemberIds.has(id)) continue; // исключаем уже состоящих в этой комнате
+          idsSet.add(id);
+        }
+      });
+      if (idsSet.size === 0) return setCoPlayers([]);
+      const loaded = await Promise.all(
+        Array.from(idsSet).map(async (uid) => ({
+          uid,
+          ...(await getUserLite(uid)),
+        }))
+      );
+      setCoPlayers(loaded.filter(Boolean) as UserProfile[]);
+    });
+    return () => unsub();
+  }, [user, config.collections.rooms, room?.memberIds]);
+
+  const friendsAll = useMemo(() => {
+    const currentMemberIds = new Set<string>(room?.memberIds ?? []);
+    return friends
+      .filter((p) => !currentMemberIds.has(p.uid))
+      .sort((a, b) =>
+        (a.name ?? a.displayName ?? '').localeCompare(
+          b.name ?? b.displayName ?? ''
+        )
+      );
+  }, [friends, room?.memberIds]);
+
+  const othersInSport = useMemo(() => {
+    const friendSet = new Set(friends.map((f) => f.uid));
+    return coPlayers
+      .filter((p) => !friendSet.has(p.uid))
+      .sort((a, b) =>
+        (a.name ?? a.displayName ?? '').localeCompare(
+          b.name ?? b.displayName ?? ''
+        )
+      );
+  }, [coPlayers, friends]);
 
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
@@ -135,12 +189,6 @@ export default function RoomPage() {
     };
     fetchFriends();
   }, [userProfile]);
-
-  const inviteCandidates = useMemo(() => {
-    if (!room) return [];
-    const memberIds = new Set(room?.members.map((m) => m.userId));
-    return friends.filter((friend) => !memberIds.has(friend.uid));
-  }, [friends, room]);
 
   useEffect(() => {
     if (!room) return;
@@ -425,16 +473,12 @@ export default function RoomPage() {
 
   const handleInviteFriends = async () => {
     if (!user || !room || selectedFriends.length === 0) {
-      toast({
-        title: 'Select friends to invite',
-        variant: 'destructive',
-      });
+      toast({ title: t('Select friends to invite'), variant: 'destructive' });
       return;
     }
     setIsInviting(true);
     try {
       const isStillMember = room?.members.some((m) => m.userId === user.uid);
-
       if (!isStillMember) {
         toast({
           title: t('Permission Denied'),
@@ -445,23 +489,39 @@ export default function RoomPage() {
         return;
       }
 
+      const getLite = async (uid: string): Promise<UserProfile | null> => {
+        const fromFriends = friends.find((f) => f.uid === uid);
+        if (fromFriends) return fromFriends;
+        const fromCo = coPlayers.find((p) => p.uid === uid);
+        if (fromCo) return fromCo;
+        const lite = await getUserLite(uid);
+        return lite ? ({ uid, ...lite } as UserProfile) : null;
+      };
+
+      const profiles = await Promise.all(
+        selectedFriends.map(async (uid) => ({
+          uid,
+          profile: await getLite(uid),
+        }))
+      );
+
       const batch = writeBatch(db);
       const roomRef = doc(db, config.collections.rooms, roomId);
 
-      const newMembers = selectedFriends.map((uid) => {
-        const friend = friends.find((f) => f.uid === uid);
+      const newMembers = profiles.map(({ uid, profile }) => ({
+        userId: uid,
+        name: profile?.name ?? profile?.displayName ?? 'New Player',
+        email: profile?.email ?? '',
+        rating: 1000,
+        wins: 0,
+        losses: 0,
+        date: new Date().toISOString(),
+        role: 'editor' as const,
+      }));
+
+      profiles.forEach(({ uid }) => {
         const userRef = doc(db, 'users', uid);
         batch.update(userRef, { rooms: arrayUnion(roomId) });
-        return {
-          userId: uid,
-          name: friend?.name ?? friend?.displayName ?? 'New Player',
-          email: friend?.email ?? '',
-          rating: 1000,
-          wins: 0,
-          losses: 0,
-          date: new Date().toISOString(),
-          role: 'editor',
-        };
       });
 
       batch.update(roomRef, {
@@ -587,50 +647,108 @@ export default function RoomPage() {
                 currentUser={user}
                 onRemovePlayer={handleRemovePlayer}
               />
-              {isMember && (
+              {/* and season is not finished */}
+              {isMember && !latestSeason && (
                 <div className='pt-4 border-t'>
                   <Label className='text-sm font-medium'>
                     {t('Invite players:')}
                   </Label>
                   <ScrollArea className='h-32 mt-2 border rounded-md p-2'>
-                    {inviteCandidates.length > 0 ? (
-                      inviteCandidates.map((p) => {
-                        const displayName = p.name ?? p.displayName ?? '?';
-                        return (
-                          <label
-                            key={p.uid}
-                            className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
-                          >
-                            <Checkbox
-                              checked={selectedFriends.includes(p.uid)}
-                              onCheckedChange={(v) =>
-                                v
-                                  ? setSelectedFriends([
-                                      ...selectedFriends,
-                                      p.uid,
-                                    ])
-                                  : setSelectedFriends(
-                                      selectedFriends.filter(
-                                        (id) => id !== p.uid
-                                      )
-                                    )
-                              }
-                            />
-                            <div className='flex items-center gap-2'>
-                              <Avatar className='h-6 w-6'>
-                                <AvatarImage src={p.photoURL ?? undefined} />
-                                <AvatarFallback>
-                                  {displayName.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span>{displayName}</span>
+                    {friendsAll.length + othersInSport.length > 0 ? (
+                      <>
+                        {friendsAll.length > 0 && (
+                          <>
+                            <div className='px-2 pt-1 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
+                              {t('Friends')}
                             </div>
-                          </label>
-                        );
-                      })
+                            {friendsAll.map((p) => {
+                              const displayName =
+                                p.name ?? p.displayName ?? '?';
+                              return (
+                                <label
+                                  key={p.uid}
+                                  className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
+                                >
+                                  <Checkbox
+                                    checked={selectedFriends.includes(p.uid)}
+                                    onCheckedChange={(v) =>
+                                      v
+                                        ? setSelectedFriends([
+                                            ...selectedFriends,
+                                            p.uid,
+                                          ])
+                                        : setSelectedFriends(
+                                            selectedFriends.filter(
+                                              (id) => id !== p.uid
+                                            )
+                                          )
+                                    }
+                                  />
+                                  <div className='flex items-center gap-2'>
+                                    <Avatar className='h-6 w-6'>
+                                      <AvatarImage
+                                        src={p.photoURL ?? undefined}
+                                      />
+                                      <AvatarFallback>
+                                        {displayName.charAt(0)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span>{displayName}</span>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </>
+                        )}
+
+                        {othersInSport.length > 0 && (
+                          <>
+                            <div className='px-2 pt-3 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
+                              {t('From your sport rooms')}
+                            </div>
+                            {othersInSport.map((p) => {
+                              const displayName =
+                                p.name ?? p.displayName ?? '?';
+                              return (
+                                <label
+                                  key={p.uid}
+                                  className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
+                                >
+                                  <Checkbox
+                                    checked={selectedFriends.includes(p.uid)}
+                                    onCheckedChange={(v) =>
+                                      v
+                                        ? setSelectedFriends([
+                                            ...selectedFriends,
+                                            p.uid,
+                                          ])
+                                        : setSelectedFriends(
+                                            selectedFriends.filter(
+                                              (id) => id !== p.uid
+                                            )
+                                          )
+                                    }
+                                  />
+                                  <div className='flex items-center gap-2'>
+                                    <Avatar className='h-6 w-6'>
+                                      <AvatarImage
+                                        src={p.photoURL ?? undefined}
+                                      />
+                                      <AvatarFallback>
+                                        {displayName.charAt(0)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span>{displayName}</span>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </>
+                        )}
+                      </>
                     ) : (
                       <p className='text-muted-foreground text-sm text-center py-4'>
-                        {t('No friends available to invite.')}
+                        {t('No players to show here yet.')}
                       </p>
                     )}
                   </ScrollArea>
