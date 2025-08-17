@@ -1,3 +1,4 @@
+// src/components/rooms/RoomSettings.tsx
 'use client';
 
 import {

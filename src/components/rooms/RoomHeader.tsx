@@ -37,8 +37,6 @@ interface RoomHeaderProps {
   onLeave: () => void;
 }
 
-// src/components/RoomHeader.tsx
-
 export function RoomHeader({
   room,
   isMember,

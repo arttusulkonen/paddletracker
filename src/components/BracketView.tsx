@@ -38,7 +38,6 @@ interface Props {
   onUpdate: () => void;
 }
 
-/* ───────── очки за места ───────── */
 const computeDelta = (place: number) =>
   place === 1 ? 100 : place === 2 ? 60 : place === 3 ? 40 : 10;
 
@@ -56,7 +55,6 @@ export default function BracketView({ tournament, onUpdate }: Props) {
     onUpdate();
   };
 
-  /* ───────── achievements / ELO / matches collection ───────── */
   const saveResults = async (next: any) => {
     const date = getFinnishFormattedDate();
     const ts = Timestamp.fromDate(new Date());
@@ -82,7 +80,6 @@ export default function BracketView({ tournament, onUpdate }: Props) {
           const prevElo = snap.data()?.globalElo ?? 1000;
           const newElo = prevElo + delta;
 
-          /* сохраняем для записи в matches */
           stash[p.userId] = {
             name: p.name,
             place: p.place,
@@ -110,14 +107,12 @@ export default function BracketView({ tournament, onUpdate }: Props) {
       })
     );
 
-    /* ―― достаём финальный и бронзовый матчи ―― */
     const finalRound = next.rounds.find((r: any) => r.type === 'knockoutFinal');
     const bronzeRound = next.rounds.find(
       (r: any) => r.type === 'knockoutBronze'
     );
     if (!finalRound?.matches?.length) return; // safety
 
-    /** вспомогалка: формируем doc для коллекции matches */
     const pushMatch = async (match: any, stage: 'final' | 'bronze') => {
       const p1Id = match.player1.userId;
       const p2Id = match.player2.userId;
@@ -175,7 +170,6 @@ export default function BracketView({ tournament, onUpdate }: Props) {
       </p>
     );
 
-  /* ───────── разбиваем раунды ───────── */
   const rrRounds = bracket.rounds.filter((r: any) => r.type === 'roundRobin');
 
   const uniqMap = new Map<string, any>();
@@ -183,7 +177,6 @@ export default function BracketView({ tournament, onUpdate }: Props) {
     .filter((r: any) => r.type.startsWith('knockout'))
     .forEach((r: any) => uniqMap.set(`${r.type}-${r.roundIndex}`, r));
 
-  /* ② сортируем для корректного визуального порядка */
   const koOrder = {
     knockoutQuarters: 0,
     knockoutSemis: 1,
@@ -227,7 +220,6 @@ export default function BracketView({ tournament, onUpdate }: Props) {
   );
 }
 
-/* ───────── универсальный редактор раунда ───────── */
 function RoundEditor({ round, bracket, persist, roundType, t }: any) {
   const { toast } = useToast();
   const [matches, setMatches] = useState(round.matches);
@@ -380,7 +372,6 @@ function RoundEditor({ round, bracket, persist, roundType, t }: any) {
   );
 }
 
-/* ───────── вспомогательные таблицы ───────── */
 function Standings({
   matches,
   t,
