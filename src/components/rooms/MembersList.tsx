@@ -151,7 +151,6 @@ export function MembersList({
                 ? `${Math.round(p.rating)} ${t('pts')}`
                 : '—'
               : `${(p.adjPointsLive ?? 0).toFixed(2)} ${t('adj')}`;
-
           return (
             <div
               key={p.userId}

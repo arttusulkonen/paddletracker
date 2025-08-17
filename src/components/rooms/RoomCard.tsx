@@ -1,4 +1,3 @@
-// src/components/rooms/RoomCard.tsx
 'use client';
 
 import {
@@ -19,12 +18,17 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface RoomCardProps {
-  room: Room & { createdRaw?: string; isFinished?: boolean };
-  myMatches: number | undefined;
-  myRating: number | undefined;
+  room: Room & {
+    id: string;
+    createdRaw?: string;
+    isFinished?: boolean;
+    createdAt?: string;
+  };
+  myMatches?: number;
+  myRating?: number;
+  hrefBase?: string;
 }
 
-// Helper to determine room status and associated styles
 const getRoomStatus = (room: Room & { isFinished?: boolean }) => {
   const { t } = useTranslation();
 
@@ -62,6 +66,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
   room,
   myMatches,
   myRating,
+  hrefBase = '/rooms',
 }) => {
   const { t } = useTranslation();
   const status = getRoomStatus(room);
@@ -78,7 +83,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
           <CardTitle className='truncate'>{room.name}</CardTitle>
           <div className='flex flex-col items-end gap-2 shrink-0'>
             <Badge
-              variant={status.badgeVariant}
+              variant={status.badgeVariant as any}
               className='flex items-center gap-1'
             >
               {status.icon} {status.label}
@@ -101,9 +106,11 @@ export const RoomCard: React.FC<RoomCardProps> = ({
         </CardDescription>
         <CardDescription>
           {t('Created:')}{' '}
-          {room.createdRaw
+          {(room as any).createdAt
+            ? safeFormatDate((room as any).createdAt as string, 'dd.MM.yyyy')
+            : room.createdRaw
             ? safeFormatDate(normalizeDateStr(room.createdRaw), 'dd.MM.yyyy')
-            : room.roomCreated}
+            : (room as any).roomCreated}
         </CardDescription>
       </CardHeader>
       <CardContent className='flex-grow'>
@@ -127,7 +134,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
           className='w-full'
           variant={status.buttonVariant as any}
         >
-          <Link href={`/rooms/${room.id}`}>{status.buttonText}</Link>
+          <Link href={`${hrefBase}/${room.id}`}>{status.buttonText}</Link>
         </Button>
       </CardFooter>
     </Card>

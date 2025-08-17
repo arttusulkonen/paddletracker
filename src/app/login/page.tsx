@@ -101,7 +101,7 @@ export default function LoginPage() {
         <CardHeader className='text-center'>
           <CardTitle className='text-3xl font-bold flex items-center justify-center gap-2'>
             <LogIn className='h-8 w-8 text-primary' />
-            {t('Login to PingPongTracker')}
+            {t('Login to Smashlog')}
           </CardTitle>
           <CardDescription>
             {t('Enter your credentials to access your account.')}
