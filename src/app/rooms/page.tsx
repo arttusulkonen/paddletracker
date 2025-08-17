@@ -27,6 +27,7 @@ import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { getUserLite } from '@/lib/friends';
+import { getSuperAdminIds, withSuperAdmins } from '@/lib/superAdmins';
 import type { Room, UserProfile } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { parseFlexDate } from '@/lib/utils/date';
@@ -188,82 +189,12 @@ export default function RoomsPage() {
     return friends.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
   }, [friends]);
 
-  const handleCreateRoom = async () => {
-    // Logic from your provided component
-    if (!user || !userProfile || !roomName.trim()) {
-      toast({
-        title: t('Error'),
-        description: t('Room name cannot be empty'),
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsCreatingRoom(true);
-    try {
-      const now = getFinnishFormattedDate();
-      const initialMembers = [
-        {
-          userId: user.uid,
-          name: userProfile.name ?? userProfile.displayName ?? '',
-          email: userProfile.email ?? '',
-          rating: 1000,
-          wins: 0,
-          losses: 0,
-          date: now,
-          role: 'admin' as const,
-        },
-        ...selectedFriends.map((uid) => {
-          const f = inviteCandidates.find((x) => x.uid === uid)!;
-          return {
-            userId: uid,
-            name: f.name ?? f.displayName ?? '',
-            email: f.email ?? '',
-            rating: 1000,
-            wins: 0,
-            losses: 0,
-            date: now,
-            role: 'editor' as const,
-          };
-        }),
-      ];
-      await addDoc(collection(db, config.collections.rooms), {
-        name: roomName.trim(),
-        creator: user.uid,
-        creatorName: userProfile.name ?? userProfile.displayName ?? '',
-        createdAt: now,
-        members: initialMembers,
-        isPublic,
-        isRanked,
-        memberIds: [user.uid, ...selectedFriends],
-        isArchived: false,
-      });
-      toast({
-        title: t('Success'),
-        description: `${t('Room')} "${roomName.trim()}" ${t('created')}`,
-      });
-      setRoomName('');
-      setSelectedFriends([]);
-      setIsPublic(false);
-      setIsRanked(true);
-    } catch (e) {
-      toast({
-        title: t('Error'),
-        description: t('Failed to create room'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsCreatingRoom(false);
-    }
-  };
-
-  // ✅ Улучшенная логика фильтрации и сортировки
   const displayRooms = useMemo(() => {
     const filtered = allRooms.filter(
       (r) =>
         r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.creatorName ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     );
-    // Сортировка: Сначала активные, потом завершенные, потом архивные
     return filtered.sort((a, b) => {
       const getScore = (r: Room & { isFinished?: boolean }) => {
         if (r.isArchived) return 2;

@@ -22,7 +22,6 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// Карточка для одного друга
 function FriendListItem({ friend }: { friend: UserProfile & { uid: string } }) {
   return (
     <Link href={`/profile/${friend.uid}`}>

@@ -86,13 +86,11 @@ export default function LoginPage() {
     }
   };
 
-  // 2. Добавляем "защиту от гидратации"
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  // 3. Если компонент еще не смонтирован, ничего не рендерим (или рендерим заглушку/скелет)
   if (!hasMounted) {
     return null;
   }

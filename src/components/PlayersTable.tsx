@@ -1,3 +1,4 @@
+// src/components/PlayersTable.tsx
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,7 +25,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
-import { sportConfig, SportContext } from '@/contexts/SportContext';
+import { sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import type { Sport, UserProfile } from '@/lib/types';
@@ -69,7 +70,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         const q = query(
           collection(db, 'users'),
           where('isPublic', '==', true),
-          where(`sports.${sport}.globalElo`, '>', 0),
           orderBy(`sports.${sport}.globalElo`, 'desc'),
           limit(100)
         );
@@ -85,17 +85,16 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           }
 
           const sportData = data.sports?.[sport];
-          if (sportData) {
-            fetchedPlayers.push({
-              id: doc.id,
-              name: data.name || data.displayName || 'Anonymous',
-              photoURL: data.photoURL,
-              globalElo: sportData.globalElo ?? 1000,
-              wins: sportData.wins ?? 0,
-              losses: sportData.losses ?? 0,
-              isFriend: friends.has(doc.id),
-            });
-          }
+
+          fetchedPlayers.push({
+            id: doc.id,
+            name: data.name || data.displayName || 'Anonymous',
+            photoURL: data.photoURL,
+            globalElo: sportData?.globalElo ?? 1000,
+            wins: sportData?.wins ?? 0,
+            losses: sportData?.losses ?? 0,
+            isFriend: friends.has(doc.id),
+          });
         });
 
         setPlayers(fetchedPlayers);
@@ -125,7 +124,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         );
         const friendData: PlayerData[] = friendProfiles
           .map((friend) => {
-            // ✅ ИСПРАВЛЕНИЕ: Предоставляем дефолтные значения, если у друга нет данных по этому спорту
             const sportData = friend.sports?.[sport];
             const effectiveSportData = sportData || {
               globalElo: 1000,

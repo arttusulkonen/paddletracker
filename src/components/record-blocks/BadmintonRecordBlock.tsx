@@ -1,29 +1,30 @@
-// src/components/record-blocks/PingPongRecordBlock.tsx
+// src/components/record-blocks/BadmintonRecordBlock.tsx
 'use client';
 
 import { Button, Input, Label } from '@/components/ui';
 import { Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export type PingPongMatchData = {
+export type BadmintonMatchData = {
   score1: string;
   score2: string;
   side1: 'left' | 'right' | '';
   side2: 'left' | 'right' | '';
 };
-interface PingPongRowInputProps {
-  data: PingPongMatchData;
-  onChange: (data: PingPongMatchData) => void;
+
+interface BadmintonRowInputProps {
+  data: BadmintonMatchData;
+  onChange: (data: BadmintonMatchData) => void;
   onRemove: () => void;
   removable: boolean;
 }
 
-export function PingPongRowInput({
+export function BadmintonRowInput({
   data,
   onChange,
   onRemove,
   removable,
-}: PingPongRowInputProps) {
+}: BadmintonRowInputProps) {
   const { t } = useTranslation();
 
   const handleSideChange = (newSide: 'left' | 'right' | '') => {
@@ -34,10 +35,10 @@ export function PingPongRowInput({
   return (
     <div className='grid grid-cols-2 gap-4 mb-2 relative p-4 border rounded-lg bg-muted/50'>
       <div className='space-y-2'>
-        <Label>{t(`P1 Score`)}</Label>
+        <Label>{t('P1 Score')}</Label>
         <Input
           type='number'
-          placeholder='11'
+          placeholder='21'
           value={data.score1}
           onChange={(e) => onChange({ ...data, score1: e.target.value })}
         />
@@ -53,10 +54,10 @@ export function PingPongRowInput({
       </div>
 
       <div className='space-y-2'>
-        <Label>{t(`P2 Score`)}</Label>
+        <Label>{t('P2 Score')}</Label>
         <Input
           type='number'
-          placeholder='11'
+          placeholder='19'
           value={data.score2}
           onChange={(e) => onChange({ ...data, score2: e.target.value })}
         />
@@ -64,7 +65,7 @@ export function PingPongRowInput({
         <select
           className='w-full border rounded p-2 bg-muted'
           value={data.side2}
-          disabled 
+          disabled
           readOnly
         >
           <option value='left'>{t('Left')}</option>

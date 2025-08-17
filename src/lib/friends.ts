@@ -1,9 +1,11 @@
+// src/lib/friends.ts
+import { isGlobalAdminClient } from '@/lib/auth/isGlobalAdmin';
 import {
   arrayRemove,
   arrayUnion,
   collection,
   doc,
-  documentId, // ✅ 1. Импортируем documentId
+  documentId,
   getDoc,
   getDocs,
   query,
@@ -11,9 +13,27 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import type { UserProfile } from './types';
 
 export async function sendFriendRequest(fromUid: string, toUid: string) {
   if (fromUid === toUid) return;
+
+  if (await isGlobalAdminClient()) {
+    await Promise.all([
+      updateDoc(doc(db, 'users', fromUid), {
+        friends: arrayUnion(toUid),
+        outgoingRequests: arrayRemove(toUid),
+        incomingRequests: arrayRemove(toUid),
+      }),
+      updateDoc(doc(db, 'users', toUid), {
+        friends: arrayUnion(fromUid),
+        incomingRequests: arrayRemove(fromUid),
+        outgoingRequests: arrayRemove(fromUid),
+      }),
+    ]);
+    return;
+  }
+
   await Promise.all([
     updateDoc(doc(db, 'users', fromUid), {
       outgoingRequests: arrayUnion(toUid),
@@ -77,18 +97,12 @@ export function toggleFriend(
   throw new Error('Function not implemented.');
 }
 
-/**
- * NEW FUNCTION: Efficiently fetches multiple lightweight user profiles.
- * @param uids - An array of user IDs to fetch.
- * @returns A promise that resolves to an array of user profiles.
- */
 export async function getMultipleUsersLite(
   uids: string[]
 ): Promise<(UserProfile & { uid: string })[]> {
   if (!uids || uids.length === 0) {
     return [];
   }
-  // Firestore 'in' query is limited to 30 items per query.
   const chunks = [];
   for (let i = 0; i < uids.length; i += 30) {
     chunks.push(uids.slice(i, i + 30));
@@ -96,7 +110,6 @@ export async function getMultipleUsersLite(
 
   const results: (UserProfile & { uid: string })[] = [];
   for (const chunk of chunks) {
-    // ✅ 2. ИСПРАВЛЕНИЕ: Используем documentId() для запроса по ID документов
     const q = query(collection(db, 'users'), where(documentId(), 'in', chunk));
     const snap = await getDocs(q);
     snap.forEach((doc) => {

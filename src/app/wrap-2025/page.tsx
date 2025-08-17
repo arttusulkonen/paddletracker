@@ -2,17 +2,15 @@
 'use client';
 
 import {
-  Avatar,
-  AvatarFallback,
   Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-  ScrollArea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Sport } from '@/contexts/SportContext';
 import { useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Match } from '@/lib/types';
@@ -25,7 +23,6 @@ import {
   Calendar,
   CircleDollarSign,
   Flame,
-  Info,
   Medal,
   PlayCircle,
   Swords,
@@ -52,7 +49,6 @@ export const PERIOD_START = new Date('2024-07-30T00:00:00Z').getTime();
 export const PERIOD_END = new Date('2025-07-30T00:00:00Z').getTime();
 /* ────────────────────────────────────────────────────────────── */
 
-// --- Типы для агрегированных данных ---
 type UserStats = {
   wins: number;
   losses: number;
@@ -64,7 +60,6 @@ type UserStats = {
   streak: number;
   maxStreak: number;
   rivals: Map<string, { name: string; wins: number; losses: number }>;
-  // Теннис-специфичные поля
   aces?: number;
   doubleFaults?: number;
   winners?: number;
@@ -79,11 +74,10 @@ type AggregationResult = {
   userStats: UserStats;
 };
 
-// --- Функция агрегации данных ---
 function aggregate(
   matches: Match[],
   userId: string,
-  sport: 'pingpong' | 'tennis'
+  sport: Sport
 ): AggregationResult {
   const userStats: UserStats = {
     wins: 0,
@@ -98,10 +92,13 @@ function aggregate(
     rivals: new Map(),
     ...(sport === 'tennis' && { aces: 0, doubleFaults: 0, winners: 0 }),
   };
+
   const dateFreq: Record<string, number> = {};
 
   const periodMatches = matches.filter((m) => {
-    const ts = parseFlexDate(m.tsIso ?? m.timestamp).getTime();
+    const ts = parseFlexDate(
+      m.tsIso ?? m.timestamp ?? m.createdAt ?? m.playedAt
+    ).getTime();
     return !isNaN(ts) && ts >= PERIOD_START && ts < PERIOD_END;
   });
 
@@ -115,14 +112,13 @@ function aggregate(
 
     userStats.matches++;
     win ? userStats.wins++ : userStats.losses++;
-    userStats.pointsFor += me.scores;
-    userStats.pointsAgainst += opp.scores;
+    userStats.pointsFor += Number(me.scores) || 0;
+    userStats.pointsAgainst += Number(opp.scores) || 0;
 
     if (win) {
       userStats.streak++;
-      if (userStats.streak > userStats.maxStreak) {
+      if (userStats.streak > userStats.maxStreak)
         userStats.maxStreak = userStats.streak;
-      }
     } else {
       userStats.streak = 0;
     }
@@ -133,14 +129,18 @@ function aggregate(
       userStats.winners! += Number(me.winners) || 0;
     }
 
-    // Статистика по соперникам
     if (!userStats.rivals.has(oppId)) {
       userStats.rivals.set(oppId, { name: opp.name, wins: 0, losses: 0 });
     }
     const rival = userStats.rivals.get(oppId)!;
     win ? rival.wins++ : rival.losses++;
 
-    const dayKey = (m.timestamp ?? '').split(' ')[0] ?? 'unknown';
+    const dayMs = parseFlexDate(
+      m.tsIso ?? m.timestamp ?? m.createdAt ?? ''
+    ).getTime();
+    const dayKey = isNaN(dayMs)
+      ? '—'
+      : new Date(dayMs).toISOString().slice(0, 10);
     dateFreq[dayKey] = (dateFreq[dayKey] ?? 0) + 1;
   });
 
@@ -156,10 +156,13 @@ function aggregate(
   const favoriteOpponent = rivalsArray.sort(
     (a, b) => b.wins + b.losses - (a.wins + a.losses)
   )[0] ?? { name: '—', wins: 0, losses: 0 };
+
   const bestRivalry = rivalsArray
     .filter((r) => r.wins + r.losses >= 5)
     .sort(
-      (a, b) => b.wins / (b.wins + b.losses) - a.wins / (a.wins + a.losses)
+      (a, b) =>
+        b.wins / Math.max(1, b.wins + b.losses) -
+        a.wins / Math.max(1, a.wins + a.losses)
     )[0] ?? { name: '—', wins: 0, losses: 0 };
 
   return {
@@ -201,7 +204,6 @@ export default function Wrap2025() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // 1. Найти все комнаты пользователя для данного вида спорта
         const roomsQuery = query(
           collection(db, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid)
@@ -210,23 +212,30 @@ export default function Wrap2025() {
         const roomIds = roomsSnap.docs.map((doc) => doc.id);
 
         if (roomIds.length === 0) {
-          setAgg(null); // Пользователь не состоит в комнатах
+          setAgg(null);
           setLoading(false);
           return;
         }
 
-        // 2. Загрузить все матчи из этих комнат
-        const matchesQuery = query(
-          collection(db, config.collections.matches),
-          where('roomId', 'in', roomIds)
-        );
-        const matchesSnap = await getDocs(matchesQuery);
-        const allMatches: Match[] = matchesSnap.docs.map(
-          (d) => ({ id: d.id, ...d.data() } as Match)
-        );
+        const chunk = <T,>(arr: T[], size: number) =>
+          Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
+            arr.slice(i * size, i * size + size)
+          );
+        const roomChunks = chunk(roomIds, 10);
 
-        // 3. Агрегировать статистику
-        const aggregatedData = aggregate(allMatches, user.uid, sport);
+        const results: Match[] = [];
+        for (const ids of roomChunks) {
+          const matchesQuery = query(
+            collection(db, config.collections.matches),
+            where('roomId', 'in', ids)
+          );
+          const matchesSnap = await getDocs(matchesQuery);
+          results.push(
+            ...matchesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Match))
+          );
+        }
+
+        const aggregatedData = aggregate(results, user.uid, sport);
         setAgg(aggregatedData);
       } catch (error) {
         console.error('Failed to fetch wrap data:', error);
@@ -241,12 +250,12 @@ export default function Wrap2025() {
   const rivalChartData = useMemo(() => {
     if (!agg) return [];
     return Array.from(agg.userStats.rivals.entries())
-      .map(([id, data]) => ({
+      .map(([_, data]) => ({
         name: data.name,
         [t('Wins')]: data.wins,
         [t('Losses')]: data.losses,
       }))
-      .slice(0, 15); // Показываем топ-15 соперников
+      .slice(0, 15);
   }, [agg, t]);
 
   if (!hasMounted || loading) {
@@ -303,7 +312,6 @@ export default function Wrap2025() {
         </CardHeader>
       </Card>
 
-      {/* --- Основная статистика --- */}
       <div className='grid grid-cols-2 md:grid-cols-4 gap-6 mb-10'>
         <Stat
           icon={PlayCircle}
@@ -323,7 +331,6 @@ export default function Wrap2025() {
         />
       </div>
 
-      {/* --- Дополнительная статистика в зависимости от спорта --- */}
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-10'>
         <Stat
           icon={Calendar}
@@ -343,7 +350,7 @@ export default function Wrap2025() {
           )}%)`}
         />
 
-        {sport === 'tennis' && (
+        {sport === 'tennis' ? (
           <>
             <Stat
               icon={BarChartBig}
@@ -361,8 +368,7 @@ export default function Wrap2025() {
               value={agg.userStats.winners!}
             />
           </>
-        )}
-        {sport === 'pingpong' && (
+        ) : (
           <>
             <Stat
               icon={CircleDollarSign}
@@ -421,7 +427,6 @@ export default function Wrap2025() {
   );
 }
 
-// Вспомогательный компонент (без изменений)
 function Stat({
   icon: Icon,
   label,

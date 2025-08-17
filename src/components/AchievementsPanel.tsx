@@ -25,7 +25,7 @@ interface Achievement {
   matchesPlayed?: number;
   wins?: number;
   roomName?: string;
-  sport?: Sport; // ✅ Sport can be optional for legacy achievements
+  sport?: Sport; 
 }
 
 interface Props {
@@ -71,7 +71,6 @@ export default function AchievementsPanel({
 }: Props) {
   const { t } = useTranslation();
 
-  // ✅ ИСПРАВЛЕНИЕ: Если у ачивки нет спорта, считаем ее "pingpong" по умолчанию
   const achievements = allAchievements.filter(
     (a) => (a.sport || 'pingpong') === sport
   );

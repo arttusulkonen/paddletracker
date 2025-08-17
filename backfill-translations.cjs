@@ -1,12 +1,9 @@
 // backfill-translations.cjs
-// Запуск: node backfill-translations.cjs ./serviceAccountKey.json
-
 'use strict';
 const admin = require('firebase-admin');
 const path = require('path');
 const fs = require('fs');
 
-/* ─── Инициализация ─── */
 const keyFile = process.argv[2] || './serviceAccountKey.json';
 try {
   admin.initializeApp({
@@ -23,7 +20,6 @@ try {
 const db = admin.firestore();
 const localesDir = path.resolve(__dirname, 'public/locales');
 
-/* ─── Основная логика ─── */
 (async () => {
   try {
     console.log(`⏳ Поиск файлов перевода в ${localesDir}...`);
@@ -50,7 +46,6 @@ const localesDir = path.resolve(__dirname, 'public/locales');
 
         const docRef = db.collection('translations').doc(lang);
 
-        // Используем set с merge: true, чтобы обновить или создать документ
         await docRef.set(translations, { merge: true });
         console.log(`  ✅ Переводы для '${lang}' успешно загружены в Firestore.`);
       } else {

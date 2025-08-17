@@ -8,6 +8,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   Timestamp,
   updateDoc,
@@ -46,7 +48,7 @@ export interface SeasonRow {
   matchesPlayed: number;
   wins: number;
   losses: number;
-  winRate: number; // ✅ Added winRate
+  winRate: number;
   totalAddedPoints: number;
   adjPoints: number;
   longestWinStreak: number;
@@ -57,7 +59,6 @@ export interface SeasonRow {
 
 const adjFactor = (ratio: number): number => {
   if (!isFinite(ratio) || ratio <= 0) return 0;
-  // This factor penalizes players who played significantly fewer games than average.
   return Math.sqrt(ratio);
 };
 
@@ -92,7 +93,7 @@ async function collectStats(
       const rec = map[id];
       const win = m.winner === info.name;
       win ? rec.wins++ : rec.losses++;
-      rec.totalAddedPoints += info.roomAddedPoints ?? 0;
+      rec.totalAddedPoints += info.roomAddedPoints ?? info.addedPoints ?? 0;
       rec.matches.push({ w: win, ts: toDate(m.timestamp) });
       rec.roomRating = pickRoomRating(info);
     });
@@ -132,11 +133,10 @@ async function collectStats(
 
   const finalRows: SeasonRow[] = rows.map((r) => ({
     ...r,
-    place: 0, // Placeholder
+    place: 0,
     adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM || 0),
   }));
 
-  // ✅ **ИСПРАВЛЕНИЕ**: Единая, более справедливая сортировка для всех игроков
   finalRows.sort(
     (a, b) =>
       b.adjPoints - a.adjPoints ||
@@ -148,6 +148,26 @@ async function collectStats(
 
   finalRows.forEach((r, i) => (r.place = i + 1));
   return finalRows;
+}
+
+async function getLastMatchFinishDateFinnish(
+  roomId: string,
+  matchesCollectionName: string
+): Promise<string> {
+  const qs = query(
+    collection(db, matchesCollectionName),
+    where('roomId', '==', roomId),
+    orderBy('tsIso', 'desc'),
+    limit(1)
+  );
+  const snap = await getDocs(qs);
+  if (snap.empty) {
+    return getFinnishFormattedDate();
+  }
+  const m = snap.docs[0].data() as any;
+  const dt =
+    m?.tsIso != null ? new Date(m.tsIso) : (m?.timestamp ? toDate(m.timestamp) : new Date());
+  return getFinnishFormattedDate(dt);
 }
 
 export async function finalizeSeason(
@@ -164,15 +184,19 @@ export async function finalizeSeason(
   if (!roomSnap.exists()) return;
   const roomData = roomSnap.data() as any;
 
-  // ✅ **ИСПРАВЛЕНИЕ**: Гарантируем, что ELO не будет undefined
   const enrichedSummary: SeasonRow[] = summary.map((r) => ({
     ...r,
     startGlobalElo: snapshots[r.userId]?.start ?? 1000,
     endGlobalElo: snapshots[r.userId]?.end ?? r.roomRating,
   }));
 
+  const dateFinished = await getLastMatchFinishDateFinnish(
+    roomId,
+    config.matches
+  );
+
   const entry = {
-    dateFinished: getFinnishFormattedDate(),
+    dateFinished,
     roomId,
     roomName: roomData.name ?? '',
     summary: enrichedSummary,
@@ -193,13 +217,12 @@ export async function finalizeSeason(
   });
 
   for (const r of enrichedSummary) {
-    // ✅ **ИСПРАВЛЕНИЕ**: Создаем чистый объект для ачивки, чтобы избежать undefined
     const achievement = {
       type: 'seasonFinish',
       sport,
       roomId,
       roomName: roomData.name ?? '',
-      dateFinished: entry.dateFinished,
+      dateFinished,
       userId: r.userId,
       name: r.name,
       place: r.place,
