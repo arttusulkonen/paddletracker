@@ -166,7 +166,7 @@ export default function RegisterPage() {
             <UserPlus className='h-8 w-8 text-primary' /> {t('Create Account')}
           </CardTitle>
           <CardDescription>
-            {t('Join PingPongTracker and start tracking your games!')}
+            {t('Join Smashlog and start tracking your games!')}
           </CardDescription>
         </CardHeader>
         <CardContent>

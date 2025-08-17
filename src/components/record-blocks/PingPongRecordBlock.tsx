@@ -1,4 +1,3 @@
-// src/components/record-blocks/PingPongRecordBlock.tsx
 'use client';
 
 import { Button, Input, Label } from '@/components/ui';
@@ -11,6 +10,7 @@ export type PingPongMatchData = {
   side1: 'left' | 'right' | '';
   side2: 'left' | 'right' | '';
 };
+
 interface PingPongRowInputProps {
   data: PingPongMatchData;
   onChange: (data: PingPongMatchData) => void;
@@ -26,7 +26,12 @@ export function PingPongRowInput({
 }: PingPongRowInputProps) {
   const { t } = useTranslation();
 
-  const handleSideChange = (newSide: 'left' | 'right' | '') => {
+  const side1 = (data.side1 || 'left') as 'left' | 'right';
+  const side2 = (data.side2 || (side1 === 'left' ? 'right' : 'left')) as
+    | 'left'
+    | 'right';
+
+  const handleSideChange = (newSide: 'left' | 'right') => {
     const newSide2 = newSide === 'left' ? 'right' : 'left';
     onChange({ ...data, side1: newSide, side2: newSide2 });
   };
@@ -34,7 +39,7 @@ export function PingPongRowInput({
   return (
     <div className='grid grid-cols-2 gap-4 mb-2 relative p-4 border rounded-lg bg-muted/50'>
       <div className='space-y-2'>
-        <Label>{t(`P1 Score`)}</Label>
+        <Label>{t('P1 Score')}</Label>
         <Input
           type='number'
           placeholder='11'
@@ -44,7 +49,7 @@ export function PingPongRowInput({
         <Label className='mt-2'>{t('Side')}</Label>
         <select
           className='w-full border rounded p-2 bg-background'
-          value={data.side1}
+          value={side1}
           onChange={(e) => handleSideChange(e.target.value as 'left' | 'right')}
         >
           <option value='left'>{t('Left')}</option>
@@ -53,7 +58,7 @@ export function PingPongRowInput({
       </div>
 
       <div className='space-y-2'>
-        <Label>{t(`P2 Score`)}</Label>
+        <Label>{t('P2 Score')}</Label>
         <Input
           type='number'
           placeholder='11'
@@ -63,8 +68,8 @@ export function PingPongRowInput({
         <Label className='mt-2'>{t('Side')}</Label>
         <select
           className='w-full border rounded p-2 bg-muted'
-          value={data.side2}
-          disabled 
+          value={side2}
+          disabled
           readOnly
         >
           <option value='left'>{t('Left')}</option>

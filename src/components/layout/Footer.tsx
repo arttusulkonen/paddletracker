@@ -30,7 +30,7 @@ export function Footer() {
           </Link>
         </div>
         <p>
-          &copy; {new Date().getFullYear()} PingPongTracker.{' '}
+          &copy; {new Date().getFullYear()} Smashlog.{' '}
           {t('All rights reserved.')}
         </p>
         <p className='mt-1'>{t('Elevate Your Game.')}</p>

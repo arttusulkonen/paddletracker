@@ -6,6 +6,11 @@ body {
   font-family: var(--font-geist-sans), sans-serif;
 }
 
+.svg-current * {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
 @layer base {
   :root {
     --background: 210 40% 98%; /* Light Cool Grey */

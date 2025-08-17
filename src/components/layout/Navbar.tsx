@@ -1,6 +1,5 @@
 // src/components/layout/Navbar.tsx
 'use client';
-
 import {
   Avatar,
   AvatarFallback,
@@ -18,6 +17,7 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
+import { cn } from '@/lib/utils';
 import {
   Bell,
   Globe,
@@ -26,41 +26,120 @@ import {
   Menu,
   TrophyIcon,
   UserCircle,
-  UserPlus,
   UsersIcon,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// --- Компоненты для мобильного меню ---
 const MobileNav = ({ user, t }: { user: any; t: (key: string) => string }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { sport, setSport } = useSport();
+  const { i18n } = useTranslation();
+
+  const LANGS = [
+    { code: 'en', label: 'English' },
+    { code: 'ru', label: 'Русский' },
+    { code: 'fi', label: 'Suomi' },
+    { code: 'ko', label: '한국어' },
+  ];
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant='ghost' size='icon' className='md:hidden'>
+        <Button
+          variant='ghost'
+          size='icon'
+          className='md:hidden'
+          aria-label='Open Menu'
+        >
           <Menu className='h-5 w-5' />
-          <span className='sr-only'>Open Menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side='left' className='w-64'>
-        <div className='flex flex-col gap-4 py-6'>
-          <NavLink href='/' onClick={() => setIsOpen(false)}>
-            <HomeIcon /> {t('Home')}
-          </NavLink>
-          {user && (
-            <>
-              <NavLink href='/rooms' onClick={() => setIsOpen(false)}>
-                <UsersIcon /> {t('Rooms')}
-              </NavLink>
-              <NavLink href='/tournaments' onClick={() => setIsOpen(false)}>
-                <TrophyIcon /> {t('Tournaments')}
-              </NavLink>
-            </>
-          )}
+
+      <SheetContent
+        side='left'
+        className='w-64 p-0 md:hidden'
+        title={t('Main navigation')}
+      >
+        <div className='flex h-full flex-col'>
+          <div className='flex flex-col gap-2 p-6'>
+            <NavLink href='/' onClick={() => setIsOpen(false)}>
+              <HomeIcon /> {t('Home')}
+            </NavLink>
+            {user && (
+              <>
+                <NavLink href='/rooms' onClick={() => setIsOpen(false)}>
+                  <UsersIcon /> {t('Rooms')}
+                </NavLink>
+                <NavLink href='/tournaments' onClick={() => setIsOpen(false)}>
+                  <TrophyIcon /> {t('Tournaments')}
+                </NavLink>
+              </>
+            )}
+          </div>
+
+          <div className='mt-2 border-t' />
+
+          <div className='mt-auto p-6 space-y-4'>
+            <div>
+              <div className='mb-2 text-xs font-medium text-muted-foreground'>
+                {t('Sport')}
+              </div>
+              <div className='flex items-center gap-2 flex-wrap'>
+                {Object.keys(sportConfig).map((key) => {
+                  const k = key as Sport;
+                  const active = sport === k;
+                  return (
+                    <Button
+                      key={k}
+                      variant={active ? 'default' : 'outline'}
+                      size='sm'
+                      className={cn(
+                        'gap-2',
+                        active && 'ring-2 ring-ring ring-offset-2'
+                      )}
+                      onClick={() => {
+                        setSport(k);
+                        setIsOpen(false);
+                      }}
+                    >
+                      <span className='inline-flex h-4 w-4 items-center justify-center'>
+                        {sportConfig[k].icon}
+                      </span>
+                      <span className='text-xs'>{sportConfig[k].name}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <div className='mb-2 text-xs font-medium text-muted-foreground'>
+                {t('Language')}
+              </div>
+              <div className='flex flex-wrap items-center gap-2'>
+                {LANGS.map((lng) => {
+                  const active = i18n.language?.startsWith(lng.code);
+                  return (
+                    <Button
+                      key={lng.code}
+                      variant={active ? 'default' : 'outline'}
+                      size='sm'
+                      onClick={() => {
+                        i18n.changeLanguage(lng.code);
+                        setIsOpen(false);
+                      }}
+                    >
+                      {lng.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
@@ -93,7 +172,6 @@ const NavLink = ({
   );
 };
 
-// --- Основной компонент Navbar ---
 export function Navbar() {
   const { t, i18n } = useTranslation();
   const { user, userProfile, roomRequestCount, loading, logout } = useAuth();
@@ -130,19 +208,64 @@ export function Navbar() {
   return (
     <header className='bg-card border-b sticky top-0 z-50 shadow-sm'>
       <div className='container mx-auto px-4 h-16 flex items-center justify-between'>
-        {/* Левая сторона: Меню (моб.), Лого, Навигация (десктоп) */}
         <div className='flex items-center gap-4'>
           <MobileNav user={user} t={t} />
           <Link
             href='/'
-            className={`flex items-center gap-2 text-foreground hover:opacity-80 transition-opacity`}
+            aria-label={`${config.name}Tracker`}
+            className='flex items-center gap-2 text-foreground hover:opacity-80 transition-opacity'
           >
-            {React.cloneElement(config.icon as React.ReactElement, {
-              className: `h-7 w-7 ${config.theme.primary}`,
-            })}
-            <h1 className='text-xl font-bold tracking-tight hidden sm:block'>
-              {`${config.name}Tracker`}
-            </h1>
+            {config.brandIcon ? (
+              <div className='relative h-9 w-9 md:hidden'>
+                <Image
+                  src={config.brandIcon}
+                  alt={`${config.name} icon`}
+                  fill
+                  priority
+                  sizes='(max-width: 767px) 36px, 0px'
+                  className='object-contain'
+                  quality={100}
+                />
+              </div>
+            ) : (
+              <span className='md:hidden'>
+                {React.isValidElement(config.icon) &&
+                  React.cloneElement(config.icon as React.ReactElement, {
+                    className: cn(
+                      (config.icon as any).props?.className,
+                      'h-9 w-9',
+                      config.theme.primary
+                    ),
+                    'aria-hidden': true,
+                  })}
+              </span>
+            )}
+            {config.brandLogo ? (
+              <div className='relative hidden md:block md:h-9 md:w-[160px]'>
+                <Image
+                  src={config.brandLogo}
+                  alt={`${config.name} logo`}
+                  fill
+                  priority
+                  sizes='(min-width: 768px) 160px, 0px'
+                  className='object-contain'
+                  quality={100}
+                />
+              </div>
+            ) : (
+              <span className='hidden md:inline-block'>
+                {React.isValidElement(config.icon) &&
+                  React.cloneElement(config.icon as React.ReactElement, {
+                    className: cn(
+                      (config.icon as any).props?.className,
+                      'h-9 w-9',
+                      config.theme.primary
+                    ),
+                    'aria-hidden': true,
+                  })}
+              </span>
+            )}
+            <span className='sr-only'>{`${config.name}Tracker`}</span>
           </Link>
           <nav className='hidden md:flex items-center gap-2'>
             {user && (
@@ -158,61 +281,67 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* Правая сторона: Действия и Пользователь */}
         <nav className='flex items-center gap-1 sm:gap-2'>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant='ghost'
-                className='flex items-center gap-2'
-                aria-label='Change sport'
-              >
-                {config.icon}
-                <span className='hidden sm:inline'>{config.name}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
-              {Object.keys(sportConfig).map((sportKey) => (
-                <DropdownMenuItem
-                  key={sportKey}
-                  onClick={() => setSport(sportKey as Sport)}
+          <div className='hidden md:block'>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant='ghost'
                   className='flex items-center gap-2'
+                  aria-label='Change sport'
                 >
-                  {sportConfig[sportKey as Sport].icon}
-                  <span>{sportConfig[sportKey as Sport].name}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  {config.icon}
+                  <span className='hidden sm:inline'>{config.name}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align='end'>
+                {Object.keys(sportConfig).map((sportKey) => (
+                  <DropdownMenuItem
+                    key={sportKey}
+                    onClick={() => setSport(sportKey as Sport)}
+                    className='flex items-center gap-2'
+                  >
+                    {sportConfig[sportKey as Sport].icon}
+                    <span>{sportConfig[sportKey as Sport].name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant='ghost' size='icon' aria-label='Change language'>
-                <Globe className='h-5 w-5' />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
-              <DropdownMenuItem onClick={() => i18n.changeLanguage('en')}>
-                English
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => i18n.changeLanguage('ru')}>
-                Русский
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => i18n.changeLanguage('fi')}>
-                Suomi
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => i18n.changeLanguage('ko')}>
-                한국어
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className='hidden md:block'>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  aria-label='Change language'
+                >
+                  <Globe className='h-5 w-5' />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align='end'>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage('en')}>
+                  English
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage('ru')}>
+                  Русский
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage('fi')}>
+                  Suomi
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage('ko')}>
+                  한국어
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {loading ? (
             <div className='h-10 w-10 bg-muted rounded-full animate-pulse' />
           ) : user ? (
             <>
               <Link href='/friend-requests'>
-                {/* ✅ ИСПРАВЛЕНИЕ: Добавлен класс 'relative' для правильного позиционирования значка */}
                 <Button
                   variant='ghost'
                   size='icon'
@@ -221,8 +350,8 @@ export function Navbar() {
                 >
                   {totalReqCount > 0 && (
                     <span className='absolute top-1.5 right-1.5 flex h-3 w-3'>
-                      <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75'></span>
-                      <span className='relative inline-flex rounded-full h-3 w-3 bg-destructive'></span>
+                      <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75' />
+                      <span className='relative inline-flex rounded-full h-3 w-3 bg-destructive' />
                     </span>
                   )}
                   <Bell className='h-5 w-5' />

@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-2xl font-semibold mt-6">{t('1. Data Controller')}</h2>
           <p>
             {t(
-              'The data controller for PingPongTracker (hereinafter "the Service") is Arttu Sulkonen.'
+              'The data controller for Smashlog (hereinafter "the Service") is Arttu Sulkonen.'
             )}
           </p>
           <p>

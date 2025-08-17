@@ -1,9 +1,9 @@
 // src/contexts/SportContext.tsx
 'use client';
 
-import BadmintonIcon from '@/icons/badminton-svgrepo-com.svg';
-import TableTennisIcon from '@/icons/table-tennis-svgrepo-com.svg';
-import TennisIcon from '@/icons/tennis-svgrepo-com.svg';
+import BadmintonIcon from '@/icons/icon500-badminton.svg';
+import TableTennisIcon from '@/icons/icon500-pingpong.svg';
+import TennisIcon from '@/icons/icon500-tennis.svg';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import React, {
@@ -21,6 +21,8 @@ export type Sport = 'pingpong' | 'tennis' | 'badminton';
 export interface SportConfig {
   name: string;
   icon: React.ReactNode;
+  brandIcon?: string;
+  brandLogo: string;
   collections: {
     rooms: string;
     matches: string;
@@ -40,7 +42,11 @@ export interface SportConfig {
 export const sportConfig: Record<Sport, SportConfig> = {
   pingpong: {
     name: 'Ping-Pong',
-    icon: <TableTennisIcon className="h-6 w-6 text-primary" />,
+    icon: (
+      <TableTennisIcon className='h-6 w-6 shrink-0 text-primary' aria-hidden />
+    ),
+    brandLogo: '/brand/logo500-pingpong-png.png',
+     brandIcon: '/brand/icon500-pingpong-png.png',
     collections: {
       rooms: 'rooms-pingpong',
       matches: 'matches-pingpong',
@@ -64,7 +70,9 @@ export const sportConfig: Record<Sport, SportConfig> = {
   },
   tennis: {
     name: 'Tennis',
-    icon: <TennisIcon className="h-6 w-6 text-lime-500" />,
+    icon: <TennisIcon className='h-6 w-6 shrink-0 text-primary' aria-hidden />,
+    brandLogo: '/brand/logo500-tennis-png.png',
+    brandIcon: '/brand/icon500-tennis-png.png',
     collections: {
       rooms: 'rooms-tennis',
       matches: 'matches-tennis',
@@ -89,7 +97,14 @@ export const sportConfig: Record<Sport, SportConfig> = {
   },
   badminton: {
     name: 'Badminton',
-    icon: <BadmintonIcon className="h-6 w-6 text-teal-500" />,
+    icon: (
+      <BadmintonIcon
+        className='h-6 w-6 shrink-0 text-primary'
+        aria-hidden
+      />
+    ),
+    brandLogo: '/brand/logo500-badminton-png.png',
+    brandIcon: '/brand/icon500-badminton-png.png',
     collections: {
       rooms: 'rooms-badminton',
       matches: 'matches-badminton',

@@ -1,3 +1,4 @@
+// src/app/page.tsx
 'use client';
 
 import PlayersTable from '@/components/PlayersTable';
@@ -41,6 +42,7 @@ import {
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -277,7 +279,6 @@ const Dashboard = () => {
               <div className='flex justify-between items-center'>
                 <span className='text-muted-foreground'>{t('Rank')}</span>
                 <span className='font-semibold'>
-                  {/* ✅ 3. Используем вычисленный ранг */}
                   <PlayerRank rank={rank} />
                 </span>
               </div>
@@ -440,6 +441,7 @@ const LandingPage = () => {
 };
 
 export default function HomePageWrapper() {
+  const router = useRouter();
   const { user, userProfile, loading: authLoading } = useAuth();
   const { sport, config } = useSport();
   const { t } = useTranslation();
@@ -448,6 +450,16 @@ export default function HomePageWrapper() {
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 768px)').matches
+    ) {
+      router.replace('/mobile');
+    }
+  }, [hasMounted, router]);
 
   if (authLoading || !hasMounted) {
     return (
@@ -470,7 +482,7 @@ export default function HomePageWrapper() {
               <h1
                 className={`text-5xl font-extrabold tracking-tight mb-4 sm:text-6xl md:text-7xl bg-clip-text bg-gradient-to-r ${config.theme.gradientFrom} ${config.theme.gradientTo}`}
               >
-                {`${config.name}Tracker`}
+                {`Smashlog`}
               </h1>
               <p className='max-w-3xl mx-auto text-lg text-muted-foreground sm:text-xl'>
                 {t(

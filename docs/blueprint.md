@@ -1,4 +1,4 @@
-# **App Name**: PingPongTracker
+# **App Name**: Smashlog
 
 ## Core Features:
 
