@@ -1,8 +1,5 @@
-// public/sw.js
-const CACHE = 'smashlog-v1';
+const CACHE = 'smashlog-v4';
 const PRECACHE = [
-  '/',
-  '/mobile',
   '/manifest.webmanifest',
   '/icons/favicon-196x196.png',
   '/icons/mstile-310x310.png',
@@ -31,10 +28,7 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-
-  if (url.origin !== self.location.origin) {
-    return; 
-  }
+  if (url.origin !== self.location.origin) return;
 
   if (req.mode === 'navigate') {
     event.respondWith(networkFirst(req));
@@ -42,14 +36,18 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (
-    url.pathname.startsWith('/_next/') ||
+    url.pathname.startsWith('/_next/image') ||
+    url.pathname.startsWith('/_next/data') ||
+    url.pathname.includes('webpack-hmr')
+  ) {
+    return;
+  }
+
+  if (
+    url.pathname.startsWith('/_next/static/') ||
     url.pathname.startsWith('/icons/') ||
     url.pathname.startsWith('/brand/') ||
-    url.pathname.endsWith('.png') ||
-    url.pathname.endsWith('.jpg') ||
-    url.pathname.endsWith('.jpeg') ||
-    url.pathname.endsWith('.svg') ||
-    url.pathname.endsWith('.webmanifest')
+    /\.(png|jpg|jpeg|svg|webp|ico)$/.test(url.pathname)
   ) {
     event.respondWith(cacheFirst(req));
     return;

@@ -1,7 +1,7 @@
-// src/components/profile/ProfileContent.tsx
 'use client';
 
 import AchievementsPanel from '@/components/AchievementsPanel';
+import ProfileCharts from '@/components/profile/ProfileCharts';
 import {
   Badge,
   Card,
@@ -28,6 +28,13 @@ import { Sport, SportConfig, sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Match, Room, UserProfile } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
+import {
+  buildInsights,
+  computeSideStats,
+  computeStats,
+  groupByMonth,
+  opponentStats,
+} from '@/lib/utils/profileUtils';
 import { doc, getDoc } from 'firebase/firestore';
 import {
   BarChart,
@@ -196,10 +203,8 @@ function MatchesTableCard({
       ];
       const newIdsToFetch = roomIds.filter((id) => !roomData.has(id!));
       if (newIdsToFetch.length === 0) return;
-
       const newRoomData = new Map(roomData);
       const roomsCollectionName = config.collections.rooms;
-
       for (const roomId of newIdsToFetch) {
         const roomSnap = await getDoc(doc(db, roomsCollectionName, roomId!));
         if (roomSnap.exists()) {
@@ -259,7 +264,6 @@ function MatchesTableCard({
                     : m.player2.addedPoints;
                   const win = myScore > theirScore;
                   const isRanked = m.isRanked !== false;
-
                   return (
                     <TableRow key={m.id}>
                       <TableCell>{date}</TableCell>
@@ -316,12 +320,16 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   achievements,
   insights,
   opponents,
-  ...props
+  pieData,
+  sidePieData,
+  sidePieLossData,
+  perfData,
+  monthlyData,
 }) => {
   const { t } = useTranslation();
   const [oppFilter, setOppFilter] = useState('all');
 
-  const filteredMatches = useMemo(
+  const filteredMatchesAll = useMemo(
     () =>
       oppFilter === 'all'
         ? matches
@@ -331,6 +339,85 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
               (m.player2Id === meUid && m.player1Id === oppFilter)
           ),
     [matches, oppFilter, meUid]
+  );
+
+  const filteredRanked = useMemo(
+    () => filteredMatchesAll.filter((m) => m.isRanked !== false),
+    [filteredMatchesAll]
+  );
+
+  const derivedStats = useMemo(
+    () => computeStats(filteredRanked, meUid),
+    [filteredRanked, meUid]
+  );
+  const derivedSideStats = useMemo(
+    () =>
+      sport === 'tennis'
+        ? {
+            leftSideWins: 0,
+            leftSideLosses: 0,
+            rightSideWins: 0,
+            rightSideLosses: 0,
+          }
+        : computeSideStats(filteredRanked, meUid),
+    [filteredRanked, meUid, sport]
+  );
+  const derivedPieData = useMemo(
+    () => [
+      {
+        name: t('Wins'),
+        value: derivedStats.wins,
+        fill: 'hsl(var(--primary))',
+      },
+      {
+        name: t('Losses'),
+        value: derivedStats.losses,
+        fill: 'hsl(var(--destructive))',
+      },
+    ],
+    [derivedStats, t]
+  );
+  const derivedSidePieData = useMemo(
+    () => [
+      {
+        name: t('Left Wins'),
+        value: derivedSideStats.leftSideWins,
+        fill: 'hsl(var(--primary))',
+      },
+      {
+        name: t('Right Wins'),
+        value: derivedSideStats.rightSideWins,
+        fill: 'hsl(var(--accent))',
+      },
+    ],
+    [derivedSideStats, t]
+  );
+  const derivedSidePieLossData = useMemo(
+    () => [
+      {
+        name: t('Left Losses'),
+        value: derivedSideStats.leftSideLosses,
+        fill: 'hsl(var(--destructive))',
+      },
+      {
+        name: t('Right Losses'),
+        value: derivedSideStats.rightSideLosses,
+        fill: 'hsl(var(--muted))',
+      },
+    ],
+    [derivedSideStats, t]
+  );
+  const derivedMonthly = useMemo(
+    () => groupByMonth(filteredRanked, meUid),
+    [filteredRanked, meUid]
+  );
+  const derivedOppStats = useMemo(
+    () => opponentStats(filteredRanked, meUid),
+    [filteredRanked, meUid]
+  );
+  const derivedInsights = useMemo(
+    () => buildInsights(derivedStats, derivedSideStats, derivedMonthly, t),
+    [derivedStats, derivedSideStats, derivedMonthly, t]
   );
 
   if (!canViewProfile) {
@@ -355,13 +442,13 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         <Card>
           <CardContent className='p-4'>
             <div className='flex items-center gap-4'>
-              <Label className='font-semibold'>Viewing Stats For:</Label>
+              <Label className='font-semibold'>{t('Viewing Stats For:')}</Label>
               <Select
                 value={sport}
                 onValueChange={(v) => onSportChange(v as Sport)}
               >
                 <SelectTrigger className='w-auto'>
-                  <SelectValue placeholder='Select a sport' />
+                  <SelectValue placeholder={t('Select a sport')} />
                 </SelectTrigger>
                 <SelectContent>
                   {playedSports.map((s) => (
@@ -385,27 +472,27 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         <StatCard
           icon={ListOrdered}
           label={t('Ranked Matches')}
-          value={stats.total}
+          value={derivedStats.total}
         />
         <StatCard
           icon={Percent}
           label={t('Win Rate (Ranked)')}
-          value={`${stats.winRate.toFixed(1)}%`}
+          value={`${derivedStats.winRate.toFixed(1)}%`}
         />
         <StatCard
           icon={Flame}
           label={t('Max Streak (Ranked)')}
-          value={stats.maxWinStreak}
+          value={derivedStats.maxWinStreak}
         />
       </div>
 
       <AchievementsPanel
         allAchievements={achievements}
         sport={sport}
-        sportMatches={stats.total}
-        sportWins={stats.wins}
-        sportWinRate={stats.winRate}
-        sportMaxStreak={stats.maxWinStreak}
+        sportMatches={derivedStats.total}
+        sportWins={derivedStats.wins}
+        sportWinRate={derivedStats.winRate}
+        sportMaxStreak={derivedStats.maxWinStreak}
       />
 
       <div className='flex items-center gap-4'>
@@ -426,17 +513,17 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
       </div>
 
       {(sport === 'pingpong' || sport === 'badminton') && (
-        <DetailedStatsCard stats={stats} side={sideStats} t={t} />
+        <DetailedStatsCard stats={derivedStats} side={derivedSideStats} t={t} />
       )}
       {sport === 'tennis' && tennisStats && (
-        <TennisStatsCard stats={stats} tennisStats={tennisStats} t={t} />
+        <TennisStatsCard stats={derivedStats} tennisStats={tennisStats} t={t} />
       )}
 
-      {insights.length > 0 && (
+      {derivedInsights.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className='flex items-center gap-2'>
-              <LineChartIcon /> {t('Ranked Insights')}
+              {t('Ranked Insights')}
             </CardTitle>
             <CardDescription>
               {t('Automatic game analysis on ranked matches')}
@@ -444,7 +531,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
           </CardHeader>
           <CardContent>
             <ul className='space-y-3'>
-              {insights.map((i, idx) => (
+              {derivedInsights.map((i: any, idx: number) => (
                 <li key={idx} className='flex items-start gap-3'>
                   <i.icon className={`h-5 w-5 ${i.color} shrink-0`} />
                   <span dangerouslySetInnerHTML={{ __html: i.text }} />
@@ -455,9 +542,20 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         </Card>
       )}
 
+      <ProfileCharts
+        t={t}
+        pieData={derivedPieData}
+        sidePieData={derivedSidePieData}
+        sidePieLossData={derivedSidePieLossData}
+        perfData={perfData as any}
+        monthlyData={derivedMonthly as any}
+        oppStats={derivedOppStats as any}
+        compact
+      />
+
       <MatchesTableCard
-        title={`${t('Matches')} (${filteredMatches.length})`}
-        matches={filteredMatches}
+        title={`${t('Matches')} (${filteredMatchesAll.length})`}
+        matches={filteredMatchesAll}
         loading={loadingMatches}
         meUid={meUid}
         t={t}

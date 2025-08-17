@@ -1,4 +1,3 @@
-// src/app/profile/[uid]/page.tsx
 'use client';
 
 import { NewPlayerCard } from '@/components/profile/NewPlayerCard';
@@ -55,17 +54,14 @@ export default function ProfileUidPage() {
 
   const [targetProfile, setTargetProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [friendStatus, setFriendStatus] = useState<
     'none' | 'outgoing' | 'incoming' | 'friends'
   >('none');
-
   const [matchesBySport, setMatchesBySport] = useState<Record<Sport, Match[]>>({
     pingpong: [],
     tennis: [],
     badminton: [],
   });
-
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [viewedSport, setViewedSport] = useState<Sport | null>(null);
 
@@ -100,7 +96,6 @@ export default function ProfileUidPage() {
   const fetchProfileAndMatches = useCallback(async () => {
     if (!targetUid) return;
     setLoading(true);
-
     const snap = await getDoc(doc(db, 'users', targetUid));
     if (!snap.exists() || snap.data()?.isDeleted) {
       toast({ title: t('Profile not found'), variant: 'destructive' });
@@ -115,11 +110,9 @@ export default function ProfileUidPage() {
       tennis: [],
       badminton: [],
     };
-
     const sportsToFetch = profileData.sports
       ? (Object.keys(profileData.sports) as Sport[])
       : [];
-
     setLoadingMatches(true);
     for (const s of sportsToFetch) {
       const config = sportConfig[s];
@@ -209,7 +202,6 @@ export default function ProfileUidPage() {
 
   const sportSpecificData = useMemo(() => {
     if (!viewedSport || !targetProfile) return null;
-
     const matches = matchesBySport[viewedSport] ?? [];
     const rankedMatches = matches.filter((match) => match.isRanked !== false);
     const stats = computeStats(rankedMatches, targetProfile.uid);
@@ -243,7 +235,6 @@ export default function ProfileUidPage() {
       if (oppId && !opponentsMap.has(oppId)) opponentsMap.set(oppId, oppName);
     }
     const opponents = Array.from(opponentsMap, ([id, name]) => ({ id, name }));
-
     const pieData = [
       { name: t('Wins'), value: stats.wins, fill: 'hsl(var(--primary))' },
       {
@@ -285,8 +276,12 @@ export default function ProfileUidPage() {
               const isP1 = m.player1Id === targetProfile.uid;
               const me = isP1 ? m.player1 : m.player2;
               const opp = isP1 ? m.player2 : m.player1;
+              const d = parseFlexDate(
+                m.tsIso ?? m.timestamp ?? m.createdAt ?? m.playedAt
+              );
               return {
-                label: parseFlexDate(m.tsIso).toLocaleDateString(),
+                label: d.toLocaleDateString(),
+                ts: d.getTime(),
                 rating: me.newRating,
                 diff: me.scores - opp.scores,
                 result: me.scores > opp.scores ? 1 : -1,
@@ -298,6 +293,7 @@ export default function ProfileUidPage() {
         : [
             {
               label: 'Start',
+              ts: Date.now(),
               rating: sportProfile?.globalElo ?? 1000,
               diff: 0,
               result: 0,
@@ -306,7 +302,6 @@ export default function ProfileUidPage() {
               addedPoints: 0,
             },
           ];
-
     return {
       stats,
       sideStats,
@@ -359,7 +354,6 @@ export default function ProfileUidPage() {
         rank={rank}
         medalSrc={medalSrc}
       />
-
       <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
         <div className='lg:col-span-8 xl:col-span-9 space-y-6'>
           {!hasPlayedAnyMatches ? (
@@ -367,7 +361,6 @@ export default function ProfileUidPage() {
           ) : (
             <>
               <OverallStatsCard profile={targetProfile} />
-
               {viewedSport &&
               canView &&
               hasMatchesInViewed &&
@@ -420,7 +413,6 @@ export default function ProfileUidPage() {
             </>
           )}
         </div>
-
         <div className='lg:col-span-4 xl:col-span-3'>
           <ProfileSidebar
             canViewProfile={canView}
