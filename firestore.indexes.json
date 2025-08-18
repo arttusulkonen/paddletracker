@@ -15,6 +15,38 @@
       ]
     },
     {
+      "collectionId": "matches-pingpong",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "players", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "tsIso", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionId": "matches-pingpong",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "roomId", "order": "ASCENDING" },
+        { "fieldPath": "tsIso", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionId": "matches-tennis",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "players", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "tsIso", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionId": "matches-badminton",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "players", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "tsIso", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "matches",
       "queryScope": "COLLECTION",
       "fields": [
@@ -25,6 +57,20 @@
         {
           "fieldPath": "tsIso",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roomId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsIso",
+          "order": "ASCENDING"
         }
       ]
     },
@@ -153,6 +199,20 @@
       ]
     },
     {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isPublic",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sports.badminton.globalElo",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "matches-pingpong",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
@@ -210,6 +270,34 @@
     },
     {
       "collectionGroup": "matches-tennis",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "roomId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsIso",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "matches-badminton",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "players",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "tsIso",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "matches-badminton",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {

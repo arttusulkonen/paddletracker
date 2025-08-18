@@ -111,8 +111,16 @@ export default function ProfileCharts({
   compact?: boolean;
 }) {
   const hasPerf = perfData && perfData.length > 0;
-  const hasMonthly = monthlyData && monthlyData.length > 0;
-  const hasOpps = oppStats && oppStats.length > 0;
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 640px)');
+    const onChange = (e: MediaQueryListEvent | MediaQueryList) =>
+      setIsMobile('matches' in e ? e.matches : (e as MediaQueryList).matches);
+    setIsMobile(mql.matches);
+    mql.addEventListener('change', onChange as EventListener);
+    return () => mql.removeEventListener('change', onChange as EventListener);
+  }, []);
 
   const lastMonthStartIndex = React.useMemo(() => {
     if (!hasPerf) return 0;
@@ -201,31 +209,49 @@ export default function ProfileCharts({
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className={isMobile ? 'pb-2' : undefined}>
           <CardTitle className='flex items-center gap-2'>
             <LineChartIcon /> {t('ELO History')}
           </CardTitle>
           <CardDescription>{t('Ranked progression over time')}</CardDescription>
         </CardHeader>
-        <CardContent className='h-[420px]'>
+        <CardContent className={isMobile ? 'h-[320px] pt-0' : 'h-[420px]'}>
           {hasPerf ? (
             <ResponsiveContainer width='100%' height='100%'>
-              <RLineChart data={perfData} syncId='profilePerf'>
+              <RLineChart
+                data={perfData}
+                syncId='profilePerf'
+                margin={{
+                  top: isMobile ? 8 : 16,
+                  right: isMobile ? 8 : 16,
+                  bottom: isMobile ? 8 : 16,
+                  left: isMobile ? 8 : 24,
+                }}
+              >
                 <CartesianGrid strokeDasharray='3 3' />
-                <XAxis dataKey='label' />
-                <YAxis />
+                <XAxis
+                  dataKey='label'
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
+                  tickMargin={isMobile ? 4 : 8}
+                  minTickGap={isMobile ? 10 : 5}
+                />
+                <YAxis
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
+                  tickMargin={isMobile ? 4 : 8}
+                  width={isMobile ? 28 : 40}
+                />
                 <RTooltip content={<EloTooltip t={t} />} />
-                <RLegend />
+                {!isMobile && <RLegend wrapperStyle={{ fontSize: 12 }} />}
                 <Line
                   type='monotone'
                   dataKey='rating'
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
+                  dot={{ r: isMobile ? 2 : 3 }}
+                  activeDot={{ r: isMobile ? 4 : 5 }}
                 />
                 <Brush
                   dataKey='label'
-                  height={20}
-                  travellerWidth={10}
+                  height={isMobile ? 14 : 20}
+                  travellerWidth={isMobile ? 8 : 10}
                   startIndex={lastMonthStartIndex}
                 />
               </RLineChart>
