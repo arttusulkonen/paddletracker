@@ -1,3 +1,4 @@
+// src/components/profile/ProfileCharts.tsx
 'use client';
 
 import {

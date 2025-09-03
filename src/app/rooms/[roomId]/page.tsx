@@ -15,6 +15,11 @@ import {
   Card,
   CardContent,
   Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   Label,
   ScrollArea,
   Separator,
@@ -66,6 +71,8 @@ export default function RoomPage() {
   const router = useRouter();
   const roomId = useParams().roomId as string;
 
+  const [accessDenied, setAccessDenied] = useState(false);
+
   const [room, setRoom] = useState<Room | null>(null);
   const [rawMatches, setRawMatches] = useState<Match[]>([]);
   const [members, setMembers] = useState<Room['members']>([]);
@@ -83,10 +90,19 @@ export default function RoomPage() {
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [isInviting, setIsInviting] = useState(false);
 
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
+  const memberIdsSet = useMemo(
+    () => new Set(room?.memberIds ?? []),
+    [room?.memberIds]
+  );
 
+  useEffect(() => {
+    if (!room) return;
+    setSelectedFriends((prev) => prev.filter((id) => !memberIdsSet.has(id)));
+  }, [room?.memberIds, memberIdsSet]);
+
+  useEffect(() => setHasMounted(true), []);
+
+  // Подписка на саму комнату + валидация прав просмотра
   useEffect(() => {
     if (!user || !db) return;
     const unsubRoom = onSnapshot(
@@ -97,15 +113,35 @@ export default function RoomPage() {
           return;
         }
         const roomData = { id: snap.id, ...snap.data() } as Room;
+
+        const viewerId = user?.uid ?? '';
+        const isMemberNow =
+          Array.isArray(roomData.memberIds) &&
+          roomData.memberIds.includes(viewerId);
+        const canViewRoom = isGlobalAdmin || roomData.isPublic || isMemberNow;
+
+        if (!canViewRoom) {
+          setAccessDenied(true);
+          return; // не устанавливаем room, остальные эффекты зависят от room и не пойдут
+        }
+
         setRoom(roomData);
         setLatestSeason(roomData.seasonHistory?.slice().reverse()[0] ?? null);
       }
     );
     return () => unsubRoom();
-  }, [user, roomId, config.collections.rooms, router]);
+  }, [user, roomId, config.collections.rooms, router, isGlobalAdmin]);
 
+  // Если доступ запрещён — показываем модалку и через 2 секунды уводим на /rooms
   useEffect(() => {
-    if (!user) return;
+    if (!accessDenied) return;
+    const tId = setTimeout(() => router.replace('/rooms'), 2000);
+    return () => clearTimeout(tId);
+  }, [accessDenied, router]);
+
+  // Список "ко-игроков" из других моих комнат (для инвайтов) — не запускаем при accessDenied
+  useEffect(() => {
+    if (!user || accessDenied) return;
     const roomsQ = query(
       collection(db, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid)
@@ -118,7 +154,7 @@ export default function RoomPage() {
         for (const id of memberIds) {
           if (!id) continue;
           if (id === user.uid) continue;
-          if (currentMemberIds.has(id)) continue; // исключаем уже состоящих в этой комнате
+          if (currentMemberIds.has(id)) continue;
           idsSet.add(id);
         }
       });
@@ -132,30 +168,32 @@ export default function RoomPage() {
       setCoPlayers(loaded.filter(Boolean) as UserProfile[]);
     });
     return () => unsub();
-  }, [user, config.collections.rooms, room?.memberIds]);
+  }, [user, config.collections.rooms, room?.memberIds, accessDenied]);
 
-  const friendsAll = useMemo(() => {
-    const currentMemberIds = new Set<string>(room?.memberIds ?? []);
-    return friends
-      .filter((p) => !currentMemberIds.has(p.uid))
-      .sort((a, b) =>
-        (a.name ?? a.displayName ?? '').localeCompare(
-          b.name ?? b.displayName ?? ''
-        )
-      );
-  }, [friends, room?.memberIds]);
+  const friendsAll = useMemo(
+    () =>
+      friends
+        .filter((p) => !memberIdsSet.has(p.uid))
+        .sort((a, b) =>
+          (a.name ?? a.displayName ?? '').localeCompare(
+            b.name ?? b.displayName ?? ''
+          )
+        ),
+    [friends, memberIdsSet]
+  );
 
   const othersInSport = useMemo(() => {
     const friendSet = new Set(friends.map((f) => f.uid));
     return coPlayers
-      .filter((p) => !friendSet.has(p.uid))
+      .filter((p) => !friendSet.has(p.uid) && !memberIdsSet.has(p.uid))
       .sort((a, b) =>
         (a.name ?? a.displayName ?? '').localeCompare(
           b.name ?? b.displayName ?? ''
         )
       );
-  }, [coPlayers, friends]);
+  }, [coPlayers, friends, memberIdsSet]);
 
+  // Права управления комнатой
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
     const isRoomAdmin =
@@ -163,8 +201,9 @@ export default function RoomPage() {
     return isGlobalAdmin || isRoomAdmin || room.creator === user.uid;
   }, [room, user, isGlobalAdmin]);
 
+  // Подписка на матчи — не запускаем при accessDenied
   useEffect(() => {
-    if (!user || !db) return;
+    if (!user || !db || accessDenied) return;
     const q = query(
       collection(db, config.collections.matches),
       where('roomId', '==', roomId)
@@ -176,8 +215,9 @@ export default function RoomPage() {
       setRawMatches(all);
     });
     return () => unsub();
-  }, [user, roomId, config.collections.matches]);
+  }, [user, roomId, config.collections.matches, accessDenied]);
 
+  // Друзья для инвайтов
   useEffect(() => {
     const fetchFriends = async () => {
       if (userProfile?.friends && userProfile.friends.length > 0) {
@@ -185,15 +225,18 @@ export default function RoomPage() {
           userProfile.friends
         );
         setFriends(friendProfiles);
+      } else {
+        setFriends([]);
       }
     };
     fetchFriends();
   }, [userProfile]);
 
+  // Синхронизация членов и последних матчей + завершение загрузки
   useEffect(() => {
     if (!room) return;
     if (rawMatches.length === 0 && room?.members) {
-      setMembers(room?.members);
+      setMembers(room.members);
       setRecentMatches([]);
       setIsLoading(false);
       return;
@@ -212,7 +255,8 @@ export default function RoomPage() {
       });
       setSeasonStarts(starts);
       setSeasonRoomStarts(roomStarts);
-      const initialMembers = room?.members ?? [];
+
+      const initialMembers = room.members ?? [];
       if (initialMembers.length === 0) {
         setMembers([]);
         setRecentMatches([]);
@@ -221,29 +265,26 @@ export default function RoomPage() {
       }
 
       const memberIds = initialMembers.map((m) => m.userId);
-      const userDocsPromises = memberIds.map((id) =>
-        getDoc(doc(db, 'users', id))
+      const userDocsSnaps = await Promise.all(
+        memberIds.map((id) => getDoc(doc(db, 'users', id)))
       );
-      const userDocsSnaps = await Promise.all(userDocsPromises);
       const freshProfiles = new Map<string, UserProfile>();
       userDocsSnaps.forEach((userSnap) => {
-        if (userSnap.exists()) {
+        if (userSnap.exists())
           freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
-        }
       });
 
       const syncedMembers = initialMembers
         .filter((member) => !freshProfiles.get(member.userId)?.isDeleted)
         .map((member) => {
-          const freshProfile = freshProfiles.get(member.userId);
-          return freshProfile
+          const p = freshProfiles.get(member.userId);
+          return p
             ? {
                 ...member,
-                name:
-                  freshProfile.name ?? freshProfile.displayName ?? member.name,
-                photoURL: freshProfile.photoURL,
-                globalElo: freshProfile.sports?.[sport]?.globalElo,
-                rank: freshProfile.rank,
+                name: p.name ?? p.displayName ?? member.name,
+                photoURL: p.photoURL,
+                globalElo: p.sports?.[sport]?.globalElo,
+                rank: p.rank,
               }
             : member;
         });
@@ -274,7 +315,7 @@ export default function RoomPage() {
       setIsLoading(false);
     };
     syncData();
-  }, [room, rawMatches, sport, t]);
+  }, [room, rawMatches, sport]);
 
   const last5Form = useCallback(
     (m: any): MiniMatch[] =>
@@ -300,7 +341,6 @@ export default function RoomPage() {
 
   const regularPlayers = useMemo(() => {
     const baseMembers = room?.members ?? [];
-
     const matchStats: Record<string, { wins: number; losses: number }> = {};
     const latestRoomRatings: Record<string, number> = {};
 
@@ -460,7 +500,7 @@ export default function RoomPage() {
 
   const handleLeaveRoom = useCallback(async () => {
     if (!user || !room) return;
-    const memberToRemove = room?.members.find((m) => m.userId === user.uid);
+    const memberToRemove = room.members.find((m) => m.userId === user.uid);
     if (memberToRemove) {
       await updateDoc(doc(db, config.collections.rooms, roomId), {
         members: arrayRemove(memberToRemove),
@@ -476,9 +516,17 @@ export default function RoomPage() {
       toast({ title: t('Select friends to invite'), variant: 'destructive' });
       return;
     }
+    const effectiveSelected = selectedFriends.filter(
+      (id) => !memberIdsSet.has(id)
+    );
+    if (effectiveSelected.length === 0) {
+      toast({ title: t('Select friends to invite'), variant: 'destructive' });
+      setIsInviting(false);
+      return;
+    }
     setIsInviting(true);
     try {
-      const isStillMember = room?.members.some((m) => m.userId === user.uid);
+      const isStillMember = room.members.some((m) => m.userId === user.uid);
       if (!isStillMember) {
         toast({
           title: t('Permission Denied'),
@@ -499,7 +547,7 @@ export default function RoomPage() {
       };
 
       const profiles = await Promise.all(
-        selectedFriends.map(async (uid) => ({
+        effectiveSelected.map(async (uid) => ({
           uid,
           profile: await getLite(uid),
         }))
@@ -526,7 +574,7 @@ export default function RoomPage() {
 
       batch.update(roomRef, {
         members: arrayUnion(...newMembers),
-        memberIds: arrayUnion(...selectedFriends),
+        memberIds: arrayUnion(...effectiveSelected),
       });
 
       await batch.commit();
@@ -551,11 +599,14 @@ export default function RoomPage() {
   const handleRemovePlayer = async (userIdToRemove: string) => {
     if (!room || !user) return;
 
-    const memberToRemove = room?.members.find(
+    const memberToRemove = room.members.find(
       (m) => m.userId === userIdToRemove
     );
     if (!memberToRemove) {
-      toast({ title: 'Player not found in this room', variant: 'destructive' });
+      toast({
+        title: t('Player not found in this room'),
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -582,18 +633,16 @@ export default function RoomPage() {
       });
 
       const userRef = doc(db, 'users', userIdToRemove);
-      batch.update(userRef, {
-        rooms: arrayRemove(roomId),
-      });
+      batch.update(userRef, { rooms: arrayRemove(roomId) });
 
       await batch.commit();
 
-      toast({ title: 'Player removed successfully' });
+      toast({ title: t('Player removed successfully') });
     } catch (error) {
       console.error('Failed to remove player:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to remove player from the room.',
+        title: t('Error'),
+        description: t('Failed to remove player from the room.'),
         variant: 'destructive',
       });
     }
@@ -608,6 +657,29 @@ export default function RoomPage() {
     () => room?.joinRequests?.includes(user?.uid ?? ''),
     [user, room]
   );
+
+  const showInviteSection = isMember && !latestSeason && !room?.isArchived;
+
+  // Ранний рендер модалки при запрете доступа (блюр + авто-редирект)
+  if (accessDenied) {
+    return (
+      <div className='fixed inset-0 z-50 flex items-center justify-center'>
+        <div className='absolute inset-0 backdrop-blur-sm bg-black/40' />
+        <Dialog open>
+          <DialogContent className='sm:max-w-md'>
+            <DialogHeader>
+              <DialogTitle>{t('Private Room')}</DialogTitle>
+              <DialogDescription>
+                {t(
+                  'This room is private. You will be redirected to the rooms list.'
+                )}
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 
   if (!hasMounted || isLoading || !room) {
     return (
@@ -627,6 +699,7 @@ export default function RoomPage() {
         >
           <ArrowLeft className='mr-2 h-4 w-4' /> {t('Back to Rooms')}
         </Button>
+
         <RoomHeader
           room={room}
           isMember={isMember}
@@ -636,6 +709,56 @@ export default function RoomPage() {
           onCancelJoin={handleCancelRequestToJoin}
           onLeave={handleLeaveRoom}
         />
+
+        {/* contextual hints */}
+        <div className='space-y-3 mb-6'>
+          {room.isArchived && (
+            <Card>
+              <CardContent className='text-sm text-muted-foreground p-4'>
+                {t(
+                  'This room is archived. Recording and member changes are disabled. You can still view standings and history.'
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {!room.isArchived && latestSeason && (
+            <Card>
+              <CardContent className='text-sm text-muted-foreground p-4'>
+                {t(
+                  'The latest season has been finalized. Recording is disabled until a new season starts.'
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {!isMember && room.isPublic && !hasPendingRequest && (
+            <Card>
+              <CardContent className='text-sm text-muted-foreground p-4'>
+                {t(
+                  'This is a public room. You can request to join to start recording matches and appear in the standings.'
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {hasPendingRequest && (
+            <Card>
+              <CardContent className='text-sm text-muted-foreground p-4'>
+                {t(
+                  'Join request sent. You will be added when an admin approves it.'
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {canManageRoom && (
+            <Card>
+              <CardContent className='text-sm text-muted-foreground p-4'>
+                {t(
+                  'You can manage members (add/remove), record matches, and finish the season. Use the member list to remove players and the recorder to submit results.'
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
         <Card>
           <CardContent className='grid md:grid-cols-3 gap-6 p-4'>
             <div className='md:col-span-1 space-y-4'>
@@ -647,8 +770,8 @@ export default function RoomPage() {
                 currentUser={user}
                 onRemovePlayer={handleRemovePlayer}
               />
-              {/* and season is not finished */}
-              {isMember && !latestSeason && (
+
+              {showInviteSection && (
                 <div className='pt-4 border-t'>
                   <Label className='text-sm font-medium'>
                     {t('Invite players:')}
@@ -764,10 +887,11 @@ export default function RoomPage() {
                 </div>
               )}
             </div>
+
             {isMember && !latestSeason && !room.isArchived && (
               <div className='md:col-span-2'>
                 <RecordBlock
-                  members={room?.members}
+                  members={room.members}
                   roomId={roomId}
                   room={room}
                   isCreator={isCreator}
@@ -778,12 +902,15 @@ export default function RoomPage() {
             )}
           </CardContent>
         </Card>
+
         <Separator className='my-8' />
+
         <StandingsTable
           players={regularPlayers}
           latestSeason={latestSeason}
           roomCreatorId={room.creator}
         />
+
         <RecentMatches matches={recentMatches} />
       </div>
     </ProtectedRoute>

@@ -10,7 +10,8 @@ import {
 } from '@/components/ui';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sport, sportConfig, useSport } from '@/contexts/SportContext'; // ✅ 1. ИМПОРТ
+import { Sport, sportConfig } from '@/contexts/SportContext';
+import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import { getFinnishFormattedDate } from '@/lib/utils';
@@ -27,7 +28,7 @@ import {
 } from 'firebase/firestore';
 import { Check, X } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type LiteUser = { uid: string; name: string; photoURL?: string };
@@ -41,13 +42,17 @@ type RoomRequest = {
   };
 };
 
+const initialOf = (s?: string) =>
+  s && s.trim() ? s.trim().charAt(0).toUpperCase() : '?';
+
 export default function FriendRequestsPage() {
   const { t } = useTranslation();
   const { user, userProfile } = useAuth();
+  const { toast } = useToast();
+
   const [friendRequests, setFriendRequests] = useState<LiteUser[]>([]);
   const [roomRequests, setRoomRequests] = useState<RoomRequest[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -62,60 +67,76 @@ export default function FriendRequestsPage() {
       }
       setLoading(true);
 
-      const incomingFriends = userProfile?.incomingRequests ?? [];
-      const friendReqPromises = incomingFriends.map((uid) =>
-        Friends.getUserLite(uid)
-      );
-      setFriendRequests(
-        (await Promise.all(friendReqPromises)).filter(Boolean) as LiteUser[]
-      );
-
-      const allRoomRequests: RoomRequest[] = [];
-
-      for (const sportKey in sportConfig) {
-        const config = sportConfig[sportKey as Sport];
-        const roomsCollectionName = config.collections.rooms;
-
-        const ownedRoomsQuery = query(
-          collection(db, roomsCollectionName),
-          where('creator', '==', user.uid)
+      try {
+        const incomingFriends = userProfile?.incomingRequests ?? [];
+        const friendReqPromises = incomingFriends.map((uid) =>
+          Friends.getUserLite(uid)
         );
+        const fr = (await Promise.all(friendReqPromises)).filter(
+          Boolean
+        ) as LiteUser[];
+        setFriendRequests(fr);
 
-        const ownedRoomsSnap = await getDocs(ownedRoomsQuery);
+        const allRoomRequests: RoomRequest[] = [];
 
-        for (const roomDoc of ownedRoomsSnap.docs) {
-          const roomData = roomDoc.data();
-          const requestUids = roomData.joinRequests ?? [];
+        const sports = Object.keys(sportConfig) as Sport[];
+        for (const sportKey of sports) {
+          const roomsCollectionName = sportConfig[sportKey].collections.rooms;
 
-          for (const uid of requestUids) {
-            const userSnap = await getDoc(doc(db, 'users', uid));
-            if (userSnap.exists()) {
-              const userData = userSnap.data();
+          const ownedRoomsSnap = await getDocs(
+            query(
+              collection(db, roomsCollectionName),
+              where('creator', '==', user.uid)
+            )
+          );
+
+          for (const roomDoc of ownedRoomsSnap.docs) {
+            const roomData = roomDoc.data() as any;
+            const requestUids: string[] = Array.isArray(roomData.joinRequests)
+              ? roomData.joinRequests
+              : [];
+
+            if (requestUids.length === 0) continue;
+
+            const userDocs = await Promise.all(
+              requestUids.map((uid) => getDoc(doc(db, 'users', uid)))
+            );
+
+            userDocs.forEach((snap, idx) => {
+              if (!snap.exists()) return;
+              const u = snap.data() as any;
               allRoomRequests.push({
                 fromUser: {
-                  uid,
-                  name: userData.name ?? userData.email ?? t('Unknown'),
-                  photoURL: userData.photoURL,
+                  uid: requestUids[idx],
+                  name: u.name ?? u.displayName ?? u.email ?? t('Unknown'),
+                  photoURL: u.photoURL,
                 },
                 toRoom: {
                   id: roomDoc.id,
-                  name: roomData.name,
+                  name: roomData.name ?? t('Unnamed room'),
                   collectionName: roomsCollectionName,
                 },
               });
-            }
+            });
           }
         }
-      }
 
-      setRoomRequests(allRoomRequests);
-      setLoading(false);
+        setRoomRequests(allRoomRequests);
+      } catch {
+        toast({
+          title: t('Error'),
+          description: t('Failed to load requests. Please try again.'),
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     if (hasMounted && user) {
       loadRequests();
     }
-  }, [user, userProfile, t, hasMounted]);
+  }, [hasMounted, user, userProfile, toast, t]);
 
   const handleFriendRequest = async (friendUid: string, accept: boolean) => {
     if (!user) return;
@@ -126,8 +147,15 @@ export default function FriendRequestsPage() {
         await Friends.declineRequest(user.uid, friendUid);
       }
       setFriendRequests((prev) => prev.filter((req) => req.uid !== friendUid));
-    } catch (error) {
-      toast({ title: t('Error'), variant: 'destructive' });
+      toast({
+        title: accept ? t('Friend added') : t('Request declined'),
+      });
+    } catch {
+      toast({
+        title: t('Error'),
+        description: t('Try again later.'),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -138,25 +166,39 @@ export default function FriendRequestsPage() {
 
     try {
       await updateDoc(roomRef, { joinRequests: arrayRemove(req.fromUser.uid) });
+
       if (accept) {
-        const userDoc = await getDoc(doc(db, 'users', req.fromUser.uid));
-        if (!userDoc.exists()) return;
-        const userData = userDoc.data();
+        const userSnap = await getDoc(doc(db, 'users', req.fromUser.uid));
+        if (!userSnap.exists()) {
+          setRoomRequests((prev) =>
+            prev.filter(
+              (r) =>
+                !(
+                  r.fromUser.uid === req.fromUser.uid &&
+                  r.toRoom.id === req.toRoom.id
+                )
+            )
+          );
+          return;
+        }
+        const u = userSnap.data() as any;
         const newMember = {
           userId: req.fromUser.uid,
-          name: userData.name ?? userData.displayName ?? 'New Player',
-          email: userData.email,
+          name: u.name ?? u.displayName ?? 'New Player',
+          email: u.email ?? '',
           rating: 1000,
           wins: 0,
           losses: 0,
           date: getFinnishFormattedDate(),
-          role: 'editor',
+          role: 'editor' as const,
         };
+
         await updateDoc(roomRef, {
           members: arrayUnion(newMember),
           memberIds: arrayUnion(req.fromUser.uid),
         });
       }
+
       setRoomRequests((prev) =>
         prev.filter(
           (r) =>
@@ -166,14 +208,20 @@ export default function FriendRequestsPage() {
             )
         )
       );
-    } catch (error) {
-      toast({ title: t('Error'), variant: 'destructive' });
+
+      toast({
+        title: accept ? t('Request approved') : t('Request declined'),
+      });
+    } catch {
+      toast({
+        title: t('Error'),
+        description: t('Try again later.'),
+        variant: 'destructive',
+      });
     }
   };
 
-  if (!hasMounted) {
-    return null;
-  }
+  if (!hasMounted) return null;
 
   return (
     <div className='container mx-auto py-8 max-w-xl'>
@@ -205,7 +253,7 @@ export default function FriendRequestsPage() {
                         <div className='flex items-center gap-3'>
                           <Avatar className='h-10 w-10'>
                             <AvatarImage src={r.photoURL || undefined} />
-                            <AvatarFallback>{r.name[0]}</AvatarFallback>
+                            <AvatarFallback>{initialOf(r.name)}</AvatarFallback>
                           </Avatar>
                           <Link
                             href={`/profile/${r.uid}`}
@@ -219,12 +267,16 @@ export default function FriendRequestsPage() {
                             size='icon'
                             variant='outline'
                             onClick={() => handleFriendRequest(r.uid, false)}
+                            aria-label={t('Decline')}
+                            title={t('Decline')}
                           >
                             <X className='h-4 w-4 text-destructive' />
                           </Button>
                           <Button
                             size='icon'
                             onClick={() => handleFriendRequest(r.uid, true)}
+                            aria-label={t('Accept')}
+                            title={t('Accept')}
                           >
                             <Check className='h-4 w-4' />
                           </Button>
@@ -234,6 +286,7 @@ export default function FriendRequestsPage() {
                   </ul>
                 )}
               </div>
+
               <div>
                 <h3 className='font-semibold mb-2'>
                   {t('Room Join Requests')}
@@ -255,7 +308,7 @@ export default function FriendRequestsPage() {
                               src={r.fromUser.photoURL || undefined}
                             />
                             <AvatarFallback>
-                              {r.fromUser.name[0]}
+                              {initialOf(r.fromUser.name)}
                             </AvatarFallback>
                           </Avatar>
                           <div>
@@ -281,12 +334,16 @@ export default function FriendRequestsPage() {
                             size='icon'
                             variant='outline'
                             onClick={() => handleRoomRequest(r, false)}
+                            aria-label={t('Decline')}
+                            title={t('Decline')}
                           >
                             <X className='h-4 w-4 text-destructive' />
                           </Button>
                           <Button
                             size='icon'
                             onClick={() => handleRoomRequest(r, true)}
+                            aria-label={t('Approve')}
+                            title={t('Approve')}
                           >
                             <Check className='h-4 w-4' />
                           </Button>

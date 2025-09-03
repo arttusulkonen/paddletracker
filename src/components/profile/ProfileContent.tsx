@@ -1,3 +1,4 @@
+// src/components/profile/ProfileContent.tsx
 'use client';
 
 import AchievementsPanel from '@/components/AchievementsPanel';

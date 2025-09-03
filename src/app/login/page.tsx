@@ -1,4 +1,3 @@
-// src/app/login/page.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -20,18 +19,18 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { LogIn } from 'lucide-react';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { AlertCircle, CheckCircle2, LogIn } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import * as z from 'zod';
 
-// Schema needs to be defined inside the component to access the `t` function
 let loginSchema: any;
 type LoginFormValues = z.infer<typeof loginSchema>;
 
@@ -40,8 +39,10 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const qp = useSearchParams();
+  const next = qp?.get('next') || '/';
+  const pending = qp?.get('pending');
 
-  // Define the schema inside the component to use the `t` function for messages
   loginSchema = z.object({
     email: z.string().email({ message: t('Invalid email address') }),
     password: z
@@ -51,23 +52,65 @@ export default function LoginPage() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+    defaultValues: { email: '', password: '' },
+    mode: 'onTouched',
   });
+
+  useEffect(() => {
+    if (pending) {
+      toast({
+        title: t('Account pending approval'),
+        description: t(
+          'Your registration is awaiting admin approval. You will be able to sign in after approval.'
+        ),
+      });
+    }
+  }, [pending, toast, t]);
+
+  const policyBullets = useMemo(
+    () => [
+      t('⚠️ This project is currently in beta testing.'),
+      t(
+        '✅ Registration is limited — new accounts must be approved by an administrator.'
+      ),
+      t(
+        '⏳ Approval may take some time. You cannot log in until your account is approved.'
+      ),
+      t(
+        '💡 If you see “email already in use”, it may mean your registration is still pending approval.'
+      ),
+    ],
+    [t]
+  );
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
-      toast({
-        title: t('Login Successful'),
-        description: t('Welcome back!'),
-      });
-      router.push('/');
+      const cred = await signInWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password
+      );
+
+      const snap = await getDoc(doc(db, 'users', cred.user.uid));
+      const approved = snap.exists() ? !!(snap.data() as any).approved : false;
+
+      if (!approved) {
+        await signOut(auth);
+        router.replace('/login?pending=1');
+        toast({
+          title: t('Account not approved yet'),
+          description: t(
+            'Your account exists but is waiting for admin approval.'
+          ),
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({ title: t('Login Successful'), description: t('Welcome back!') });
+      router.push(next);
     } catch (error: any) {
-      console.error('Login error:', error);
       let errorMessage = t('An unexpected error occurred. Please try again.');
       if (
         error.code === 'auth/user-not-found' ||
@@ -75,6 +118,10 @@ export default function LoginPage() {
         error.code === 'auth/invalid-credential'
       ) {
         errorMessage = t('Invalid email or password. Please try again.');
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = t(
+          'Too many attempts. Please wait a moment and try again.'
+        );
       }
       toast({
         title: t('Login Failed'),
@@ -87,13 +134,8 @@ export default function LoginPage() {
   };
 
   const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
-  if (!hasMounted) {
-    return null;
-  }
+  useEffect(() => setHasMounted(true), []);
+  if (!hasMounted) return null;
 
   return (
     <div className='flex items-center justify-center min-h-[calc(100vh-10rem)] py-12'>
@@ -107,7 +149,22 @@ export default function LoginPage() {
             {t('Enter your credentials to access your account.')}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+
+        <CardContent className='space-y-6'>
+          <div className='rounded-md border p-3 text-sm bg-muted/30'>
+            <div className='flex items-start gap-2'>
+              <AlertCircle className='h-4 w-4 mt-0.5 text-primary' />
+              <div className='text-left space-y-1'>
+                <p className='font-medium'>{t('Important information')}</p>
+                <ul className='list-disc pl-4 space-y-1 text-muted-foreground'>
+                  {policyBullets.map((b, i) => (
+                    <li key={i}>{b}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
               <FormField
@@ -120,6 +177,9 @@ export default function LoginPage() {
                       <Input
                         type='email'
                         placeholder={t('your@email.com')}
+                        autoComplete='email'
+                        inputMode='email'
+                        disabled={isLoading}
                         {...field}
                       />
                     </FormControl>
@@ -127,6 +187,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name='password'
@@ -137,6 +198,8 @@ export default function LoginPage() {
                       <Input
                         type='password'
                         placeholder='••••••••'
+                        autoComplete='current-password'
+                        disabled={isLoading}
                         {...field}
                       />
                     </FormControl>
@@ -144,13 +207,15 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+
               <Button type='submit' className='w-full' disabled={isLoading}>
                 {isLoading ? t('Logging in...') : t('Login')}
               </Button>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className='flex flex-col items-center space-y-2'>
+
+        <CardFooter className='flex flex-col items-center space-y-3'>
           <p className='text-sm text-muted-foreground'>
             {t("Don't have an account?")}{' '}
             <Button variant='link' asChild className='p-0 h-auto'>
@@ -163,6 +228,15 @@ export default function LoginPage() {
               <Link href='/forgot-password'>{t('Forgot your password?')}</Link>
             </Button>
           </p>
+
+          <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+            <CheckCircle2 className='h-4 w-4' />
+            <span>
+              {t(
+                'This project is in beta. Admin approval is required for all new accounts.'
+              )}
+            </span>
+          </div>
         </CardFooter>
       </Card>
     </div>

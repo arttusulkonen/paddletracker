@@ -1,7 +1,9 @@
+
 'use client';
 
 import { RoomCard } from '@/components/rooms/RoomCard';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -13,8 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { getUserLite } from '@/lib/friends';
-import type { Room, UserProfile } from '@/lib/types';
+import type { Room } from '@/lib/types';
 import { parseFlexDate } from '@/lib/utils/date';
 import {
   collection,
@@ -25,7 +26,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { SearchIcon, UsersIcon } from 'lucide-react';
+import { Plus, SearchIcon, UsersIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -45,11 +46,18 @@ export default function MobileHomePage() {
   const [allRooms, setAllRooms] = useState<AnyRoom[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debounced, setDebounced] = useState('');
   const [myMatches, setMyMatches] = useState<Record<string, number>>({});
   const [roomRating, setRoomRating] = useState<Record<string, number>>({});
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => setHasMounted(true), []);
+
+  // Debounce search input for smoother typing
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(searchTerm.trim()), 200);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (!user) {
@@ -61,14 +69,10 @@ export default function MobileHomePage() {
     const roomsCollectionName = config.collections.rooms;
     const roomsMap = new Map<string, any>();
 
-    const processRooms = async (
-      roomMap: Map<string, any>
-    ): Promise<AnyRoom[]> => {
+    const processRooms = async (roomMap: Map<string, any>): Promise<AnyRoom[]> => {
       let list = Array.from(roomMap.values());
 
-      const creatorIds = [
-        ...new Set(list.map((r) => r.creator).filter(Boolean)),
-      ];
+      const creatorIds = [...new Set(list.map((r) => r.creator).filter(Boolean))];
       const creatorNameMap: Record<string, string> = {};
       if (creatorIds.length > 0) {
         const creatorDocs = await Promise.all(
@@ -76,7 +80,10 @@ export default function MobileHomePage() {
         );
         creatorDocs.forEach((snap) => {
           if (snap.exists())
-            creatorNameMap[snap.id] = (snap.data() as any).name || t('Unknown');
+            creatorNameMap[snap.id] =
+              (snap.data() as any).name ||
+              (snap.data() as any).displayName ||
+              t('Unknown');
         });
       }
 
@@ -105,25 +112,49 @@ export default function MobileHomePage() {
       where('isPublic', '==', true)
     );
 
-    const unsubMy = onSnapshot(qMyRooms, async (snap) => {
-      snap.docs.forEach((d) => roomsMap.set(d.id, { id: d.id, ...d.data() }));
-      const allProcessed = await processRooms(new Map(roomsMap));
-      setAllRooms(allProcessed);
-      setIsLoadingRooms(false);
-    });
+    const unsubMy = onSnapshot(
+      qMyRooms,
+      async (snap) => {
+        snap.docs.forEach((d) => roomsMap.set(d.id, { id: d.id, ...d.data() }));
+        const allProcessed = await processRooms(new Map(roomsMap));
+        setAllRooms(allProcessed);
+        setIsLoadingRooms(false);
+      },
+      (err) => {
+        console.error(err);
+        toast({
+          title: t('Error'),
+          description: t('Failed to load your rooms.'),
+          variant: 'destructive',
+        });
+        setIsLoadingRooms(false);
+      }
+    );
 
-    const unsubPublic = onSnapshot(qPublicRooms, async (snap) => {
-      snap.docs.forEach((d) => roomsMap.set(d.id, { id: d.id, ...d.data() }));
-      const allProcessed = await processRooms(new Map(roomsMap));
-      setAllRooms(allProcessed);
-      setIsLoadingRooms(false);
-    });
+    const unsubPublic = onSnapshot(
+      qPublicRooms,
+      async (snap) => {
+        snap.docs.forEach((d) => roomsMap.set(d.id, { id: d.id, ...d.data() }));
+        const allProcessed = await processRooms(new Map(roomsMap));
+        setAllRooms(allProcessed);
+        setIsLoadingRooms(false);
+      },
+      (err) => {
+        console.error(err);
+        toast({
+          title: t('Error'),
+          description: t('Failed to load public rooms.'),
+          variant: 'destructive',
+        });
+        setIsLoadingRooms(false);
+      }
+    );
 
     return () => {
       unsubMy();
       unsubPublic();
     };
-  }, [user, t, config.collections.rooms]);
+  }, [user, t, config.collections.rooms, toast]);
 
   const loadMyCounts = useCallback(
     async (roomsToLoad: AnyRoom[]) => {
@@ -151,11 +182,13 @@ export default function MobileHomePage() {
   }, [allRooms, loadMyCounts]);
 
   const displayRooms = useMemo(() => {
-    const filtered = allRooms.filter(
-      (r) =>
-        r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (r.creatorName ?? '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filtered = allRooms.filter((r) => {
+      if (!debounced) return true;
+      const name = (r.name || '').toLowerCase();
+      const creator = (r.creatorName || '').toLowerCase();
+      return name.includes(debounced.toLowerCase()) || creator.includes(debounced.toLowerCase());
+    });
+
     return filtered.sort((a, b) => {
       const score = (r: AnyRoom) => {
         if (r.isArchived) return 2;
@@ -184,54 +217,73 @@ export default function MobileHomePage() {
       };
       return ts(b) - ts(a);
     });
-  }, [allRooms, searchTerm]);
+  }, [allRooms, debounced]);
 
   if (!hasMounted) return null;
 
   return (
-    <div className='container mx-auto py-4 px-2'>
-      <Card className='mb-4 shadow-lg'>
+    <div className="container mx-auto py-4 px-2">
+      <Card className="mb-4 shadow-lg">
         <CardHeader>
-          <CardTitle className='flex items-center gap-2'>
-            <UsersIcon className='h-6 w-6 text-primary' />
+          <CardTitle className="flex items-center gap-2">
+            <UsersIcon className="h-6 w-6 text-primary" />
             {t('Your Rooms')}
           </CardTitle>
           <CardDescription>
-            {t('Click a card to enter and record matches')}
+            {t('Enter a room to record matches, view standings, and invite friends.')}
           </CardDescription>
-          <div className='relative mt-3'>
-            <SearchIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground' />
+
+          <div className="relative mt-3">
+            <SearchIcon
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"
+              aria-hidden
+            />
             <Input
               placeholder={t('Search by name or creator…')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className='pl-10 w-full'
+              className="pl-10 w-full"
+              aria-label={t('Search rooms')}
+              inputMode="search"
             />
           </div>
         </CardHeader>
+
         <CardContent>
           {isLoadingRooms ? (
-            <div className='flex items-center justify-center h-40'>
-              <div className='animate-spin h-12 w-12 rounded-full border-b-2 border-primary' />
+            <div className="flex items-center justify-center h-40">
+              <div className="animate-spin h-12 w-12 rounded-full border-b-2 border-primary" />
             </div>
           ) : displayRooms.length > 0 ? (
-            <div className='grid grid-cols-1 gap-4 p-1'>
+            <div className="grid grid-cols-1 gap-4 p-1">
               {displayRooms.map((r) => (
                 <RoomCard
                   key={r.id}
                   room={r}
                   myMatches={myMatches[r.id]}
                   myRating={roomRating[r.id]}
-                  hrefBase='/mobile/rooms'
+                  hrefBase="/mobile/rooms"
                 />
               ))}
             </div>
           ) : (
-            <p className='text-center text-muted-foreground py-8'>
-              {searchTerm
-                ? t('No rooms match your search')
-                : t('You are not a member of any rooms yet')}
-            </p>
+            <div className="text-center text-muted-foreground py-8 space-y-4">
+              <p>
+                {debounced
+                  ? t('No rooms match your search.')
+                  : t('You are not a member of any rooms yet.')}
+              </p>
+              {!debounced && (
+                <div className="flex justify-center">
+                  <Button asChild>
+                    <a href="/rooms" className="inline-flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      {t('Browse public rooms')}
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

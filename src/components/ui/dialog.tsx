@@ -1,3 +1,4 @@
+// src/components/ui/dialog.tsx
 'use client';
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';

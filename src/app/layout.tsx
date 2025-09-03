@@ -1,4 +1,5 @@
 import Providers from '@/app/providers';
+import AppGuard from '@/components/auth/AppGuard';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 import PWAInit from '@/components/pwa/PWAInit';
 import DynamicTitle from '@/components/seo/DynamicTitle';
@@ -16,11 +17,30 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b0b0c' },
+  ],
 };
 
 export const metadata: Metadata = {
   title: 'Smashlog',
-  description: 'Track matches, manage tournaments, and analyze your ELO.',
+  description:
+    'Track matches, manage tournaments, and analyze your ELO for ping-pong, tennis, and badminton.',
+  keywords: [
+    'ELO',
+    'ranking',
+    'ping pong',
+    'table tennis',
+    'tennis',
+    'badminton',
+    'tournaments',
+    'rooms',
+    'ladder',
+    'stats',
+    'friends',
+    'Smashlog',
+  ],
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
@@ -48,6 +68,32 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Smashlog',
   },
+  openGraph: {
+    type: 'website',
+    title: 'Smashlog — Track your matches and ELO',
+    description:
+      'Track matches, manage tournaments, and analyze your ELO for ping-pong, tennis, and badminton.',
+    url: 'https://smashlog.app/',
+    siteName: 'Smashlog',
+    images: [
+      {
+        url: '/brand/logo500-pingpong-png.png',
+        width: 500,
+        height: 500,
+        alt: 'Smashlog',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Smashlog — Track your matches and ELO',
+    description:
+      'Track matches, manage tournaments, and analyze your ELO for ping-pong, tennis, and badminton.',
+    images: ['/brand/logo500-pingpong-png.png'],
+  },
+  alternates: {
+    canonical: '/',
+  },
 };
 
 export default function RootLayout({
@@ -64,7 +110,7 @@ export default function RootLayout({
           <PWAInit />
           <DynamicTitle />
           <InstallPrompt />
-          {children}
+          <AppGuard>{children}</AppGuard>
         </Providers>
       </body>
     </html>

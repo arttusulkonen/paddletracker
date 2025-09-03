@@ -25,7 +25,9 @@ interface Achievement {
   matchesPlayed?: number;
   wins?: number;
   roomName?: string;
-  sport?: Sport; 
+  tournamentName?: string;
+  tournamentId?: string;
+  sport?: Sport;
 }
 
 interface Props {
@@ -37,7 +39,6 @@ interface Props {
   sportMaxStreak: number;
 }
 
-// Achievement Thresholds
 const OVERALL_MATCH_THRESHOLDS = [10, 50, 100, 250, 500, 1000];
 const OVERALL_WIN_THRESHOLDS = [10, 50, 100, 250, 500];
 const OVERALL_STREAK_THRESHOLDS = [5, 10, 15, 20];
@@ -45,7 +46,6 @@ const SEASON_MATCH_THRESHOLDS = [10, 25, 50, 100];
 const SEASON_WIN_THRESHOLDS = [10, 25, 50, 100];
 const TOURNAMENT_THRESHOLDS = [1, 5, 10, 25];
 
-// Helper functions to process achievements
 const getSeasonsAtOrAbove = (
   arr: Achievement[],
   prop: 'matchesPlayed' | 'wins',
@@ -61,6 +61,23 @@ const getAchievementsByTypeAndPlace = (
 const countAchievementsByType = (arr: Achievement[], type: string) =>
   arr.filter((a) => a.type === type).length;
 
+// Дедуп по (type,tournamentId), чтобы скрыть ранее созданные дубли
+const dedupTournamentFinishes = (arr: Achievement[]) => {
+  const seen = new Set<string>();
+  const out: Achievement[] = [];
+  for (const a of arr) {
+    if (a.type !== 'tournamentFinish') {
+      out.push(a);
+      continue;
+    }
+    const key = `${a.type}:${a.tournamentId ?? a.dateFinished}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(a);
+  }
+  return out;
+};
+
 export default function AchievementsPanel({
   allAchievements = [],
   sport,
@@ -71,8 +88,9 @@ export default function AchievementsPanel({
 }: Props) {
   const { t } = useTranslation();
 
-  const achievements = allAchievements.filter(
-    (a) => (a.sport || 'pingpong') === sport
+  // фильтр по спорту + дедуп турниров
+  const achievements = dedupTournamentFinishes(
+    allAchievements.filter((a) => (a.sport || 'pingpong') === sport)
   );
 
   const seasonPodiums = [1, 2, 3].map((place) => {
@@ -117,7 +135,7 @@ export default function AchievementsPanel({
           ? `${t('Tournament Podium #')}${place} (${count}x):\n${qualifying
               .map(
                 (s) =>
-                  `- ${s.roomName} (${safeFormatDate(
+                  `- ${s.tournamentName ?? '—'} (${safeFormatDate(
                     s.dateFinished,
                     'dd.MM.yy'
                   )})`

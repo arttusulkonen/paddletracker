@@ -30,20 +30,24 @@ import {
   ArrowRight,
   BarChart2,
   Compass,
+  Handshake,
   LogIn,
+  Medal,
   Network,
   Percent,
   Rocket,
   Search,
+  Shield,
   Swords,
   Trophy,
   User,
   UserPlus,
   Users,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const PlayerRank = ({ rank }: { rank: string | null | undefined }) => {
@@ -119,31 +123,131 @@ const DefaultSportSelector = () => {
   const { updateActiveSport } = useSport();
 
   return (
-    <section className='text-center'>
-      <h2 className='text-3xl font-bold mb-4'>{t('Welcome!')}</h2>
-      <p className='text-muted-foreground mb-8 text-lg'>
-        {t('Please select your primary sport to continue')}
-      </p>
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto'>
-        {(Object.keys(sportConfig) as Sport[]).map((sportKey) => {
-          const config = sportConfig[sportKey];
-          return (
-            <Card
-              key={sportKey}
-              className='hover:shadow-xl hover:border-primary transition-all cursor-pointer'
-              onClick={() => updateActiveSport(sportKey)}
-            >
-              <CardHeader className='items-center text-center p-8'>
-                <div className={`mb-4 ${config.theme.primary}`}>
-                  {React.cloneElement(config.icon as React.ReactElement, {
-                    className: 'h-12 w-12',
-                  })}
-                </div>
-                <CardTitle className='text-2xl'>{config.name}</CardTitle>
-              </CardHeader>
-            </Card>
-          );
-        })}
+    <section className='max-w-5xl mx-auto'>
+      <div className='text-center mb-8'>
+        <h2 className='text-3xl font-bold mb-3'>
+          {t('Choose your primary sport')}
+        </h2>
+        <p className='text-muted-foreground text-lg'>
+          {t(
+            'This sets what you see by default after login: dashboard, tables, and stats for the selected sport.'
+          )}
+        </p>
+      </div>
+
+      <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
+        <Card className='lg:col-span-1'>
+          <CardHeader>
+            <CardTitle className='text-xl'>
+              {t('What does this affect?')}
+            </CardTitle>
+            <CardDescription>
+              {t('A few helpful notes before you pick')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='space-y-4 text-sm'>
+            <div>
+              <span className='font-semibold'>{t('Default view')}</span>
+              <p className='text-muted-foreground'>
+                {t(
+                  'We will show this sport first in your dashboard, leaderboards, and lists.'
+                )}
+              </p>
+            </div>
+            <div>
+              <span className='font-semibold'>{t('Not a lock-in')}</span>
+              <p className='text-muted-foreground'>
+                {t('You can play and record matches in all sports anytime.')}
+              </p>
+            </div>
+            <div>
+              <span className='font-semibold'>{t('Easy to change')}</span>
+              <p className='text-muted-foreground'>
+                {t(
+                  'Update this later in Profile → Settings, or switch on the navbar sport selector.'
+                )}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className='lg:col-span-2'>
+          <Card>
+            <CardHeader className='text-center'>
+              <CardTitle className='text-2xl'>
+                {t('Select your primary sport')}
+              </CardTitle>
+              <CardDescription>
+                {t(
+                  'You can change this later — this only controls your default view.'
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+                {(Object.keys(sportConfig) as Sport[]).map((sportKey) => {
+                  const config = sportConfig[sportKey];
+                  return (
+                    <button
+                      key={sportKey}
+                      onClick={() => updateActiveSport(sportKey)}
+                      className='group w-full text-left'
+                      aria-label={t('Set {{sport}} as primary', {
+                        sport: config.name,
+                      })}
+                    >
+                      <div className='h-full rounded-lg border p-6 hover:shadow-xl hover:border-primary transition-all'>
+                        <div
+                          className={`mb-4 ${config.theme.primary} flex items-center justify-center`}
+                        >
+                          {React.cloneElement(
+                            config.icon as React.ReactElement,
+                            {
+                              className: 'h-12 w-12',
+                              'aria-hidden': true,
+                            }
+                          )}
+                        </div>
+                        <div className='text-center'>
+                          <div className='text-xl font-semibold'>
+                            {config.name}
+                          </div>
+                          <p className='text-sm text-muted-foreground mt-1'>
+                            {sportKey === 'pingpong' &&
+                              t(
+                                'Fast rallies and precise spin. Perfect for quick ELO climbs.'
+                              )}
+                            {sportKey === 'tennis' &&
+                              t(
+                                'Singles or doubles. Ranked sets with rich match stats.'
+                              )}
+                            {sportKey === 'badminton' &&
+                              t(
+                                'Lightning pace and tactical net play. Great seasonal ladders.'
+                              )}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+            <CardFooter className='flex flex-col sm:flex-row gap-3 sm:justify-between'>
+              <div className='text-sm text-muted-foreground'>
+                {t('Tip: you can switch sports anytime from the navbar.')}
+              </div>
+              <div className='text-sm'>
+                <span className='text-muted-foreground'>
+                  {t('Want to explore first?')}
+                </span>{' '}
+                <Link href='/rooms' className='text-primary hover:underline'>
+                  {t('Browse rooms')}
+                </Link>
+              </div>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
     </section>
   );
@@ -203,8 +307,7 @@ const Dashboard = () => {
         } else {
           setLastActiveRoom(null);
         }
-      } catch (error) {
-        console.error(`Failed to fetch last active room for ${sport}:`, error);
+      } catch {
         setLastActiveRoom(null);
       } finally {
         setIsFetchingRoom(false);
@@ -221,7 +324,7 @@ const Dashboard = () => {
             <div className='animate-pulse flex items-center space-x-3'>
               <Rocket className='h-6 w-6 text-muted-foreground' />
               <p className='text-muted-foreground'>
-                {t('Searching for your last game...')}
+                {'Searching for your last game...'}
               </p>
             </div>
           </Card>
@@ -331,7 +434,7 @@ const Dashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>
-                {t('Start Playing')} {config.name}!
+                {t('Start Playing')} {sportConfig[sport].name}!
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -349,13 +452,13 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {!isNewForSport && (
+        {!(sportProfile?.wins ?? 0) && !(sportProfile?.losses ?? 0) ? null : (
           <Card
-            className={`shadow-lg bg-gradient-to-br ${config.theme.gradientFrom} ${config.theme.gradientTo} `}
+            className={`shadow-lg bg-gradient-to-br ${sportConfig[sport].theme.gradientFrom} ${sportConfig[sport].theme.gradientTo}`}
           >
             <CardHeader>
               <CardTitle>
-                {config.name} {t('WRAP ’25')}
+                {sportConfig[sport].name} {'WRAP ’25'}
               </CardTitle>
               <CardDescription className='opacity-80'>
                 {t('See your yearly stats summary!')}
@@ -379,13 +482,156 @@ const Dashboard = () => {
   );
 };
 
+const SportsShowcase = () => {
+  const { t } = useTranslation();
+  const sports: Array<{
+    key: Sport;
+    name: string;
+    icon: string;
+    blurb: string;
+  }> = useMemo(
+    () => [
+      {
+        key: 'pingpong',
+        name: 'Ping-Pong',
+        icon: '/brand/icon500-pingpong-png.png',
+        blurb: t('Fast rallies, precise spin, and quick ELO climbs.'),
+      },
+      {
+        key: 'tennis',
+        name: 'Tennis',
+        icon: '/brand/icon500-tennis-png.png',
+        blurb: t('Singles or doubles, ranked sets, and rich match stats.'),
+      },
+      {
+        key: 'badminton',
+        name: 'Badminton',
+        icon: '/brand/icon500-badminton-png.png',
+        blurb: t('Lightning pace, tactical net play, and seasonal ladders.'),
+      },
+    ],
+    [t]
+  );
+
+  return (
+    <section className='mb-20'>
+      <h2 className='text-3xl font-bold text-center mb-10'>
+        {t('What sports can I track?')}
+      </h2>
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-8'>
+        {sports.map((s) => (
+          <Card key={s.key} className='hover:shadow-xl transition-shadow'>
+            <CardHeader className='items-center text-center'>
+              <div className='relative h-24 w-24'>
+                <Image
+                  src={s.icon}
+                  alt={s.name}
+                  fill
+                  className='object-contain'
+                  sizes='96px'
+                  priority
+                />
+              </div>
+              <CardTitle className='text-2xl mt-4'>{s.name}</CardTitle>
+              <CardDescription>{s.blurb}</CardDescription>
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const HowItWorks = () => {
+  const { t } = useTranslation();
+  return (
+    <section className='mb-20'>
+      <h2 className='text-3xl font-bold text-center mb-10'>
+        {t('How Smashlog works')}
+      </h2>
+      <div className='grid grid-cols-1 md:grid-cols-4 gap-6'>
+        <FeatureCard
+          icon={<BarChart2 size={36} />}
+          title={t('ELO for every match')}
+        >
+          {t(
+            'Your rating updates after each ranked match using a fair ELO formula tuned per sport.'
+          )}
+        </FeatureCard>
+        <FeatureCard icon={<Users size={36} />} title={t('Rooms and seasons')}>
+          {t(
+            'Create private rooms with friends, run seasons, and keep separate room and global ratings.'
+          )}
+        </FeatureCard>
+        <FeatureCard icon={<Trophy size={36} />} title={t('Tournaments')}>
+          {t(
+            'Host brackets, track rounds, and crown champions with automatic progress saving.'
+          )}
+        </FeatureCard>
+        <FeatureCard
+          icon={<Handshake size={36} />}
+          title={t('Friends and requests')}
+        >
+          {t(
+            'Send requests, build your network, and quickly add opponents to matches.'
+          )}
+        </FeatureCard>
+      </div>
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mt-6'>
+        <FeatureCard
+          icon={<Medal size={36} />}
+          title={t('Ranks and milestones')}
+        >
+          {t(
+            'Unlock ranks as your ELO grows and follow your best streaks and win rates.'
+          )}
+        </FeatureCard>
+        <FeatureCard icon={<Swords size={36} />} title={t('Match insights')}>
+          {t(
+            'See trends, opponent records, side stats, and performance over time.'
+          )}
+        </FeatureCard>
+        <FeatureCard icon={<Shield size={36} />} title={t('Privacy controls')}>
+          {t('Choose public or private profiles and invite-only rooms.')}
+        </FeatureCard>
+      </div>
+    </section>
+  );
+};
+
 const LandingPage = () => {
   const { t } = useTranslation();
   return (
     <>
+      <section className='mb-16 text-center'>
+        <h2 className='text-4xl sm:text-5xl font-extrabold tracking-tight mb-4 bg-clip-text bg-gradient-to-r from-blue-500 to-violet-600 text-transparent'>
+          {t('Track. Compete. Improve.')}
+        </h2>
+        <p className='max-w-3xl mx-auto text-lg text-muted-foreground sm:text-xl'>
+          {t(
+            'Smashlog is a multi-sport ELO tracker for ping-pong, tennis, and badminton — with rooms, tournaments, stats, and friends.'
+          )}
+        </p>
+        <div className='mt-8 flex flex-col sm:flex-row gap-4 justify-center'>
+          <Button size='lg' asChild>
+            <Link href='/register' className='flex items-center gap-2'>
+              <UserPlus /> {t('Create account')}
+            </Link>
+          </Button>
+          <Button size='lg' variant='secondary' asChild>
+            <Link href='/login' className='flex items-center gap-2'>
+              <LogIn /> {t('Login')}
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      <SportsShowcase />
+      <HowItWorks />
+
       <section className='mb-20'>
         <h2 className='text-3xl font-bold text-center mb-10'>
-          {t('Why Tracker?')}
+          {t('Why Smashlog?')}
         </h2>
         <div className='grid grid-cols-1 md:grid-cols-3 gap-8'>
           <FeatureCard
@@ -414,6 +660,7 @@ const LandingPage = () => {
           </FeatureCard>
         </div>
       </section>
+
       <section className='text-center max-w-lg mx-auto'>
         <Card className='shadow-xl'>
           <CardHeader>
@@ -482,7 +729,7 @@ export default function HomePageWrapper() {
               <h1
                 className={`text-5xl font-extrabold tracking-tight mb-4 sm:text-6xl md:text-7xl bg-clip-text bg-gradient-to-r ${config.theme.gradientFrom} ${config.theme.gradientTo}`}
               >
-                {`Smashlog`}
+                Smashlog
               </h1>
               <p className='max-w-3xl mx-auto text-lg text-muted-foreground sm:text-xl'>
                 {t(

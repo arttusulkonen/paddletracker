@@ -1,3 +1,4 @@
+// src/app/providers.tsx
 'use client';
 
 import { Footer } from '@/components/layout/Footer';

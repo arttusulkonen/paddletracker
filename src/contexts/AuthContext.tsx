@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.tsx
 'use client';
 
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +13,7 @@ import {
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   query,
   setDoc,
@@ -73,6 +75,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsGlobalAdmin(false);
       }
 
+      try {
+        const appSnap = await getDoc(doc(db, 'config', 'app'));
+        const ids = Array.isArray(appSnap.data()?.superAdminIds)
+          ? (appSnap.data()!.superAdminIds as string[])
+          : [];
+        if (ids.includes(firebaseUser.uid)) {
+          setIsGlobalAdmin(true);
+        }
+      } catch {}
+
       const userRef = doc(db, 'users', firebaseUser.uid);
       const unsubProfile = onSnapshot(
         userRef,
@@ -101,6 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               isPublic: true,
               bio: '',
               isDeleted: false,
+              approved: false,
+              approvalReason: '',
+              approvedAt: null,
+              approvedBy: null,
             };
             await setDoc(userRef, initialData);
             setUserProfile(initialData);
@@ -108,12 +124,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
         },
         (error) => {
-          console.error('Profile listener error:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to load profile.',
-            variant: 'destructive',
-          });
           setLoading(false);
         }
       );
@@ -138,9 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return prev;
             });
           },
-          (err) => {
-            console.warn(`Room listener error for ${collName}:`, err);
-          }
+          (err) => {}
         );
       });
 
@@ -169,7 +177,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setRoomRequestCount(total);
           },
           (err) => {
-            console.warn(`Room listener error for ${collName}:`, err);
             perCollCounts.current.delete(collName);
             const total = Array.from(perCollCounts.current.values()).reduce(
               (a, b) => a + b,
@@ -194,15 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await signOut(auth);
-      toast({ title: 'Logged out', description: 'You have been logged out.' });
-    } catch (err) {
-      console.error('Error logging out:', err);
-      toast({
-        title: 'Logout Error',
-        description: 'Failed to log out.',
-        variant: 'destructive',
-      });
-    }
+    } catch (err) {}
   };
 
   const value = useMemo<AuthContextType>(

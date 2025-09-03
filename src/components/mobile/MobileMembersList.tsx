@@ -1,3 +1,4 @@
+// src/components/mobile/MobileMembersList.tsx
 'use client';
 
 import {
@@ -13,7 +14,15 @@ import {
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
 import { Users } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,13 +49,13 @@ export function MobileMembersList({
   initialMembers = [],
 }: MobileMembersListProps) {
   const { t } = useTranslation();
-  const { config } = useSport(); // важное: config зависит от активного спорта
+  const { config, sport } = useSport();
   const [members, setMembers] = React.useState<any[]>(initialMembers);
   const [matches, setMatches] = React.useState<any[]>([]);
+  const [profiles, setProfiles] = React.useState<Record<string, any>>({});
   const [loading, setLoading] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>('regular');
 
-  // 1) live подписка на комнату текущего спорта
   React.useEffect(() => {
     setMembers(initialMembers);
   }, [initialMembers]);
@@ -67,11 +76,11 @@ export function MobileMembersList({
     return () => unsub();
   }, [roomId, config.collections.rooms]);
 
-  // 2) live подписка на матчи текущего спорта (как на десктопе)
   React.useEffect(() => {
     const q = query(
       collection(db, config.collections.matches),
-      where('roomId', '==', roomId)
+      where('roomId', '==', roomId),
+      orderBy('tsIso', 'asc')
     );
     const unsub = onSnapshot(
       q,
@@ -84,11 +93,25 @@ export function MobileMembersList({
     return () => unsub();
   }, [roomId, config.collections.matches]);
 
-  // 3) синхронизация статистики по матчам (wins/losses, rating, MP, adj)
+  React.useEffect(() => {
+    const ids = (members ?? []).map((m: any) => m.userId).filter(Boolean);
+    if (ids.length === 0) {
+      setProfiles({});
+      return;
+    }
+    Promise.all(ids.map((id: string) => getDoc(doc(db, 'users', id)))).then(
+      (snaps) => {
+        const map: Record<string, any> = {};
+        snaps.forEach((s) => {
+          if (s.exists()) map[s.id] = { uid: s.id, ...(s.data() as any) };
+        });
+        setProfiles(map);
+      }
+    );
+  }, [members]);
+
   const computed = React.useMemo(() => {
     const arr = Array.isArray(members) ? members : [];
-
-    // посчитаем победы/поражения и последний room-rating по матчам
     const matchStats: Record<string, { wins: number; losses: number }> = {};
     const latestRoomRatings: Record<string, number> = {};
 
@@ -105,14 +128,12 @@ export function MobileMembersList({
         else matchStats[id].losses++;
       });
 
-      // последние рейтинги внутри комнаты
       if (m.player1?.roomNewRating != null)
         latestRoomRatings[p1] = Number(m.player1.roomNewRating);
       if (m.player2?.roomNewRating != null)
         latestRoomRatings[p2] = Number(m.player2.roomNewRating);
     });
 
-    // вычислим среднее MP — нужно для adj
     const rawTotals = arr.map((p: any) => {
       const ms = matchStats[p.userId];
       const wins = ms?.wins ?? Number(p.wins ?? 0);
@@ -135,23 +156,22 @@ export function MobileMembersList({
       const losses = ms?.losses ?? Number(p.losses ?? 0);
       const totalMatches = wins + losses;
 
-      // возьмём самый свежий room-rating (если есть), иначе из member
       const rating = latestRoomRatings[p.userId] ?? Number(p.rating ?? 1000);
 
-      const ratingVisible =
-        typeof p.ratingVisible === 'boolean' ? p.ratingVisible : true;
-
-      // ELO для ранга: globalElo → rating → 1000
-      const globalEloNum = Number.isFinite(p.globalElo)
-        ? Number(p.globalElo)
-        : Number.isFinite(rating)
-        ? Number(rating)
-        : 1000;
+      const prof = profiles[p.userId];
+      const sportElo = prof?.sports?.[sport]?.globalElo;
+      const globalEloNum =
+        Number.isFinite(sportElo) && sportElo !== undefined
+          ? Number(sportElo)
+          : Number.isFinite(p.globalElo)
+          ? Number(p.globalElo)
+          : Number.isFinite(rating)
+          ? Number(rating)
+          : 1000;
 
       const winPct =
-        totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
+        totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : '0.0';
 
-      // Δ внутри комнаты (если сервер не хранит deltaRoom — считаем от 1000)
       const deltaRoom =
         Number.isFinite(p.deltaRoom) && p.deltaRoom !== null
           ? Number(p.deltaRoom)
@@ -159,9 +179,10 @@ export function MobileMembersList({
 
       return {
         ...p,
-        name: p.name ?? '—',
+        name: prof?.name ?? prof?.displayName ?? p.name ?? '—',
+        photoURL: prof?.photoURL ?? p.photoURL,
         rating,
-        ratingVisible,
+        ratingVisible: totalMatches >= 5,
         globalEloNum,
         wins,
         losses,
@@ -171,7 +192,7 @@ export function MobileMembersList({
         adjPointsLive: adj(deltaRoom, totalMatches),
       };
     });
-  }, [members, matches]);
+  }, [members, matches, profiles, sport]);
 
   const sorted = React.useMemo(() => {
     if (viewMode === 'regular') {
@@ -181,9 +202,12 @@ export function MobileMembersList({
         return (b.rating ?? 0) - (a.rating ?? 0);
       });
     }
-    return [...computed].sort(
-      (a, b) => (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0)
-    );
+    return [...computed].sort((a, b) => {
+      const aZero = (a.totalMatches ?? 0) === 0;
+      const bZero = (b.totalMatches ?? 0) === 0;
+      if (aZero !== bZero) return aZero ? 1 : -1;
+      return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
+    });
   }, [computed, viewMode]);
 
   return (
@@ -193,7 +217,6 @@ export function MobileMembersList({
           <CardTitle className='text-xl flex items-center gap-2'>
             <Users className='h-5 w-5' /> {t('Members')} ({members.length})
           </CardTitle>
-
           <div className='flex gap-2'>
             <Button
               size='sm'
@@ -220,22 +243,21 @@ export function MobileMembersList({
           </div>
         </div>
       </CardHeader>
-
       <CardContent>
         {loading ? (
           <div className='text-center py-6'>{t('Loading…')}</div>
         ) : (
-          <ScrollArea className='border rounded-md p-2 bg-background max-h-[60vh]'>
+          <ScrollArea className='border rounded-md p-2 bg-background max-h-[60vh] overflow-auto'>
             {sorted.map((p: any) => {
               const rightValue =
                 viewMode === 'regular'
                   ? p.ratingVisible && typeof p.rating === 'number'
                     ? `${Math.round(p.rating)} ${t('pts')}`
                     : '—'
+                  : (p.totalMatches ?? 0) === 0
+                  ? '—'
                   : `${(p.adjPointsLive ?? 0).toFixed(2)} ${t('adj')}`;
-
               const rank = getRank(p.globalEloNum ?? 1000, t);
-
               return (
                 <div
                   key={p.userId}
@@ -257,7 +279,6 @@ export function MobileMembersList({
                           </span>
                         )}
                       </div>
-
                       <p className='text-xs text-muted-foreground truncate'>
                         {t('MP')} {p.totalMatches ?? 0} · {t('W%')} {p.winPct}%
                         · {t('ELO')} {(p.globalEloNum ?? 0).toFixed(0)}
@@ -271,13 +292,11 @@ export function MobileMembersList({
                           </>
                         )}
                       </p>
-
                       <p className='text-[10px] text-muted-foreground truncate'>
                         {t('Rank')} {rank}
                       </p>
                     </div>
                   </div>
-
                   <span
                     className={`text-sm font-semibold text-right w-24 flex-shrink-0 ${
                       viewMode === 'liveFinal'

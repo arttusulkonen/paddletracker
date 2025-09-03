@@ -1,3 +1,4 @@
+// src/app/tournaments/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -91,9 +92,7 @@ export default function TournamentRoomsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [peopleSearch, setPeopleSearch] = useState('');
 
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
+  useEffect(() => setHasMounted(true), []);
 
   useEffect(() => {
     if (!user || !tournamentsEnabled) {
@@ -101,22 +100,23 @@ export default function TournamentRoomsPage() {
       return;
     }
     const col = collection(db, 'tournament-rooms');
-    const unsub = onSnapshot(
+    const qSub = query(
       col,
+      where('participantsIds', 'array-contains', user.uid)
+    );
+    const unsub = onSnapshot(
+      qSub,
       (snap) => {
         const arr = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
         const arrBySport = arr.filter(
           (t: any) => t.sport === sport || (!t.sport && sport === 'pingpong')
         );
-        const filtered = arrBySport.filter((t) =>
-          (t.participants ?? []).some((p: any) => p.userId === user.uid)
-        );
-        filtered.sort(
+        arrBySport.sort(
           (a: any, b: any) =>
             parseFlexDate(b.createdAt).getTime() -
             parseFlexDate(a.createdAt).getTime()
         );
-        setTournaments(filtered);
+        setTournaments(arrBySport as TournamentRoom[]);
         setIsLoading(false);
       },
       () => {
@@ -139,18 +139,18 @@ export default function TournamentRoomsPage() {
       const loaded = await Promise.all(
         ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
       );
-      setFriends(loaded);
+      setFriends(loaded.filter(Boolean) as UserProfile[]);
     });
     return () => unsub();
   }, [user]);
 
   useEffect(() => {
     if (!user || !tournamentsEnabled) return;
-    const q = query(
+    const qRooms = query(
       collection(db, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid)
     );
-    const unsub = onSnapshot(q, async (snap) => {
+    const unsub = onSnapshot(qRooms, async (snap) => {
       const idsSet = new Set<string>();
       snap.docs.forEach((d) =>
         (d.data().memberIds ?? []).forEach((uid: string) => {
@@ -171,7 +171,7 @@ export default function TournamentRoomsPage() {
         const f = friends.find((x) => x.uid === uid);
         if (f) map.set(uid, f);
       });
-      loadedMissing.forEach((p) => map.set(p.uid, p as UserProfile));
+      loadedMissing.forEach((p) => p && map.set(p.uid, p as UserProfile));
 
       setCoPlayers(Array.from(map.values()));
     });
@@ -313,6 +313,9 @@ export default function TournamentRoomsPage() {
           return { userId: uid, name: p.name ?? p.displayName ?? '' };
         }),
       ]).map((p, i) => ({ ...p, seed: i + 1 }));
+
+      const participantsIds = participants.map((p) => p.userId);
+
       const bracket: any = {
         stage: 'inProgress',
         currentRound: 0,
@@ -342,7 +345,8 @@ export default function TournamentRoomsPage() {
         ],
       };
       seedKnockoutRounds(bracket, []);
-      const ref = await addDoc(collection(db, 'tournament-rooms'), {
+
+      const refDoc = await addDoc(collection(db, 'tournament-rooms'), {
         name: name.trim(),
         description: description.trim(),
         avatarURL,
@@ -350,22 +354,27 @@ export default function TournamentRoomsPage() {
         creator: user.uid,
         sport,
         participants,
+        participantsIds,
         bracket,
         champion: null,
         isFinished: false,
       });
+
       await updateDoc(doc(db, 'users', user.uid), {
-        tournaments: arrayUnion(ref.id),
+        tournaments: arrayUnion(refDoc.id),
       });
       await Promise.all(
         selected.map((uid) =>
-          updateDoc(doc(db, 'users', uid), { tournaments: arrayUnion(ref.id) })
+          updateDoc(doc(db, 'users', uid), {
+            tournaments: arrayUnion(refDoc.id),
+          })
         )
       );
+
       toast({ title: t('Tournament created') });
       setDialogOpen(false);
       resetForm();
-      router.push(`/tournaments/${ref.id}`);
+      router.push(`/tournaments/${refDoc.id}`);
     } catch {
       toast({
         title: t('Error'),
@@ -421,6 +430,7 @@ export default function TournamentRoomsPage() {
           <h1 className='text-4xl font-bold flex items-center gap-2'>
             <UsersIcon className='h-8 w-8 text-primary' /> {t('Tournaments')}
           </h1>
+
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -434,6 +444,7 @@ export default function TournamentRoomsPage() {
                   {t('Give it a name, choose size and pick participants')}
                 </DialogDescription>
               </DialogHeader>
+
               <div className='space-y-5 py-4'>
                 <div className='flex flex-col items-center gap-4'>
                   <Avatar className='h-24 w-24'>
@@ -513,11 +524,9 @@ export default function TournamentRoomsPage() {
                 </div>
 
                 <div className='space-y-2'>
-                  <p className='text-sm font-medium'>
-                    {`${t('Select participants')} (${
-                      selected.length + 1
-                    }/${playerCount})`}
-                  </p>
+                  <p className='text-sm font-medium'>{`${t(
+                    'Select participants'
+                  )} (${selected.length + 1}/${playerCount})`}</p>
                   <Input
                     value={peopleSearch}
                     onChange={(e) => setPeopleSearch(e.target.value)}
@@ -610,6 +619,7 @@ export default function TournamentRoomsPage() {
                   </ScrollArea>
                 </div>
               </div>
+
               <DialogFooter>
                 <Button onClick={createTournament} disabled={creating}>
                   {creating ? t('Creating…') : t('Create')}
@@ -618,6 +628,7 @@ export default function TournamentRoomsPage() {
             </DialogContent>
           </Dialog>
         </div>
+
         <Card className='shadow-lg'>
           <CardHeader>
             <div className='relative w-full max-w-md'>

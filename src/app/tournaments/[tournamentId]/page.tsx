@@ -1,4 +1,6 @@
+// src/app/tournaments/[tournamentId]/page.tsx
 'use client';
+
 import BracketView from '@/components/BracketView';
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import { TournamentHeader } from '@/components/tournaments/TournamentHeader';
@@ -24,7 +26,7 @@ export default function TournamentPage() {
   const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
-  const tournamentId = params.tournamentId;
+  const tournamentId = params.tournamentId as string;
   const { user } = useAuth();
   const { toast } = useToast();
   const { sport } = useSport();
@@ -34,31 +36,54 @@ export default function TournamentPage() {
   const [loading, setLoading] = useState(true);
   const [hasMounted, setHasMounted] = useState(false);
 
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
+  useEffect(() => setHasMounted(true), []);
 
   const fetchTournament = useCallback(async () => {
     if (!tournamentId || !tournamentsEnabled) return;
     setLoading(true);
     try {
-      const snap = await getDoc(
-        doc(db, 'tournament-rooms', tournamentId as string)
-      );
-      if (snap.exists()) {
-        const data = { id: snap.id, ...(snap.data() as any) } as any;
-        if (data.sport && data.sport !== sport) {
-          throw new Error('Wrong sport');
-        }
-        setTournament(data);
-      } else {
+      const snap = await getDoc(doc(db, 'tournament-rooms', tournamentId));
+      if (!snap.exists()) {
         toast({
           title: t('Error'),
           description: t('Tournament not found'),
           variant: 'destructive',
         });
         router.push('/tournaments');
+        return;
       }
+      const data = {
+        id: snap.id,
+        ...(snap.data() as any),
+      } as TournamentRoom & { participantsIds?: string[] };
+
+      if (data.sport && data.sport !== sport) {
+        toast({
+          title: t('Error'),
+          description: t('Tournament does not belong to this sport'),
+          variant: 'destructive',
+        });
+        router.push('/tournaments');
+        return;
+      }
+
+      const viewerId = user?.uid ?? '';
+      const isParticipant = Array.isArray(data.participantsIds)
+        ? data.participantsIds.includes(viewerId)
+        : (data.participants ?? []).some((p: any) => p.userId === viewerId);
+      const isCreator = data.creator === viewerId;
+
+      if (!isParticipant && !isCreator) {
+        toast({
+          title: t('Access denied'),
+          description: t('You do not have access to this tournament.'),
+          variant: 'destructive',
+        });
+        router.push('/tournaments');
+        return;
+      }
+
+      setTournament(data as TournamentRoom);
     } catch (err) {
       console.error(err);
       toast({
@@ -70,7 +95,7 @@ export default function TournamentPage() {
     } finally {
       setLoading(false);
     }
-  }, [tournamentId, router, toast, t, tournamentsEnabled, sport]);
+  }, [tournamentId, router, toast, t, tournamentsEnabled, sport, user?.uid]);
 
   useEffect(() => {
     if (hasMounted && tournamentsEnabled) {

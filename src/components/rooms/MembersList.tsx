@@ -100,9 +100,12 @@ export function MembersList({
         return (b.rating ?? 0) - (a.rating ?? 0);
       });
     }
-    return [...computed].sort(
-      (a, b) => (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0)
-    );
+    return [...computed].sort((a, b) => {
+      const aZero = (a.totalMatches ?? 0) === 0;
+      const bZero = (b.totalMatches ?? 0) === 0;
+      if (aZero !== bZero) return aZero ? 1 : -1;
+      return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
+    });
   }, [computed, viewMode]);
 
   const canRemovePlayers = isCreator || canManage;
@@ -150,6 +153,8 @@ export function MembersList({
               ? p.ratingVisible && typeof p.rating === 'number'
                 ? `${Math.round(p.rating)} ${t('pts')}`
                 : '—'
+              : (p.totalMatches ?? 0) === 0
+              ? '—'
               : `${(p.adjPointsLive ?? 0).toFixed(2)} ${t('adj')}`;
           return (
             <div

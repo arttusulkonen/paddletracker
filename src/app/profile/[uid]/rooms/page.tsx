@@ -127,12 +127,11 @@ export default function UserRoomsPage() {
         });
 
         filteredRooms.sort((a, b) => {
-          const getScore = (r: Room) => {
-            if (r.isArchived) return 2;
-            if ((r.seasonHistory?.length ?? 0) > 0) return 1;
-            return 0;
-          };
-          return getScore(a) - getScore(b);
+          const getScore = (r: Room) =>
+            r.isArchived ? 2 : (r.seasonHistory?.length ?? 0) > 0 ? 1 : 0;
+          const byState = getScore(a) - getScore(b);
+          if (byState !== 0) return byState;
+          return a.name.localeCompare(b.name);
         });
 
         setRooms(filteredRooms);

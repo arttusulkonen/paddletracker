@@ -1,61 +1,46 @@
 // src/app/rooms/page.tsx
 'use client';
+
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import { CreateRoomDialog } from '@/components/rooms/CreateRoomDialog';
 import { RoomCard } from '@/components/rooms/RoomCard';
 import {
-  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-  Checkbox,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
   Input,
-  Label,
-  ScrollArea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { getUserLite } from '@/lib/friends';
-import { getSuperAdminIds, withSuperAdmins } from '@/lib/superAdmins';
 import type { Room, UserProfile } from '@/lib/types';
-import { getFinnishFormattedDate } from '@/lib/utils';
 import { parseFlexDate } from '@/lib/utils/date';
 import {
-  addDoc,
-  arrayUnion,
   collection,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
   query,
-  updateDoc,
   where,
 } from 'firebase/firestore';
-import { PlusCircle, SearchIcon, UsersIcon } from 'lucide-react';
+import { SearchIcon, UsersIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function RoomsPage() {
   const { t } = useTranslation();
-  const { user, userProfile } = useAuth();
-  const { sport, config } = useSport();
+  const { user } = useAuth();
+  const { config } = useSport();
   const { toast } = useToast();
 
-  const [allRooms, setAllRooms] = useState<(Room & { isFinished?: boolean })[]>(
-    []
-  );
+  const [allRooms, setAllRooms] = useState<
+    (Room & { isFinished?: boolean; creatorName?: string; createdRaw?: any })[]
+  >([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [myMatches, setMyMatches] = useState<Record<string, number>>({});
@@ -63,9 +48,8 @@ export default function RoomsPage() {
   const [hasMounted, setHasMounted] = useState(false);
 
   const [friends, setFriends] = useState<UserProfile[]>([]);
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
+
+  useEffect(() => setHasMounted(true), []);
 
   useEffect(() => {
     if (!user) {
@@ -79,26 +63,37 @@ export default function RoomsPage() {
 
     const processRooms = async (
       roomMap: Map<string, any>
-    ): Promise<(Room & { isFinished?: boolean })[]> => {
-      let list = Array.from(roomMap.values());
+    ): Promise<
+      (Room & {
+        isFinished?: boolean;
+        creatorName?: string;
+        createdRaw?: any;
+      })[]
+    > => {
+      const list = Array.from(roomMap.values());
+
+      // resolve creator names
       const creatorIds = [
         ...new Set(list.map((r) => r.creator).filter(Boolean)),
       ];
       const creatorNameMap: Record<string, string> = {};
-
       if (creatorIds.length > 0) {
         const creatorDocs = await Promise.all(
           creatorIds.map((uid) => getDoc(doc(db, 'users', uid)))
         );
         creatorDocs.forEach((snap) => {
-          if (snap.exists())
-            creatorNameMap[snap.id] = snap.data().name || t('Unknown');
+          if (snap.exists()) {
+            const data = snap.data() as any;
+            creatorNameMap[snap.id] =
+              data.name || data.displayName || t('Unknown');
+          }
         });
       }
 
+      // my rating in each room
       const ratingMap: Record<string, number> = {};
       list.forEach((r) => {
-        const me = r.members.find((m: any) => m.userId === user.uid);
+        const me = (r.members ?? []).find((m: any) => m.userId === user.uid);
         ratingMap[r.id] = me?.rating ?? 0;
       });
       setRoomRating(ratingMap);
@@ -107,7 +102,7 @@ export default function RoomsPage() {
         ...data,
         id: data.id,
         creatorName: creatorNameMap[data.creator] || data.creatorName,
-        createdRaw: data.createdAt || data.roomCreated || '',
+        createdRaw: data.createdAt || data.roomCreated || data.created || '',
         isFinished: (data.seasonHistory?.length ?? 0) > 0,
       }));
     };
@@ -139,21 +134,21 @@ export default function RoomsPage() {
       unsubMy();
       unsubPublic();
     };
-  }, [user, t, sport, config.collections.rooms]);
+  }, [user, t, config.collections.rooms]);
 
   const loadMyCounts = useCallback(
     async (roomsToLoad: Room[]) => {
-      if (!user || !roomsToLoad.length) return;
+      if (!user || roomsToLoad.length === 0) return;
       const matchesCollectionName = config.collections.matches;
       const res: Record<string, number> = {};
       await Promise.all(
         roomsToLoad.map(async (r) => {
-          const q = query(
+          const qy = query(
             collection(db, matchesCollectionName),
             where('roomId', '==', r.id),
             where('players', 'array-contains', user.uid)
           );
-          const snap = await getDocs(q);
+          const snap = await getDocs(qy);
           res[r.id] = snap.size;
         })
       );
@@ -163,19 +158,17 @@ export default function RoomsPage() {
   );
 
   useEffect(() => {
-    if (allRooms.length > 0) {
-      loadMyCounts(allRooms);
-    }
+    if (allRooms.length > 0) loadMyCounts(allRooms);
   }, [allRooms, loadMyCounts]);
 
-  // Friend/Co-player logic for create dialog
+  // friends for CreateRoomDialog context (kept as-is)
   useEffect(() => {
     if (!user) return;
     const unsubFriends = onSnapshot(
       doc(db, 'users', user.uid),
       async (snap) => {
         if (!snap.exists()) return setFriends([]);
-        const ids: string[] = snap.data().friends ?? [];
+        const ids: string[] = (snap.data() as any).friends ?? [];
         const loaded = await Promise.all(
           ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
         );
@@ -185,24 +178,29 @@ export default function RoomsPage() {
     return () => unsubFriends();
   }, [user]);
 
-  const inviteCandidates = useMemo(() => {
-    return friends.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-  }, [friends]);
-
   const displayRooms = useMemo(() => {
     const filtered = allRooms.filter(
       (r) =>
         r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.creatorName ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     );
-    return filtered.sort((a, b) => {
-      const getScore = (r: Room & { isFinished?: boolean }) => {
-        if (r.isArchived) return 2;
-        if (r.isFinished) return 1;
-        return 0;
-      };
-      return getScore(a) - getScore(b);
-    });
+
+    // sort strictly by creation date: newest first
+    const ts = (x: any) => {
+      const raw =
+        x.createdAt ?? x.createdRaw ?? x.roomCreated ?? x.created ?? '';
+      if (raw?.toDate) return raw.toDate().getTime();
+      if (typeof raw === 'string') {
+        try {
+          return parseFlexDate(raw).getTime();
+        } catch {
+          return 0;
+        }
+      }
+      return 0;
+    };
+
+    return filtered.sort((a, b) => ts(b) - ts(a));
   }, [allRooms, searchTerm]);
 
   if (!hasMounted) return null;
@@ -217,6 +215,7 @@ export default function RoomsPage() {
           </h1>
           <CreateRoomDialog />
         </div>
+
         <Card className='mb-8 shadow-lg'>
           <CardHeader>
             <CardTitle>{t('Your Rooms')}</CardTitle>
@@ -243,7 +242,7 @@ export default function RoomsPage() {
                 {displayRooms.map((r) => (
                   <RoomCard
                     key={r.id}
-                    room={r}
+                    room={r as Room}
                     myMatches={myMatches[r.id]}
                     myRating={roomRating[r.id]}
                   />

@@ -424,14 +424,18 @@ function LiveFinalStandings({ players, sport, t }: any) {
       adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM),
     }));
 
-    withAdj.sort(
-      (a: any, b: any) =>
+    withAdj.sort((a: any, b: any) => {
+      const aZero = (a.matchesPlayed ?? 0) === 0;
+      const bZero = (b.matchesPlayed ?? 0) === 0;
+      if (aZero !== bZero) return aZero ? 1 : -1;
+      return (
         b.adjPoints - a.adjPoints ||
         b.totalAddedPoints - a.totalAddedPoints ||
         b.wins - a.wins ||
         a.losses - b.losses ||
         b.longestWinStreak - a.longestWinStreak
-    );
+      );
+    });
 
     return withAdj.map((r: any, i: number) => ({ ...r, place: i + 1 }));
   }, [players]);
@@ -539,7 +543,11 @@ function LiveFinalStandings({ players, sport, t }: any) {
                 <TableCell>{r.longestWinStreak ?? '—'}</TableCell>
                 <TableCell>{r.roomRating?.toFixed(0) ?? '—'}</TableCell>
                 <TableCell>{r.totalAddedPoints?.toFixed(0) ?? '—'}</TableCell>
-                <TableCell>{r.adjPoints?.toFixed(2) ?? '—'}</TableCell>
+                <TableCell>
+                  {(r.matchesPlayed ?? 0) === 0
+                    ? '—'
+                    : r.adjPoints?.toFixed(2) ?? '—'}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -548,7 +556,7 @@ function LiveFinalStandings({ players, sport, t }: any) {
 
       <p className='text-xs text-muted-foreground mt-3'>
         {t(
-          "Live Final is a preview of final standings if the season ended right now. It uses the same 'Adjusted Pts' formula as at season close: Total Δ × √(your games / room average). This prevents very low-activity players from winning only due to a perfect small sample."
+          'Adjusted Pts = Total Δ × √(Games / avgGames). This multiplier balances performance with activity: if you play about the room-average number of games, the multiplier ≈ 1 (same as dividing by 1); if you play ~4× the average, the multiplier ≈ 2 (same as dividing by 0.5); if you play ~¼ of the average, the multiplier ≈ 0.5 (same as dividing by 2). Example: suppose avgGames = 40. Player A: 80 games, Total Δ = +30 ⇒ √(80/40) = √2 ≈ 1.41 ⇒ Adjusted Pts ≈ 30 × 1.41 = 42.3. Player B: 20 games, Total Δ = +30 ⇒ √(20/40) = √0.5 ≈ 0.71 ⇒ Adjusted Pts ≈ 30 × 0.71 = 21.2. Live Final shows where players would rank right now using this same rule.'
         )}
       </p>
     </div>

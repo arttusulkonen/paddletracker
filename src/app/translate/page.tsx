@@ -24,10 +24,10 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next'; // 1. Импортируем хук
+import { useTranslation } from 'react-i18next';
 
 export default function TranslatePage() {
-  const { t } = useTranslation(); // 2. Инициализируем t
+  const { t } = useTranslation(); 
   const { toast } = useToast();
   const [selectedLang, setSelectedLang] = useState('ru');
   const [baseTranslations, setBaseTranslations] = useState<

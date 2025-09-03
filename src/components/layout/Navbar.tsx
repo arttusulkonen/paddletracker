@@ -17,6 +17,7 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
+import { getSuperAdminIds } from '@/lib/superAdmins';
 import { cn } from '@/lib/utils';
 import {
   Bell,
@@ -24,6 +25,7 @@ import {
   HomeIcon,
   LogIn,
   Menu,
+  ShieldCheck,
   TrophyIcon,
   UserCircle,
   UsersIcon,
@@ -34,7 +36,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const MobileNav = ({ user, t }: { user: any; t: (key: string) => string }) => {
+const MobileNav = ({
+  user,
+  t,
+  isSuperAdmin,
+}: {
+  user: any;
+  t: (key: string) => string;
+  isSuperAdmin: boolean;
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const { sport, setSport } = useSport();
   const { i18n } = useTranslation();
@@ -77,6 +87,11 @@ const MobileNav = ({ user, t }: { user: any; t: (key: string) => string }) => {
                 <NavLink href='/tournaments' onClick={() => setIsOpen(false)}>
                   <TrophyIcon /> {t('Tournaments')}
                 </NavLink>
+                {isSuperAdmin && (
+                  <NavLink href='/admin/users' onClick={() => setIsOpen(false)}>
+                    <ShieldCheck /> {t('Admin')}
+                  </NavLink>
+                )}
               </>
             )}
           </div>
@@ -178,10 +193,30 @@ export function Navbar() {
   const router = useRouter();
   const { sport, setSport, config } = useSport();
   const [hasMounted, setHasMounted] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      if (!user) {
+        setIsSuperAdmin(false);
+        return;
+      }
+      try {
+        const ids = await getSuperAdminIds();
+        if (!canceled) setIsSuperAdmin(ids.includes(user.uid));
+      } catch {
+        if (!canceled) setIsSuperAdmin(false);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -209,7 +244,7 @@ export function Navbar() {
     <header className='bg-card border-b sticky top-0 z-50 shadow-sm'>
       <div className='container mx-auto px-4 h-16 flex items-center justify-between'>
         <div className='flex items-center gap-4'>
-          <MobileNav user={user} t={t} />
+          <MobileNav user={user} t={t} isSuperAdmin={isSuperAdmin} />
           <Link
             href='/'
             aria-label={`${config.name}Tracker`}
@@ -270,12 +305,17 @@ export function Navbar() {
           <nav className='hidden md:flex items-center gap-2'>
             {user && (
               <>
-                <NavLink href='/rooms'>
+                <NavLink href='/rooms' onClick={() => setIsOpen(false)}>
                   <UsersIcon /> {t('Rooms')}
                 </NavLink>
-                <NavLink href='/tournaments'>
+                <NavLink href='/tournaments' onClick={() => setIsOpen(false)}>
                   <TrophyIcon /> {t('Tournaments')}
                 </NavLink>
+                <AdminOnly>
+                  <NavLink href='/admin/users' onClick={() => setIsOpen(false)}>
+                    <UsersIcon /> Admin
+                  </NavLink>
+                </AdminOnly>
               </>
             )}
           </nav>
@@ -284,16 +324,18 @@ export function Navbar() {
         <nav className='flex items-center gap-1 sm:gap-2'>
           <div className='hidden md:block'>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant='ghost'
-                  className='flex items-center gap-2'
-                  aria-label='Change sport'
-                >
-                  {config.icon}
-                  <span className='hidden sm:inline'>{config.name}</span>
-                </Button>
-              </DropdownMenuTrigger>
+              {user && (
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    className='flex items-center gap-2'
+                    aria-label='Change sport'
+                  >
+                    {config.icon}
+                    <span className='hidden sm:inline'>{config.name}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+              )}
               <DropdownMenuContent align='end'>
                 {Object.keys(sportConfig).map((sportKey) => (
                   <DropdownMenuItem
@@ -393,6 +435,14 @@ export function Navbar() {
                       <span>{t('Profile')}</span>
                     </Link>
                   </DropdownMenuItem>
+                  {isSuperAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href='/admin/users'>
+                        <ShieldCheck className='mr-2' />
+                        <span>{t('Admin')}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogIn className='mr-2' />
                     <span>{t('Log out')}</span>
@@ -414,4 +464,9 @@ export function Navbar() {
       </div>
     </header>
   );
+}
+
+function AdminOnly({ children }: { children: React.ReactNode }) {
+  const { isGlobalAdmin } = useAuth();
+  return isGlobalAdmin ? <>{children}</> : null;
 }

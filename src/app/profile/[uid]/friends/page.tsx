@@ -29,9 +29,9 @@ function FriendListItem({ friend }: { friend: UserProfile & { uid: string } }) {
         <CardContent className='p-4 flex items-center gap-4'>
           <Avatar className='h-12 w-12'>
             <AvatarImage src={friend.photoURL ?? undefined} />
-            <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{(friend.name || friend.displayName || '?').charAt(0)}</AvatarFallback>
           </Avatar>
-          <p className='font-semibold'>{friend.name}</p>
+          <p className='font-semibold'>{friend.name || friend.displayName || 'Unknown Friend'}</p>
         </CardContent>
       </Card>
     </Link>
@@ -62,7 +62,13 @@ export default function UserFriendsPage() {
             const friendData = await Friends.getMultipleUsersLite(
               profile.friends
             );
-            setFriends(friendData.sort((a, b) => a.name.localeCompare(b.name)));
+            setFriends(
+              friendData.sort((a, b) => {
+                const an = a.name || a.displayName || '';
+                const bn = b.name || b.displayName || '';
+                return an.localeCompare(bn);
+              })
+            );
           } else {
             setFriends([]);
           }
