@@ -92,10 +92,16 @@ export default function LoginPage() {
         data.password
       );
 
-      const snap = await getDoc(doc(db, 'users', cred.user.uid));
-      const approved = snap.exists() ? !!(snap.data() as any).approved : false;
+      // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
 
-      if (!approved) {
+      const snap = await getDoc(doc(db, 'users', cred.user.uid));
+      const userData = snap.exists() ? (snap.data() as any) : null;
+
+      // Блокируем вход, ТОЛЬКО если поле 'approved' существует и равно 'false'.
+      // Если поле 'approved' равно 'true' или 'undefined' (отсутствует), вход разрешен.
+      const isPending = userData && userData.approved === false;
+
+      if (isPending) {
         await signOut(auth);
         router.replace('/login?pending=1');
         toast({
@@ -105,11 +111,31 @@ export default function LoginPage() {
           ),
           variant: 'destructive',
         });
-        return;
+        return; // Останавливаем выполнение
       }
 
+      // Дополнительная проверка: если аутентификация прошла, а документа нет
+      if (!userData) {
+        await signOut(auth);
+        console.error(
+          'Login error: User authenticated but no document found in Firestore.',
+          cred.user.uid
+        );
+        toast({
+          title: t('Login Failed'),
+          description: t(
+            'Your user profile could not be found. Please contact support.'
+          ),
+          variant: 'destructive',
+        });
+        return; // Останавливаем выполнение
+      }
+
+      // Вход успешен (для approved: true и approved: undefined)
       toast({ title: t('Login Successful'), description: t('Welcome back!') });
       router.push(next);
+
+      // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
     } catch (error: any) {
       let errorMessage = t('An unexpected error occurred. Please try again.');
       if (

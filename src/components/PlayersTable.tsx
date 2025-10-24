@@ -38,7 +38,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { BarChartHorizontal, Shield, Users } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface PlayersTableProps {
@@ -53,6 +53,7 @@ type PlayerData = {
   wins: number;
   losses: number;
   isFriend: boolean;
+  isSelf?: boolean;
 };
 
 const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
@@ -73,87 +74,90 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           orderBy(`sports.${sport}.globalElo`, 'desc'),
           limit(100)
         );
-
         const querySnapshot = await getDocs(q);
-        const fetchedPlayers: PlayerData[] = [];
         const friends = new Set(userProfile?.friends || []);
-
-        querySnapshot.forEach((doc) => {
-          const data = doc.data() as UserProfile;
-          if (data.isDeleted) {
-            return;
-          }
-
-          const sportData = data.sports?.[sport];
-
+        const fetchedPlayers: PlayerData[] = [];
+        querySnapshot.forEach((d) => {
+          const data = d.data() as UserProfile;
+          if (data.isDeleted) return;
+          const s = data.sports?.[sport];
           fetchedPlayers.push({
-            id: doc.id,
+            id: d.id,
             name: data.name || data.displayName || 'Anonymous',
             photoURL: data.photoURL,
-            globalElo: sportData?.globalElo ?? 1000,
-            wins: sportData?.wins ?? 0,
-            losses: sportData?.losses ?? 0,
-            isFriend: friends.has(doc.id),
+            globalElo: s?.globalElo ?? 1000,
+            wins: s?.wins ?? 0,
+            losses: s?.losses ?? 0,
+            isFriend: friends.has(d.id),
           });
         });
-
         setPlayers(fetchedPlayers);
-      } catch (error) {
-        console.error('Error fetching players:', error);
+      } catch {
         setPlayers([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchPlayers();
   }, [userProfile, sport]);
 
   useEffect(() => {
     const fetchFriends = async () => {
-      if (!userProfile?.friends || userProfile.friends.length === 0) {
+      if (!userProfile) {
         setMyCirclesPlayers([]);
         setLoadingFriends(false);
         return;
       }
-
       setLoadingFriends(true);
       try {
-        const friendProfiles = await Friends.getMultipleUsersLite(
-          userProfile.friends
-        );
-        const friendData: PlayerData[] = friendProfiles
-          .map((friend) => {
-            const sportData = friend.sports?.[sport];
-            const effectiveSportData = sportData || {
-              globalElo: 1000,
-              wins: 0,
-              losses: 0,
-            };
-
-            return {
-              id: friend.uid,
-              name: friend.name || friend.displayName || 'Anonymous',
-              photoURL: friend.photoURL,
-              globalElo: effectiveSportData.globalElo ?? 1000,
-              wins: effectiveSportData.wins ?? 0,
-              losses: effectiveSportData.losses ?? 0,
-              isFriend: true,
-            };
-          })
-          .filter(Boolean) as PlayerData[];
-
-        friendData.sort((a, b) => b.globalElo - a.globalElo);
-
-        setMyCirclesPlayers(friendData);
-      } catch (error) {
-        console.error('Error fetching friends:', error);
+        const friendIds = userProfile.friends || [];
+        const friendProfiles =
+          friendIds.length > 0
+            ? await Friends.getMultipleUsersLite(friendIds)
+            : [];
+        const list: PlayerData[] = [];
+        for (const friend of friendProfiles) {
+          const s = friend.sports?.[sport] || {
+            globalElo: 1000,
+            wins: 0,
+            losses: 0,
+          };
+          list.push({
+            id: friend.uid,
+            name: friend.name || friend.displayName || 'Anonymous',
+            photoURL: friend.photoURL,
+            globalElo: s.globalElo ?? 1000,
+            wins: s.wins ?? 0,
+            losses: s.losses ?? 0,
+            isFriend: true,
+          });
+        }
+        const selfSport = userProfile.sports?.[sport] || {
+          globalElo: 1000,
+          wins: 0,
+          losses: 0,
+        };
+        const selfEntry: PlayerData = {
+          id: userProfile.uid,
+          name: userProfile.name || userProfile.displayName || 'Me',
+          photoURL: userProfile.photoURL,
+          globalElo: selfSport.globalElo ?? 1000,
+          wins: selfSport.wins ?? 0,
+          losses: selfSport.losses ?? 0,
+          isFriend: false,
+          isSelf: true,
+        };
+        const merged = [selfEntry, ...list];
+        const dedup = Array.from(
+          new Map(merged.map((p) => [p.id, p])).values()
+        ).sort((a, b) => b.globalElo - a.globalElo);
+        setMyCirclesPlayers(dedup);
+      } catch {
         setMyCirclesPlayers([]);
       } finally {
         setLoadingFriends(false);
       }
     };
-
     fetchFriends();
   }, [userProfile, sport]);
 
@@ -163,14 +167,14 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
     return (
       <Card>
         <CardHeader>
-          <div className='h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse'></div>
-          <div className='h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse'></div>
+          <div className='h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
+          <div className='h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
         </CardHeader>
         <CardContent>
           <div className='space-y-4'>
-            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse'></div>
-            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse'></div>
-            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse'></div>
+            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
+            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
+            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
           </div>
         </CardContent>
       </Card>
@@ -186,22 +190,22 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue='global'>
+        <Tabs defaultValue='circles'>
           <TabsList className='grid w-full grid-cols-2'>
-            <TabsTrigger value='global'>
-              <BarChartHorizontal className='mr-2 h-4 w-4' />
-              {t('Global Ranking')}
-            </TabsTrigger>
             <TabsTrigger value='circles'>
               <Shield className='mr-2 h-4 w-4' />
               {t('My Circles')}
             </TabsTrigger>
+            <TabsTrigger value='global'>
+              <BarChartHorizontal className='mr-2 h-4 w-4' />
+              {t('Global Ranking')}
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value='global'>
-            <PlayerList players={players} />
-          </TabsContent>
           <TabsContent value='circles'>
             <PlayerList players={myCirclesPlayers} />
+          </TabsContent>
+          <TabsContent value='global'>
+            <PlayerList players={players} />
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -249,6 +253,11 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
                   </Avatar>
                   <span className='font-medium group-hover:underline flex items-center'>
                     {player.name}
+                    {player.isSelf && (
+                      <span className='ml-2 text-xs rounded px-1.5 py-0.5 bg-primary/10 text-primary'>
+                        {t('You')}
+                      </span>
+                    )}
                     {player.isFriend && (
                       <TooltipProvider>
                         <Tooltip>
