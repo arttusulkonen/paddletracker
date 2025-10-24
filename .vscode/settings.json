@@ -1,4 +1,27 @@
 {
-    "IDX.aI.enableInlineCompletion": true,
-    "IDX.aI.enableCodebaseIndexing": true
+	"css.validate": false,
+	"less.validate": false,
+	"scss.validate": false,
+	"editor.codeActionsOnSave": {
+		"source.fixAll.stylelint": "explicit",
+		"source.fixAll.eslint": "always",
+		"source.sortImports": "always",
+		"stylelint.applyAutoFix": "explicit"
+	},
+	"files.autoSaveDelay": 500,
+	"stylelint.config": null,
+	"stylelint.validate": [
+		"scss"
+	],
+	"eslint.run": "onType",
+	"editor.formatOnSave": true,
+	"editor.insertSpaces": false,
+	"editor.indentSize": "tabSize",
+	"[scss]": { "editor.defaultFormatter": "stylelint.vscode-stylelint" },
+	"[css]":  { "editor.defaultFormatter": "stylelint.vscode-stylelint" },
+
+	"prettier.disableLanguages": [
+	"scss",
+	"css"
+	]
 }
