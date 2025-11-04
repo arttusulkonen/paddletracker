@@ -310,18 +310,22 @@ export default function ProfileUidPage() {
       };
     }
     const elo = targetProfile.sports[viewedSport]?.globalElo ?? 1000;
+
     const key =
-      elo >= 2200
-        ? 'Ping-Pong Paladin'
-        : elo >= 2000
-        ? 'Spin Sensei'
-        : elo >= 1800
-        ? 'Smash Samurai'
-        : elo >= 1600
-        ? 'Paddle Prodigy'
-        : elo >= 1400
+      elo < 1001
+        ? 'Ping-Pong Padawan'
+        : elo < 1100
+        ? 'Table-Tennis Trainee'
+        : elo < 1200
         ? 'Racket Rookie'
-        : 'Ping-Pong Padawan';
+        : elo < 1400
+        ? 'Paddle Prodigy'
+        : elo < 1800
+        ? 'Spin Sensei'
+        : elo < 2000
+        ? 'Smash Samurai'
+        : 'Ping-Pong Paladin';
+
     return { rankLabel: t(key), medalSrc: medalMap[key] };
   }, [viewedSport, targetProfile, t]);
 
