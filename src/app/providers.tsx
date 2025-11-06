@@ -3,6 +3,9 @@
 
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
+// --- НАЧАЛО ИЗМЕНЕНИЙ ---
+import ScrollToTopButton from '@/components/layout/ScrollToTopButton';
+// --- КОНЕЦ ИЗМЕНЕНИЙ ---
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SportProvider } from '@/contexts/SportContext';
@@ -52,8 +55,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <SportProvider>
           <Navbar />
           <main className='flex-grow'>{children}</main>
-          <Footer />
           <Toaster />
+          <ScrollToTopButton />
         </SportProvider>
       </AuthProvider>
     </I18nextProvider>

@@ -49,6 +49,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+// --- НАЧАЛО ИЗМЕНЕНИЙ ---
+import LiveFeed from '@/components/LiveFeed'; // Импортируем новый компонент
+// --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
 const PlayerRank = ({ rank }: { rank: string | null | undefined }) => {
   const { t } = useTranslation();
@@ -429,6 +432,20 @@ const Dashboard = () => {
                 </Link>
               </Button>
             </CardFooter>
+            <div className='flex justify-center gap-4 mb-2'>
+              <Link
+                href='/privacy'
+                className='hover:text-primary hover:underline'
+              >
+                {t('Privacy Policy')}
+              </Link>
+              <Link
+                href='/terms'
+                className='hover:text-primary hover:underline'
+              >
+                {t('Terms of Service')}
+              </Link>
+            </div>
           </Card>
         ) : (
           <Card>
@@ -477,6 +494,8 @@ const Dashboard = () => {
             </CardFooter>
           </Card>
         )}
+
+        <LiveFeed />
       </div>
     </section>
   );
