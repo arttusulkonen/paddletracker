@@ -1,5 +1,5 @@
-// src/app/layout.tsx
 import Providers from '@/app/providers';
+import { AiAssistant } from '@/components/AiAssistant';
 import AppGuard from '@/components/auth/AppGuard';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 import PWAInit from '@/components/pwa/PWAInit';
@@ -111,7 +111,10 @@ export default function RootLayout({
           <PWAInit />
           <DynamicTitle />
           <InstallPrompt />
-          <AppGuard>{children}</AppGuard>
+          <AppGuard>
+            {children}
+            <AiAssistant />
+          </AppGuard>
         </Providers>
       </body>
     </html>
