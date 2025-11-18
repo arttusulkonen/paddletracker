@@ -1,8 +1,7 @@
 'use client';
-
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input'; // Мы используем textarea, но стили берем похожие
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -134,11 +133,16 @@ export function AiAssistant() {
             const allUsersSnap = await getDocs(query(collection(db, 'users')));
             const filteredPlayers = allUsersSnap.docs
               .filter((doc) => relevantUserIds.has(doc.id))
-              .map((doc) => ({
-                uid: doc.id,
-                name: doc.data().displayName || 'Unknown',
-                email: doc.data().email || '',
-              }))
+              .map((doc) => {
+                const d = doc.data();
+                // ИЩЕМ СНАЧАЛА NAME, ПОТОМ DISPLAYNAME
+                const nameToUse = d.name || d.displayName || 'Unknown';
+                return {
+                  uid: doc.id,
+                  name: nameToUse,
+                  email: d.email || '',
+                };
+              })
               .sort((a, b) => a.name.localeCompare(b.name));
 
             setPlayersList(filteredPlayers);

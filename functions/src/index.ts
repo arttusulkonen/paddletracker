@@ -1,4 +1,3 @@
-// functions/src/index.ts
 import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
@@ -98,12 +97,24 @@ const parseMatchFlow = ai.defineFlow(
   async (text) => {
     const { output } = await ai.generate({
       prompt: `
-        Parse ping-pong match results.
-        Rules:
-        1. Extract player names and scores.
-        2. Do NOT auto-capitalize names. Return exactly as written by the user.
-        3. Handle multiple matches separated by newlines or commas.
+        You are a specialized parser for ping-pong match results. Your task is to extract individual game (set) results from the user's input string.
         
+        Rules:
+        1. Extract player names and scores for *each* game/set.
+        2. Names can be separated by "vs", "-", or a space. Games/sets are usually separated by commas, dots, or spaces.
+        3. CRITICAL: Each individual game/set (e.g., "11-9") MUST be returned as a separate object in the 'matches' array. Do NOT summarize or return the final match score.
+        4. The names (player1Name, player2Name) must remain consistent for all games belonging to the same pair.
+        5. Do NOT auto-capitalize names. Return exactly as written by the user.
+        
+        Example of REQUIRED OUTPUT structure for input "susa vs petriss 11-9, 8-11, 6-11":
+        {
+          "matches": [
+            {"player1Name": "susa", "player2Name": "petriss", "score1": 11, "score2": 9},
+            {"player1Name": "susa", "player2Name": "petriss", "score1": 8, "score2": 11},
+            {"player1Name": "susa", "player2Name": "petriss", "score1": 6, "score2": 11}
+          ]
+        }
+
         Input: "${text}"
       `,
       output: { schema: MatchSchema },
@@ -160,31 +171,56 @@ export const aiSaveMatch = onCall({ cors: true }, async (request) => {
     const normalized = (name || '').trim();
     if (!normalized) return { doc: null };
 
-    // exact match first
-    const snap = await usersRef
-      .where('displayName', '==', normalized)
-      .limit(1)
-      .get();
+    const normalizedLower = normalized.toLowerCase();
+
+    // ========= 1) ПРЯМОЕ СОВПАДЕНИЕ: name (ПРИОРИТЕТ) =========
+    // Ищем сначала по старому ключу 'name'
+    let snap = await usersRef.where('name', '==', normalized).limit(1).get();
     if (!snap.empty) return { doc: snap.docs[0] };
 
-    // fallback: full scan and levenshtein suggestion
-    const allUsersSnap = await usersRef.get();
+    // ========= 2) ПРЯМОЕ СОВПАДЕНИЕ: displayName =========
+    // Если не нашли по name, ищем по displayName
+    snap = await usersRef.where('displayName', '==', normalized).limit(1).get();
+    if (!snap.empty) return { doc: snap.docs[0] };
+
+    // ========= 3) ЗАГРУЖАЕМ ВСЕХ (дальше — нечеткий поиск) =========
+    const allUsers = await usersRef.get();
+
+    let bestDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
     let bestMatch: string | null = null;
     let minDist = Infinity;
 
-    for (const doc of allUsersSnap.docs) {
+    for (const doc of allUsers.docs) {
       const data = doc.data();
-      const dbName = (data.displayName || '').toString();
-      if (!dbName) continue;
-      if (dbName.toLowerCase() === normalized.toLowerCase()) return { doc };
-      const dist = levenshtein(normalized.toLowerCase(), dbName.toLowerCase());
-      if (dist < minDist) {
-        minDist = dist;
-        bestMatch = dbName;
+
+      // Берем оба варианта имени
+      const dn = (data.displayName || '').toString();
+      const n = (data.name || '').toString();
+
+      // ===== lowecase значения =====
+      const variants = [dn.toLowerCase(), n.toLowerCase()].filter(Boolean);
+
+      // ===== Идеальное регистронезависимое совпадение =====
+      if (variants.includes(normalizedLower)) {
+        return { doc };
+      }
+
+      // ===== Левенштейн по обоим полям =====
+      for (const field of variants) {
+        const dist = levenshtein(normalizedLower, field);
+        if (dist < minDist) {
+          minDist = dist;
+          bestMatch = field;
+          bestDoc = doc;
+        }
       }
     }
 
-    if (minDist <= 2 && bestMatch) return { doc: null, suggestion: bestMatch };
+    // ========= 4) если расстояние маленькое — предложить =========
+    if (minDist <= 2 && bestMatch && bestDoc) {
+      return { doc: bestDoc, suggestion: bestMatch };
+    }
+
     return { doc: null };
   };
 
@@ -217,6 +253,10 @@ export const aiSaveMatch = onCall({ cors: true }, async (request) => {
       const p2Id = p2Doc.id;
       const p1Data = p1Doc.data() || {};
       const p2Data = p2Doc.data() || {};
+
+      // Определяем актуальные имена для записи (с фоллбэком на name)
+      const p1RealName = p1Data.name || p1Data.displayName || 'Unknown';
+      const p2RealName = p2Data.name || p2Data.displayName || 'Unknown';
 
       // find members in room
       const m1Index = members.findIndex((m: any) => m.userId === p1Id);
@@ -300,9 +340,9 @@ export const aiSaveMatch = onCall({ cors: true }, async (request) => {
         timestamp,
         tsIso,
         createdAt: timestamp,
-        winner: score1 > score2 ? p1Data.displayName : p2Data.displayName,
+        winner: score1 > score2 ? p1RealName : p2RealName,
         player1: {
-          name: p1Data.displayName,
+          name: p1RealName,
           scores: score1,
           oldRating: currentGlobalG1,
           newRating: newGlobalG1,
@@ -313,7 +353,7 @@ export const aiSaveMatch = onCall({ cors: true }, async (request) => {
           side: 'left',
         },
         player2: {
-          name: p2Data.displayName,
+          name: p2RealName,
           scores: score2,
           oldRating: currentGlobalG2,
           newRating: newGlobalG2,

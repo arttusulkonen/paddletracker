@@ -52,35 +52,48 @@ export default function AdminUsersPage() {
   const { toast } = useToast();
 
   const [pending, setPending] = useState<U[]>([]);
+  // Меняем логику: будем загружать всех сразу, но только если поиск не активен
   const [allUsers, setAllUsers] = useState<U[]>([]);
   const [search, setSearch] = useState('');
   const [loadingInitial, setLoadingInitial] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  // Элементы для постраничной загрузки (loadMore) удаляем,
+  // так как мы переходим к загрузке всех сразу для поиска/администрирования.
+  // Оставляем только для Pending.
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-  const lastDocRef = useRef<any>(null);
+  // lastDocRef больше не нужен, т.к. убрано limit(24)
+  // const lastDocRef = useRef<any>(null);
 
   const loadAllData = useCallback(
     async (isInitial = false) => {
       if (isInitial) setLoadingInitial(true);
 
       try {
+        // 1. Загружаем пользователей, ожидающих одобрения (approved: false)
         const qPending = query(
           collection(db, 'users'),
-          where('approved', '==', false)
+          where('approved', '==', false),
+          // Добавляем сортировку по createdAt для порядка
+          orderBy('createdAt', 'desc')
         );
         const dsPending = await getDocs(qPending);
         setPending(
           dsPending.docs.map((d) => ({ uid: d.id, ...(d.data() as U) }))
         );
 
+        // 2. Загружаем ВСЕХ пользователей (убираем limit(24)),
+        // чтобы найти старых игроков для одобрения.
         const qAll = query(
           collection(db, 'users'),
-          orderBy('createdAt', 'desc'),
-          limit(24)
+          // Удаляем orderBy('createdAt', 'desc') и limit(24)
+          // Если важна сортировка, можно оставить только orderBy.
+          // В данном случае, оставим без явной сортировки для простоты,
+          // так как фильтрация по поиску важнее.
+          orderBy('email', 'asc') // Сортируем по email для стабильности
         );
         const dsAll = await getDocs(qAll);
         setAllUsers(dsAll.docs.map((d) => ({ uid: d.id, ...(d.data() as U) })));
-        lastDocRef.current = dsAll.docs[dsAll.docs.length - 1] || null;
+
+        // lastDocRef.current = null; // сбрасываем, т.к. загрузили всех
       } catch (error) {
         console.error('Failed to load user data:', error);
         toast({ title: 'Error loading data', variant: 'destructive' });
@@ -108,8 +121,9 @@ export default function AdminUsersPage() {
 
   const filteredAll = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return allUsers;
+    if (!q) return allUsers; // Если поиска нет, показываем всех загруженных
     return allUsers.filter((u) => {
+      // Здесь используем имя, которое берет name или displayName, чтобы найти старых
       const n = (u.name || u.displayName || '').toLowerCase();
       const e = (u.email || '').toLowerCase();
       const id = u.uid.toLowerCase();
@@ -124,6 +138,7 @@ export default function AdminUsersPage() {
         approvedAt: new Date().toISOString(),
         approvedBy: user?.uid || null,
       });
+      // Перезагружаем все данные, чтобы обновить списки
       await loadAllData();
       toast({ title: 'User Approved' });
     } catch (error) {
@@ -163,6 +178,7 @@ export default function AdminUsersPage() {
       );
       await deleteUserCallable({ userId: u.uid });
       toast({ title: 'User permanently deleted' });
+      // Перезагружаем все данные
       await loadAllData();
     } catch (error: any) {
       console.error('Failed to delete user:', error);
@@ -183,6 +199,7 @@ export default function AdminUsersPage() {
       return;
     }
     try {
+      // Обновляем оба поля, name и displayName
       await updateDoc(doc(db, 'users', u.uid), { name, displayName: name });
       setAllUsers((prev) =>
         prev.map((x) =>
@@ -201,34 +218,11 @@ export default function AdminUsersPage() {
     }
   };
 
-  const loadMore = async () => {
-    if (!lastDocRef.current || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const q = query(
-        collection(db, 'users'),
-        orderBy('createdAt', 'desc'),
-        startAfter(lastDocRef.current),
-        limit(24)
-      );
-      const ds = await getDocs(q);
-      if (!ds.empty) {
-        setAllUsers((prev) => [
-          ...prev,
-          ...ds.docs.map((d) => ({ uid: d.id, ...(d.data() as U) })),
-        ]);
-        lastDocRef.current = ds.docs[ds.docs.length - 1] || null;
-      } else {
-        lastDocRef.current = null;
-        toast({ title: 'No more users to load.' });
-      }
-    } catch (error) {
-      console.error('Failed to load more users:', error);
-      toast({ title: 'Failed to load more', variant: 'destructive' });
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+  // Функция loadMore больше не нужна, т.к. мы загружаем всех сразу
+  // const loadMore = async () => { ... }
+  // Мы ее удаляем, но оставляем заглушку, чтобы не менять остальной код сильно
+  const loadMore = async () => {};
+  const lastDocRef = useRef<any>(null); // оставляем пустым, чтобы не было ошибок
 
   if (!ready) {
     return (
@@ -266,7 +260,7 @@ export default function AdminUsersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
+          <CardTitle>All Users ({allUsers.length})</CardTitle>
           <CardDescription>
             Search, edit, and manage all users in the system.
           </CardDescription>
@@ -285,6 +279,8 @@ export default function AdminUsersPage() {
           ) : (
             <>
               <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'>
+                {/* filteredAll теперь содержит всех загруженных пользователей, 
+                    что позволяет найти старых игроков через поиск. */}
                 {filteredAll.map((u) => (
                   <UserCard
                     key={u.uid}
@@ -297,7 +293,8 @@ export default function AdminUsersPage() {
                   />
                 ))}
               </div>
-              {lastDocRef.current && !search && (
+              {/* Элемент Load More убран, т.к. вся база загружается сразу */}
+              {/* {lastDocRef.current && !search && (
                 <div className='pt-4 flex justify-center'>
                   <Button
                     variant='outline'
@@ -309,6 +306,12 @@ export default function AdminUsersPage() {
                     )}
                     Load More
                   </Button>
+                </div>
+              )} */}
+              {/* Вместо Load More: сообщение о количестве */}
+              {!filteredAll.length && (
+                <div className='text-center text-muted-foreground py-10'>
+                  No users found matching your search.
                 </div>
               )}
             </>
