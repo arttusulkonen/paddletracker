@@ -1,10 +1,10 @@
 // migrate-update.cjs
-"use strict";
+'use strict';
 
-const admin = require("firebase-admin");
-const path = require("path");
+const admin = require('firebase-admin');
+const path = require('path');
 
-const serviceAccount = require(path.join(__dirname, "serviceAccountKey.json"));
+const serviceAccount = require(path.join(__dirname, 'serviceAccountKey.json'));
 
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
@@ -20,11 +20,11 @@ function calcElo(ratingA, ratingB, aWins) {
 }
 
 function parseFinnish(str) {
-  if (!str || typeof str !== "string") return null;
+  if (!str || typeof str !== 'string') return null;
   try {
-    const [d, t] = str.split(" ");
-    const [dd, mm, yyyy] = (d || "").split(".").map(Number);
-    const [HH, MM, SS] = (t || "00.00.00").split(".").map(Number);
+    const [d, t] = str.split(' ');
+    const [dd, mm, yyyy] = (d || '').split('.').map(Number);
+    const [HH, MM, SS] = (t || '00.00.00').split('.').map(Number);
     if (!yyyy || !mm || !dd) return null;
     return new Date(yyyy, (mm || 1) - 1, dd || 1, HH || 0, MM || 0, SS || 0);
   } catch {
@@ -35,13 +35,13 @@ function parseFinnish(str) {
 function parseAnyDate(x) {
   if (x == null) return null;
 
-  if (typeof x === "number") {
+  if (typeof x === 'number') {
     const ms = x > 1e12 ? x : x * 1000;
     const d = new Date(ms);
     return isNaN(+d) ? null : d;
   }
 
-  if (typeof x === "string") {
+  if (typeof x === 'string') {
     const d1 = new Date(x);
     if (!isNaN(+d1)) return d1;
 
@@ -61,11 +61,11 @@ function getMatchDate(m) {
   const byCreatedAt = parseAnyDate(m.createdAt);
   if (byCreatedAt) return byCreatedAt;
 
-  return new Date(0); 
+  return new Date(0);
 }
 
 function formatFinnish(dt) {
-  const pad = (n) => String(n).padStart(2, "0");
+  const pad = (n) => String(n).padStart(2, '0');
   const dd = pad(dt.getDate());
   const mm = pad(dt.getMonth() + 1);
   const yyyy = dt.getFullYear();
@@ -124,13 +124,12 @@ class BatchWriter {
   }
 }
 
-
 async function listSports() {
   const roots = await db.listCollections();
   const sports = roots
     .map((c) => c.id)
-    .filter((name) => name.startsWith("matches-"))
-    .map((name) => name.replace(/^matches-/, ""));
+    .filter((name) => name.startsWith('matches-'))
+    .map((name) => name.replace(/^matches-/, ''));
   return uniq(sports).sort();
 }
 
@@ -139,7 +138,7 @@ async function loadRoomsMap(sport) {
   const snap = await db.collection(coll).get();
   const out = new Map();
   snap.forEach((d) => out.set(d.id, { id: d.id, ...d.data() }));
-  return out; 
+  return out;
 }
 
 async function loadAllMatches(sport) {
@@ -151,7 +150,7 @@ async function loadAllMatches(sport) {
 }
 
 async function buildExistingUsersSet(uids) {
-  const refs = uids.map((uid) => db.collection("users").doc(uid));
+  const refs = uids.map((uid) => db.collection('users').doc(uid));
   const existing = new Set();
   for (const part of chunk(refs, 300)) {
     const snaps = await db.getAll(...part);
@@ -168,13 +167,13 @@ async function migrateSport(sport) {
   const matches = await loadAllMatches(sport);
   console.log(`Матчей: ${matches.length}, комнат: ${rooms.size}`);
 
-  const globalRating = new Map(); 
-  const eloHistory = new Map(); 
-  const wlTotals = new Map(); 
+  const globalRating = new Map();
+  const eloHistory = new Map();
+  const wlTotals = new Map();
   const tennisTotals = new Map();
 
-  const roomRatings = new Map(); 
-  const roomWL = new Map(); 
+  const roomRatings = new Map();
+  const roomWL = new Map();
 
   const matchesWriter = new BatchWriter(db);
 
@@ -244,7 +243,7 @@ async function migrateSport(sport) {
     } else {
       newR1 = calcElo(oldR1, oldR2, aWins);
       newR2 = calcElo(oldR2, oldR1, bWins);
-      d1 = newR1 - oldR1; 
+      d1 = newR1 - oldR1;
       d2 = newR2 - oldR2;
     }
 
@@ -271,7 +270,7 @@ async function migrateSport(sport) {
       g2.w++;
     }
 
-    if (sport === "tennis") {
+    if (sport === 'tennis') {
       const t1 = tennisTotals.get(p1);
       const t2 = tennisTotals.get(p2);
       t1.aces += Number(m?.player1?.aces || 0);
@@ -286,12 +285,12 @@ async function migrateSport(sport) {
 
     const p1Patch = {
       ...(m.player1 || {}),
-      oldRating: oldG1, 
+      oldRating: oldG1,
       newRating: newG1,
-      addedPoints: d1, 
+      addedPoints: d1,
       roomOldRating: oldR1,
       roomNewRating: newR1,
-      
+
       roomAddedPoints: d1,
     };
     const p2Patch = {
@@ -306,10 +305,10 @@ async function migrateSport(sport) {
 
     const winnerName =
       s1 === s2
-        ? (m.winner || (m?.player1?.name || m?.player2?.name || ""))
-        : (aWins
-            ? (m?.player1?.name || m?.player1Name || "Player 1")
-            : (m?.player2?.name || m?.player2Name || "Player 2"));
+        ? m.winner || m?.player1?.name || m?.player2?.name || ''
+        : aWins
+        ? m?.player1?.name || m?.player1Name || 'Player 1'
+        : m?.player2?.name || m?.player2Name || 'Player 2';
 
     await matchesWriter.update(matchRef, {
       player1: p1Patch,
@@ -345,16 +344,15 @@ async function migrateSport(sport) {
       };
     });
 
-    const memberIds = uniq(newMembers.map((m) => String(m.userId)).filter(Boolean));
-
-    await roomsWriter.update(
-      db.collection(`rooms-${sport}`).doc(roomId),
-      {
-        members: newMembers,
-        memberIds,
-        seasonHistory: FieldValue.delete(), 
-      }
+    const memberIds = uniq(
+      newMembers.map((m) => String(m.userId)).filter(Boolean)
     );
+
+    await roomsWriter.update(db.collection(`rooms-${sport}`).doc(roomId), {
+      members: newMembers,
+      memberIds,
+      seasonHistory: FieldValue.delete(),
+    });
   }
   await roomsWriter.flush();
   console.log(`✓ Комнаты ${sport}: members/seasonHistory обновлены`);
@@ -368,17 +366,20 @@ async function migrateSport(sport) {
   if (missing.length) {
     console.warn(
       `[WARN] Пропускаем отсутствующих пользователей (${missing.length}):`,
-      missing.slice(0, 10).join(", "),
-      missing.length > 10 ? "… (ещё есть)" : ""
+      missing.slice(0, 10).join(', '),
+      missing.length > 10 ? '… (ещё есть)' : ''
     );
   }
 
   const usersWriter = new BatchWriter(db);
   for (const uid of uids) {
-    if (!existingUserIds.has(uid)) continue; 
+    if (!existingUserIds.has(uid)) continue;
 
     const lastElo = globalRating.get(uid) ?? START_ELO;
-    const hist = (eloHistory.get(uid) || []).map((h) => ({ date: h.date, elo: h.elo }));
+    const hist = (eloHistory.get(uid) || []).map((h) => ({
+      date: h.date,
+      elo: h.elo,
+    }));
     const wl = wlTotals.get(uid) || { w: 0, l: 0 };
 
     const sportPatch = {
@@ -388,20 +389,22 @@ async function migrateSport(sport) {
       [`sports.${sport}.losses`]: wl.l,
     };
 
-    if (sport === "tennis") {
+    if (sport === 'tennis') {
       const tt = tennisTotals.get(uid) || { aces: 0, df: 0, winners: 0 };
       sportPatch[`sports.tennis.aces`] = tt.aces;
       sportPatch[`sports.tennis.doubleFaults`] = tt.df;
       sportPatch[`sports.tennis.winners`] = tt.winners;
     }
 
-    await usersWriter.update(db.collection("users").doc(uid), {
+    await usersWriter.update(db.collection('users').doc(uid), {
       ...sportPatch,
-      achievements: [], 
+      achievements: [],
     });
   }
   await usersWriter.flush();
-  console.log(`✓ Пользователи: обновлены поля sports.${sport} и achievements очищены`);
+  console.log(
+    `✓ Пользователи: обновлены поля sports.${sport} и achievements очищены`
+  );
 
   console.log(`===== SPORT ${sport}: Готово =====`);
 }
@@ -410,19 +413,19 @@ async function main() {
   try {
     const sports = await listSports();
     if (!sports.length) {
-      console.log("Коллекции matches-* не найдены. Нечего мигрировать.");
+      console.log('Коллекции matches-* не найдены. Нечего мигрировать.');
       process.exit(0);
     }
-    console.log("Спорты:", sports.join(", "));
+    console.log('Спорты:', sports.join(', '));
 
     for (const sport of sports) {
       await migrateSport(sport);
     }
 
-    console.log("\n🎉 Миграция завершена успешно.");
+    console.log('\n🎉 Миграция завершена успешно.');
     process.exit(0);
   } catch (e) {
-    console.error("❌ Ошибка миграции:", e);
+    console.error('❌ Ошибка миграции:', e);
     process.exit(1);
   }
 }

@@ -1,3 +1,4 @@
+// src/components/record-blocks/PingPongRecordBlock.tsx
 'use client';
 
 import { Button, Input, Label } from '@/components/ui';

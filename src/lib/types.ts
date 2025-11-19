@@ -1,3 +1,4 @@
+// src/lib/types.ts
 export type Sport = 'pingpong' | 'tennis' | 'badminton';
 
 export interface SportProfile {

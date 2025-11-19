@@ -1,0 +1,40 @@
+{
+	"id": "string (MatchID)",
+	"roomId": "string",
+	"isRanked": "boolean",
+	"timestamp": "string (Format: DD.MM.YYYY HH.mm.ss)",
+	"tsIso": "string (ISO 8601)",
+	"createdAt": "string",
+	// Массив ID участников для быстрого поиска
+	"players": [
+		"string (UID)",
+		"string (UID)"
+	],
+	"player1Id": "string (UID)",
+	"player2Id": "string (UID)",
+	"winner": "string (Player Name)",
+	"player1": {
+		"name": "string",
+		"scores": "number", // Очки в матче (например, 11)
+		"side": "string ('left' | 'right')",
+		// Изменения глобального рейтинга
+		"oldRating": "number",
+		"newRating": "number",
+		"addedPoints": "number",
+		// Изменения рейтинга комнаты
+		"roomOldRating": "number",
+		"roomNewRating": "number",
+		"roomAddedPoints": "number"
+	},
+	"player2": {
+		"name": "string",
+		"scores": "number", // Очки в матче (например, 9)
+		"side": "string ('left' | 'right')",
+		"oldRating": "number",
+		"newRating": "number",
+		"addedPoints": "number",
+		"roomOldRating": "number",
+		"roomNewRating": "number",
+		"roomAddedPoints": "number"
+	}
+}
