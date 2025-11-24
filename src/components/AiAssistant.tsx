@@ -1,3 +1,4 @@
+// src/components/AiAssistant.tsx
 'use client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -61,6 +62,10 @@ export function AiAssistant() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
 
+  // Ref для самого окна чата (Card), чтобы отслеживать клики внутри/снаружи
+  const cardRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setMessages((prev) => {
       if (prev.length === 0) {
@@ -81,20 +86,51 @@ export function AiAssistant() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [playersList, setPlayersList] = useState<PlayerOption[]>([]);
   const [roomsList, setRoomsList] = useState<RoomOption[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+
   const functions = getFunctions(app, 'us-central1');
   const { toast } = useToast();
 
   const suggestionChips = [
     {
       label: t('Add Result'),
-      action: () => setInput(t('Pekka vs Jukka 11-9, 11-8')),
+      action: () => setInput(t('Paavo vs Jukka 11-9, 11-8')),
     },
   ];
 
-  const handleQuickAction = (text: string) => {
-    sendMessage(text);
-  };
+  // --- ЛОГИКА ЗАКРЫТИЯ (ESC + CLICK OUTSIDE) ---
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      // Если клик был внутри карточки чата, ничего не делаем
+      if (cardRef.current && cardRef.current.contains(event.target as Node)) {
+        return;
+      }
+
+      // ВАЖНО: Если клик был по кнопке открытия чата, тоже игнорируем,
+      // иначе произойдет конфликт (чат закроется этим хендлером, а потом откроется onClick кнопки)
+      const target = event.target as Element;
+      if (target.closest('#ai-assistant-trigger')) {
+        return;
+      }
+
+      setIsOpen(false);
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && user && userProfile && config) {
@@ -319,11 +355,13 @@ export function AiAssistant() {
     );
   };
 
-  if (!user) return null;
+  // --- ПРОВЕРКА: ПОКАЗЫВАТЬ ТОЛЬКО ДЛЯ PING-PONG ---
+  if (!user || sport !== 'pingpong') return null;
 
   return (
     <>
       <Button
+        id='ai-assistant-trigger' // ID для отслеживания клика
         className='fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-xl z-50 transition-transform hover:scale-110'
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -331,7 +369,10 @@ export function AiAssistant() {
       </Button>
 
       {isOpen && (
-        <Card className='fixed bottom-24 right-6 w-[90vw] max-w-[400px] h-[600px] flex flex-col shadow-2xl z-50 animate-in slide-in-from-bottom-10 fade-in bg-background border-2 border-border'>
+        <Card
+          ref={cardRef} // Привязываем ref к карточке
+          className='fixed bottom-24 right-6 w-[90vw] max-w-[400px] h-[600px] flex flex-col shadow-2xl z-50 animate-in slide-in-from-bottom-10 fade-in bg-background border-2 border-border'
+        >
           <div className='p-4 border-b bg-primary text-primary-foreground rounded-t-lg flex items-center gap-2'>
             <Bot size={20} />
             <span className='font-semibold'>AI Referee ({t(sport)})</span>
@@ -699,6 +740,7 @@ function PlayerSelect({
   const matches = options.filter(
     (o) => o.name.toLowerCase() === value.toLowerCase()
   );
+  const { t } = useTranslation();
   const hasDuplicates = matches.length > 1;
 
   return (

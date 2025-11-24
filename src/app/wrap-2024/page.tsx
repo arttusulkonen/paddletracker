@@ -1,4 +1,4 @@
-// src/app/wrap-2025/page.tsx
+// src/app/wrap-2024/page.tsx
 'use client';
 
 import {
@@ -49,8 +49,8 @@ import {
 // ──────────────────────────────────────────────────────────────
 // КОНФИГУРАЦИЯ ПЕРИОДА
 // ──────────────────────────────────────────────────────────────
-export const PERIOD_START = new Date('2025-01-01T00:00:00Z').getTime();
-export const PERIOD_END = new Date('2025-12-31T23:59:59Z').getTime();
+export const PERIOD_START = new Date('2024-07-27T00:00:00Z').getTime();
+export const PERIOD_END = new Date('2024-12-31T23:59:59Z').getTime();
 
 // Надежный парсер дат (включая финский формат)
 function parseDateSafe(input: any): number {
@@ -471,7 +471,7 @@ export default function Wrap2025() {
         </Button>
         <Card>
           <CardHeader>
-            <CardTitle>{t("Not enough data for your WRAP '25")}</CardTitle>
+            <CardTitle>{t("Not enough data for your WRAP '24")}</CardTitle>
             <CardDescription>
               {t(
                 'Play some matches during the year to see your personal statistics here!'

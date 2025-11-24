@@ -52,14 +52,17 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+// --- Helpers ---
 const calcWinPct = (w: number, l: number) => {
   const t = w + l;
   return t ? ((w / t) * 100).toFixed(1) : '0.0';
 };
+
 const tsToMs = (v?: string) => {
   const ms = parseFlexDate(v ?? '').getTime();
   return isNaN(ms) ? Date.parse(v ?? '') || 0 : ms;
 };
+
 type StartEndElo = Record<string, { start: number; end: number }>;
 type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
@@ -79,12 +82,16 @@ export default function RoomPage() {
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [latestSeason, setLatestSeason] = useState<any | null>(null);
+
+  // Снэпшоты рейтингов для season finish
   const [seasonStarts, setSeasonStarts] = useState<Record<string, number>>({});
   const [seasonRoomStarts, setSeasonRoomStarts] = useState<
     Record<string, number>
   >({});
+
   const [hasMounted, setHasMounted] = useState(false);
 
+  // Состояние инвайтов
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
@@ -95,6 +102,7 @@ export default function RoomPage() {
     [room?.memberIds]
   );
 
+  // Очистка выбранных друзей, если они уже в комнате
   useEffect(() => {
     if (!room) return;
     setSelectedFriends((prev) => prev.filter((id) => !memberIdsSet.has(id)));
@@ -102,7 +110,7 @@ export default function RoomPage() {
 
   useEffect(() => setHasMounted(true), []);
 
-  // Подписка на саму комнату + валидация прав просмотра
+  // 1. Подписка на комнату
   useEffect(() => {
     if (!user || !db) return;
     const unsubRoom = onSnapshot(
@@ -122,7 +130,7 @@ export default function RoomPage() {
 
         if (!canViewRoom) {
           setAccessDenied(true);
-          return; // не устанавливаем room, остальные эффекты зависят от room и не пойдут
+          return;
         }
 
         setRoom(roomData);
@@ -132,14 +140,14 @@ export default function RoomPage() {
     return () => unsubRoom();
   }, [user, roomId, config.collections.rooms, router, isGlobalAdmin]);
 
-  // Если доступ запрещён — показываем модалку и через 2 секунды уводим на /rooms
+  // Редирект если нет доступа
   useEffect(() => {
     if (!accessDenied) return;
     const tId = setTimeout(() => router.replace('/rooms'), 2000);
     return () => clearTimeout(tId);
   }, [accessDenied, router]);
 
-  // Список "ко-игроков" из других моих комнат (для инвайтов) — не запускаем при accessDenied
+  // 2. Загрузка ко-игроков (для инвайтов)
   useEffect(() => {
     if (!user || accessDenied) return;
     const roomsQ = query(
@@ -149,6 +157,7 @@ export default function RoomPage() {
     const unsub = onSnapshot(roomsQ, async (snap) => {
       const idsSet = new Set<string>();
       const currentMemberIds = new Set<string>(room?.memberIds ?? []);
+
       snap.forEach((d) => {
         const memberIds: string[] = d.data()?.memberIds ?? [];
         for (const id of memberIds) {
@@ -158,7 +167,9 @@ export default function RoomPage() {
           idsSet.add(id);
         }
       });
+
       if (idsSet.size === 0) return setCoPlayers([]);
+
       const loaded = await Promise.all(
         Array.from(idsSet).map(async (uid) => ({
           uid,
@@ -170,6 +181,7 @@ export default function RoomPage() {
     return () => unsub();
   }, [user, config.collections.rooms, room?.memberIds, accessDenied]);
 
+  // Подготовка списков для UI инвайтов
   const friendsAll = useMemo(
     () =>
       friends
@@ -193,7 +205,7 @@ export default function RoomPage() {
       );
   }, [coPlayers, friends, memberIdsSet]);
 
-  // Права управления комнатой
+  // Права управления
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
     const isRoomAdmin =
@@ -201,7 +213,7 @@ export default function RoomPage() {
     return isGlobalAdmin || isRoomAdmin || room.creator === user.uid;
   }, [room, user, isGlobalAdmin]);
 
-  // Подписка на матчи — не запускаем при accessDenied
+  // 3. Подписка на матчи
   useEffect(() => {
     if (!user || !db || accessDenied) return;
     const q = query(
@@ -217,7 +229,7 @@ export default function RoomPage() {
     return () => unsub();
   }, [user, roomId, config.collections.matches, accessDenied]);
 
-  // Друзья для инвайтов
+  // 4. Загрузка друзей
   useEffect(() => {
     const fetchFriends = async () => {
       if (userProfile?.friends && userProfile.friends.length > 0) {
@@ -232,9 +244,11 @@ export default function RoomPage() {
     fetchFriends();
   }, [userProfile]);
 
-  // Синхронизация членов и последних матчей + завершение загрузки
+  // 5. Синхронизация (Matches + Members profiles)
   useEffect(() => {
     if (!room) return;
+
+    // Если матчей нет, просто показываем мемберов из комнаты
     if (rawMatches.length === 0 && room?.members) {
       setMembers(room.members);
       setRecentMatches([]);
@@ -243,8 +257,10 @@ export default function RoomPage() {
     }
 
     const syncData = async () => {
+      // Собираем стартовые рейтинги (первый матч игрока)
       const starts: Record<string, number> = {};
       const roomStarts: Record<string, number> = {};
+
       rawMatches.forEach((m) => {
         const p1 = m.player1Id,
           p2 = m.player2Id;
@@ -253,6 +269,7 @@ export default function RoomPage() {
         if (roomStarts[p1] == null) roomStarts[p1] = m.player1.roomOldRating;
         if (roomStarts[p2] == null) roomStarts[p2] = m.player2.roomOldRating;
       });
+
       setSeasonStarts(starts);
       setSeasonRoomStarts(roomStarts);
 
@@ -264,16 +281,20 @@ export default function RoomPage() {
         return;
       }
 
+      // Подгружаем свежие профили (имя, фото)
       const memberIds = initialMembers.map((m) => m.userId);
+      // Загружаем батчами по 10 (опционально, здесь упрощено)
       const userDocsSnaps = await Promise.all(
         memberIds.map((id) => getDoc(doc(db, 'users', id)))
       );
+
       const freshProfiles = new Map<string, UserProfile>();
       userDocsSnaps.forEach((userSnap) => {
         if (userSnap.exists())
           freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
       });
 
+      // Обновляем members данными из profiles
       const syncedMembers = initialMembers
         .filter((member) => !freshProfiles.get(member.userId)?.isDeleted)
         .map((member) => {
@@ -283,40 +304,50 @@ export default function RoomPage() {
                 ...member,
                 name: p.name ?? p.displayName ?? member.name,
                 photoURL: p.photoURL,
-                globalElo: p.sports?.[sport]?.globalElo,
+                globalElo: p.sports?.[sport]?.globalElo, // Актуальный глобальный рейтинг
                 rank: p.rank,
               }
             : member;
         });
       setMembers(syncedMembers);
 
+      // Обновляем имена в матчах (на случай если юзер сменил имя)
       const syncedMatches = rawMatches.map((match) => {
         const p1Profile = freshProfiles.get(match.player1Id);
         const p2Profile = freshProfiles.get(match.player2Id);
+
         const newMatch = {
           ...match,
           player1: { ...match.player1 },
           player2: { ...match.player2 },
         };
+
         if (p1Profile)
           newMatch.player1.name = p1Profile.name ?? p1Profile.displayName;
         if (p2Profile)
           newMatch.player2.name = p2Profile.name ?? p2Profile.displayName;
+
         const winnerId =
           match.player1.scores > match.player2.scores
             ? match.player1Id
             : match.player2Id;
         const winnerProfile = freshProfiles.get(winnerId);
+
         if (winnerProfile)
           newMatch.winner = winnerProfile.name ?? winnerProfile.displayName;
+
         return newMatch;
       });
+
+      // Recent matches: последние первыми
       setRecentMatches(syncedMatches.slice().reverse());
       setIsLoading(false);
     };
+
     syncData();
   }, [room, rawMatches, sport]);
 
+  // --- Логика расчета формы (последние 5) ---
   const last5Form = useCallback(
     (m: any): MiniMatch[] =>
       recentMatches
@@ -339,6 +370,7 @@ export default function RoomPage() {
     [recentMatches]
   );
 
+  // --- Агрегация статистики для таблицы Regular ---
   const regularPlayers = useMemo(() => {
     const baseMembers = room?.members ?? [];
     const matchStats: Record<string, { wins: number; losses: number }> = {};
@@ -347,14 +379,18 @@ export default function RoomPage() {
     rawMatches.forEach((m) => {
       const winnerId =
         m.player1.scores > m.player2.scores ? m.player1Id : m.player2Id;
+
       [m.player1Id, m.player2Id].forEach((id) => {
         if (!matchStats[id]) matchStats[id] = { wins: 0, losses: 0 };
         id === winnerId ? matchStats[id].wins++ : matchStats[id].losses++;
+
+        // Берем последнее известное RoomElo из матча
         latestRoomRatings[m.player1Id] = m.player1.roomNewRating;
         latestRoomRatings[m.player2Id] = m.player2.roomNewRating;
       });
     });
 
+    // Tennis specific stats
     const tennisStats: Record<
       string,
       { aces: number; doubleFaults: number; winners: number }
@@ -367,9 +403,11 @@ export default function RoomPage() {
           tennisStats[p1Id] = { aces: 0, doubleFaults: 0, winners: 0 };
         if (!tennisStats[p2Id])
           tennisStats[p2Id] = { aces: 0, doubleFaults: 0, winners: 0 };
+
         tennisStats[p1Id].aces += Number(m.player1.aces) || 0;
         tennisStats[p1Id].doubleFaults += Number(m.player1.doubleFaults) || 0;
         tennisStats[p1Id].winners += Number(m.player1.winners) || 0;
+
         tennisStats[p2Id].aces += Number(m.player2.aces) || 0;
         tennisStats[p2Id].doubleFaults += Number(m.player2.doubleFaults) || 0;
         tennisStats[p2Id].winners += Number(m.player2.winners) || 0;
@@ -379,9 +417,11 @@ export default function RoomPage() {
     return baseMembers.map((m: any) => {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
+      // Если есть матчи, берем рейтинг из последнего. Иначе из профиля в комнате.
       const currentRating = latestRoomRatings[m.userId] ?? m.rating ?? 1000;
       const total = wins + losses;
 
+      // Calc streak
       let max = 0,
         cur = 0;
       rawMatches.forEach((match) => {
@@ -399,20 +439,18 @@ export default function RoomPage() {
         ...m,
         ...tennisStats[m.userId],
         rating: currentRating,
-        ratingVisible: total >= 5,
+        ratingVisible: total >= 1, // Показываем рейтинг даже после 1 игры
         wins,
         losses,
         totalMatches: total,
         winPct: calcWinPct(wins, losses),
-        deltaRoom:
-          currentRating - (seasonRoomStarts[m.userId] ?? currentRating),
+        deltaRoom: currentRating - (seasonRoomStarts[m.userId] ?? 1000), // Считаем от 1000 или старта сезона
         globalDelta:
           (m.globalElo ?? 1000) -
           (seasonStarts[m.userId] ?? m.globalElo ?? 1000),
         avgPtsPerMatch:
           total > 0
-            ? (currentRating - +(seasonRoomStarts[m.userId] ?? currentRating)) /
-              total
+            ? (currentRating - +(seasonRoomStarts[m.userId] ?? 1000)) / total
             : 0,
         last5Form: last5Form(m),
         longestWinStreak: max,
@@ -427,6 +465,7 @@ export default function RoomPage() {
     last5Form,
   ]);
 
+  // --- Finish Season Handlers ---
   const getSeasonEloSnapshots = useCallback(
     async (roomId: string): Promise<StartEndElo> => {
       const qs = query(
@@ -437,6 +476,7 @@ export default function RoomPage() {
       const snap = await getDocs(qs);
       const firstSeen: Record<string, number> = {};
       const lastSeen: Record<string, number> = {};
+
       snap.docs.forEach((d) => {
         const m = d.data() as any;
         [
@@ -455,6 +495,7 @@ export default function RoomPage() {
           lastSeen[p.id] = p.new;
         });
       });
+
       const out: StartEndElo = {};
       Object.keys(firstSeen).forEach((uid) => {
         out[uid] = {
@@ -482,6 +523,7 @@ export default function RoomPage() {
     }
   }, [roomId, getSeasonEloSnapshots, config.collections, sport, toast, t]);
 
+  // --- Join/Leave Handlers ---
   const handleRequestToJoin = useCallback(async () => {
     if (!user || !room) return;
     await updateDoc(doc(db, config.collections.rooms, roomId), {
@@ -511,6 +553,7 @@ export default function RoomPage() {
     }
   }, [user, room, roomId, config.collections.rooms, router, toast, t]);
 
+  // --- Invite Handlers ---
   const handleInviteFriends = async () => {
     if (!user || !room || selectedFriends.length === 0) {
       toast({ title: t('Select friends to invite'), variant: 'destructive' });
@@ -596,6 +639,7 @@ export default function RoomPage() {
     }
   };
 
+  // --- Remove Player ---
   const handleRemovePlayer = async (userIdToRemove: string) => {
     if (!room || !user) return;
 
@@ -660,7 +704,8 @@ export default function RoomPage() {
 
   const showInviteSection = isMember && !latestSeason && !room?.isArchived;
 
-  // Ранний рендер модалки при запрете доступа (блюр + авто-редирект)
+  // --- RENDER ---
+
   if (accessDenied) {
     return (
       <div className='fixed inset-0 z-50 flex items-center justify-center'>

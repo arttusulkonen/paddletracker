@@ -1,16 +1,10 @@
 // src/components/profile/OverallStatsCard.tsx
 'use client';
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { sportConfig } from '@/contexts/SportContext';
 import type { Sport, UserProfile } from '@/lib/types';
-import { BarChart, Trophy, Zap } from 'lucide-react';
+import { BarChart3, Trophy, Zap } from 'lucide-react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,40 +42,51 @@ export const OverallStatsCard: React.FC<OverallStatsCardProps> = ({
   }, [profile.sports]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('Career Overview')}</CardTitle>
-        <CardDescription>
-          {t("A summary of the player's performance across all sports.")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='grid grid-cols-2 md:grid-cols-4 gap-4 text-center'>
-        <div className='flex flex-col items-center p-4 bg-muted/50 rounded-lg'>
-          <BarChart className='h-8 w-8 text-primary mb-2' />
-          <p className='text-2xl font-bold'>{overallStats.totalMatches}</p>
-          <p className='text-sm text-muted-foreground'>{t('Total Matches')}</p>
+    <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+      <StatsTile
+        icon={BarChart3}
+        label={t('Total Matches')}
+        value={overallStats.totalMatches}
+        color='bg-blue-100 text-blue-700'
+      />
+      <StatsTile
+        icon={Trophy}
+        label={t('Total Wins')}
+        value={overallStats.totalWins}
+        color='bg-amber-100 text-amber-700'
+      />
+      <StatsTile
+        icon={Zap}
+        label={t('Win Rate')}
+        value={`${overallStats.winRate.toFixed(0)}%`}
+        color='bg-violet-100 text-violet-700'
+      />
+      <StatsTile
+        icon={Trophy}
+        label={t('Best Sport')}
+        value={overallStats.bestSport.name}
+        subtext={`${overallStats.bestSport.elo} ELO`}
+        color='bg-emerald-100 text-emerald-700'
+      />
+    </div>
+  );
+};
+
+function StatsTile({ icon: Icon, label, value, subtext, color }: any) {
+  return (
+    <Card className='border-none shadow-sm hover:shadow-md transition-shadow'>
+      <CardContent className='p-4 flex flex-col items-center text-center'>
+        <div className={`p-2 rounded-full mb-2 ${color}`}>
+          <Icon size={20} />
         </div>
-        <div className='flex flex-col items-center p-4 bg-muted/50 rounded-lg'>
-          <Trophy className='h-8 w-8 text-yellow-500 mb-2' />
-          <p className='text-2xl font-bold'>{overallStats.totalWins}</p>
-          <p className='text-sm text-muted-foreground'>{t('Total Wins')}</p>
+        <div className='text-2xl font-bold text-slate-900'>{value}</div>
+        <div className='text-xs font-medium text-muted-foreground uppercase tracking-wide'>
+          {label}
         </div>
-        <div className='flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg'>
-          <p className='text-2xl font-bold'>
-            {overallStats.winRate.toFixed(1)}%
-          </p>
-          <p className='text-sm text-muted-foreground'>
-            {t('Overall Win Rate')}
-          </p>
-        </div>
-        <div className='flex flex-col items-center justify-center p-4 bg-muted/50 rounded-lg'>
-          <Zap className='h-8 w-8 text-green-500 mb-2' />
-          <p className='text-xl font-bold'>{overallStats.bestSport.name}</p>
-          <p className='text-sm text-muted-foreground'>
-            {t('Best Sport (by ELO)')}
-          </p>
-        </div>
+        {subtext && (
+          <div className='text-xs text-muted-foreground mt-1'>{subtext}</div>
+        )}
       </CardContent>
     </Card>
   );
-};
+}

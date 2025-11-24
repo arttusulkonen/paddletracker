@@ -74,7 +74,7 @@ export default function ScrollToTopButton() {
       <div className='relative w-[120px] h-full'>
         {/* 1. Полупрозрачный фон (на всю область 120px) */}
         {/* --- ИСПРАВЛЕНИЕ: 'inset-0' здесь правильный, он заполнит 'w-[120px] h-full' --- */}
-        <div className='absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/10 dark:bg-white/5' />
+        <div className='absolute !block inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-black/10 dark:bg-white/5' />
 
         {/* 2. Иконка и текст (приклеены к верху) */}
         <div

@@ -1,4 +1,3 @@
-// src/app/tournaments/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -23,12 +22,14 @@ import {
   DialogTrigger,
   Input,
   Label,
-  ScrollArea,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   Textarea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,10 +53,16 @@ import {
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Crown,
   Image as ImageIcon,
   PlusCircle,
+  Search,
   SearchIcon,
-  UsersIcon,
+  Trophy,
+  Users,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -76,9 +83,16 @@ export default function TournamentRoomsPage() {
   const [tournaments, setTournaments] = useState<TournamentRoom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'active' | 'finished'
+  >('active');
+
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
+
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Create Form State
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [playerCount, setPlayerCount] =
@@ -94,6 +108,7 @@ export default function TournamentRoomsPage() {
 
   useEffect(() => setHasMounted(true), []);
 
+  // Загрузка турниров
   useEffect(() => {
     if (!user || !tournamentsEnabled) {
       setIsLoading(false);
@@ -108,9 +123,11 @@ export default function TournamentRoomsPage() {
       qSub,
       (snap) => {
         const arr = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        // Фильтрация по спорту (для обратной совместимости, если sport не указан - считаем pingpong)
         const arrBySport = arr.filter(
           (t: any) => t.sport === sport || (!t.sport && sport === 'pingpong')
         );
+        // Сортировка: сначала новые
         arrBySport.sort(
           (a: any, b: any) =>
             parseFlexDate(b.createdAt).getTime() -
@@ -119,7 +136,8 @@ export default function TournamentRoomsPage() {
         setTournaments(arrBySport as TournamentRoom[]);
         setIsLoading(false);
       },
-      () => {
+      (err) => {
+        console.error(err);
         toast({
           title: t('Error'),
           description: t('Could not load tournaments.'),
@@ -131,6 +149,7 @@ export default function TournamentRoomsPage() {
     return () => unsub();
   }, [user, tournamentsEnabled, sport, toast, t]);
 
+  // Загрузка друзей (только активных)
   useEffect(() => {
     if (!user) return;
     const unsub = onSnapshot(doc(db, 'users', user.uid), async (snap) => {
@@ -139,13 +158,20 @@ export default function TournamentRoomsPage() {
       const loaded = await Promise.all(
         ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
       );
-      setFriends(loaded.filter(Boolean) as UserProfile[]);
+      // Фильтруем удаленных
+      const activeFriends = loaded.filter(
+        (u) => u && !u.isDeleted
+      ) as UserProfile[];
+      setFriends(activeFriends);
     });
     return () => unsub();
   }, [user]);
 
+  // Загрузка со-игроков из комнат (только активных)
   useEffect(() => {
     if (!user || !tournamentsEnabled) return;
+
+    // Используем только комнаты ТЕКУЩЕГО спорта (pingpong)
     const qRooms = query(
       collection(db, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid)
@@ -159,19 +185,26 @@ export default function TournamentRoomsPage() {
       );
 
       const allIds = Array.from(idsSet);
+      // Исключаем тех, кто уже в друзьях
       const missingIds = allIds.filter(
         (uid) => !friends.some((f) => f.uid === uid)
       );
+
       const loadedMissing = await Promise.all(
         missingIds.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
       );
 
+      // Собираем мапу для уникальности
       const map = new Map<string, UserProfile>();
-      allIds.forEach((uid) => {
-        const f = friends.find((x) => x.uid === uid);
-        if (f) map.set(uid, f);
+
+      // Добавляем загруженных (проверяя на удаление)
+      loadedMissing.forEach((p) => {
+        if (p && !p.isDeleted) {
+          // Если не друг - проверяем публичность, если нужно, но для со-игроков обычно разрешено
+          // Здесь фильтруем только isDeleted
+          map.set(p.uid, p as UserProfile);
+        }
       });
-      loadedMissing.forEach((p) => p && map.set(p.uid, p as UserProfile));
 
       setCoPlayers(Array.from(map.values()));
     });
@@ -184,12 +217,16 @@ export default function TournamentRoomsPage() {
       (a.name ?? a.displayName ?? '').localeCompare(
         b.name ?? b.displayName ?? ''
       );
-    const inFriends = coPlayers
-      .filter((p) => friendSet.has(p.uid))
-      .sort(byName);
+
+    // Друзья (уже отфильтрованы по isDeleted)
+    const inFriends = friends.sort(byName);
+
+    // Остальные (уже отфильтрованы по isDeleted и не друзья)
+    // Дополнительно можно проверить isPublic, если хотите строже
     const notFriends = coPlayers
       .filter((p) => !friendSet.has(p.uid))
       .sort(byName);
+
     return {
       friendsInSport: inFriends,
       othersInSport: notFriends,
@@ -256,18 +293,11 @@ export default function TournamentRoomsPage() {
   };
 
   const createTournament = async () => {
-    if (!tournamentsEnabled) {
-      toast({
-        title: t('Error'),
-        description: t('Tournaments are not available for this sport yet.'),
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!tournamentsEnabled) return;
     if (!user) {
       toast({
         title: t('Error'),
-        description: t('Log in'),
+        description: t('Log in required'),
         variant: 'destructive',
       });
       return;
@@ -275,7 +305,7 @@ export default function TournamentRoomsPage() {
     if (!name.trim()) {
       toast({
         title: t('Error'),
-        description: t('Name required'),
+        description: t('Tournament name required'),
         variant: 'destructive',
       });
       return;
@@ -283,13 +313,14 @@ export default function TournamentRoomsPage() {
     if (selected.length + 1 !== playerCount) {
       toast({
         title: t('Error'),
-        description: `${t('Select exactly')} ${playerCount} ${t(
-          'players (including you)'
-        )}`,
+        description: t('Select exactly {{count}} players (including you)', {
+          count: playerCount,
+        }),
         variant: 'destructive',
       });
       return;
     }
+
     setCreating(true);
     try {
       let avatarURL = '';
@@ -306,11 +337,11 @@ export default function TournamentRoomsPage() {
       const participants = shuffle([
         {
           userId: user.uid,
-          name: userProfile?.name ?? userProfile?.displayName ?? '',
+          name: userProfile?.name ?? userProfile?.displayName ?? 'Me',
         },
         ...selected.map((uid) => {
           const p = allCandidates.find((c) => c.uid === uid)!;
-          return { userId: uid, name: p.name ?? p.displayName ?? '' };
+          return { userId: uid, name: p.name ?? p.displayName ?? 'Guest' };
         }),
       ]).map((p, i) => ({ ...p, seed: i + 1 }));
 
@@ -321,7 +352,7 @@ export default function TournamentRoomsPage() {
         currentRound: 0,
         rounds: [
           {
-            label: 'Round-Robin',
+            label: 'Group Stage',
             type: 'roundRobin',
             roundIndex: 0,
             status: 'inProgress',
@@ -331,7 +362,7 @@ export default function TournamentRoomsPage() {
           {
             roundIndex: 1,
             type: 'knockoutSemis',
-            label: 'Semi-finals',
+            label: 'Semi-Finals',
             status: 'pending',
             matches: [],
           },
@@ -360,25 +391,24 @@ export default function TournamentRoomsPage() {
         isFinished: false,
       });
 
-      await updateDoc(doc(db, 'users', user.uid), {
-        tournaments: arrayUnion(refDoc.id),
-      });
+      const allIdsToUpdate = [user.uid, ...selected];
       await Promise.all(
-        selected.map((uid) =>
+        allIdsToUpdate.map((uid) =>
           updateDoc(doc(db, 'users', uid), {
             tournaments: arrayUnion(refDoc.id),
           })
         )
       );
 
-      toast({ title: t('Tournament created') });
+      toast({ title: t('Tournament created successfully!') });
       setDialogOpen(false);
       resetForm();
       router.push(`/tournaments/${refDoc.id}`);
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast({
         title: t('Error'),
-        description: t('Failed to create'),
+        description: t('Failed to create tournament'),
         variant: 'destructive',
       });
     } finally {
@@ -386,35 +416,45 @@ export default function TournamentRoomsPage() {
     }
   };
 
-  const filtered = useMemo(
-    () =>
-      tournaments.filter((tmt) =>
-        tmt.name.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [tournaments, searchTerm]
-  );
+  const filteredTournaments = useMemo(() => {
+    let list = tournaments;
+
+    if (statusFilter === 'active') {
+      list = list.filter((t) => !t.isFinished);
+    } else if (statusFilter === 'finished') {
+      list = list.filter((t) => t.isFinished);
+    }
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter((t) => t.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [tournaments, statusFilter, searchTerm]);
 
   if (!hasMounted) return null;
 
   if (!tournamentsEnabled) {
     return (
       <ProtectedRoute>
-        <div className='container mx-auto py-8 px-4'>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('Tournaments')}</CardTitle>
+        <div className='container mx-auto py-8 px-4 max-w-4xl'>
+          <Card className='bg-muted/30 border-dashed'>
+            <CardHeader className='text-center py-10'>
+              <Trophy className='h-12 w-12 text-muted-foreground mx-auto mb-4' />
+              <CardTitle>{t('Tournaments Unavailable')}</CardTitle>
               <CardDescription>
-                {t('Tournaments are not available for this sport yet.')}
+                {t('Tournaments are currently available only for Ping-Pong.')}
               </CardDescription>
             </CardHeader>
-            <CardFooter className='p-6 pt-0'>
+            <CardFooter className='justify-center pb-10'>
               <Button
+                variant='default'
                 onClick={() => {
                   setSport?.('pingpong');
                   router.push('/tournaments');
                 }}
               >
-                {t('Switch to Ping-Pong to view tournaments')}
+                {t('Switch to Ping-Pong')}
               </Button>
             </CardFooter>
           </Card>
@@ -425,276 +465,391 @@ export default function TournamentRoomsPage() {
 
   return (
     <ProtectedRoute>
-      <div className='container mx-auto py-8 px-4'>
-        <div className='flex justify-between items-center mb-6'>
-          <h1 className='text-4xl font-bold flex items-center gap-2'>
-            <UsersIcon className='h-8 w-8 text-primary' /> {t('Tournaments')}
-          </h1>
+      <div className='container mx-auto py-8 px-4 max-w-6xl min-h-screen'>
+        {/* Header Section */}
+        <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8'>
+          <div>
+            <h1 className='text-4xl font-extrabold tracking-tight flex items-center gap-3'>
+              <Trophy className='h-9 w-9 text-amber-500' />
+              {t('Tournaments')}
+            </h1>
+            <p className='text-muted-foreground mt-1 text-lg'>
+              {t('Compete for the championship.')}
+            </p>
+          </div>
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button size='lg' className='shadow-md'>
                 <PlusCircle className='mr-2 h-5 w-5' /> {t('New Tournament')}
               </Button>
             </DialogTrigger>
-            <DialogContent className='sm:max-w-[520px]'>
-              <DialogHeader>
+            <DialogContent className='w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-[600px] flex flex-col p-0 overflow-hidden'>
+              <DialogHeader className='px-6 pt-6 flex-shrink-0'>
                 <DialogTitle>{t('Create Tournament')}</DialogTitle>
                 <DialogDescription>
-                  {t('Give it a name, choose size and pick participants')}
+                  {t('Setup your bracket and invite players.')}
                 </DialogDescription>
               </DialogHeader>
 
-              <div className='space-y-5 py-4'>
-                <div className='flex flex-col items-center gap-4'>
-                  <Avatar className='h-24 w-24'>
-                    <AvatarImage src={avatarPreview ?? undefined} />
-                    <AvatarFallback>
-                      <ImageIcon className='h-10 w-10 text-muted-foreground' />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className='flex gap-2'>
-                    <Button
-                      variant='outline'
+              {/* MAIN SCROLLABLE CONTENT (Native Scroll) */}
+              <div className='flex-1 overflow-y-auto px-6 py-4'>
+                <div className='space-y-6'>
+                  {/* Avatar Upload */}
+                  <div className='flex flex-col items-center gap-4'>
+                    <div
+                      className='relative group cursor-pointer'
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      {t('Upload Image')}
-                    </Button>
+                      <Avatar className='h-24 w-24 border-2 border-dashed border-muted-foreground/50 group-hover:border-primary transition-colors'>
+                        <AvatarImage
+                          src={avatarPreview ?? undefined}
+                          className='object-cover'
+                        />
+                        <AvatarFallback className='bg-transparent'>
+                          <ImageIcon className='h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors' />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className='absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium'>
+                        {t('Change')}
+                      </div>
+                    </div>
                     {avatarPreview && (
                       <Button
                         variant='ghost'
-                        size='icon'
-                        onClick={() => {
+                        size='sm'
+                        className='text-destructive hover:text-destructive h-8'
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setAvatarFile(null);
                           setAvatarPreview(null);
+                          if (fileInputRef.current)
+                            fileInputRef.current.value = '';
                         }}
                       >
-                        <X className='h-4 w-4' />
+                        {t('Remove')}
                       </Button>
                     )}
+                    <Input
+                      type='file'
+                      ref={fileInputRef}
+                      className='hidden'
+                      accept='image/png, image/jpeg, image/webp'
+                      onChange={handleFileChange}
+                    />
                   </div>
-                  <Input
-                    type='file'
-                    ref={fileInputRef}
-                    className='hidden'
-                    accept='image/png, image/jpeg, image/webp'
-                    onChange={handleFileChange}
-                  />
-                </div>
 
-                <div className='grid grid-cols-4 items-center gap-4'>
-                  <Label className='text-right'>{t('Name')}</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className='col-span-3'
-                  />
-                </div>
+                  {/* Basic Info */}
+                  <div className='space-y-4'>
+                    <div className='space-y-2'>
+                      <Label>{t('Tournament Name')}</Label>
+                      <Input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder={t('e.g. Summer Cup 2025')}
+                      />
+                    </div>
+                    <div className='space-y-2'>
+                      <Label>{t('Description (Optional)')}</Label>
+                      <Textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder={t('Prize pool, location, rules...')}
+                        className='resize-none h-20'
+                      />
+                    </div>
+                  </div>
 
-                <div className='grid grid-cols-4 items-center gap-4'>
-                  <Label className='text-right'>{t('Description')}</Label>
-                  <Textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className='col-span-3'
-                    placeholder={t('A brief description about this room')}
-                  />
-                </div>
+                  {/* Players Selection */}
+                  <div className='space-y-4'>
+                    <div className='flex justify-between items-center'>
+                      <Label>{t('Number of Players')}</Label>
+                      <Select
+                        value={String(playerCount)}
+                        onValueChange={(v) => {
+                          setPlayerCount(Number(v) as any);
+                          setSelected([]);
+                        }}
+                      >
+                        <SelectTrigger className='w-[140px]'>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PLAYER_COUNTS.map((cnt) => (
+                            <SelectItem key={cnt} value={String(cnt)}>
+                              {cnt} {t('Players')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className='grid grid-cols-4 items-center gap-4'>
-                  <Label className='text-right'>{t('Players')}</Label>
-                  <Select
-                    value={String(playerCount)}
-                    onValueChange={(v) => {
-                      setPlayerCount(Number(v) as any);
-                      setSelected([]);
-                    }}
-                  >
-                    <SelectTrigger className='col-span-3'>
-                      <SelectValue placeholder={t('Players')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PLAYER_COUNTS.map((cnt) => (
-                        <SelectItem key={cnt} value={String(cnt)}>
-                          {cnt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className='border rounded-lg p-3 bg-muted/10'>
+                      <div className='flex justify-between items-center mb-3'>
+                        <Label className='text-xs uppercase text-muted-foreground font-bold'>
+                          {t('Participants')} ({selected.length + 1}/
+                          {playerCount})
+                        </Label>
+                        <span className='text-xs text-muted-foreground'>
+                          {t('You included')}
+                        </span>
+                      </div>
 
-                <div className='space-y-2'>
-                  <p className='text-sm font-medium'>{`${t(
-                    'Select participants'
-                  )} (${selected.length + 1}/${playerCount})`}</p>
-                  <Input
-                    value={peopleSearch}
-                    onChange={(e) => setPeopleSearch(e.target.value)}
-                    placeholder={t('Search by name or creator…')}
-                    className='mt-1'
-                  />
-                  <ScrollArea className='h-56 pr-2 mt-2 border rounded-md p-2'>
-                    {filteredFriends.length + filteredOthers.length > 0 ? (
-                      <>
-                        {filteredFriends.length > 0 && (
+                      <div className='relative mb-3'>
+                        <Search className='absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
+                        <Input
+                          value={peopleSearch}
+                          onChange={(e) => setPeopleSearch(e.target.value)}
+                          placeholder={t('Filter players...')}
+                          className='pl-9 h-9'
+                        />
+                      </div>
+
+                      {/* Player List - Native Scroll without inner ScrollArea */}
+                      <div className='mt-2 space-y-4'>
+                        {filteredFriends.length + filteredOthers.length > 0 ? (
                           <>
-                            <div className='px-2 pt-1 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
-                              {t('Friends in this sport')}
-                            </div>
-                            {filteredFriends.map((p) => {
-                              const disabled =
-                                !selected.includes(p.uid) &&
-                                selected.length + 1 >= playerCount;
-                              return (
-                                <label
-                                  key={p.uid}
-                                  className={`flex items-center gap-2 py-1 ${
-                                    disabled
-                                      ? 'opacity-50 cursor-not-allowed'
-                                      : ''
-                                  }`}
-                                >
-                                  <Checkbox
-                                    disabled={disabled}
-                                    checked={selected.includes(p.uid)}
-                                    onCheckedChange={(v) =>
-                                      v
-                                        ? setSelected([...selected, p.uid])
-                                        : setSelected(
-                                            selected.filter(
-                                              (id) => id !== p.uid
-                                            )
-                                          )
-                                    }
-                                  />
-                                  <span>{p.name ?? p.displayName}</span>
-                                </label>
-                              );
-                            })}
+                            {filteredFriends.length > 0 && (
+                              <div className='space-y-1'>
+                                <div className='text-xs font-semibold text-primary px-1 mb-1'>
+                                  {t('Friends')}
+                                </div>
+                                {filteredFriends.map((p) => {
+                                  const disabled =
+                                    !selected.includes(p.uid) &&
+                                    selected.length + 1 >= playerCount;
+                                  return (
+                                    <label
+                                      key={p.uid}
+                                      className={`flex items-center justify-between p-2 rounded-md hover:bg-accent transition-colors cursor-pointer ${
+                                        disabled
+                                          ? 'opacity-50 cursor-not-allowed'
+                                          : ''
+                                      }`}
+                                    >
+                                      <div className='flex items-center gap-3'>
+                                        <Avatar className='h-8 w-8'>
+                                          <AvatarImage
+                                            src={p.photoURL ?? undefined}
+                                          />
+                                          <AvatarFallback>
+                                            {p.name?.[0]}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className='text-sm font-medium'>
+                                          {p.name}
+                                        </span>
+                                      </div>
+                                      <Checkbox
+                                        disabled={disabled}
+                                        checked={selected.includes(p.uid)}
+                                        onCheckedChange={(v) =>
+                                          v
+                                            ? setSelected([...selected, p.uid])
+                                            : setSelected(
+                                                selected.filter(
+                                                  (id) => id !== p.uid
+                                                )
+                                              )
+                                        }
+                                      />
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {filteredOthers.length > 0 && (
+                              <div className='space-y-1'>
+                                <div className='text-xs font-semibold text-muted-foreground px-1 mb-1'>
+                                  {t('Others')}
+                                </div>
+                                {filteredOthers.map((p) => {
+                                  const disabled =
+                                    !selected.includes(p.uid) &&
+                                    selected.length + 1 >= playerCount;
+                                  return (
+                                    <label
+                                      key={p.uid}
+                                      className={`flex items-center justify-between p-2 rounded-md hover:bg-accent transition-colors cursor-pointer ${
+                                        disabled
+                                          ? 'opacity-50 cursor-not-allowed'
+                                          : ''
+                                      }`}
+                                    >
+                                      <div className='flex items-center gap-3'>
+                                        <Avatar className='h-8 w-8 grayscale opacity-80'>
+                                          <AvatarImage
+                                            src={p.photoURL ?? undefined}
+                                          />
+                                          <AvatarFallback>
+                                            {p.name?.[0]}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className='text-sm font-medium'>
+                                          {p.name}
+                                        </span>
+                                      </div>
+                                      <Checkbox
+                                        disabled={disabled}
+                                        checked={selected.includes(p.uid)}
+                                        onCheckedChange={(v) =>
+                                          v
+                                            ? setSelected([...selected, p.uid])
+                                            : setSelected(
+                                                selected.filter(
+                                                  (id) => id !== p.uid
+                                                )
+                                              )
+                                        }
+                                      />
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </>
+                        ) : (
+                          <div className='flex flex-col items-center justify-center h-32 text-muted-foreground text-sm'>
+                            <Users className='h-8 w-8 mb-2 opacity-20' />
+                            {t('No players found')}
+                          </div>
                         )}
-                        {filteredOthers.length > 0 && (
-                          <>
-                            <div className='px-2 pt-3 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
-                              {t('From your sport rooms')}
-                            </div>
-                            {filteredOthers.map((p) => {
-                              const disabled =
-                                !selected.includes(p.uid) &&
-                                selected.length + 1 >= playerCount;
-                              return (
-                                <label
-                                  key={p.uid}
-                                  className={`flex items-center gap-2 py-1 ${
-                                    disabled
-                                      ? 'opacity-50 cursor-not-allowed'
-                                      : ''
-                                  }`}
-                                >
-                                  <Checkbox
-                                    disabled={disabled}
-                                    checked={selected.includes(p.uid)}
-                                    onCheckedChange={(v) =>
-                                      v
-                                        ? setSelected([...selected, p.uid])
-                                        : setSelected(
-                                            selected.filter(
-                                              (id) => id !== p.uid
-                                            )
-                                          )
-                                    }
-                                  />
-                                  <span>{p.name ?? p.displayName}</span>
-                                </label>
-                              );
-                            })}
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <p className='text-muted-foreground'>
-                        {t('You have no friends or co-players yet')}
-                      </p>
-                    )}
-                  </ScrollArea>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className='p-6 pt-2 flex-shrink-0'>
+                <Button variant='outline' onClick={() => setDialogOpen(false)}>
+                  {t('Cancel')}
+                </Button>
                 <Button onClick={createTournament} disabled={creating}>
-                  {creating ? t('Creating…') : t('Create')}
+                  {creating ? (
+                    <>
+                      <span className='animate-spin mr-2'>⏳</span>{' '}
+                      {t('Creating...')}
+                    </>
+                  ) : (
+                    t('Create Tournament')
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
-        <Card className='shadow-lg'>
-          <CardHeader>
-            <div className='relative w-full max-w-md'>
-              <SearchIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground' />
+        {/* Filters & List */}
+        <div className='space-y-6'>
+          <div className='flex flex-col sm:flex-row gap-4'>
+            <div className='relative flex-1'>
+              <SearchIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
               <Input
-                placeholder={t('Search tournaments…')}
+                placeholder={t('Search tournaments...')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className='pl-10 w-full'
+                className='pl-9'
               />
             </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className='flex items-center justify-center h-40'>
-                <div className='animate-spin h-12 w-12 rounded-full border-b-2 border-primary' />
+            <Tabs
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as any)}
+              className='w-full sm:w-auto'
+            >
+              <TabsList className='grid w-full grid-cols-3 sm:w-auto'>
+                <TabsTrigger value='active'>{t('Active')}</TabsTrigger>
+                <TabsTrigger value='finished'>{t('Finished')}</TabsTrigger>
+                <TabsTrigger value='all'>{t('All')}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {isLoading ? (
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className='h-[200px] rounded-xl bg-muted/20 animate-pulse'
+                />
+              ))}
+            </div>
+          ) : filteredTournaments.length > 0 ? (
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+              {filteredTournaments.map((tournament) => (
+                <Link
+                  href={`/tournaments/${tournament.id}`}
+                  key={tournament.id}
+                >
+                  <Card className='h-full hover:shadow-lg transition-all hover:-translate-y-1 duration-200 group border-muted cursor-pointer overflow-hidden'>
+                    <div className='h-2 w-full bg-gradient-to-r from-blue-500 to-indigo-500 opacity-80 group-hover:opacity-100 transition-opacity' />
+                    <CardHeader className='pb-2'>
+                      <div className='flex justify-between items-start gap-4'>
+                        <div className='space-y-1'>
+                          <CardTitle className='line-clamp-1 text-lg'>
+                            {tournament.name}
+                          </CardTitle>
+                          <CardDescription className='flex items-center gap-1 text-xs'>
+                            <Calendar className='h-3 w-3' />
+                            {safeFormatDate(tournament.createdAt, 'dd.MM.yyyy')}
+                          </CardDescription>
+                        </div>
+                        {tournament.isFinished ? (
+                          <span className='px-2 py-1 rounded-full bg-muted text-xs font-medium text-muted-foreground flex items-center gap-1'>
+                            <CheckCircle2 className='h-3 w-3' /> {t('Done')}
+                          </span>
+                        ) : (
+                          <span className='px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium flex items-center gap-1 animate-pulse'>
+                            <Clock className='h-3 w-3' /> {t('Live')}
+                          </span>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {tournament.isFinished && tournament.champion ? (
+                        <div className='mt-2 p-3 bg-amber-50 border border-amber-100 rounded-lg flex items-center gap-3'>
+                          <div className='p-2 bg-amber-100 rounded-full'>
+                            <Crown className='h-4 w-4 text-amber-600' />
+                          </div>
+                          <div>
+                            <p className='text-xs text-amber-600 font-semibold uppercase tracking-wide'>
+                              {t('Winner')}
+                            </p>
+                            <p className='font-bold text-amber-900'>
+                              {tournament.champion.name}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className='mt-2 p-3 bg-muted/30 rounded-lg border border-transparent group-hover:border-muted transition-colors'>
+                          <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                            <Users className='h-4 w-4' />
+                            <span>
+                              {tournament.participants?.length ?? 0}{' '}
+                              {t('participants')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className='text-center py-20'>
+              <div className='bg-muted/30 rounded-full p-4 inline-block mb-4'>
+                <Search className='h-8 w-8 text-muted-foreground' />
               </div>
-            ) : filtered.length ? (
-              <ScrollArea className='h-[400px]'>
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-1'>
-                  {filtered.map((tournament) => (
-                    <Card
-                      key={tournament.id}
-                      className='hover:shadow-md transition-shadow'
-                    >
-                      <CardHeader>
-                        <CardTitle className='truncate'>
-                          {tournament.name}
-                        </CardTitle>
-                        <CardDescription>
-                          {t('Created:')}{' '}
-                          {safeFormatDate(
-                            tournament.createdAt,
-                            'dd.MM.yyyy HH:mm'
-                          )}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className='text-sm text-muted-foreground'>
-                          {t('Participants:')}{' '}
-                          {tournament.participants?.length ?? 0}
-                        </p>
-                        <p className='text-sm text-muted-foreground'>
-                          {t('Champion:')} {tournament.champion?.name || '—'}
-                        </p>
-                      </CardContent>
-                      <CardFooter>
-                        <Button asChild className='w-full'>
-                          <Link href={`/tournaments/${tournament.id}`}>
-                            {t('Enter')}
-                          </Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <p className='text-center text-muted-foreground py-8'>
-                {searchTerm
-                  ? t('No tournaments match your search')
-                  : t('You are not registered in any tournaments yet')}
+              <h3 className='text-lg font-medium'>
+                {t('No tournaments found')}
+              </h3>
+              <p className='text-muted-foreground'>
+                {t('Try adjusting your filters or create a new one.')}
               </p>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </div>
       </div>
     </ProtectedRoute>
   );

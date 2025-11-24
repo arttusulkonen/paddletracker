@@ -61,7 +61,7 @@ const getAchievementsByTypeAndPlace = (
 const countAchievementsByType = (arr: Achievement[], type: string) =>
   arr.filter((a) => a.type === type).length;
 
-// Дедуп по (type,tournamentId), чтобы скрыть ранее созданные дубли
+// Дедуп турниров
 const dedupTournamentFinishes = (arr: Achievement[]) => {
   const seen = new Set<string>();
   const out: Achievement[] = [];
@@ -70,6 +70,7 @@ const dedupTournamentFinishes = (arr: Achievement[]) => {
       out.push(a);
       continue;
     }
+    // Уникальный ключ: ID турнира или дата, если ID нет
     const key = `${a.type}:${a.tournamentId ?? a.dateFinished}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -88,7 +89,7 @@ export default function AchievementsPanel({
 }: Props) {
   const { t } = useTranslation();
 
-  // фильтр по спорту + дедуп турниров
+  // Фильтруем по спорту (или 'pingpong', если спорт не указан - legacy) и убираем дубли
   const achievements = dedupTournamentFinishes(
     allAchievements.filter((a) => (a.sport || 'pingpong') === sport)
   );
@@ -208,7 +209,7 @@ export default function AchievementsPanel({
   });
 
   return (
-    <Card className='h-full'>
+    <Card className='h-full shadow-md'>
       <CardHeader>
         <CardTitle>
           {t('Achievements')} ({sportConfig[sport].name})
@@ -233,25 +234,29 @@ export default function AchievementsPanel({
 
 const Row: React.FC<{ title: string; items: any[] }> = ({ title, items }) => (
   <div className='mb-6'>
-    <h4 className='text-md font-semibold mb-3'>{title}</h4>
+    <h4 className='text-sm font-semibold mb-3 uppercase tracking-wider text-muted-foreground'>
+      {title}
+    </h4>
     <div className='flex flex-wrap gap-4 items-center'>
       {items.map((it, idx) => (
         <TooltipProvider key={idx} delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
               <div
-                className={`relative text-3xl transition-opacity ${
-                  it.unlocked ? 'opacity-100' : 'opacity-30'
+                className={`relative text-3xl transition-opacity cursor-help ${
+                  it.unlocked
+                    ? 'opacity-100 drop-shadow-md'
+                    : 'opacity-20 grayscale'
                 }`}
               >
                 {it.icon}
                 {it.count > 1 && (
-                  <span className='absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full text-xs w-5 h-5 flex items-center justify-center border-2 border-card'>
+                  <span className='absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full text-[10px] w-5 h-5 flex items-center justify-center border-2 border-card font-bold'>
                     {it.count}
                   </span>
                 )}
                 {!it.unlocked && (
-                  <FaLock className='absolute top-0 right-0 text-lg text-muted-foreground' />
+                  <FaLock className='absolute top-0 right-0 text-xs text-muted-foreground' />
                 )}
               </div>
             </TooltipTrigger>

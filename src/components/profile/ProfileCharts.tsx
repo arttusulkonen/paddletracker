@@ -265,7 +265,7 @@ export default function ProfileCharts({
         </CardContent>
       </Card>
 
-      {!compact && (
+      {/* {!compact && (
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
           <Card>
             <CardHeader>
@@ -342,7 +342,7 @@ export default function ProfileCharts({
             </CardContent>
           </Card>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

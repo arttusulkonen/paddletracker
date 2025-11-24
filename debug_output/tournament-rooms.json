@@ -1,0 +1,1486 @@
+[
+  {
+    "_docId": "M0AYEehnCk8ntfgu9z3F",
+    "name": "test",
+    "description": "",
+    "avatarURL": "",
+    "createdAt": "20.11.2025 09.04.04",
+    "creator": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "sport": "pingpong",
+    "participants": [
+      {
+        "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+        "name": "ghostkz",
+        "seed": 1
+      },
+      {
+        "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+        "name": "Ghost",
+        "seed": 2
+      },
+      {
+        "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+        "name": "tamarisk",
+        "seed": 3
+      },
+      {
+        "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+        "name": "Ghost PRO",
+        "seed": 4
+      }
+    ],
+    "participantsIds": [
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+    ],
+    "bracket": {
+      "currentRound": 2,
+      "rounds": [
+        {
+          "matches": [
+            {
+              "player2": {
+                "seed": 2,
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "name": "Ghost"
+              },
+              "scorePlayer1": 11,
+              "winner": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "name": "ghostkz vs Ghost",
+              "matchId": "68c466d0-5102-4d16-af0d-e2f1193b8113",
+              "matchStatus": "finished",
+              "player1": {
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "seed": 1,
+                "name": "ghostkz"
+              },
+              "scorePlayer2": 4
+            },
+            {
+              "matchId": "dfa1127b-b80c-4faa-9a68-3f75e30cde1d",
+              "name": "ghostkz vs tamarisk",
+              "player2": {
+                "name": "tamarisk",
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "seed": 3
+              },
+              "scorePlayer1": 4,
+              "player1": {
+                "name": "ghostkz",
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "seed": 1
+              },
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "matchStatus": "finished",
+              "scorePlayer2": 11
+            },
+            {
+              "player2": {
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "seed": 4,
+                "name": "Ghost PRO"
+              },
+              "scorePlayer2": 11,
+              "matchId": "8290fc3a-37bb-4d0a-bcc3-e32f87db3a41",
+              "name": "ghostkz vs Ghost PRO",
+              "scorePlayer1": 5,
+              "player1": {
+                "seed": 1,
+                "name": "ghostkz",
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+              },
+              "winner": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "matchStatus": "finished"
+            },
+            {
+              "name": "Ghost vs tamarisk",
+              "matchStatus": "finished",
+              "player2": {
+                "name": "tamarisk",
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "seed": 3
+              },
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "player1": {
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "seed": 2,
+                "name": "Ghost"
+              },
+              "scorePlayer1": 2,
+              "scorePlayer2": 11,
+              "matchId": "54518540-8400-4c7b-ab70-afbd6afbff9d"
+            },
+            {
+              "winner": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "scorePlayer1": 4,
+              "matchStatus": "finished",
+              "name": "Ghost vs Ghost PRO",
+              "scorePlayer2": 11,
+              "matchId": "105250e7-cd31-4165-af2b-e42b673a1775",
+              "player2": {
+                "name": "Ghost PRO",
+                "seed": 4,
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+              },
+              "player1": {
+                "seed": 2,
+                "name": "Ghost",
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2"
+              }
+            },
+            {
+              "scorePlayer2": 11,
+              "player2": {
+                "seed": 4,
+                "name": "Ghost PRO",
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+              },
+              "winner": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "player1": {
+                "name": "tamarisk",
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "seed": 3
+              },
+              "name": "tamarisk vs Ghost PRO",
+              "matchId": "9ad9bee5-3426-4d10-aa3f-228102e0a9c4",
+              "matchStatus": "finished",
+              "scorePlayer1": 2
+            }
+          ],
+          "label": "Group Stage",
+          "participants": [
+            {
+              "seed": 1,
+              "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "name": "ghostkz"
+            },
+            {
+              "name": "Ghost",
+              "seed": 2,
+              "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2"
+            },
+            {
+              "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "name": "tamarisk",
+              "seed": 3
+            },
+            {
+              "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "seed": 4,
+              "name": "Ghost PRO"
+            }
+          ],
+          "type": "roundRobin",
+          "status": "finished",
+          "roundIndex": 0
+        },
+        {
+          "matches": [
+            {
+              "matchStatus": "finished",
+              "scorePlayer1": 1,
+              "winner": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+              "matchId": "1-0",
+              "scorePlayer2": 11,
+              "player1": {
+                "place": 1,
+                "pf": 33,
+                "name": "Ghost PRO",
+                "wins": 3,
+                "losses": 0,
+                "pa": 11,
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+              },
+              "player2": {
+                "pa": 33,
+                "place": 4,
+                "losses": 3,
+                "pf": 10,
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "name": "Ghost",
+                "wins": 0
+              }
+            },
+            {
+              "scorePlayer1": 4,
+              "player2": {
+                "losses": 2,
+                "pa": 26,
+                "wins": 1,
+                "pf": 20,
+                "place": 3,
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "name": "ghostkz"
+              },
+              "player1": {
+                "pa": 17,
+                "pf": 24,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk",
+                "wins": 2,
+                "losses": 1,
+                "place": 2
+              },
+              "scorePlayer2": 11,
+              "matchId": "1-1",
+              "matchStatus": "finished",
+              "winner": "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+            }
+          ],
+          "type": "knockoutSemis",
+          "status": "finished",
+          "label": "Semi-Finals",
+          "roundIndex": 1
+        },
+        {
+          "matches": [
+            {
+              "scorePlayer2": 11,
+              "matchId": "2-0",
+              "player2": {
+                "place": 3,
+                "pa": 26,
+                "losses": 2,
+                "pf": 20,
+                "name": "ghostkz",
+                "wins": 1,
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+              },
+              "scorePlayer1": 4,
+              "winner": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "player1": {
+                "pa": 33,
+                "name": "Ghost",
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "pf": 10,
+                "place": 4,
+                "wins": 0,
+                "losses": 3
+              },
+              "matchStatus": "finished"
+            }
+          ],
+          "status": "finished",
+          "label": "Finals",
+          "roundIndex": 2,
+          "type": "knockoutFinal"
+        },
+        {
+          "roundIndex": 2,
+          "type": "knockoutBronze",
+          "label": "3rd-place",
+          "status": "finished",
+          "matches": [
+            {
+              "scorePlayer2": 11,
+              "matchId": "2-0",
+              "matchStatus": "finished",
+              "scorePlayer1": 4,
+              "player1": {
+                "losses": 0,
+                "wins": 3,
+                "pf": 33,
+                "pa": 11,
+                "place": 1,
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "name": "Ghost PRO"
+              },
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "player2": {
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "losses": 1,
+                "pa": 17,
+                "pf": 24,
+                "name": "tamarisk",
+                "wins": 2,
+                "place": 2
+              }
+            }
+          ]
+        }
+      ],
+      "stage": "completed",
+      "finalStats": [
+        {
+          "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+          "name": "ghostkz",
+          "wins": 3,
+          "losses": 2,
+          "pf": 42,
+          "pa": 34,
+          "place": 1
+        },
+        {
+          "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+          "name": "Ghost",
+          "wins": 1,
+          "losses": 4,
+          "pf": 25,
+          "pa": 45,
+          "place": 2
+        },
+        {
+          "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+          "name": "tamarisk",
+          "wins": 3,
+          "losses": 2,
+          "pf": 39,
+          "pa": 32,
+          "place": 3
+        },
+        {
+          "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+          "name": "Ghost PRO",
+          "wins": 3,
+          "losses": 2,
+          "pf": 38,
+          "pa": 33,
+          "place": 4
+        }
+      ],
+      "champion": {
+        "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+        "name": "ghostkz",
+        "wins": 3,
+        "losses": 2,
+        "pf": 42,
+        "pa": 34,
+        "place": 1
+      }
+    },
+    "isFinished": true,
+    "champion": {
+      "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "name": "ghostkz",
+      "wins": 3,
+      "losses": 2,
+      "pf": 42,
+      "pa": 34,
+      "place": 1
+    },
+    "resultsCommitted": true
+  },
+  {
+    "_docId": "Y60bnh2TkCV2zLQWy2gt",
+    "name": "winter cup",
+    "description": "",
+    "avatarURL": "",
+    "createdAt": "19.11.2025 22.27.48",
+    "creator": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "sport": "pingpong",
+    "participants": [
+      {
+        "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+        "name": "Ghost",
+        "seed": 1
+      },
+      {
+        "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+        "name": "ghostkz",
+        "seed": 2
+      },
+      {
+        "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+        "name": "tamarisk",
+        "seed": 3
+      },
+      {
+        "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+        "name": "Ghost PRO",
+        "seed": 4
+      }
+    ],
+    "participantsIds": [
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+    ],
+    "bracket": {
+      "rounds": [
+        {
+          "status": "finished",
+          "matches": [
+            {
+              "name": "Ghost vs ghostkz",
+              "winner": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+              "player1": {
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "name": "Ghost",
+                "seed": 1
+              },
+              "scorePlayer2": "6",
+              "matchStatus": "finished",
+              "scorePlayer1": "11",
+              "player2": {
+                "seed": 2,
+                "name": "ghostkz",
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+              },
+              "matchId": "13fe1086-1dea-44cc-985c-03353e6e5fb4"
+            },
+            {
+              "name": "Ghost vs tamarisk",
+              "player1": {
+                "seed": 1,
+                "name": "Ghost",
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2"
+              },
+              "player2": {
+                "seed": 3,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk"
+              },
+              "scorePlayer2": "11",
+              "matchStatus": "finished",
+              "matchId": "4b5de88d-00d5-4cd0-9774-0c70281ed01a",
+              "scorePlayer1": "4",
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+            },
+            {
+              "player2": {
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "name": "Ghost PRO",
+                "seed": 4
+              },
+              "matchId": "a27f3955-28e0-4cc2-8b44-1a7eaf2a5877",
+              "matchStatus": "finished",
+              "scorePlayer1": "4",
+              "scorePlayer2": "11",
+              "winner": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "player1": {
+                "seed": 1,
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "name": "Ghost"
+              },
+              "name": "Ghost vs Ghost PRO"
+            },
+            {
+              "matchId": "49f4e671-e5f8-400f-87f8-6a76c143498c",
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "matchStatus": "finished",
+              "player2": {
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "seed": 3,
+                "name": "tamarisk"
+              },
+              "name": "ghostkz vs tamarisk",
+              "scorePlayer2": "11",
+              "scorePlayer1": "4",
+              "player1": {
+                "seed": 2,
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "name": "ghostkz"
+              }
+            },
+            {
+              "matchId": "ec9a3103-0d41-4e7d-9da2-cd1ff8dd5f1b",
+              "player1": {
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "name": "ghostkz",
+                "seed": 2
+              },
+              "matchStatus": "finished",
+              "scorePlayer1": "2",
+              "name": "ghostkz vs Ghost PRO",
+              "scorePlayer2": "11",
+              "winner": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "player2": {
+                "seed": 4,
+                "name": "Ghost PRO",
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+              }
+            },
+            {
+              "scorePlayer2": "11",
+              "name": "tamarisk vs Ghost PRO",
+              "matchId": "129fe692-ee7a-427a-ab3f-0fc0c6f6f39d",
+              "player1": {
+                "name": "tamarisk",
+                "seed": 3,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+              },
+              "winner": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "player2": {
+                "name": "Ghost PRO",
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "seed": 4
+              },
+              "matchStatus": "finished",
+              "scorePlayer1": "4"
+            }
+          ],
+          "roundIndex": 0,
+          "participants": [
+            {
+              "name": "Ghost",
+              "seed": 1,
+              "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2"
+            },
+            {
+              "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "name": "ghostkz",
+              "seed": 2
+            },
+            {
+              "name": "tamarisk",
+              "seed": 3,
+              "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+            },
+            {
+              "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "seed": 4,
+              "name": "Ghost PRO"
+            }
+          ],
+          "label": "Group Stage",
+          "type": "roundRobin"
+        },
+        {
+          "roundIndex": 1,
+          "type": "knockoutSemis",
+          "label": "Semi-Finals",
+          "matches": [
+            {
+              "scorePlayer1": "2",
+              "scorePlayer2": "11",
+              "winner": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "matchStatus": "finished",
+              "player2": {
+                "name": "ghostkz",
+                "wins": 0,
+                "pf": "0642",
+                "place": 4,
+                "losses": 3,
+                "pa": "0111111",
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+              },
+              "player1": {
+                "pf": "0111111",
+                "losses": 0,
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "pa": "0424",
+                "name": "Ghost PRO",
+                "wins": 3,
+                "place": 1
+              },
+              "matchId": "1-0"
+            },
+            {
+              "matchId": "1-1",
+              "scorePlayer1": "4",
+              "matchStatus": "finished",
+              "player2": {
+                "wins": 1,
+                "place": 3,
+                "pa": "061111",
+                "pf": "01144",
+                "losses": 2,
+                "name": "Ghost",
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2"
+              },
+              "winner": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+              "player1": {
+                "pa": "04411",
+                "losses": 1,
+                "place": 2,
+                "wins": 2,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk",
+                "pf": "011114"
+              },
+              "scorePlayer2": "11"
+            }
+          ],
+          "status": "finished"
+        },
+        {
+          "status": "finished",
+          "roundIndex": 2,
+          "label": "Finals",
+          "matches": [
+            {
+              "matchStatus": "finished",
+              "scorePlayer1": "4",
+              "player1": {
+                "pa": "0424",
+                "wins": 3,
+                "losses": 0,
+                "place": 1,
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "name": "Ghost PRO",
+                "pf": "0111111"
+              },
+              "player2": {
+                "name": "tamarisk",
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "pf": "011114",
+                "pa": "04411",
+                "place": 2,
+                "wins": 2,
+                "losses": 1
+              },
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "matchId": "2-0",
+              "scorePlayer2": "11"
+            }
+          ],
+          "type": "knockoutFinal"
+        },
+        {
+          "status": "finished",
+          "matches": [
+            {
+              "player1": {
+                "wins": 3,
+                "name": "Ghost PRO",
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "pf": "0111111",
+                "place": 1,
+                "losses": 0,
+                "pa": "0424"
+              },
+              "player2": {
+                "name": "tamarisk",
+                "place": 2,
+                "pf": "011114",
+                "losses": 1,
+                "wins": 2,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "pa": "04411"
+              },
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "matchStatus": "finished",
+              "scorePlayer2": "11",
+              "matchId": "2-0",
+              "scorePlayer1": "4"
+            }
+          ],
+          "roundIndex": 2,
+          "type": "knockoutBronze",
+          "label": "3rd-place"
+        }
+      ],
+      "currentRound": 2,
+      "stage": "completed",
+      "finalStats": [
+        {
+          "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+          "name": "tamarisk",
+          "wins": 4,
+          "losses": 2,
+          "pf": "01111441111",
+          "pa": "044111144",
+          "place": 1
+        },
+        {
+          "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+          "name": "Ghost PRO",
+          "wins": 3,
+          "losses": 3,
+          "pf": "0111111244",
+          "pa": "0424111111",
+          "place": 2
+        },
+        {
+          "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+          "name": "Ghost",
+          "wins": 2,
+          "losses": 2,
+          "pf": "0114411",
+          "pa": "0611114",
+          "place": 4
+        },
+        {
+          "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+          "name": "ghostkz",
+          "wins": 1,
+          "losses": 3,
+          "pf": "064211",
+          "pa": "01111112",
+          "place": 4
+        }
+      ],
+      "champion": {
+        "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+        "name": "tamarisk",
+        "wins": 4,
+        "losses": 2,
+        "pf": "01111441111",
+        "pa": "044111144",
+        "place": 1
+      }
+    },
+    "isFinished": true,
+    "champion": {
+      "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "name": "tamarisk",
+      "wins": 4,
+      "losses": 2,
+      "pf": "01111441111",
+      "pa": "044111144",
+      "place": 1
+    },
+    "resultsCommitted": true
+  },
+  {
+    "_docId": "hIcn2gmxyrxrkJmHb7II",
+    "name": "winter",
+    "description": "",
+    "avatarURL": "",
+    "createdAt": "20.11.2025 08.40.35",
+    "creator": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "sport": "pingpong",
+    "participants": [
+      {
+        "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+        "name": "Ghost PRO",
+        "seed": 1
+      },
+      {
+        "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+        "name": "tamarisk",
+        "seed": 2
+      },
+      {
+        "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+        "name": "Ghost",
+        "seed": 3
+      },
+      {
+        "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+        "name": "ghostkz",
+        "seed": 4
+      }
+    ],
+    "participantsIds": [
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+    ],
+    "bracket": {
+      "currentRound": 2,
+      "stage": "completed",
+      "rounds": [
+        {
+          "label": "Group Stage",
+          "matches": [
+            {
+              "scorePlayer1": "11",
+              "scorePlayer2": "2",
+              "player2": {
+                "name": "tamarisk",
+                "seed": 2,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+              },
+              "player1": {
+                "name": "Ghost PRO",
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "seed": 1
+              },
+              "matchId": "805f4296-fdff-4688-8366-3189a8e5a13b",
+              "name": "Ghost PRO vs tamarisk",
+              "matchStatus": "finished",
+              "winner": "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+            },
+            {
+              "player1": {
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "seed": 1,
+                "name": "Ghost PRO"
+              },
+              "winner": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+              "name": "Ghost PRO vs Ghost",
+              "player2": {
+                "seed": 3,
+                "name": "Ghost",
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2"
+              },
+              "scorePlayer1": "2",
+              "matchId": "2174d13a-7dee-4896-8cc5-d5a71aad62a2",
+              "matchStatus": "finished",
+              "scorePlayer2": "11"
+            },
+            {
+              "winner": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "matchId": "0796cab8-c571-4776-a14a-2953965b0112",
+              "scorePlayer2": "11",
+              "matchStatus": "finished",
+              "scorePlayer1": "4",
+              "name": "Ghost PRO vs ghostkz",
+              "player1": {
+                "seed": 1,
+                "name": "Ghost PRO",
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+              },
+              "player2": {
+                "seed": 4,
+                "name": "ghostkz",
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+              }
+            },
+            {
+              "scorePlayer1": "11",
+              "player2": {
+                "seed": 3,
+                "name": "Ghost",
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2"
+              },
+              "matchStatus": "finished",
+              "matchId": "91a84dc1-aaad-4e9e-98c2-5487ae5365ce",
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "name": "tamarisk vs Ghost",
+              "player1": {
+                "seed": 2,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk"
+              },
+              "scorePlayer2": "2"
+            },
+            {
+              "scorePlayer2": "11",
+              "winner": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "player1": {
+                "seed": 2,
+                "name": "tamarisk",
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+              },
+              "matchStatus": "finished",
+              "matchId": "bc4b83b6-16a4-4d0d-82fa-3bd721ec272f",
+              "player2": {
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "name": "ghostkz",
+                "seed": 4
+              },
+              "name": "tamarisk vs ghostkz",
+              "scorePlayer1": "4"
+            },
+            {
+              "player2": {
+                "seed": 4,
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "name": "ghostkz"
+              },
+              "matchStatus": "finished",
+              "player1": {
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "name": "Ghost",
+                "seed": 3
+              },
+              "winner": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "scorePlayer2": "11",
+              "matchId": "74809cd7-0463-45ec-9523-e01469bee90f",
+              "name": "Ghost vs ghostkz",
+              "scorePlayer1": "4"
+            }
+          ],
+          "participants": [
+            {
+              "seed": 1,
+              "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "name": "Ghost PRO"
+            },
+            {
+              "name": "tamarisk",
+              "seed": 2,
+              "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+            },
+            {
+              "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+              "seed": 3,
+              "name": "Ghost"
+            },
+            {
+              "seed": 4,
+              "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+              "name": "ghostkz"
+            }
+          ],
+          "status": "finished",
+          "roundIndex": 0,
+          "type": "roundRobin"
+        },
+        {
+          "status": "finished",
+          "label": "Semi-Finals",
+          "roundIndex": 1,
+          "type": "knockoutSemis",
+          "matches": [
+            {
+              "matchStatus": "finished",
+              "winner": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+              "player1": {
+                "pa": "0444",
+                "losses": 0,
+                "pf": "0111111",
+                "name": "ghostkz",
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "wins": 3,
+                "place": 1
+              },
+              "scorePlayer2": "11",
+              "player2": {
+                "pf": "01124",
+                "name": "Ghost PRO",
+                "losses": 2,
+                "pa": "021111",
+                "place": 4,
+                "wins": 1,
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+              },
+              "matchId": "1-0",
+              "scorePlayer1": "2"
+            },
+            {
+              "player1": {
+                "place": 2,
+                "wins": 1,
+                "pa": "011211",
+                "losses": 2,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "pf": "02114",
+                "name": "tamarisk"
+              },
+              "matchId": "1-1",
+              "player2": {
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "pa": "021111",
+                "losses": 2,
+                "wins": 1,
+                "name": "Ghost",
+                "place": 3,
+                "pf": "01124"
+              },
+              "winner": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+              "scorePlayer2": "11",
+              "matchStatus": "finished",
+              "scorePlayer1": "4"
+            }
+          ]
+        },
+        {
+          "label": "Finals",
+          "type": "knockoutFinal",
+          "status": "finished",
+          "matches": [
+            {
+              "matchId": "2-0",
+              "player1": {
+                "losses": 2,
+                "place": 4,
+                "name": "Ghost PRO",
+                "pa": "021111",
+                "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+                "wins": 1,
+                "pf": "01124"
+              },
+              "winner": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+              "player2": {
+                "losses": 2,
+                "pa": "021111",
+                "name": "Ghost",
+                "wins": 1,
+                "place": 3,
+                "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+                "pf": "01124"
+              },
+              "scorePlayer1": "4",
+              "matchStatus": "finished",
+              "scorePlayer2": "11"
+            }
+          ],
+          "roundIndex": 2
+        },
+        {
+          "label": "3rd-place",
+          "type": "knockoutBronze",
+          "matches": [
+            {
+              "matchStatus": "finished",
+              "player1": {
+                "pa": "0444",
+                "name": "ghostkz",
+                "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+                "losses": 0,
+                "pf": "0111111",
+                "place": 1,
+                "wins": 3
+              },
+              "player2": {
+                "wins": 1,
+                "place": 2,
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk",
+                "pa": "011211",
+                "losses": 2,
+                "pf": "02114"
+              },
+              "scorePlayer1": "4",
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "matchId": "2-0",
+              "scorePlayer2": "11"
+            }
+          ],
+          "status": "finished",
+          "roundIndex": 2
+        }
+      ],
+      "finalStats": [
+        {
+          "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+          "name": "Ghost",
+          "wins": 3,
+          "losses": 2,
+          "pf": "011241111",
+          "pa": "02111144",
+          "place": 1
+        },
+        {
+          "userId": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+          "name": "Ghost PRO",
+          "wins": 2,
+          "losses": 3,
+          "pf": "01124114",
+          "pa": "021111211",
+          "place": 2
+        },
+        {
+          "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+          "name": "tamarisk",
+          "wins": 2,
+          "losses": 3,
+          "pf": "02114411",
+          "pa": "011211114",
+          "place": 3
+        },
+        {
+          "userId": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+          "name": "ghostkz",
+          "wins": 3,
+          "losses": 2,
+          "pf": "011111124",
+          "pa": "04441111",
+          "place": 4
+        }
+      ],
+      "champion": {
+        "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+        "name": "Ghost",
+        "wins": 3,
+        "losses": 2,
+        "pf": "011241111",
+        "pa": "02111144",
+        "place": 1
+      }
+    },
+    "isFinished": true,
+    "champion": {
+      "userId": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "name": "Ghost",
+      "wins": 3,
+      "losses": 2,
+      "pf": "011241111",
+      "pa": "02111144",
+      "place": 1
+    },
+    "resultsCommitted": true
+  },
+  {
+    "_docId": "zMctE5Ft1cCNhANRLS5p",
+    "name": "First tournament",
+    "description": "",
+    "avatarURL": "",
+    "createdAt": "30.08.2025 12.07.23",
+    "creator": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "sport": "pingpong",
+    "participants": [
+      {
+        "userId": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+        "name": "xenonrage",
+        "seed": 1
+      },
+      {
+        "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+        "name": "tamarisk",
+        "seed": 2
+      },
+      {
+        "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+        "name": "Bear",
+        "seed": 3
+      },
+      {
+        "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+        "name": "PRO",
+        "seed": 4
+      }
+    ],
+    "participantsIds": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+    ],
+    "isFinished": false,
+    "bracket": {
+      "currentRound": 3,
+      "rounds": [
+        {
+          "matches": [
+            {
+              "name": "xenonrage vs tamarisk",
+              "winner": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+              "scorePlayer1": 11,
+              "matchStatus": "finished",
+              "matchId": "7ece90dc-6cbf-4123-8346-798155b3cd11",
+              "scorePlayer2": 2,
+              "player2": {
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk",
+                "seed": 2
+              },
+              "player1": {
+                "seed": 1,
+                "userId": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+                "name": "xenonrage"
+              }
+            },
+            {
+              "scorePlayer2": 8,
+              "scorePlayer1": 11,
+              "player2": {
+                "seed": 3,
+                "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+                "name": "Bear"
+              },
+              "matchStatus": "finished",
+              "winner": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+              "name": "xenonrage vs Bear",
+              "player1": {
+                "userId": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+                "seed": 1,
+                "name": "xenonrage"
+              },
+              "matchId": "89dc2b87-f5df-4b6c-9f46-eb35de6e7cdf"
+            },
+            {
+              "scorePlayer2": 11,
+              "winner": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+              "player1": {
+                "name": "xenonrage",
+                "userId": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+                "seed": 1
+              },
+              "name": "xenonrage vs PRO",
+              "scorePlayer1": 1,
+              "matchId": "f08cdb47-af88-473d-8ecc-99420ee13957",
+              "player2": {
+                "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+                "name": "PRO",
+                "seed": 4
+              },
+              "matchStatus": "finished"
+            },
+            {
+              "scorePlayer2": 4,
+              "scorePlayer1": 11,
+              "matchStatus": "finished",
+              "name": "tamarisk vs Bear",
+              "winner": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "player2": {
+                "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+                "seed": 3,
+                "name": "Bear"
+              },
+              "matchId": "2511009e-6a01-41eb-ab74-927b6ecfdb9a",
+              "player1": {
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk",
+                "seed": 2
+              }
+            },
+            {
+              "matchStatus": "finished",
+              "scorePlayer2": 11,
+              "scorePlayer1": 7,
+              "name": "tamarisk vs PRO",
+              "matchId": "b81cd7da-1aef-445b-a1f6-2849b8ce067b",
+              "winner": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+              "player2": {
+                "seed": 4,
+                "name": "PRO",
+                "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+              },
+              "player1": {
+                "seed": 2,
+                "name": "tamarisk",
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+              }
+            },
+            {
+              "player2": {
+                "name": "PRO",
+                "seed": 4,
+                "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+              },
+              "player1": {
+                "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+                "name": "Bear",
+                "seed": 3
+              },
+              "name": "Bear vs PRO",
+              "scorePlayer1": 11,
+              "matchStatus": "finished",
+              "matchId": "5016ad4d-a560-48b9-9c03-31ece7c7e439",
+              "winner": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+              "scorePlayer2": 2
+            }
+          ],
+          "roundIndex": 0,
+          "status": "finished",
+          "participants": [
+            {
+              "name": "xenonrage",
+              "userId": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+              "seed": 1
+            },
+            {
+              "seed": 2,
+              "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+              "name": "tamarisk"
+            },
+            {
+              "name": "Bear",
+              "seed": 3,
+              "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+            },
+            {
+              "name": "PRO",
+              "seed": 4,
+              "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+            }
+          ],
+          "type": "roundRobin",
+          "label": "Round-Robin"
+        },
+        {
+          "matches": [
+            {
+              "matchId": "1-0",
+              "matchStatus": "finished",
+              "player1": {
+                "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+                "name": "PRO",
+                "wins": 2,
+                "losses": 1,
+                "pf": 24,
+                "pa": 19,
+                "place": 1
+              },
+              "player2": {
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk",
+                "wins": 1,
+                "losses": 2,
+                "pf": 20,
+                "pa": 26,
+                "place": 4
+              },
+              "scorePlayer1": 11,
+              "scorePlayer2": 4,
+              "winner": "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+            },
+            {
+              "matchId": "1-1",
+              "matchStatus": "finished",
+              "player1": {
+                "userId": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+                "name": "xenonrage",
+                "wins": 2,
+                "losses": 1,
+                "pf": 23,
+                "pa": 21,
+                "place": 2
+              },
+              "player2": {
+                "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+                "name": "Bear",
+                "wins": 1,
+                "losses": 2,
+                "pf": 23,
+                "pa": 24,
+                "place": 3
+              },
+              "scorePlayer1": 11,
+              "scorePlayer2": 4,
+              "winner": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+            }
+          ],
+          "roundIndex": 1,
+          "type": "knockoutSemis",
+          "status": "finished",
+          "label": "Semi-finals"
+        },
+        {
+          "matches": [
+            {
+              "matchId": "2-0",
+              "matchStatus": "finished",
+              "player1": {
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk",
+                "wins": 1,
+                "losses": 2,
+                "pf": 20,
+                "pa": 26,
+                "place": 4
+              },
+              "player2": {
+                "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+                "name": "Bear",
+                "wins": 1,
+                "losses": 2,
+                "pf": 23,
+                "pa": 24,
+                "place": 3
+              },
+              "scorePlayer1": 4,
+              "scorePlayer2": 11,
+              "winner": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+            }
+          ],
+          "roundIndex": 2,
+          "type": "knockoutBronze",
+          "label": "3rd-place",
+          "status": "finished"
+        },
+        {
+          "matches": [
+            {
+              "matchId": "2-0",
+              "matchStatus": "finished",
+              "player1": {
+                "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+                "name": "tamarisk",
+                "wins": 1,
+                "losses": 2,
+                "pf": 20,
+                "pa": 26,
+                "place": 4
+              },
+              "player2": {
+                "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+                "name": "Bear",
+                "wins": 1,
+                "losses": 2,
+                "pf": 23,
+                "pa": 24,
+                "place": 3
+              },
+              "scorePlayer1": 4,
+              "scorePlayer2": 11,
+              "winner": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+            }
+          ],
+          "roundIndex": 2,
+          "type": "knockoutBronze",
+          "label": "3rd-place",
+          "status": "finished"
+        },
+        {
+          "roundIndex": 3,
+          "type": "knockoutFinal",
+          "label": "Finals",
+          "status": "finished",
+          "matches": [
+            {
+              "matchId": "3-0",
+              "matchStatus": "finished",
+              "player1": {
+                "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+                "name": "PRO",
+                "wins": 2,
+                "losses": 1,
+                "pf": 24,
+                "pa": 19,
+                "place": 1
+              },
+              "player2": {
+                "userId": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+                "name": "xenonrage",
+                "wins": 2,
+                "losses": 1,
+                "pf": 23,
+                "pa": 21,
+                "place": 2
+              },
+              "scorePlayer1": 11,
+              "scorePlayer2": 4,
+              "winner": "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+            }
+          ]
+        }
+      ],
+      "stage": "completed",
+      "finalStats": [
+        {
+          "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+          "name": "PRO",
+          "wins": 4,
+          "losses": 1,
+          "pf": 46,
+          "pa": 27,
+          "place": 1
+        },
+        {
+          "userId": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+          "name": "xenonrage",
+          "wins": 3,
+          "losses": 2,
+          "pf": 38,
+          "pa": 36,
+          "place": 2
+        },
+        {
+          "userId": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+          "name": "Bear",
+          "wins": 3,
+          "losses": 3,
+          "pf": 49,
+          "pa": 43,
+          "place": 3
+        },
+        {
+          "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+          "name": "tamarisk",
+          "wins": 1,
+          "losses": 5,
+          "pf": 32,
+          "pa": 59,
+          "place": 4
+        }
+      ],
+      "champion": {
+        "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+        "name": "PRO",
+        "wins": 4,
+        "losses": 1,
+        "pf": 46,
+        "pa": 27,
+        "place": 1
+      }
+    },
+    "champion": {
+      "userId": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "name": "PRO",
+      "wins": 4,
+      "losses": 1,
+      "pf": 46,
+      "pa": 27,
+      "place": 1
+    }
+  }
+]

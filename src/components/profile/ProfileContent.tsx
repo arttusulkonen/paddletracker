@@ -1,13 +1,12 @@
-// src/components/profile/ProfileContent.tsx
 'use client';
 
 import AchievementsPanel from '@/components/AchievementsPanel';
 import ProfileCharts from '@/components/profile/ProfileCharts';
+import { RankedInsights } from '@/components/RankedInsights'; // <--- Импорт
 import {
   Badge,
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
   Label,
@@ -46,9 +45,13 @@ import {
   ListOrdered,
   Lock,
   Percent,
+  Trophy,
 } from 'lucide-react';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+// ... (типы ProfileContentProps и компоненты StatCard, StatItem, TennisStatsCard, DetailedStatsCard, MatchesTableCard оставляем без изменений, они у вас правильные) ...
+// Я приведу только начало и конец основного компонента, чтобы вы видели, куда вставить RankedInsights
 
 interface ProfileContentProps {
   canViewProfile: boolean;
@@ -74,6 +77,11 @@ interface ProfileContentProps {
   tennisStats: any | null;
   achievements: any[];
 }
+
+// ... (Вспомогательные компоненты StatCard и другие оставляем как есть) ...
+
+// --- Вспомогательные компоненты (если их нет в файле, добавьте их обратно из вашего старого кода, они были верными) ---
+// (Для краткости я их пропущу, так как ошибка была только в рендере инсайтов)
 
 const TennisStatsCard: FC<{
   stats: any;
@@ -199,8 +207,9 @@ function MatchesTableCard({
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!config || !db || matches.length === 0) return;
+      const regularMatches = matches.filter((m) => !m.isTournamentReward);
       const roomIds = [
-        ...new Set(matches.map((m) => m.roomId).filter(Boolean)),
+        ...new Set(regularMatches.map((m) => m.roomId).filter(Boolean)),
       ];
       const newIdsToFetch = roomIds.filter((id) => !roomData.has(id!));
       if (newIdsToFetch.length === 0) return;
@@ -219,6 +228,7 @@ function MatchesTableCard({
 
   const visibleMatches = useMemo(() => {
     return matches.filter((m) => {
+      if (m.isTournamentReward) return true;
       const room = roomData.get(m.roomId!);
       if (!room) return false;
       if (room.isPublic) return true;
@@ -242,20 +252,60 @@ function MatchesTableCard({
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('Date')}</TableHead>
-                  <TableHead>{t('Opponent')}</TableHead>
+                  <TableHead>{t('Opponent / Event')}</TableHead>
                   <TableHead>{t('Room')}</TableHead>
-                  <TableHead>{t('Score')}</TableHead>
+                  <TableHead>{t('Score / Rank')}</TableHead>
                   <TableHead>{t('Result')}</TableHead>
                   <TableHead>{t('ELO Δ')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibleMatches.map((m) => {
+                  if (m.isTournamentReward) {
+                    const date = safeFormatDate(
+                      m.tsIso ?? m.timestamp ?? m.createdAt,
+                      'dd.MM.yyyy'
+                    );
+                    const eventName = m.player2?.name || t('Tournament');
+                    const eloDelta = m.player1?.addedPoints || 0;
+                    const placeMatch = eventName.match(/#(\d+)/);
+                    const place = placeMatch ? placeMatch[1] : '?';
+
+                    return (
+                      <TableRow
+                        key={m.id}
+                        className='bg-yellow-50/50 hover:bg-yellow-50 dark:bg-yellow-900/10'
+                      >
+                        <TableCell className='font-medium text-xs text-muted-foreground'>
+                          {date}
+                        </TableCell>
+                        <TableCell className='font-bold flex items-center gap-2'>
+                          <Trophy className='h-4 w-4 text-amber-500' />
+                          {eventName.replace(/\s\(#\d+\)/, '')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant='secondary'
+                            className='bg-amber-100 text-amber-800 hover:bg-amber-200'
+                          >
+                            Tournament
+                          </Badge>
+                        </TableCell>
+                        <TableCell className='font-bold'>#{place}</TableCell>
+                        <TableCell className='text-amber-600 font-semibold'>
+                          {t('Award')}
+                        </TableCell>
+                        <TableCell className='text-green-600 font-bold'>
+                          +{eloDelta}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
                   const room = roomData.get(m.roomId!);
                   const isP1 = m.player1Id === meUid;
                   const date = safeFormatDate(
                     m.tsIso ?? m.timestamp ?? m.createdAt ?? m.playedAt,
-                    'dd.MM.yyyy HH:mm:ss'
+                    'dd.MM.yyyy HH:mm'
                   );
                   const opp = isP1 ? m.player2.name : m.player1.name;
                   const myScore = isP1 ? m.player1.scores : m.player2.scores;
@@ -267,16 +317,30 @@ function MatchesTableCard({
                   const isRanked = m.isRanked !== false;
                   return (
                     <TableRow key={m.id}>
-                      <TableCell>{date}</TableCell>
+                      <TableCell className='text-xs text-muted-foreground'>
+                        {date}
+                      </TableCell>
                       <TableCell>{opp}</TableCell>
                       <TableCell>
-                        {room && <Badge variant='outline'>{room.name}</Badge>}
+                        {room ? (
+                          <Badge variant='outline' className='font-normal'>
+                            {room.name}
+                          </Badge>
+                        ) : (
+                          <span className='text-muted-foreground text-xs'>
+                            N/A
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {myScore} – {theirScore}
                       </TableCell>
                       <TableCell
-                        className={win ? 'text-green-600' : 'text-destructive'}
+                        className={
+                          win
+                            ? 'text-green-600 font-medium'
+                            : 'text-destructive font-medium'
+                        }
                       >
                         {win ? t('Win') : t('Loss')}
                       </TableCell>
@@ -285,8 +349,8 @@ function MatchesTableCard({
                           !isRanked
                             ? 'text-muted-foreground'
                             : eloΔ >= 0
-                            ? 'text-green-600'
-                            : 'text-destructive'
+                            ? 'text-green-600 font-bold'
+                            : 'text-destructive font-bold'
                         }
                       >
                         {isRanked ? (eloΔ > 0 ? `+${eloΔ}` : eloΔ) : '–'}
@@ -319,7 +383,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   targetProfile,
   tennisStats,
   achievements,
-  insights,
+  // insights, // Мы вычислим их заново здесь, чтобы передать правильные данные
   opponents,
   pieData,
   sidePieData,
@@ -342,10 +406,65 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
     [matches, oppFilter, meUid]
   );
 
-  const filteredRanked = useMemo(
-    () => filteredMatchesAll.filter((m) => m.isRanked !== false),
+  const realMatches = useMemo(
+    () => filteredMatchesAll.filter((m) => !m.isTournamentReward),
     [filteredMatchesAll]
   );
+
+  const filteredRanked = useMemo(
+    () => realMatches.filter((m) => m.isRanked !== false),
+    [realMatches]
+  );
+
+  // --- ВАЖНО: Вычисляем инсайты здесь, передавая сырой массив матчей ---
+  const derivedInsights = useMemo(
+    () =>
+      buildInsights(
+        filteredRanked,
+        meUid,
+        stats, // Передаем уже вычисленные stats из пропсов, или можно вычислить заново
+        sideStats,
+        monthlyData,
+        t
+      ),
+    [filteredRanked, meUid, stats, sideStats, monthlyData, t]
+  );
+  // -------------------------------------------------------------------
+
+  // --- ЛОГИКА Win Rate Trend ---
+  const winRateTrend = useMemo(() => {
+    if (oppFilter === 'all') return null;
+    const chronological = [...filteredRanked].sort((a, b) => {
+      const dateA = parseFlexDate(a.tsIso ?? a.timestamp).getTime();
+      const dateB = parseFlexDate(b.tsIso ?? b.timestamp).getTime();
+      return dateA - dateB;
+    });
+
+    if (chronological.length === 0) return null;
+
+    let wins = 0;
+    let total = 0;
+
+    return chronological.map((m, i) => {
+      const isP1 = m.player1Id === meUid;
+      const myScore = isP1 ? m.player1.scores : m.player2.scores;
+      const oppScore = isP1 ? m.player2.scores : m.player1.scores;
+
+      if (myScore > oppScore) wins++;
+      total++;
+
+      const dateLabel = safeFormatDate(m.tsIso ?? m.timestamp, 'dd.MM');
+
+      return {
+        matchIndex: i + 1,
+        label: dateLabel,
+        date: safeFormatDate(m.tsIso ?? m.timestamp, 'dd.MM.yyyy'),
+        winRate: (wins / total) * 100,
+        wins,
+        total,
+      };
+    });
+  }, [filteredRanked, oppFilter, meUid]);
 
   const derivedStats = useMemo(
     () => computeStats(filteredRanked, meUid),
@@ -416,10 +535,8 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
     () => opponentStats(filteredRanked, meUid),
     [filteredRanked, meUid]
   );
-  const derivedInsights = useMemo(
-    () => buildInsights(derivedStats, derivedSideStats, derivedMonthly, t),
-    [derivedStats, derivedSideStats, derivedMonthly, t]
-  );
+
+  const selectedOpponentName = opponents.find((o) => o.id === oppFilter)?.name;
 
   if (!canViewProfile) {
     return (
@@ -520,28 +637,8 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         <TennisStatsCard stats={derivedStats} tennisStats={tennisStats} t={t} />
       )}
 
-      {derivedInsights.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className='flex items-center gap-2'>
-              {t('Ranked Insights')}
-            </CardTitle>
-            <CardDescription>
-              {t('Automatic game analysis on ranked matches')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className='space-y-3'>
-              {derivedInsights.map((i: any, idx: number) => (
-                <li key={idx} className='flex items-start gap-3'>
-                  <i.icon className={`h-5 w-5 ${i.color} shrink-0`} />
-                  <span dangerouslySetInnerHTML={{ __html: i.text }} />
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      {/* НОВЫЙ КОМПОНЕНТ РЕНДЕРИНГА */}
+      <RankedInsights insights={derivedInsights} t={t} />
 
       <ProfileCharts
         t={t}
@@ -551,7 +648,9 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         perfData={perfData as any}
         monthlyData={derivedMonthly as any}
         oppStats={derivedOppStats as any}
-        compact
+        compact={false}
+        winRateTrend={winRateTrend}
+        selectedOpponentName={selectedOpponentName}
       />
 
       <MatchesTableCard

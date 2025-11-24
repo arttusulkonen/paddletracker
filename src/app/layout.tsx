@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import Providers from '@/app/providers';
 import { AiAssistant } from '@/components/AiAssistant';
 import AppGuard from '@/components/auth/AppGuard';
@@ -74,7 +75,7 @@ export const metadata: Metadata = {
     title: 'Smashlog — Track your matches and ELO',
     description:
       'Track matches, manage tournaments, and analyze your ELO for ping-pong, tennis, and badminton.',
-    url: 'https://smashlog.app/',
+    url: 'https://smashlog.fi/',
     siteName: 'Smashlog',
     images: [
       {

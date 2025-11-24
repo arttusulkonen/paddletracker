@@ -25,6 +25,7 @@ import { Info, ShieldCheck } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+// Типы для мини-истории матчей (W/L)
 type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
 interface StandingsTableProps {
@@ -42,22 +43,34 @@ export function StandingsTable({
 }: StandingsTableProps) {
   const { t } = useTranslation();
   const { sport } = useSport();
+
+  // Если сезон завершен, по умолчанию показываем Final, иначе Regular
   const [viewMode, setViewMode] = useState<ViewMode>(
     latestSeason ? 'final' : 'regular'
   );
+
+  // Конфигурация сортировки для Regular таблицы
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     dir: 'asc' | 'desc';
   }>({ key: 'rating', dir: 'desc' });
 
+  // Сортировка "на лету" для Regular
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a: any, b: any) => {
+      // Игроки без рейтинга (мало матчей) всегда внизу
       if (a.ratingVisible !== b.ratingVisible) return a.ratingVisible ? -1 : 1;
+
       const { key, dir } = sortConfig;
       const factor = dir === 'asc' ? 1 : -1;
-      if (key === 'winPct')
+
+      if (key === 'winPct') {
         return factor * (parseFloat(a.winPct) - parseFloat(b.winPct));
-      if (['name'].includes(key)) return factor * a.name.localeCompare(b.name);
+      }
+      if (key === 'name') {
+        return factor * a.name.localeCompare(b.name);
+      }
+      // Для чисел
       return factor * ((a[key] ?? 0) - (b[key] ?? 0));
     });
   }, [players, sortConfig]);
@@ -75,17 +88,17 @@ export function StandingsTable({
         <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
           <CardTitle>{t('Standings')}</CardTitle>
 
-          <div className='flex gap-2'>
+          <div className='flex gap-2 bg-muted/20 p-1 rounded-lg'>
             <Button
               size='sm'
-              variant={viewMode === 'regular' ? 'default' : 'outline'}
+              variant={viewMode === 'regular' ? 'default' : 'ghost'}
               onClick={() => setViewMode('regular')}
             >
               {t('Regular')}
             </Button>
             <Button
               size='sm'
-              variant={viewMode === 'liveFinal' ? 'default' : 'outline'}
+              variant={viewMode === 'liveFinal' ? 'default' : 'ghost'}
               onClick={() => setViewMode('liveFinal')}
             >
               {t('Live Final')}
@@ -93,10 +106,10 @@ export function StandingsTable({
             {latestSeason && (
               <Button
                 size='sm'
-                variant={viewMode === 'final' ? 'default' : 'outline'}
+                variant={viewMode === 'final' ? 'default' : 'ghost'}
                 onClick={() => setViewMode('final')}
               >
-                {t('Final')}
+                {t('Final Results')}
               </Button>
             )}
           </div>
@@ -104,12 +117,12 @@ export function StandingsTable({
 
         <CardDescription>
           {viewMode === 'regular'
-            ? t('Live season standings')
+            ? t('Live season standings based on Room Rating.')
             : viewMode === 'liveFinal'
             ? t(
-                'Preview of final standings calculated right now, using adjusted points (performance × activity).'
+                'Projected final standings calculated right now (Rating × Activity).'
               )
-            : t('Season awards (final)')}
+            : t('Official results of the last finalized season.')}
         </CardDescription>
       </CardHeader>
 
@@ -136,6 +149,7 @@ export function StandingsTable({
   );
 }
 
+// --- REGULAR VIEW ---
 function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   const headers = useMemo(() => {
     const common = [
@@ -150,146 +164,151 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
         label: 'Room Rating',
         isSortable: true,
         description:
-          'Your ELO rating calculated only from matches within this room. Everyone starts at 1000.',
+          'Current ELO rating within this room. Everyone starts at 1000.',
       },
     ];
-    const rallyGameSpecific = [
+
+    // Специфичные колонки для PingPong/Badminton
+    const standardSpecific = [
       {
         key: 'deltaRoom',
         label: 'Room Δ',
         isSortable: true,
         description:
-          'Change in Room Rating from the starting 1000 points. Example: rating 1029 ⇒ Room Δ +29.',
+          'Total change in Room Rating since joining (Current - 1000).',
       },
       {
         key: 'globalDelta',
         label: 'Global Δ',
         isSortable: true,
-        description:
-          'Change in overall global ELO since your first match in this season across all rooms.',
+        description: 'Change in global ELO since the first match in this room.',
       },
       {
         key: 'totalMatches',
         label: 'Games',
         isSortable: true,
-        description:
-          "Total number of games you've played this season in this room.",
+        description: 'Total games played in this room.',
       },
       {
         key: 'wins',
-        label: 'Wins',
+        label: 'W',
         isSortable: true,
-        description: 'Total wins this season.',
+        description: 'Total wins.',
       },
       {
         key: 'losses',
-        label: 'Losses',
+        label: 'L',
         isSortable: true,
-        description: 'Total losses this season.',
+        description: 'Total losses.',
       },
       {
         key: 'winPct',
         label: 'Win %',
         isSortable: true,
-        description:
-          'Percentage of games won. Calculated as (Wins / Total Games) * 100.',
+        description: 'Wins / Total Games.',
       },
       {
         key: 'avgPtsPerMatch',
-        label: 'Avg Δ / Game',
+        label: 'Avg Δ',
         isSortable: true,
-        description:
-          'Average change in Room Rating per game during this season.',
+        description: 'Average rating change per game.',
       },
       {
         key: 'last5Form',
-        label: 'Last 5 ←',
+        label: 'Form',
         isSortable: false,
-        description: 'Result of your last five games (W=Win, L=Loss).',
+        description: 'Last 5 games (Green=Win, Red=Loss).',
       },
       {
         key: 'longestWinStreak',
-        label: 'Best Streak',
+        label: 'Streak',
         isSortable: true,
-        description: 'Your longest consecutive winning streak this season.',
+        description: 'Best consecutive win streak.',
       },
     ];
+
+    // Специфичные колонки для Tennis
     const tennisSpecific = [
       {
         key: 'totalMatches',
         label: 'Sets',
         isSortable: true,
-        description:
-          "Total number of sets you've played this season in this room.",
+        description: 'Total sets played.',
       },
       {
         key: 'wins',
-        label: 'Wins',
+        label: 'W',
         isSortable: true,
-        description: 'Total sets won this season.',
+        description: 'Sets won.',
       },
       {
         key: 'losses',
-        label: 'Losses',
+        label: 'L',
         isSortable: true,
-        description: 'Total sets lost this season.',
+        description: 'Sets lost.',
       },
       {
         key: 'winPct',
         label: 'Win %',
         isSortable: true,
-        description:
-          'Percentage of sets won. Calculated as (Wins / Total Sets) * 100.',
+        description: 'Sets won percentage.',
       },
       {
         key: 'aces',
         label: 'Aces',
         isSortable: true,
-        description: 'Serves that result directly in a point.',
+        description: 'Total aces.',
       },
       {
         key: 'doubleFaults',
         label: 'DF',
         isSortable: true,
-        description:
-          'Two consecutive faults during a serve, resulting in the loss of the point.',
+        description: 'Double faults.',
       },
       {
         key: 'winners',
         label: 'Winners',
         isSortable: true,
-        description:
-          'Shots that win the point outright, without the opponent touching the ball.',
+        description: 'Clean winners.',
       },
     ];
 
     return sport === 'tennis'
       ? [...common, ...tennisSpecific]
-      : common.concat(rallyGameSpecific);
+      : [...common, ...standardSpecific];
   }, [sport, t]);
 
   return (
     <div className='overflow-x-auto'>
-      <ScrollArea>
+      <ScrollArea className='w-full whitespace-nowrap'>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>#</TableHead>
+              <TableHead className='w-10 text-center'>#</TableHead>
               {headers.map((h) => (
-                <TableHead key={h.key}>
-                  <TooltipProvider delayDuration={100}>
+                <TableHead
+                  key={h.key}
+                  className='text-xs uppercase font-bold text-muted-foreground'
+                >
+                  <TooltipProvider delayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
-                          className='flex items-center gap-1 cursor-pointer'
+                          className={`flex items-center gap-1 cursor-pointer ${
+                            h.key === 'name'
+                              ? 'justify-start'
+                              : 'justify-center'
+                          }`}
                           onClick={() => h.isSortable && onSort(h.key)}
                         >
                           <span>{t(h.label)}</span>
-                          <Info className='h-3 w-3 text-muted-foreground' />
+                          {h.description && (
+                            <Info className='h-3 w-3 opacity-50' />
+                          )}
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className='max-w-xs'>{t(h.description)}</p>
+                        <p className='max-w-xs text-xs'>{t(h.description)}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -299,19 +318,21 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
           </TableHeader>
           <TableBody>
             {players.map((p: any, i: number) => (
-              <TableRow key={p.userId}>
-                <TableCell>{i + 1}</TableCell>
+              <TableRow key={p.userId} className='hover:bg-muted/50'>
+                <TableCell className='text-center font-medium text-muted-foreground'>
+                  {i + 1}
+                </TableCell>
                 <TableCell>
                   <a
                     href={`/profile/${p.userId}`}
-                    className='hover:underline flex items-center gap-2'
+                    className='hover:underline flex items-center gap-2 font-medium'
                   >
                     {p.name}
                     {p.userId === creatorId && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <ShieldCheck className='h-4 w-4 text-primary' />
+                            <ShieldCheck className='h-3 w-3 text-primary' />
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>{t('Room Creator')}</p>
@@ -321,64 +342,84 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
                     )}
                   </a>
                 </TableCell>
-                <TableCell>{p.ratingVisible ? p.rating : '—'}</TableCell>
+                <TableCell className='text-center font-bold text-primary'>
+                  {p.ratingVisible ? Math.round(p.rating) : '—'}
+                </TableCell>
 
                 {sport === 'tennis' ? (
                   <>
-                    <TableCell>{p.totalMatches}</TableCell>
-                    <TableCell>{p.wins}</TableCell>
-                    <TableCell>{p.losses}</TableCell>
-                    <TableCell>
+                    <TableCell className='text-center'>
+                      {p.totalMatches}
+                    </TableCell>
+                    <TableCell className='text-center text-green-600'>
+                      {p.wins}
+                    </TableCell>
+                    <TableCell className='text-center text-red-600'>
+                      {p.losses}
+                    </TableCell>
+                    <TableCell className='text-center font-medium'>
                       {p.ratingVisible ? `${p.winPct}%` : '—'}
                     </TableCell>
-                    <TableCell>{p.aces ?? 0}</TableCell>
-                    <TableCell>{p.doubleFaults ?? 0}</TableCell>
-                    <TableCell>{p.winners ?? 0}</TableCell>
+                    <TableCell className='text-center'>{p.aces ?? 0}</TableCell>
+                    <TableCell className='text-center'>
+                      {p.doubleFaults ?? 0}
+                    </TableCell>
+                    <TableCell className='text-center'>
+                      {p.winners ?? 0}
+                    </TableCell>
                   </>
                 ) : (
                   <>
-                    <TableCell>
-                      {p.ratingVisible ? p.deltaRoom.toFixed(0) : '—'}
+                    <TableCell className='text-center text-xs'>
+                      {p.ratingVisible
+                        ? p.deltaRoom > 0
+                          ? `+${p.deltaRoom.toFixed(0)}`
+                          : p.deltaRoom.toFixed(0)
+                        : '—'}
                     </TableCell>
-                    <TableCell>
-                      {p.ratingVisible ? p.globalDelta.toFixed(0) : '—'}
+                    <TableCell className='text-center text-xs text-muted-foreground'>
+                      {p.ratingVisible
+                        ? p.globalDelta > 0
+                          ? `+${p.globalDelta.toFixed(0)}`
+                          : p.globalDelta.toFixed(0)
+                        : '—'}
                     </TableCell>
-                    <TableCell>{p.totalMatches}</TableCell>
-                    <TableCell>{p.wins}</TableCell>
-                    <TableCell>{p.losses}</TableCell>
-                    <TableCell>
+                    <TableCell className='text-center'>
+                      {p.totalMatches}
+                    </TableCell>
+                    <TableCell className='text-center font-semibold text-green-600'>
+                      {p.wins}
+                    </TableCell>
+                    <TableCell className='text-center font-semibold text-red-600'>
+                      {p.losses}
+                    </TableCell>
+                    <TableCell className='text-center font-bold'>
                       {p.ratingVisible ? `${p.winPct}%` : '—'}
                     </TableCell>
-                    <TableCell>
-                      {p.ratingVisible ? p.avgPtsPerMatch.toFixed(2) : '—'}
+                    <TableCell className='text-center text-xs'>
+                      {p.ratingVisible ? p.avgPtsPerMatch.toFixed(1) : '—'}
                     </TableCell>
-                    <TableCell>
-                      <div className='flex gap-1'>
+                    <TableCell className='text-center'>
+                      <div className='flex gap-0.5 justify-center'>
                         {(p.last5Form || [])
                           .slice()
                           .reverse()
                           .map((mm: MiniMatch, idx: number) => (
-                            <span
+                            <div
                               key={idx}
-                              className={`inline-block w-2 h-2 rounded-full ${
+                              className={`w-2 h-2 rounded-full ${
                                 mm.result === 'W'
                                   ? 'bg-green-500'
                                   : 'bg-red-500'
                               }`}
-                              title={t(
-                                '{{result}} vs {{opponent}} ({{score}})',
-                                {
-                                  result:
-                                    mm.result === 'W' ? t('Win') : t('Loss'),
-                                  opponent: mm.opponent,
-                                  score: mm.score,
-                                }
-                              )}
+                              title={`${
+                                mm.result === 'W' ? 'Win' : 'Loss'
+                              } vs ${mm.opponent}`}
                             />
                           ))}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className='text-center'>
                       {p.ratingVisible ? p.longestWinStreak : '—'}
                     </TableCell>
                   </>
@@ -392,10 +433,17 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   );
 }
 
+// --- LIVE FINAL VIEW (PREVIEW) ---
 function LiveFinalStandings({ players, sport, t }: any) {
   const rows = useMemo(() => {
     const base = (players ?? []).map((p: any) => {
       const matchesPlayed = Number(p.totalMatches ?? p.wins + p.losses ?? 0);
+      const roomRating = Number(p.rating ?? 1000);
+      // Total Added Points = Текущий рейтинг - 1000 (базовый)
+      // В season.ts используется сумма addedPoints из матчей, что математически равно rating - 1000,
+      // если мы стартовали с 1000.
+      const totalAddedPoints = roomRating - 1000;
+
       return {
         userId: p.userId,
         name: p.name,
@@ -404,16 +452,22 @@ function LiveFinalStandings({ players, sport, t }: any) {
         losses: Number(p.losses ?? 0),
         winRate:
           matchesPlayed > 0 ? (Number(p.wins ?? 0) / matchesPlayed) * 100 : 0,
-        totalAddedPoints: Number(p.deltaRoom ?? 0),
+        totalAddedPoints,
         longestWinStreak: Number(p.longestWinStreak ?? 0),
-        roomRating: Number(p.rating ?? 1000),
+        roomRating,
       };
     });
 
+    // Расчет среднего количества матчей (только среди тех, кто играл)
+    const activePlayers = base.filter((p: any) => p.matchesPlayed > 0);
+    const totalMatchesAll = activePlayers.reduce(
+      (sum: number, r: any) => sum + r.matchesPlayed,
+      0
+    );
     const avgM =
-      base.reduce((sum: number, r: any) => sum + (r.matchesPlayed || 0), 0) /
-        (base.length || 1) || 0.000001;
+      activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
 
+    // Формула корректировки (ТОЧНО КАК В season.ts)
     const adjFactor = (ratio: number) => {
       if (!isFinite(ratio) || ratio <= 0) return 0;
       return Math.sqrt(ratio);
@@ -421,286 +475,172 @@ function LiveFinalStandings({ players, sport, t }: any) {
 
     const withAdj = base.map((r: any) => ({
       ...r,
+      // Основная формула: (Rating - 1000) * sqrt(Matches / Avg)
       adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM),
     }));
 
+    // Сортировка (ТОЧНО КАК В season.ts)
     withAdj.sort((a: any, b: any) => {
-      const aZero = (a.matchesPlayed ?? 0) === 0;
-      const bZero = (b.matchesPlayed ?? 0) === 0;
+      // Сначала те, кто играл
+      const aZero = a.matchesPlayed === 0;
+      const bZero = b.matchesPlayed === 0;
       if (aZero !== bZero) return aZero ? 1 : -1;
-      return (
-        b.adjPoints - a.adjPoints ||
-        b.totalAddedPoints - a.totalAddedPoints ||
-        b.wins - a.wins ||
-        a.losses - b.losses ||
-        b.longestWinStreak - a.longestWinStreak
-      );
+
+      // 1. Adjusted Points
+      if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
+      // 2. Total Points (Rating diff)
+      if (b.totalAddedPoints !== a.totalAddedPoints)
+        return b.totalAddedPoints - a.totalAddedPoints;
+      // 3. Win Rate
+      return b.winRate - a.winRate;
     });
 
     return withAdj.map((r: any, i: number) => ({ ...r, place: i + 1 }));
   }, [players]);
 
-  const headers = useMemo(
-    () => [
-      {
-        key: 'place',
-        label: 'Rank',
-        description:
-          'Live preview ranking if the season were finalized right now.',
-      },
-      {
-        key: 'name',
-        label: 'Player',
-        description: "The player's display name.",
-      },
-      {
-        key: 'matchesPlayed',
-        label: sport === 'tennis' ? 'Sets' : 'Games',
-        description:
-          'Total number of games (or sets) played so far in this season.',
-      },
-      {
-        key: 'wins',
-        label: 'Wins',
-        description: 'Wins so far.',
-      },
-      {
-        key: 'losses',
-        label: 'Losses',
-        description: 'Losses so far.',
-      },
-      {
-        key: 'winRate',
-        label: 'Win %',
-        description:
-          'Percentage of games won so far. (Wins / Total Games) * 100.',
-      },
-      {
-        key: 'longestWinStreak',
-        label: 'Best Streak',
-        description: 'Longest consecutive win streak so far.',
-      },
-      {
-        key: 'roomRating',
-        label: 'Room Rating',
-        description:
-          'Current Room Rating based only on this room matches (starts at 1000).',
-      },
-      {
-        key: 'totalAddedPoints',
-        label: 'Total Δ',
-        description:
-          'Sum of changes in Room Rating since 1000 in this season (equivalent to Room Δ).',
-      },
-      {
-        key: 'adjPoints',
-        label: 'Adjusted Pts',
-        description:
-          'Adjusted total that balances performance and activity: Total Δ × √(your games / room average).',
-      },
-    ],
-    [sport, t]
-  );
+  const headers = [
+    { key: 'place', label: 'Rank' },
+    { key: 'name', label: 'Player' },
+    { key: 'matchesPlayed', label: 'Games' },
+    { key: 'wins', label: 'W' },
+    { key: 'losses', label: 'L' },
+    { key: 'roomRating', label: 'Rating' },
+    { key: 'totalAddedPoints', label: 'Net Pts' }, // Чистые очки (Rating - 1000)
+    { key: 'adjPoints', label: 'Adj Pts' }, // Скорректированные
+  ];
 
   return (
     <div className='overflow-x-auto'>
-      <ScrollArea>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {headers.map((h) => (
-                <TableHead key={h.key}>
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className='flex items-center gap-1'>
-                          <span>{t(h.label)}</span>
-                          <Info className='h-3 w-3 text-muted-foreground' />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className='max-w-xs'>{t(h.description)}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r: any) => (
-              <TableRow key={r.userId}>
-                <TableCell>{r.place}</TableCell>
-                <TableCell>
-                  <a href={`/profile/${r.userId}`} className='hover:underline'>
-                    {r.name}
-                  </a>
-                </TableCell>
-                <TableCell>{r.matchesPlayed}</TableCell>
-                <TableCell>{r.wins}</TableCell>
-                <TableCell>{r.losses}</TableCell>
-                <TableCell>{r.winRate.toFixed(1)}%</TableCell>
-                <TableCell>{r.longestWinStreak ?? '—'}</TableCell>
-                <TableCell>{r.roomRating?.toFixed(0) ?? '—'}</TableCell>
-                <TableCell>{r.totalAddedPoints?.toFixed(0) ?? '—'}</TableCell>
-                <TableCell>
-                  {(r.matchesPlayed ?? 0) === 0
-                    ? '—'
-                    : r.adjPoints?.toFixed(2) ?? '—'}
-                </TableCell>
-              </TableRow>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {headers.map((h) => (
+              <TableHead
+                key={h.key}
+                className='text-center text-xs font-bold uppercase'
+              >
+                {t(h.label)}
+              </TableHead>
             ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r: any) => (
+            <TableRow
+              key={r.userId}
+              className={r.matchesPlayed === 0 ? 'opacity-50' : ''}
+            >
+              <TableCell className='text-center font-medium'>
+                {r.place}
+              </TableCell>
+              <TableCell className='text-left font-medium'>{r.name}</TableCell>
+              <TableCell className='text-center'>{r.matchesPlayed}</TableCell>
+              <TableCell className='text-center text-green-600'>
+                {r.wins}
+              </TableCell>
+              <TableCell className='text-center text-red-600'>
+                {r.losses}
+              </TableCell>
+              <TableCell className='text-center'>
+                {Math.round(r.roomRating)}
+              </TableCell>
+              <TableCell className='text-center text-muted-foreground'>
+                {r.totalAddedPoints > 0 ? '+' : ''}
+                {Math.round(r.totalAddedPoints)}
+              </TableCell>
+              <TableCell className='text-center font-bold text-lg text-primary'>
+                {r.matchesPlayed > 0 ? r.adjPoints.toFixed(1) : '—'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
-      <p className='text-xs text-muted-foreground mt-3'>
-        {t(
-          'Adjusted Pts = Total Δ × √(Games / avgGames). This multiplier balances performance with activity: if you play about the room-average number of games, the multiplier ≈ 1 (same as dividing by 1); if you play ~4× the average, the multiplier ≈ 2 (same as dividing by 0.5); if you play ~¼ of the average, the multiplier ≈ 0.5 (same as dividing by 2). Example: suppose avgGames = 40. Player A: 80 games, Total Δ = +30 ⇒ √(80/40) = √2 ≈ 1.41 ⇒ Adjusted Pts ≈ 30 × 1.41 = 42.3. Player B: 20 games, Total Δ = +30 ⇒ √(20/40) = √0.5 ≈ 0.71 ⇒ Adjusted Pts ≈ 30 × 0.71 = 21.2. Live Final shows where players would rank right now using this same rule.'
-        )}
-      </p>
+      <div className='mt-4 p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground border'>
+        <p className='font-semibold mb-1'>{t('How Adjusted Points work:')}</p>
+        <p>{t('Adj Points = Net Points × √(Games / Average Games).')}</p>
+        <p className='mt-1'>
+          {t(
+            'This formula rewards active players. If you have positive points but play very few games, your score is reduced. If you play more than average, your score is boosted.'
+          )}
+        </p>
+      </div>
     </div>
   );
 }
 
+// --- FINAL STANDINGS (HISTORY) ---
 function FinalStandings({ season, sport, t }: any) {
   const data = useMemo(
     () => (Array.isArray(season?.summary) ? season.summary : []),
     [season]
   );
 
-  const headers = useMemo(
-    () => [
-      {
-        key: 'place',
-        label: 'Rank',
-        description: 'Your final ranking for the season.',
-      },
-      {
-        key: 'name',
-        label: 'Player',
-        description: "The player's display name.",
-      },
-      {
-        key: 'matchesPlayed',
-        label: sport === 'tennis' ? 'Sets' : 'Games',
-        description:
-          'Total number of games (or sets) played by the player during the season.',
-      },
-      {
-        key: 'wins',
-        label: 'Wins',
-        description: 'Total number of wins during the season.',
-      },
-      {
-        key: 'losses',
-        label: 'Losses',
-        description: 'Total number of losses during the season.',
-      },
-      {
-        key: 'winRate',
-        label: 'Win %',
-        description:
-          'Percentage of games won. Calculated as (Wins / Total Games) * 100.',
-      },
-      {
-        key: 'longestWinStreak',
-        label: 'Best Streak',
-        description:
-          'The longest consecutive winning streak during the season.',
-      },
-      {
-        key: 'startGlobalElo',
-        label: 'Start Elo',
-        description:
-          'Global ELO at the time of the first match in this season.',
-      },
-      {
-        key: 'endGlobalElo',
-        label: 'End Elo',
-        description: 'Global ELO after the last match in this season.',
-      },
-      {
-        key: 'eloDelta',
-        label: 'Elo Δ',
-        description:
-          'Total change in global ELO over the season (End Elo - Start Elo).',
-      },
-      {
-        key: 'totalAddedPoints',
-        label: 'Total Δ',
-        description:
-          "Sum of ELO points won or lost specifically within this room's matches.",
-      },
-      {
-        key: 'adjPoints',
-        label: 'Adjusted Pts',
-        description:
-          'Main ranking metric at season close: Total Δ adjusted by the number of games vs room average.',
-      },
-    ],
-    [sport, t]
-  );
-
   if (!data.length) {
     return (
-      <p className='text-muted-foreground text-center py-4'>
-        {t('No final season data available.')}
+      <p className='text-muted-foreground text-center py-8'>
+        {t('No finalized results found for this season.')}
       </p>
     );
   }
 
   return (
     <div className='overflow-x-auto'>
-      <ScrollArea>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {headers.map((h) => (
-                <TableHead key={h.key}>
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className='flex items-center gap-1'>
-                          <span>{t(h.label)}</span>
-                          <Info className='h-3 w-3 text-muted-foreground' />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className='max-w-xs'>{t(h.description)}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </TableHead>
-              ))}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className='w-12 text-center'>#</TableHead>
+            <TableHead>{t('Player')}</TableHead>
+            <TableHead className='text-center'>{t('Games')}</TableHead>
+            <TableHead className='text-center'>{t('W')}</TableHead>
+            <TableHead className='text-center'>{t('L')}</TableHead>
+            <TableHead className='text-center'>{t('Rating')}</TableHead>
+            <TableHead className='text-center'>{t('Adj Pts')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((r: any) => (
+            <TableRow key={r.userId}>
+              <TableCell className='text-center font-bold text-lg'>
+                {r.place === 1
+                  ? '🥇'
+                  : r.place === 2
+                  ? '🥈'
+                  : r.place === 3
+                  ? '🥉'
+                  : r.place}
+              </TableCell>
+              <TableCell className='font-medium'>
+                <div className='flex flex-col'>
+                  <span>{r.name}</span>
+                  {r.longestWinStreak > 4 && (
+                    <span className='text-[10px] text-green-600 flex items-center gap-1'>
+                      🔥 {r.longestWinStreak} {t('streak')}
+                    </span>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell className='text-center'>{r.matchesPlayed}</TableCell>
+              <TableCell className='text-center text-green-600'>
+                {r.wins}
+              </TableCell>
+              <TableCell className='text-center text-red-600'>
+                {r.losses}
+              </TableCell>
+              <TableCell className='text-center text-muted-foreground'>
+                {Math.round(r.roomRating)}
+              </TableCell>
+              <TableCell className='text-center font-bold text-primary text-lg'>
+                {r.adjPoints?.toFixed(1)}
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((r: any) => (
-              <TableRow key={r.userId}>
-                <TableCell>{r.place}</TableCell>
-                <TableCell>
-                  <a href={`/profile/${r.userId}`} className='hover:underline'>
-                    {r.name}
-                  </a>
-                </TableCell>
-                <TableCell>{r.matchesPlayed}</TableCell>
-                <TableCell>{r.wins}</TableCell>
-                <TableCell>{r.losses}</TableCell>
-                <TableCell>{(r.winRate ?? 0).toFixed(1)}%</TableCell>
-                <TableCell>{r.longestWinStreak ?? '—'}</TableCell>
-                <TableCell>{r.startGlobalElo?.toFixed(0) ?? '—'}</TableCell>
-                <TableCell>{r.endGlobalElo?.toFixed(0) ?? '—'}</TableCell>
-                <TableCell>
-                  {(r.endGlobalElo - r.startGlobalElo).toFixed(0)}
-                </TableCell>
-                <TableCell>{r.totalAddedPoints?.toFixed(2) ?? '—'}</TableCell>
-                <TableCell>{r.adjPoints?.toFixed(2) ?? '—'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+          ))}
+        </TableBody>
+      </Table>
+
+      <div className='mt-4 text-center text-sm text-muted-foreground'>
+        {t('Season finalized on')} {season.dateFinished}
+      </div>
     </div>
   );
 }

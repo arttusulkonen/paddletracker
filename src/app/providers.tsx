@@ -1,11 +1,8 @@
-// src/app/providers.tsx
 'use client';
 
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
-// --- НАЧАЛО ИЗМЕНЕНИЙ ---
 import ScrollToTopButton from '@/components/layout/ScrollToTopButton';
-// --- КОНЕЦ ИЗМЕНЕНИЙ ---
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SportProvider } from '@/contexts/SportContext';
@@ -17,6 +14,27 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [isI18nInitialized, setIsI18nInitialized] = useState(false);
 
   useEffect(() => {
+    // ─────────────────────────────────────────────────────────────
+    // 1. CLIENT-SIDE DOMAIN REDIRECT (Самый надежный способ для Firebase)
+    // Если Middleware не сработал из-за кеша, этот код перекинет пользователя.
+    // ─────────────────────────────────────────────────────────────
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const oldDomains = [
+        'tabletennis-f4c23.web.app',
+        'tabletennis-f4c23.firebaseapp.com',
+      ];
+
+      if (oldDomains.includes(hostname)) {
+        // Используем replace, чтобы пользователь не мог нажать "Назад" и вернуться на старый домен
+        window.location.replace(
+          'https://smashlog.fi' +
+            window.location.pathname +
+            window.location.search
+        );
+        return; // Прерываем дальнейшую загрузку на старом домене
+      }
+    }
     const init = async () => {
       const currentLang = i18n.language;
       await fetchAndMergeTranslations(currentLang);

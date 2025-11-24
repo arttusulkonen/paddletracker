@@ -51,8 +51,16 @@ const CustomTooltip: FC<any> = ({ active, payload, label, t }) => {
           {t('Your ELO')}: {data.rating}
         </div>
       )}
-      {data.opponent && <div>{t('Opponent')}: {data.opponent}</div>}
-      {data.score && <div>{t('Score')}: {data.score}</div>}
+      {data.opponent && (
+        <div>
+          {t('Opponent')}: {data.opponent}
+        </div>
+      )}
+      {data.score && (
+        <div>
+          {t('Score')}: {data.score}
+        </div>
+      )}
     </div>
   );
 };
@@ -78,7 +86,10 @@ function ChartCard({
   );
 }
 
-export const ProfileCharts: FC<ProfileChartsProps> = ({ perfData, monthlyData }) => {
+export const ProfileCharts: FC<ProfileChartsProps> = ({
+  perfData,
+  monthlyData,
+}) => {
   const { t } = useTranslation();
 
   return (
@@ -99,70 +110,75 @@ export const ProfileCharts: FC<ProfileChartsProps> = ({ perfData, monthlyData })
               dot={{ r: 2 }}
               activeDot={{ r: 6 }}
             />
-            <Brush dataKey='label' height={20} stroke='hsl(var(--primary))' startIndex={Math.max(0, perfData.length - 30)} />
+            <Brush
+              dataKey='label'
+              height={20}
+              stroke='hsl(var(--primary))'
+              startIndex={Math.max(0, perfData.length - 30)}
+            />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
       <ChartCard title={t('Monthly Δ ELO (Ranked)')} icon={LineChartIcon}>
-          <ResponsiveContainer width='100%' height={300}>
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='label' />
-              <YAxis />
-              <ReLegend />
-              <RechartTooltip />
-              <Line type='monotone' dataKey='delta' strokeWidth={2} dot />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title={t('Match Result (Ranked)')} icon={Activity}>
-          <ResponsiveContainer width='100%' height={450}>
-            <LineChart data={perfData}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='label' tick={{ fontSize: 12 }} />
-              <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} />
-              <RechartTooltip content={<CustomTooltip t={t} />} />
-              <ReLegend />
-              <Line
-                type='stepAfter'
-                dataKey='result'
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-              <Brush
-                dataKey='label'
-                height={20}
-                travellerWidth={10}
-                startIndex={Math.floor(perfData.length * 0.8)}
-                endIndex={perfData.length - 1}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-        <ChartCard title={t('Score Difference (Ranked)')} icon={TrendingUp}>
-          <ResponsiveContainer width='100%' height={450}>
-            <LineChart data={perfData}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='label' tick={{ fontSize: 12 }} />
-              <YAxis />
-              <RechartTooltip content={<CustomTooltip t={t} />} />
-              <ReLegend />
-              <Line
-                type='monotone'
-                dataKey='diff'
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-              <Brush
-                dataKey='label'
-                height={20}
-                travellerWidth={10}
-                startIndex={Math.floor(perfData.length * 0.8)}
-                endIndex={perfData.length - 1}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <ResponsiveContainer width='100%' height={300}>
+          <LineChart data={monthlyData}>
+            <CartesianGrid strokeDasharray='3 3' />
+            <XAxis dataKey='label' />
+            <YAxis />
+            <ReLegend />
+            <RechartTooltip />
+            <Line type='monotone' dataKey='delta' strokeWidth={2} dot />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+      <ChartCard title={t('Match Result (Ranked)')} icon={Activity}>
+        <ResponsiveContainer width='100%' height={450}>
+          <LineChart data={perfData}>
+            <CartesianGrid strokeDasharray='3 3' />
+            <XAxis dataKey='label' tick={{ fontSize: 12 }} />
+            <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} />
+            <RechartTooltip content={<CustomTooltip t={t} />} />
+            <ReLegend />
+            <Line
+              type='stepAfter'
+              dataKey='result'
+              dot={{ r: 4 }}
+              activeDot={{ r: 6 }}
+            />
+            <Brush
+              dataKey='label'
+              height={20}
+              travellerWidth={10}
+              startIndex={Math.floor(perfData.length * 0.8)}
+              endIndex={perfData.length - 1}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
+      <ChartCard title={t('Score Difference (Ranked)')} icon={TrendingUp}>
+        <ResponsiveContainer width='100%' height={450}>
+          <LineChart data={perfData}>
+            <CartesianGrid strokeDasharray='3 3' />
+            <XAxis dataKey='label' tick={{ fontSize: 12 }} />
+            <YAxis />
+            <RechartTooltip content={<CustomTooltip t={t} />} />
+            <ReLegend />
+            <Line
+              type='monotone'
+              dataKey='diff'
+              dot={{ r: 4 }}
+              activeDot={{ r: 6 }}
+            />
+            <Brush
+              dataKey='label'
+              height={20}
+              travellerWidth={10}
+              startIndex={Math.floor(perfData.length * 0.8)}
+              endIndex={perfData.length - 1}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartCard>
     </div>
   );
 };

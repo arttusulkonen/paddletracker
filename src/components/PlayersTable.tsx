@@ -1,3 +1,4 @@
+// src/components/PlayersTable.tsx
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,14 +29,16 @@ import { sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import type { Sport, UserProfile } from '@/lib/types';
-// Импортируем карту медалей
 import { medalMap } from '@/lib/utils/profileUtils';
 import {
-  BarChartHorizontal,
-  Percent, // Импортируем иконку процента
-  Shield,
-  Users,
-} from 'lucide-react';
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
+import { BarChartHorizontal, Percent, Shield, Users } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -90,7 +93,8 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           });
         });
         setPlayers(fetchedPlayers);
-      } catch {
+      } catch (error) {
+        console.error('Error fetching Global Ranking:', error);
         setPlayers([]);
       } finally {
         setLoading(false);
@@ -150,7 +154,8 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           new Map(merged.map((p) => [p.id, p])).values()
         ).sort((a, b) => b.globalElo - a.globalElo);
         setMyCirclesPlayers(dedup);
-      } catch {
+      } catch (error) {
+        console.error('Error fetching Friends:', error); // <--- И ЗДЕСЬ
         setMyCirclesPlayers([]);
       } finally {
         setLoadingFriends(false);

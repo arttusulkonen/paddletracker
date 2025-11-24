@@ -47,3 +47,4 @@ firestore-debug.log
 serviceAccountKey.json
 serviceAccountKey.dev.json
 serviceAccountKey.prod.json
+serviceAccountKeyDev.json

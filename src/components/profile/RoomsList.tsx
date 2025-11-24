@@ -101,13 +101,8 @@ export function RoomsList({ targetUid, onVisibleCountChange }: RoomsListProps) {
   const cardTitle = t('Active Rooms');
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          {cardTitle} ({visibleRooms.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className={'border-none shadow-none p-0'}>
+      <CardContent className={'p-0'}>
         <div className='space-y-3'>
           {visibleRooms.slice(0, PREVIEW_COUNT).map((room) => (
             <Link

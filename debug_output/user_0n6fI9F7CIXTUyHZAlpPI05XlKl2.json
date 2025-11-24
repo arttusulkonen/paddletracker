@@ -1,0 +1,485 @@
+{
+  "uid": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+  "email": "tamarisk@gmail.com",
+  "maxRating": 1000,
+  "matchesPlayed": 0,
+  "wins": 0,
+  "losses": 0,
+  "createdAt": "26.07.2025 15.49.30",
+  "bio": "",
+  "photoURL": null,
+  "isDeleted": false,
+  "outgoingRequests": [],
+  "isPublic": true,
+  "activeSport": "pingpong",
+  "approved": true,
+  "approvedBy": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+  "approvedAt": "2025-08-29T15:05:07.504Z",
+  "displayName": "tamarisk",
+  "name": "tamarisk",
+  "rooms": [
+    "rCA7SNen9IR4bm1uKuVF",
+    "l2ARDKfANi23Tc0FeGCb"
+  ],
+  "incomingRequests": [],
+  "friends": [
+    "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+  ],
+  "tournaments": [
+    "zMctE5Ft1cCNhANRLS5p",
+    "Y60bnh2TkCV2zLQWy2gt",
+    "hIcn2gmxyrxrkJmHb7II",
+    "M0AYEehnCk8ntfgu9z3F"
+  ],
+  "achievements": [
+    {
+      "type": "seasonFinish",
+      "sport": "pingpong",
+      "roomId": "A33xEbJaXhJeOWZy4355",
+      "roomName": "First public room",
+      "dateFinished": "16.08.2025 13.11.02",
+      "userId": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "name": "tamarisk",
+      "place": 1,
+      "matchesPlayed": 15,
+      "wins": 9,
+      "losses": 6,
+      "winRate": 60,
+      "totalAddedPoints": 16,
+      "adjPoints": 15.825131361498888,
+      "longestWinStreak": 3,
+      "roomRating": 1003,
+      "startGlobalElo": 1019,
+      "endGlobalElo": 1035
+    },
+    {
+      "type": "tournamentFinish",
+      "dateFinished": "30.08.2025 12.08.30",
+      "tournamentId": "zMctE5Ft1cCNhANRLS5p",
+      "tournamentName": "First tournament",
+      "place": 4,
+      "wins": 1,
+      "losses": 5,
+      "pointsFor": 32,
+      "pointsAgainst": 59
+    },
+    {
+      "type": "tournamentFinish",
+      "dateFinished": "30.08.2025 12.08.31",
+      "tournamentId": "zMctE5Ft1cCNhANRLS5p",
+      "tournamentName": "First tournament",
+      "place": 4,
+      "wins": 1,
+      "losses": 5,
+      "pointsFor": 32,
+      "pointsAgainst": 59
+    },
+    {
+      "type": "tournamentFinish",
+      "dateFinished": "20.11.2025 09.16.39",
+      "tournamentId": "M0AYEehnCk8ntfgu9z3F",
+      "tournamentName": "test",
+      "place": 3,
+      "wins": 3,
+      "losses": 2,
+      "pointsFor": 39,
+      "pointsAgainst": 32,
+      "eloReward": 50,
+      "sport": "pingpong"
+    },
+    {
+      "type": "tournamentFinish",
+      "dateFinished": "20.11.2025 09.18.27",
+      "tournamentId": "hIcn2gmxyrxrkJmHb7II",
+      "tournamentName": "winter",
+      "place": 3,
+      "wins": 2,
+      "losses": 3,
+      "pointsFor": "02114411",
+      "pointsAgainst": "011211114",
+      "eloReward": 50,
+      "sport": "pingpong"
+    },
+    {
+      "type": "tournamentFinish",
+      "dateFinished": "20.11.2025 09.18.31",
+      "tournamentId": "Y60bnh2TkCV2zLQWy2gt",
+      "tournamentName": "winter cup",
+      "place": 1,
+      "wins": 4,
+      "losses": 2,
+      "pointsFor": "01111441111",
+      "pointsAgainst": "044111144",
+      "eloReward": 100,
+      "sport": "pingpong"
+    }
+  ],
+  "sports": {
+    "tennis": {
+      "winners": 10,
+      "doubleFaults": 3,
+      "aces": 3,
+      "wins": 7,
+      "globalElo": 994,
+      "losses": 8,
+      "eloHistory": [
+        {
+          "ts": "2025-07-26T19:13:05.038Z",
+          "elo": 984
+        },
+        {
+          "ts": "2025-07-26T19:13:06.038Z",
+          "elo": 1001
+        },
+        {
+          "ts": "2025-07-27T07:48:08.492Z",
+          "elo": 985
+        },
+        {
+          "ts": "2025-07-27T08:08:30.431Z",
+          "elo": 970
+        },
+        {
+          "ts": "2025-07-27T08:09:35.038Z",
+          "elo": 989
+        },
+        {
+          "ts": "2025-07-27T08:12:22.250Z",
+          "elo": 1006
+        },
+        {
+          "ts": "2025-08-17T09:26:12.347Z",
+          "elo": 990
+        },
+        {
+          "ts": "2025-08-17T09:43:59.917Z",
+          "elo": 974
+        },
+        {
+          "ts": "2025-08-17T09:44:52.721Z",
+          "elo": 978
+        },
+        {
+          "ts": "2025-08-17T09:49:53.760Z",
+          "elo": 994
+        }
+      ]
+    },
+    "badminton": {
+      "wins": 3,
+      "globalElo": 993,
+      "losses": 3,
+      "eloHistory": [
+        {
+          "ts": "2025-08-16T17:42:50.163Z",
+          "elo": 1009
+        },
+        {
+          "ts": "2025-08-17T09:50:36.546Z",
+          "elo": 993
+        }
+      ]
+    },
+    "pingpong": {
+      "rooms": [
+        "mTFKdpSsolxJV5ODwxJ7"
+      ],
+      "wins": 50,
+      "losses": 35,
+      "globalElo": 1282,
+      "eloHistory": [
+        {
+          "ts": "2025-07-26T14:26:39.636Z",
+          "elo": 1016
+        },
+        {
+          "ts": "2025-07-26T14:28:19.812Z",
+          "elo": 999
+        },
+        {
+          "ts": "2025-07-26T14:28:43.050Z",
+          "elo": 1015
+        },
+        {
+          "ts": "2025-07-26T14:28:44.050Z",
+          "elo": 1030
+        },
+        {
+          "ts": "2025-07-26T14:28:45.050Z",
+          "elo": 1011
+        },
+        {
+          "ts": "2025-07-26T14:28:46.050Z",
+          "elo": 994
+        },
+        {
+          "ts": "2025-07-26T14:28:47.050Z",
+          "elo": 1011
+        },
+        {
+          "ts": "2025-07-26T17:07:55.021Z",
+          "elo": 994
+        },
+        {
+          "ts": "2025-07-26T19:14:29.799Z",
+          "elo": 1011
+        },
+        {
+          "ts": "2025-07-27T07:40:10.084Z",
+          "elo": 994
+        },
+        {
+          "ts": "2025-07-27T07:40:11.084Z",
+          "elo": 1011
+        },
+        {
+          "ts": "2025-07-27T07:46:49.395Z",
+          "elo": 994
+        },
+        {
+          "ts": "2025-07-27T07:46:50.395Z",
+          "elo": 979
+        },
+        {
+          "ts": "2025-07-27T08:12:47.999Z",
+          "elo": 965
+        },
+        {
+          "ts": "2025-07-27T08:13:06.665Z",
+          "elo": 952
+        },
+        {
+          "ts": "2025-07-27T08:13:07.665Z",
+          "elo": 972
+        },
+        {
+          "ts": "2025-07-27T08:13:08.665Z",
+          "elo": 959
+        },
+        {
+          "ts": "2025-07-27T08:13:09.665Z",
+          "elo": 979
+        },
+        {
+          "ts": "2025-07-27T08:13:10.665Z",
+          "elo": 997
+        },
+        {
+          "ts": "2025-07-27T10:10:30.563Z",
+          "elo": 983
+        },
+        {
+          "ts": "2025-07-27T10:10:31.563Z",
+          "elo": 1003
+        },
+        {
+          "ts": "2025-07-27T10:10:32.563Z",
+          "elo": 989
+        },
+        {
+          "ts": "2025-07-27T10:10:33.563Z",
+          "elo": 1008
+        },
+        {
+          "ts": "2025-07-27T15:44:03.486Z",
+          "elo": 1023
+        },
+        {
+          "ts": "2025-07-27T15:44:04.486Z",
+          "elo": 1037
+        },
+        {
+          "ts": "2025-07-27T15:44:20.892Z",
+          "elo": 1052
+        },
+        {
+          "ts": "2025-07-27T15:44:21.892Z",
+          "elo": 1033
+        },
+        {
+          "ts": "2025-07-27T15:44:22.892Z",
+          "elo": 1016
+        },
+        {
+          "ts": "2025-07-27T15:44:23.892Z",
+          "elo": 1001
+        },
+        {
+          "ts": "2025-07-27T15:44:24.892Z",
+          "elo": 1019
+        },
+        {
+          "ts": "2025-07-27T17:55:58.592Z",
+          "elo": 1033
+        },
+        {
+          "ts": "2025-07-27T17:55:59.592Z",
+          "elo": 1013
+        },
+        {
+          "ts": "2025-07-27T17:56:00.592Z",
+          "elo": 995
+        },
+        {
+          "ts": "2025-07-27T17:56:01.592Z",
+          "elo": 1011
+        },
+        {
+          "ts": "2025-07-27T17:56:02.592Z",
+          "elo": 1025
+        },
+        {
+          "ts": "2025-07-27T17:56:03.592Z",
+          "elo": 1038
+        },
+        {
+          "ts": "2025-07-27T18:09:03.469Z",
+          "elo": 1053
+        },
+        {
+          "ts": "2025-07-27T18:09:04.469Z",
+          "elo": 1034
+        },
+        {
+          "ts": "2025-07-27T18:09:52.263Z",
+          "elo": 1014
+        },
+        {
+          "ts": "2025-07-27T18:09:53.263Z",
+          "elo": 996
+        },
+        {
+          "ts": "2025-07-27T18:09:54.263Z",
+          "elo": 1012
+        },
+        {
+          "ts": "2025-07-27T18:09:55.263Z",
+          "elo": 1026
+        },
+        {
+          "ts": "2025-07-27T18:09:56.263Z",
+          "elo": 1007
+        },
+        {
+          "ts": "2025-07-27T18:09:57.263Z",
+          "elo": 1022
+        },
+        {
+          "ts": "2025-07-27T18:09:58.263Z",
+          "elo": 1035
+        },
+        {
+          "ts": "2025-08-16T07:02:48.038Z",
+          "elo": 1047
+        },
+        {
+          "ts": "2025-08-16T08:45:37.598Z",
+          "elo": 1062
+        },
+        {
+          "ts": "2025-08-16T09:15:34.025Z",
+          "elo": 1040
+        },
+        {
+          "ts": "2025-08-16T09:15:35.025Z",
+          "elo": 1020
+        },
+        {
+          "ts": "2025-08-16T09:30:14.083Z",
+          "elo": 1034
+        },
+        {
+          "ts": "2025-08-16T09:30:15.083Z",
+          "elo": 1047
+        },
+        {
+          "ts": "2025-08-16T09:30:16.083Z",
+          "elo": 1027
+        },
+        {
+          "ts": "2025-08-16T09:30:17.083Z",
+          "elo": 1040
+        },
+        {
+          "ts": "2025-08-16T09:43:50.552Z",
+          "elo": 1054
+        },
+        {
+          "ts": "2025-08-17T08:46:13.953Z",
+          "elo": 1036
+        },
+        {
+          "ts": "2025-08-17T08:51:31.043Z",
+          "elo": 1065
+        },
+        {
+          "ts": "2025-08-17T08:59:19.897Z",
+          "elo": 1075
+        },
+        {
+          "ts": "2025-08-17T08:59:42.681Z",
+          "elo": 1053
+        },
+        {
+          "ts": "2025-08-17T09:50:21.698Z",
+          "elo": 1034
+        },
+        {
+          "ts": "2025-08-29T14:33:07.948Z",
+          "elo": 1028
+        },
+        {
+          "ts": "2025-08-29T17:01:53.167Z",
+          "elo": 1011
+        },
+        {
+          "ts": "2025-11-17T14:10:55.303Z",
+          "elo": 1040
+        },
+        {
+          "ts": "2025-11-17T18:11:09.664Z",
+          "elo": 1057
+        },
+        {
+          "date": "2025-11-20T07:16:39.736Z",
+          "elo": 1132
+        },
+        {
+          "date": "2025-11-20T07:18:27.705Z",
+          "elo": 1182
+        },
+        {
+          "date": "2025-11-20T07:18:31.088Z",
+          "elo": 1282
+        }
+      ]
+    }
+  },
+  "globalElo": 1220,
+  "eloHistory": [
+    {
+      "date": "30.08.2025 12.08.30",
+      "elo": 1010
+    },
+    {
+      "date": "30.08.2025 12.08.31",
+      "elo": 1020
+    },
+    {
+      "date": "20.11.2025 09.16.39",
+      "elo": 1070
+    },
+    {
+      "date": "20.11.2025 09.18.27",
+      "elo": 1120
+    },
+    {
+      "date": "20.11.2025 09.18.31",
+      "elo": 1220
+    }
+  ]
+}

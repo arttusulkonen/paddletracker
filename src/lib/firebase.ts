@@ -1,5 +1,6 @@
 // src/lib/firebase.ts
 
+import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics';
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
@@ -19,6 +20,7 @@ let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
+let analytics: Analytics | null = null;
 
 if (!firebaseConfig.apiKey) {
   console.error(
@@ -40,18 +42,23 @@ if (!firebaseConfig.apiKey) {
       auth = getAuth(app);
       db = getFirestore(app);
       storage = getStorage(app);
+
+      const initializedApp = app;
+
+      if (typeof window !== 'undefined') {
+        isSupported().then((yes) => {
+          if (yes) {
+            analytics = getAnalytics(initializedApp);
+          }
+        });
+      }
+      // -------------------------------
     } catch (e) {
-      console.error('Error initializing Firebase Auth/Firestore/Storage services:', e);
-      auth = null;
-      db = null;
-      storage = null;
-      app = null;
+      console.error('Error initializing Firebase services:', e);
     }
   } else {
-    console.error(
-      'Firebase app object is null after initialization attempt. Auth, Firestore, and Storage will not be available.'
-    );
+    console.error('Firebase app object is null after initialization attempt.');
   }
 }
 
-export { app, auth, db, storage };
+export { analytics, app, auth, db, storage };

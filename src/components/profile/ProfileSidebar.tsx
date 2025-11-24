@@ -1,8 +1,15 @@
 // src/components/profile/ProfileSidebar.tsx
 'use client';
 
-import { Button } from '@/components/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui';
 import type { UserProfile } from '@/lib/types';
+import { Trophy, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,24 +28,42 @@ export function ProfileSidebar({
   const { t } = useTranslation();
   const [visibleRoomsCount, setVisibleRoomsCount] = useState<number>(0);
 
+  if (!canViewProfile) return null;
+
   return (
-    canViewProfile && (
-      <div className='space-y-6'>
-        <div>
+    <div className='space-y-6'>
+      {/* Friends Section */}
+      <Card>
+        <CardHeader className='pb-3'>
+          <CardTitle className='text-lg flex items-center gap-2'>
+            <Users className='h-5 w-5 text-primary' />
+            {t('Friends')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <FriendsList targetProfile={targetProfile} />
-          {targetProfile.friends && targetProfile.friends.length > 0 && (
+          {targetProfile.friends && targetProfile.friends.length > 6 && (
             <Link
               href={`/profile/${targetProfile.uid}/friends`}
               className='mt-4 block'
             >
-              <Button variant='outline' className='w-full'>
+              <Button variant='ghost' className='w-full text-xs'>
                 {t('View All Friends')}
               </Button>
             </Link>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className='space-y-4'>
+      {/* Rooms Section */}
+      <Card>
+        <CardHeader className='pb-3'>
+          <CardTitle className='text-lg flex items-center gap-2'>
+            <Trophy className='h-5 w-5 text-amber-500' />
+            {t('Active Rooms')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <RoomsList
             targetUid={targetProfile.uid}
             onVisibleCountChange={setVisibleRoomsCount}
@@ -48,13 +73,13 @@ export function ProfileSidebar({
               href={`/profile/${targetProfile.uid}/rooms`}
               className='mt-4 block'
             >
-              <Button variant='outline' className='w-full'>
+              <Button variant='ghost' className='w-full text-xs'>
                 {t('View All Rooms')}
               </Button>
             </Link>
           )}
-        </div>
-      </div>
-    )
+        </CardContent>
+      </Card>
+    </div>
   );
 }

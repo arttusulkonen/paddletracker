@@ -12,6 +12,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui';
@@ -39,6 +40,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
+import { Lock, Rocket } from 'lucide-react'; // Добавлены иконки
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -145,7 +147,6 @@ export default function ProfileUidPage() {
   }, []);
 
   const fetchProfileAndMatches = useCallback(async () => {
-    // если uid не определён (какой-то edge при навигации) — выключим лоадеры, чтобы не висеть
     if (!targetUid) {
       setLoading(false);
       setLoadingMatches(false);
@@ -344,7 +345,17 @@ export default function ProfileUidPage() {
           }
         : computeSideStats(rankedMatches, targetProfile.uid);
     const monthlyData = groupByMonth(rankedMatches, targetProfile.uid);
-    const insights = buildInsights(stats, sideStats, monthlyData, t);
+
+    // Исправленный вызов buildInsights: передаем все аргументы в правильном порядке
+    const insights = buildInsights(
+      rankedMatches,
+      targetProfile.uid,
+      stats,
+      sideStats,
+      monthlyData,
+      t
+    );
+
     const oppStats = opponentStats(rankedMatches, targetProfile.uid);
     const tennisStats =
       viewedSport === 'tennis'
@@ -478,7 +489,7 @@ export default function ProfileUidPage() {
   const emptyOtherDesc = t('Invite them to a room and start playing together!');
 
   return (
-    <section className='container mx-auto py-8 space-y-8'>
+    <section className='container mx-auto py-8 space-y-8 animate-in fade-in duration-500'>
       <ProfileHeader
         targetProfile={targetProfile}
         friendStatus={friendStatus}
@@ -532,29 +543,41 @@ export default function ProfileUidPage() {
                   monthlyData={sportSpecificData.monthlyData}
                 />
               ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
+                <Card className='border-dashed'>
+                  <CardContent className='py-12 flex flex-col items-center justify-center text-center'>
+                    <div className='bg-muted rounded-full p-4 mb-4'>
+                      <Rocket className='h-8 w-8 text-muted-foreground' />
+                    </div>
+                    <h3 className='text-xl font-semibold'>
                       {isSelf ? emptySelfTitle : emptyOtherTitle}
-                    </CardTitle>
-                    <CardDescription>
+                    </h3>
+                    <p className='text-muted-foreground mt-2 max-w-sm mx-auto'>
                       {isSelf ? emptySelfDesc : emptyOtherDesc}
-                    </CardDescription>
-                  </CardHeader>
-                  {isSelf && (
-                    <CardContent className='flex gap-3'>
-                      <Button asChild variant='outline'>
-                        <Link href='/rooms'>{t('Browse Rooms')}</Link>
-                      </Button>
-                      <CreateRoomDialog onSuccess={fetchProfileAndMatches} />
-                    </CardContent>
-                  )}
+                    </p>
+                    {isSelf && (
+                      <div className='flex gap-3 mt-6'>
+                        <Button asChild>
+                          <Link href='/rooms'>{t('Browse Rooms')}</Link>
+                        </Button>
+                        <CreateRoomDialog onSuccess={fetchProfileAndMatches} />
+                      </div>
+                    )}
+                  </CardContent>
                 </Card>
               )}
             </>
           )}
         </div>
         <div className='lg:col-span-4 xl:col-span-3'>
+          {/* Private Profile Message for Sidebar */}
+          {!canView && (
+            <Card>
+              <CardContent className='py-8 flex flex-col items-center text-center text-muted-foreground'>
+                <Lock className='h-10 w-10 mb-3 opacity-50' />
+                <p>{t('Stats are hidden')}</p>
+              </CardContent>
+            </Card>
+          )}
           <ProfileSidebar
             canViewProfile={canView}
             targetProfile={targetProfile}

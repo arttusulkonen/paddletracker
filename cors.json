@@ -1,8 +1,22 @@
 [
   {
-    "origin": ["http://localhost:3000", "https://tabletennis-f4c23.web.app"],
-    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    "responseHeader": ["Content-Type", "Authorization"],
+    "origin": [
+      "http://localhost:3000",
+      "https://tabletennis-f4c23.web.app",
+      "https://smashlog.fi",
+      "https://www.smashlog.fi"
+    ],
+    "method": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization"
+    ],
     "maxAgeSeconds": 3600
   }
 ]

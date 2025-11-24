@@ -1,0 +1,5268 @@
+[
+  {
+    "_docId": "0BCcBtuXHmEGioLst6aB",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "29.08.2025 17.33.07",
+    "timestamp": "29.08.2025 17.33.07",
+    "tsIso": "2025-08-29T14:33:07.434Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 10,
+      "oldRating": 1046,
+      "newRating": 1028,
+      "addedPoints": -18,
+      "roomOldRating": 1008,
+      "roomNewRating": 990,
+      "roomAddedPoints": -18,
+      "side": "right"
+    },
+    "winner": "bear",
+    "player2": {
+      "scores": 12,
+      "oldRating": 1002,
+      "newRating": 1020,
+      "addedPoints": 18,
+      "roomOldRating": 996,
+      "roomNewRating": 1014,
+      "roomAddedPoints": 18,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "0SXm7IjAQlXNYC6tpv59",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.44.04",
+    "timestamp": "27.07.2025 18.44.04",
+    "tsIso": "2025-07-27T15:44:04.486Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 12,
+      "oldRating": 1023,
+      "newRating": 1037,
+      "addedPoints": 14,
+      "roomOldRating": 1015,
+      "roomNewRating": 1029,
+      "roomAddedPoints": 14,
+      "side": "right"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 10,
+      "oldRating": 970,
+      "newRating": 956,
+      "addedPoints": -14,
+      "roomOldRating": 1016,
+      "roomNewRating": 1002,
+      "roomAddedPoints": -14,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "0ZFluNQWNmGlUayQgGB2",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.53.34",
+    "timestamp": "27.07.2025 20.53.34",
+    "tsIso": "2025-07-27T17:53:33.297Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 10,
+      "oldRating": 980,
+      "newRating": 965,
+      "addedPoints": -15,
+      "roomOldRating": 1024,
+      "roomNewRating": 1009,
+      "roomAddedPoints": -15,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 12,
+      "oldRating": 1001,
+      "newRating": 1016,
+      "addedPoints": 15,
+      "roomOldRating": 976,
+      "roomNewRating": 991,
+      "roomAddedPoints": 15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "0lfwamUUCdVbtWHSVgZ3",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "player2Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "players": [
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+    ],
+    "timestamp": "19.11.2025 13.34.37",
+    "tsIso": "2025-11-19T11:34:37.344Z",
+    "createdAt": "19.11.2025 13.34.37",
+    "winner": "ghostkz",
+    "player1": {
+      "name": "Ghost",
+      "scores": 9,
+      "oldRating": 921,
+      "newRating": 910,
+      "addedPoints": -11,
+      "roomOldRating": 931,
+      "roomNewRating": 916,
+      "roomAddedPoints": -15,
+      "side": "left"
+    },
+    "player2": {
+      "name": "ghostkz",
+      "scores": 11,
+      "oldRating": 1025,
+      "newRating": 1036,
+      "addedPoints": 11,
+      "roomOldRating": 959,
+      "roomNewRating": 974,
+      "roomAddedPoints": 15,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "0sHEjuw4jYHhue3kvMDs",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.11",
+    "timestamp": "27.07.2025 13.10.11",
+    "tsIso": "2025-07-27T10:10:11.594Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 940,
+      "newRating": 929,
+      "addedPoints": -11,
+      "roomOldRating": 970,
+      "roomNewRating": 959,
+      "roomAddedPoints": -11,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1063,
+      "newRating": 1074,
+      "addedPoints": 11,
+      "roomOldRating": 1012,
+      "roomNewRating": 1023,
+      "roomAddedPoints": 11,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "0u4MzHkH4WRORgNxglZ5",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.52",
+    "timestamp": "27.07.2025 21.09.52",
+    "tsIso": "2025-07-27T18:09:52.263Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 949,
+      "newRating": 969,
+      "addedPoints": 20,
+      "roomOldRating": 993,
+      "roomNewRating": 1013,
+      "roomAddedPoints": 20,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 5,
+      "oldRating": 1034,
+      "newRating": 1014,
+      "addedPoints": -20,
+      "roomOldRating": 1015,
+      "roomNewRating": 995,
+      "roomAddedPoints": -20,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "19hd29KYvHmoXFT87RcF",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "17.08.2025 11.46.13",
+    "timestamp": "17.08.2025 11.46.13",
+    "tsIso": "2025-08-17T08:46:13.476Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 5,
+      "oldRating": 1054,
+      "newRating": 1036,
+      "addedPoints": -18,
+      "roomOldRating": 1004,
+      "roomNewRating": 986,
+      "roomAddedPoints": -18,
+      "side": "right"
+    },
+    "winner": "bear",
+    "player1": {
+      "scores": 11,
+      "oldRating": 1006,
+      "newRating": 1024,
+      "addedPoints": 18,
+      "roomOldRating": 1000,
+      "roomNewRating": 1018,
+      "roomAddedPoints": 18,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "1Bfn7TtGQ9YWfA86BRex",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.13",
+    "timestamp": "27.07.2025 13.10.13",
+    "tsIso": "2025-07-27T10:10:13.594Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 9,
+      "oldRating": 951,
+      "newRating": 940,
+      "addedPoints": -11,
+      "roomOldRating": 981,
+      "roomNewRating": 970,
+      "roomAddedPoints": -11,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1052,
+      "newRating": 1063,
+      "addedPoints": 11,
+      "roomOldRating": 1001,
+      "roomNewRating": 1012,
+      "roomAddedPoints": 11,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "1KXncEiFbOrGZTkCbXgt",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 11.51.45",
+    "timestamp": "27.07.2025 11.51.45",
+    "tsIso": "2025-07-27T08:51:45.369Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 2,
+      "oldRating": 1003,
+      "newRating": 987,
+      "addedPoints": -16,
+      "roomOldRating": 1021,
+      "roomNewRating": 1005,
+      "roomAddedPoints": -16,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1000,
+      "newRating": 1016,
+      "addedPoints": 16,
+      "roomOldRating": 1000,
+      "roomNewRating": 1016,
+      "roomAddedPoints": 16,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "34gusossDjcURrCXgQZE",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 11.51.48",
+    "timestamp": "27.07.2025 11.51.48",
+    "tsIso": "2025-07-27T08:51:48.369Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 959,
+      "newRating": 979,
+      "addedPoints": 20,
+      "roomOldRating": 977,
+      "roomNewRating": 997,
+      "roomAddedPoints": 20,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 2,
+      "oldRating": 1044,
+      "newRating": 1024,
+      "addedPoints": -20,
+      "roomOldRating": 1044,
+      "roomNewRating": 1024,
+      "roomAddedPoints": -20,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "37BqjDDGCYBdWRaAkczI",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "player2Id": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+    "players": [
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+    ],
+    "timestamp": "18.11.2025 08.51.34",
+    "tsIso": "2025-11-18T06:51:34.701Z",
+    "createdAt": "18.11.2025 08.51.34",
+    "winner": "Ghost PRO",
+    "player1": {
+      "name": "ghostkz",
+      "scores": 6,
+      "oldRating": 996,
+      "newRating": 980,
+      "addedPoints": -16,
+      "roomOldRating": 979,
+      "roomNewRating": 965,
+      "roomAddedPoints": -14,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost PRO",
+      "scores": 11,
+      "oldRating": 1000,
+      "newRating": 1016,
+      "addedPoints": 16,
+      "roomOldRating": 1016,
+      "roomNewRating": 1030,
+      "roomAddedPoints": 14,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "38FL6NHSasUb440Tm7vp",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 17.28.47",
+    "timestamp": "26.07.2025 17.28.47",
+    "tsIso": "2025-07-26T14:28:47.050Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 994,
+      "newRating": 1011,
+      "addedPoints": 17,
+      "roomOldRating": 994,
+      "roomNewRating": 1011,
+      "roomAddedPoints": 17,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 8,
+      "oldRating": 1006,
+      "newRating": 989,
+      "addedPoints": -17,
+      "roomOldRating": 1006,
+      "roomNewRating": 989,
+      "roomAddedPoints": -17,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "3PdGRl98uJacIvUkAwqd",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 17.28.46",
+    "timestamp": "26.07.2025 17.28.46",
+    "tsIso": "2025-07-26T14:28:46.050Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 10,
+      "oldRating": 1011,
+      "newRating": 994,
+      "addedPoints": -17,
+      "roomOldRating": 1011,
+      "roomNewRating": 994,
+      "roomAddedPoints": -17,
+      "side": "right"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 989,
+      "newRating": 1006,
+      "addedPoints": 17,
+      "roomOldRating": 989,
+      "roomNewRating": 1006,
+      "roomAddedPoints": 17,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "3StzhtUm6peP2da2YaRi",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "createdAt": "17.11.2025 16.10.55",
+    "timestamp": "17.11.2025 16.10.55",
+    "tsIso": "2025-11-17T14:10:55.029Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1026,
+      "newRating": 1040,
+      "addedPoints": 14,
+      "roomOldRating": 1015,
+      "roomNewRating": 1029,
+      "roomAddedPoints": 14,
+      "side": "right"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 8,
+      "oldRating": 985,
+      "newRating": 971,
+      "addedPoints": -14,
+      "roomOldRating": 985,
+      "roomNewRating": 971,
+      "roomAddedPoints": -14,
+      "side": "left"
+    },
+    "winner": "tamarisk"
+  },
+  {
+    "_docId": "3VcXVjzYhdJTXKc339sk",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.55.59",
+    "timestamp": "27.07.2025 20.55.59",
+    "tsIso": "2025-07-27T17:55:59.592Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 8,
+      "oldRating": 1033,
+      "newRating": 1013,
+      "addedPoints": -20,
+      "roomOldRating": 1014,
+      "roomNewRating": 994,
+      "roomAddedPoints": -20,
+      "side": "right"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 954,
+      "newRating": 974,
+      "addedPoints": 20,
+      "roomOldRating": 998,
+      "roomNewRating": 1018,
+      "roomAddedPoints": 20,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "3mCTXUOWnNOPLoMmJkoT",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.56.01",
+    "timestamp": "27.07.2025 20.56.01",
+    "tsIso": "2025-07-27T17:56:00.592Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 10,
+      "oldRating": 1013,
+      "newRating": 995,
+      "addedPoints": -18,
+      "roomOldRating": 994,
+      "roomNewRating": 976,
+      "roomAddedPoints": -18,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 974,
+      "newRating": 992,
+      "addedPoints": 18,
+      "roomOldRating": 1018,
+      "roomNewRating": 1036,
+      "roomAddedPoints": 18,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "4EOTP3fMMG7txYCPSXd0",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+    "player2Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "players": [
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+    ],
+    "timestamp": "18.11.2025 08.51.35",
+    "tsIso": "2025-11-18T06:51:35.154Z",
+    "createdAt": "18.11.2025 08.51.35",
+    "winner": "Ghost PRO",
+    "player1": {
+      "name": "Ghost PRO",
+      "scores": 11,
+      "oldRating": 1000,
+      "newRating": 1016,
+      "addedPoints": 16,
+      "roomOldRating": 1030,
+      "roomNewRating": 1043,
+      "roomAddedPoints": 13,
+      "side": "left"
+    },
+    "player2": {
+      "name": "ghostkz",
+      "scores": 0,
+      "oldRating": 996,
+      "newRating": 980,
+      "addedPoints": -16,
+      "roomOldRating": 965,
+      "roomNewRating": 952,
+      "roomAddedPoints": -13,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "4POHT10lVYZPwrrxzDgm",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+    "player2Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "players": [
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+    ],
+    "timestamp": "18.11.2025 08.51.34",
+    "tsIso": "2025-11-18T06:51:34.226Z",
+    "createdAt": "18.11.2025 08.51.34",
+    "winner": "Ghost PRO",
+    "player1": {
+      "name": "Ghost PRO",
+      "scores": 11,
+      "oldRating": 1000,
+      "newRating": 1016,
+      "addedPoints": 16,
+      "roomOldRating": 1000,
+      "roomNewRating": 1016,
+      "roomAddedPoints": 16,
+      "side": "left"
+    },
+    "player2": {
+      "name": "ghostkz",
+      "scores": 9,
+      "oldRating": 996,
+      "newRating": 980,
+      "addedPoints": -16,
+      "roomOldRating": 995,
+      "roomNewRating": 979,
+      "roomAddedPoints": -16,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "4SwhMqFRtHexoDd7SCxS",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.55.58",
+    "timestamp": "27.07.2025 20.55.58",
+    "tsIso": "2025-07-27T17:55:58.592Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1019,
+      "newRating": 1033,
+      "addedPoints": 14,
+      "roomOldRating": 1000,
+      "roomNewRating": 1014,
+      "roomAddedPoints": 14,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 968,
+      "newRating": 954,
+      "addedPoints": -14,
+      "roomOldRating": 1012,
+      "roomNewRating": 998,
+      "roomAddedPoints": -14,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "4a8bRlPg9IK1sO14z5QZ",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.41.22",
+    "timestamp": "27.07.2025 18.41.22",
+    "tsIso": "2025-07-27T15:41:19.947Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 10,
+      "oldRating": 981,
+      "newRating": 966,
+      "addedPoints": -15,
+      "roomOldRating": 1027,
+      "roomNewRating": 1012,
+      "roomAddedPoints": -15,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 12,
+      "oldRating": 1011,
+      "newRating": 1026,
+      "addedPoints": 15,
+      "roomOldRating": 973,
+      "roomNewRating": 988,
+      "roomAddedPoints": 15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "4wseRTSi2H9iopeqmsbL",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 11.13.06",
+    "timestamp": "27.07.2025 11.13.06",
+    "tsIso": "2025-07-27T08:13:06.665Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 1035,
+      "newRating": 1048,
+      "addedPoints": 13,
+      "roomOldRating": 1014,
+      "roomNewRating": 1027,
+      "roomAddedPoints": 13,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 7,
+      "oldRating": 965,
+      "newRating": 952,
+      "addedPoints": -13,
+      "roomOldRating": 986,
+      "roomNewRating": 973,
+      "roomAddedPoints": -13,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "55iVRkt48HqRmO0C9FqC",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "29.08.2025 17.33.04",
+    "timestamp": "29.08.2025 17.33.04",
+    "tsIso": "2025-08-29T14:33:04.434Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1034,
+      "newRating": 1049,
+      "addedPoints": 15,
+      "roomOldRating": 996,
+      "roomNewRating": 1011,
+      "roomAddedPoints": 15,
+      "side": "left"
+    },
+    "winner": "tamarisk SUPER ADMIN",
+    "player2": {
+      "scores": 5,
+      "oldRating": 1014,
+      "newRating": 999,
+      "addedPoints": -15,
+      "roomOldRating": 1008,
+      "roomNewRating": 993,
+      "roomAddedPoints": -15,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "6CDIdNYILosJ5J9ab8kx",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "timestamp": "19.11.2025 13.34.35",
+    "tsIso": "2025-11-19T11:34:35.900Z",
+    "createdAt": "19.11.2025 13.34.35",
+    "winner": "Ghost",
+    "player1": {
+      "name": "Ghost",
+      "scores": 11,
+      "oldRating": 921,
+      "newRating": 945,
+      "addedPoints": 24,
+      "roomOldRating": 882,
+      "roomNewRating": 907,
+      "roomAddedPoints": 25,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 9,
+      "oldRating": 1106,
+      "newRating": 1082,
+      "addedPoints": -24,
+      "roomOldRating": 1119,
+      "roomNewRating": 1094,
+      "roomAddedPoints": -25,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "90E0rSmzZbBejTQYENLN",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.41.19",
+    "timestamp": "27.07.2025 18.41.19",
+    "tsIso": "2025-07-27T15:41:17.947Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 15,
+      "oldRating": 979,
+      "newRating": 997,
+      "addedPoints": 18,
+      "roomOldRating": 1025,
+      "roomNewRating": 1043,
+      "roomAddedPoints": 18,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 13,
+      "oldRating": 1013,
+      "newRating": 995,
+      "addedPoints": -18,
+      "roomOldRating": 975,
+      "roomNewRating": 957,
+      "roomAddedPoints": -18,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "9STp6mgFAQJO9DMZNnri",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "17.11.2025 16.49.57",
+    "tsIso": "2025-11-17T16:49:57.452Z",
+    "createdAt": "17.11.2025 16.49.57",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1065,
+      "newRating": 1076,
+      "addedPoints": 11,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 5,
+      "oldRating": 946,
+      "newRating": 935,
+      "addedPoints": -11,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "9esyE32yXVu8eL2a2U2Z",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 17.26.39",
+    "timestamp": "26.07.2025 17.26.39",
+    "tsIso": "2025-07-26T14:26:39.636Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1000,
+      "newRating": 1016,
+      "addedPoints": 16,
+      "roomOldRating": 1000,
+      "roomNewRating": 1016,
+      "roomAddedPoints": 16,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 2,
+      "oldRating": 1000,
+      "newRating": 984,
+      "addedPoints": -16,
+      "roomOldRating": 1000,
+      "roomNewRating": 984,
+      "roomAddedPoints": -16,
+      "side": "right"
+    },
+    "winner": "tamarisk"
+  },
+  {
+    "_docId": "9ukh6qxk8TmCLZQa3MCE",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.03",
+    "timestamp": "27.07.2025 21.09.03",
+    "tsIso": "2025-07-27T18:09:03.469Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1038,
+      "newRating": 1053,
+      "addedPoints": 15,
+      "roomOldRating": 1019,
+      "roomNewRating": 1034,
+      "roomAddedPoints": 15,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 5,
+      "oldRating": 1013,
+      "newRating": 998,
+      "addedPoints": -15,
+      "roomOldRating": 988,
+      "roomNewRating": 973,
+      "roomAddedPoints": -15,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "AMoOh5opqkrlOCc97WC5",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 17.28.43",
+    "timestamp": "26.07.2025 17.28.43",
+    "tsIso": "2025-07-26T14:28:43.050Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 999,
+      "newRating": 1015,
+      "addedPoints": 16,
+      "roomOldRating": 999,
+      "roomNewRating": 1015,
+      "roomAddedPoints": 16,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 2,
+      "oldRating": 1001,
+      "newRating": 985,
+      "addedPoints": -16,
+      "roomOldRating": 1001,
+      "roomNewRating": 985,
+      "roomAddedPoints": -16,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "AXqoJkqNPiXddFlZbUPK",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "18.11.2025 08.42.54",
+    "tsIso": "2025-11-18T06:42:54.252Z",
+    "createdAt": "18.11.2025 08.42.54",
+    "winner": "ghostkz",
+    "player1": {
+      "name": "ghostkz",
+      "scores": 12,
+      "oldRating": 981,
+      "newRating": 996,
+      "addedPoints": 15,
+      "roomOldRating": 981,
+      "roomNewRating": 995,
+      "roomAddedPoints": 14,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 10,
+      "oldRating": 962,
+      "newRating": 947,
+      "addedPoints": -15,
+      "roomOldRating": 944,
+      "roomNewRating": 930,
+      "roomAddedPoints": -14,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "B5yWa887y7YH0bP0doUb",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 10.46.50",
+    "timestamp": "27.07.2025 10.46.50",
+    "tsIso": "2025-07-27T07:46:50.395Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 1006,
+      "newRating": 1021,
+      "addedPoints": 15,
+      "roomOldRating": 1006,
+      "roomNewRating": 1021,
+      "roomAddedPoints": 15,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 5,
+      "oldRating": 994,
+      "newRating": 979,
+      "addedPoints": -15,
+      "roomOldRating": 994,
+      "roomNewRating": 979,
+      "roomAddedPoints": -15,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "BSPSzbcbBftTv72NLOXY",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.59",
+    "timestamp": "27.07.2025 21.09.59",
+    "tsIso": "2025-07-27T18:09:58.263Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 961,
+      "newRating": 948,
+      "addedPoints": -13,
+      "roomOldRating": 1005,
+      "roomNewRating": 992,
+      "roomAddedPoints": -13,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1022,
+      "newRating": 1035,
+      "addedPoints": 13,
+      "roomOldRating": 1003,
+      "roomNewRating": 1016,
+      "roomAddedPoints": 13,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "BUWRAJrOYLSlLk8bVV65",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.17",
+    "timestamp": "27.07.2025 13.10.17",
+    "tsIso": "2025-07-27T10:10:16.594Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 9,
+      "oldRating": 981,
+      "newRating": 967,
+      "addedPoints": -14,
+      "roomOldRating": 1011,
+      "roomNewRating": 997,
+      "roomAddedPoints": -14,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1022,
+      "newRating": 1036,
+      "addedPoints": 14,
+      "roomOldRating": 971,
+      "roomNewRating": 985,
+      "roomAddedPoints": 14,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "Bf3nHLhRVLTkzsm5vXtj",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 11.12.47",
+    "timestamp": "27.07.2025 11.12.47",
+    "tsIso": "2025-07-27T08:12:47.999Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 1021,
+      "newRating": 1035,
+      "addedPoints": 14,
+      "roomOldRating": 1000,
+      "roomNewRating": 1014,
+      "roomAddedPoints": 14,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 6,
+      "oldRating": 979,
+      "newRating": 965,
+      "addedPoints": -14,
+      "roomOldRating": 1000,
+      "roomNewRating": 986,
+      "roomAddedPoints": -14,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "BmlNeCXN73N4olmYQ9UZ",
+    "roomId": "l6i1T08oXjcJfQnGj2zJ",
+    "createdAt": "29.08.2025 20.06.52",
+    "timestamp": "29.08.2025 20.06.52",
+    "tsIso": "2025-08-29T17:06:52.875Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "player2": {
+      "scores": 5,
+      "oldRating": 1020,
+      "newRating": 1005,
+      "addedPoints": -15,
+      "roomOldRating": 1000,
+      "roomNewRating": 985,
+      "roomAddedPoints": -15,
+      "side": "right",
+      "name": "Deleted User"
+    },
+    "winner": "Deleted User",
+    "player1": {
+      "scores": 11,
+      "oldRating": 1046,
+      "newRating": 1061,
+      "addedPoints": 15,
+      "roomOldRating": 1000,
+      "roomNewRating": 1015,
+      "roomAddedPoints": 15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "C0EOwjsxwXx2di4ykTD3",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.44.21",
+    "timestamp": "27.07.2025 18.44.21",
+    "tsIso": "2025-07-27T15:44:21.892Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 10,
+      "oldRating": 1052,
+      "newRating": 1033,
+      "addedPoints": -19,
+      "roomOldRating": 1044,
+      "roomNewRating": 1025,
+      "roomAddedPoints": -19,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 12,
+      "oldRating": 992,
+      "newRating": 1011,
+      "addedPoints": 19,
+      "roomOldRating": 954,
+      "roomNewRating": 973,
+      "roomAddedPoints": 19,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "CaJcwKdLNtUCY9jiO09l",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.33",
+    "timestamp": "27.07.2025 13.10.33",
+    "tsIso": "2025-07-27T10:10:33.563Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 989,
+      "newRating": 1008,
+      "addedPoints": 19,
+      "roomOldRating": 1010,
+      "roomNewRating": 1029,
+      "roomAddedPoints": 19,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 5,
+      "oldRating": 1057,
+      "newRating": 1038,
+      "addedPoints": -19,
+      "roomOldRating": 1006,
+      "roomNewRating": 987,
+      "roomAddedPoints": -19,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "CabNpK9H19rUCuT209Hl",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.44.20",
+    "timestamp": "27.07.2025 18.44.20",
+    "tsIso": "2025-07-27T15:44:20.892Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1037,
+      "newRating": 1052,
+      "addedPoints": 15,
+      "roomOldRating": 1029,
+      "roomNewRating": 1044,
+      "roomAddedPoints": 15,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 2,
+      "oldRating": 1007,
+      "newRating": 992,
+      "addedPoints": -15,
+      "roomOldRating": 969,
+      "roomNewRating": 954,
+      "roomAddedPoints": -15,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "CdcmtaR8n4fVyqNXN9lC",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 12.30.16",
+    "timestamp": "16.08.2025 12.30.16",
+    "tsIso": "2025-08-16T09:30:16.083Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 3,
+      "oldRating": 1047,
+      "newRating": 1027,
+      "addedPoints": -20,
+      "roomOldRating": 997,
+      "roomNewRating": 977,
+      "roomAddedPoints": -20,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 947,
+      "newRating": 967,
+      "addedPoints": 20,
+      "roomOldRating": 1003,
+      "roomNewRating": 1023,
+      "roomAddedPoints": 20,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "Dc5quye25uKCBxPAVhFm",
+    "roomId": "slack-games",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "2025-11-17T15:42:16.124Z",
+    "tsIso": "2025-11-17T15:42:16.124Z",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1040,
+      "newRating": 1053,
+      "addedPoints": 13,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 5,
+      "oldRating": 971,
+      "newRating": 958,
+      "addedPoints": -13,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "EW9s940BeCI4KsnciuDJ",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.53.30",
+    "timestamp": "27.07.2025 20.53.30",
+    "tsIso": "2025-07-27T17:53:30.297Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 8,
+      "oldRating": 992,
+      "newRating": 976,
+      "addedPoints": -16,
+      "roomOldRating": 1036,
+      "roomNewRating": 1020,
+      "roomAddedPoints": -16,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 11,
+      "oldRating": 989,
+      "newRating": 1005,
+      "addedPoints": 16,
+      "roomOldRating": 964,
+      "roomNewRating": 980,
+      "roomAddedPoints": 16,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "Ek6wKNK35z16VtO2Qq4Z",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 11.13.11",
+    "timestamp": "27.07.2025 11.13.11",
+    "tsIso": "2025-07-27T08:13:10.665Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 10,
+      "oldRating": 1021,
+      "newRating": 1003,
+      "addedPoints": -18,
+      "roomOldRating": 1000,
+      "roomNewRating": 982,
+      "roomAddedPoints": -18,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 12,
+      "oldRating": 979,
+      "newRating": 997,
+      "addedPoints": 18,
+      "roomOldRating": 1000,
+      "roomNewRating": 1018,
+      "roomAddedPoints": 18,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "EoPPOt3oMd24qy94R00P",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "19.11.2025 13.34.36",
+    "tsIso": "2025-11-19T11:34:36.636Z",
+    "createdAt": "19.11.2025 13.34.36",
+    "winner": "Ghost",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 8,
+      "oldRating": 1106,
+      "newRating": 1082,
+      "addedPoints": -24,
+      "roomOldRating": 1094,
+      "roomNewRating": 1070,
+      "roomAddedPoints": -24,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 11,
+      "oldRating": 921,
+      "newRating": 945,
+      "addedPoints": 24,
+      "roomOldRating": 907,
+      "roomNewRating": 931,
+      "roomAddedPoints": 24,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "EwsDtobJvZ7Td7Yix9JM",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.16",
+    "timestamp": "27.07.2025 13.10.16",
+    "tsIso": "2025-07-27T10:10:15.594Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 13,
+      "oldRating": 961,
+      "newRating": 981,
+      "addedPoints": 20,
+      "roomOldRating": 991,
+      "roomNewRating": 1011,
+      "roomAddedPoints": 20,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1042,
+      "newRating": 1022,
+      "addedPoints": -20,
+      "roomOldRating": 991,
+      "roomNewRating": 971,
+      "roomAddedPoints": -20,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "FIeN1uJaM4O5b4fqQYKT",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "player2Id": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+    "players": [
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+    ],
+    "timestamp": "18.11.2025 08.51.35",
+    "tsIso": "2025-11-18T06:51:35.632Z",
+    "createdAt": "18.11.2025 08.51.35",
+    "winner": "ghostkz",
+    "player1": {
+      "name": "ghostkz",
+      "scores": 11,
+      "oldRating": 996,
+      "newRating": 1012,
+      "addedPoints": 16,
+      "roomOldRating": 952,
+      "roomNewRating": 972,
+      "roomAddedPoints": 20,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost PRO",
+      "scores": 9,
+      "oldRating": 1000,
+      "newRating": 984,
+      "addedPoints": -16,
+      "roomOldRating": 1043,
+      "roomNewRating": 1023,
+      "roomAddedPoints": -20,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "FdcDShYTTE5sgPagRtNk",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "17.08.2025 12.50.20",
+    "timestamp": "17.08.2025 12.50.20",
+    "tsIso": "2025-08-17T09:50:20.320Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 10,
+      "oldRating": 1034,
+      "newRating": 1017,
+      "addedPoints": -17,
+      "roomOldRating": 996,
+      "roomNewRating": 979,
+      "roomAddedPoints": -17,
+      "side": "left"
+    },
+    "winner": "bear",
+    "player1": {
+      "scores": 12,
+      "oldRating": 1014,
+      "newRating": 1031,
+      "addedPoints": 17,
+      "roomOldRating": 1008,
+      "roomNewRating": 1025,
+      "roomAddedPoints": 17,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "GBrlUNN6aZpoOHaOPsKj",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.44.03",
+    "timestamp": "27.07.2025 18.44.03",
+    "tsIso": "2025-07-27T15:44:03.486Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1008,
+      "newRating": 1023,
+      "addedPoints": 15,
+      "roomOldRating": 1000,
+      "roomNewRating": 1015,
+      "roomAddedPoints": 15,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 2,
+      "oldRating": 985,
+      "newRating": 970,
+      "addedPoints": -15,
+      "roomOldRating": 1031,
+      "roomNewRating": 1016,
+      "roomAddedPoints": -15,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "GJu2ZoLSDrj3D47X1Gqf",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 11.13.07",
+    "timestamp": "27.07.2025 11.13.07",
+    "tsIso": "2025-07-27T08:13:07.665Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 6,
+      "oldRating": 1048,
+      "newRating": 1028,
+      "addedPoints": -20,
+      "roomOldRating": 1027,
+      "roomNewRating": 1007,
+      "roomAddedPoints": -20,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 952,
+      "newRating": 972,
+      "addedPoints": 20,
+      "roomOldRating": 973,
+      "roomNewRating": 993,
+      "roomAddedPoints": 20,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "GUc69Ah8qxjsxO14aqPI",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.56",
+    "timestamp": "27.07.2025 21.09.56",
+    "tsIso": "2025-07-27T18:09:56.263Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 957,
+      "newRating": 976,
+      "addedPoints": 19,
+      "roomOldRating": 1001,
+      "roomNewRating": 1020,
+      "roomAddedPoints": 19,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 10,
+      "oldRating": 1026,
+      "newRating": 1007,
+      "addedPoints": -19,
+      "roomOldRating": 1007,
+      "roomNewRating": 988,
+      "roomAddedPoints": -19,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "HJTaVWZPeVVNCjCfHVuK",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "17.08.2025 12.50.19",
+    "timestamp": "17.08.2025 12.50.19",
+    "tsIso": "2025-08-17T09:50:19.320Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 6,
+      "oldRating": 1053,
+      "newRating": 1034,
+      "addedPoints": -19,
+      "roomOldRating": 1015,
+      "roomNewRating": 996,
+      "roomAddedPoints": -19,
+      "side": "right"
+    },
+    "winner": "bear",
+    "player1": {
+      "scores": 11,
+      "oldRating": 995,
+      "newRating": 1014,
+      "addedPoints": 19,
+      "roomOldRating": 989,
+      "roomNewRating": 1008,
+      "roomAddedPoints": 19,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "HRH7MuKyEAVc0HGmmcGa",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "17.08.2025 12.50.21",
+    "timestamp": "17.08.2025 12.50.21",
+    "tsIso": "2025-08-17T09:50:21.320Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1017,
+      "newRating": 1034,
+      "addedPoints": 17,
+      "roomOldRating": 979,
+      "roomNewRating": 996,
+      "roomAddedPoints": 17,
+      "side": "right"
+    },
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "scores": 6,
+      "oldRating": 1031,
+      "newRating": 1014,
+      "addedPoints": -17,
+      "roomOldRating": 1025,
+      "roomNewRating": 1008,
+      "roomAddedPoints": -17,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "JPWuYVkNc3RS4N2DLMuL",
+    "roomId": "l6i1T08oXjcJfQnGj2zJ",
+    "createdAt": "29.08.2025 21.56.45",
+    "timestamp": "29.08.2025 21.56.45",
+    "tsIso": "2025-08-29T18:56:45.204Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+    ],
+    "player1": {
+      "name": "tamarisk",
+      "scores": 10,
+      "oldRating": 1029,
+      "newRating": 1014,
+      "addedPoints": -15,
+      "roomOldRating": 1018,
+      "roomNewRating": 1003,
+      "roomAddedPoints": -15,
+      "side": "right"
+    },
+    "winner": "Deleted User",
+    "player2": {
+      "scores": 12,
+      "oldRating": 1043,
+      "newRating": 1058,
+      "addedPoints": 15,
+      "roomOldRating": 997,
+      "roomNewRating": 1012,
+      "roomAddedPoints": 15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "JdfUFXKz47qCG5l4uaP9",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 12.30.15",
+    "timestamp": "16.08.2025 12.30.15",
+    "tsIso": "2025-08-16T09:30:15.083Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1034,
+      "newRating": 1047,
+      "addedPoints": 13,
+      "roomOldRating": 984,
+      "roomNewRating": 997,
+      "roomAddedPoints": 13,
+      "side": "right"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 960,
+      "newRating": 947,
+      "addedPoints": -13,
+      "roomOldRating": 1016,
+      "roomNewRating": 1003,
+      "roomAddedPoints": -13,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "K6cKBgbwZyKnOB8hImAx",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "createdAt": "17.11.2025 20.11.09",
+    "timestamp": "17.11.2025 20.11.09",
+    "tsIso": "2025-11-17T18:11:09.230Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1044,
+      "newRating": 1057,
+      "addedPoints": 13,
+      "roomOldRating": 1029,
+      "roomNewRating": 1042,
+      "roomAddedPoints": 13,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 2,
+      "oldRating": 967,
+      "newRating": 954,
+      "addedPoints": -13,
+      "roomOldRating": 971,
+      "roomNewRating": 958,
+      "roomAddedPoints": -13,
+      "side": "right"
+    },
+    "winner": "tamarisk"
+  },
+  {
+    "_docId": "KMXStgiNguN5HSGnlMYL",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.56.04",
+    "timestamp": "27.07.2025 20.56.04",
+    "tsIso": "2025-07-27T17:56:03.592Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1025,
+      "newRating": 1038,
+      "addedPoints": 13,
+      "roomOldRating": 1006,
+      "roomNewRating": 1019,
+      "roomAddedPoints": 13,
+      "side": "right"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 7,
+      "oldRating": 962,
+      "newRating": 949,
+      "addedPoints": -13,
+      "roomOldRating": 1006,
+      "roomNewRating": 993,
+      "roomAddedPoints": -13,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "KZ96v64Hn5h5IRFLAolf",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.53.28",
+    "timestamp": "27.07.2025 20.53.28",
+    "tsIso": "2025-07-27T17:53:28.297Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 956,
+      "newRating": 975,
+      "addedPoints": 19,
+      "roomOldRating": 1000,
+      "roomNewRating": 1019,
+      "roomAddedPoints": 19,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 2,
+      "oldRating": 1025,
+      "newRating": 1006,
+      "addedPoints": -19,
+      "roomOldRating": 1000,
+      "roomNewRating": 981,
+      "roomAddedPoints": -19,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "KaNh5x02Y2ITiBgRRv6b",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+    ],
+    "timestamp": "19.11.2025 12.12.51",
+    "tsIso": "2025-11-19T10:12:51.270Z",
+    "createdAt": "19.11.2025 12.12.51",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1078,
+      "newRating": 1092,
+      "addedPoints": 14,
+      "roomOldRating": 1075,
+      "roomNewRating": 1087,
+      "roomAddedPoints": 12,
+      "side": "left"
+    },
+    "player2": {
+      "name": "ghostkz",
+      "scores": 9,
+      "oldRating": 1027,
+      "newRating": 1013,
+      "addedPoints": -14,
+      "roomOldRating": 990,
+      "roomNewRating": 978,
+      "roomAddedPoints": -12,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "L6OZBD14hBXex6MjjDFo",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "player2Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "players": [
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+    ],
+    "timestamp": "17.11.2025 20.43.28",
+    "tsIso": "2025-11-17T18:43:28.090Z",
+    "createdAt": "17.11.2025 20.43.28",
+    "winner": "Ghost",
+    "player1": {
+      "name": "Ghost",
+      "scores": 11,
+      "oldRating": 943,
+      "newRating": 962,
+      "addedPoints": 19,
+      "roomOldRating": 925,
+      "roomNewRating": 944,
+      "roomAddedPoints": 19,
+      "side": "left"
+    },
+    "player2": {
+      "name": "ghostkz",
+      "scores": 5,
+      "oldRating": 1000,
+      "newRating": 981,
+      "addedPoints": -19,
+      "roomOldRating": 1000,
+      "roomNewRating": 981,
+      "roomAddedPoints": -19,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "LYfYH3eOy5895EHV45di",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "17.08.2025 11.59.42",
+    "timestamp": "17.08.2025 11.59.42",
+    "tsIso": "2025-08-17T08:59:42.522Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 930,
+      "newRating": 952,
+      "addedPoints": 22,
+      "roomOldRating": 986,
+      "roomNewRating": 1008,
+      "roomAddedPoints": 22,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 6,
+      "oldRating": 1075,
+      "newRating": 1053,
+      "addedPoints": -22,
+      "roomOldRating": 1025,
+      "roomNewRating": 1003,
+      "roomAddedPoints": -22,
+      "side": "right"
+    },
+    "winner": "XenonRage"
+  },
+  {
+    "_docId": "LtfK4cV3GPcxaPyPBPE4",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.55",
+    "timestamp": "27.07.2025 21.09.55",
+    "tsIso": "2025-07-27T18:09:55.263Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 7,
+      "oldRating": 971,
+      "newRating": 957,
+      "addedPoints": -14,
+      "roomOldRating": 1015,
+      "roomNewRating": 1001,
+      "roomAddedPoints": -14,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1012,
+      "newRating": 1026,
+      "addedPoints": 14,
+      "roomOldRating": 993,
+      "roomNewRating": 1007,
+      "roomAddedPoints": 14,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "MAygankMTsZls1UBVO5r",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 11.13.10",
+    "timestamp": "27.07.2025 11.13.10",
+    "tsIso": "2025-07-27T08:13:09.665Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 1041,
+      "newRating": 1021,
+      "addedPoints": -20,
+      "roomOldRating": 1020,
+      "roomNewRating": 1000,
+      "roomAddedPoints": -20,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 959,
+      "newRating": 979,
+      "addedPoints": 20,
+      "roomOldRating": 980,
+      "roomNewRating": 1000,
+      "roomAddedPoints": 20,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "MHnjyURCvXKeneP0HhGn",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "createdAt": "17.11.2025 16.10.54",
+    "timestamp": "17.11.2025 16.10.54",
+    "tsIso": "2025-11-17T14:10:54.029Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1011,
+      "newRating": 1026,
+      "addedPoints": 15,
+      "roomOldRating": 1000,
+      "roomNewRating": 1015,
+      "roomAddedPoints": 15,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 4,
+      "oldRating": 1000,
+      "newRating": 985,
+      "addedPoints": -15,
+      "roomOldRating": 1000,
+      "roomNewRating": 985,
+      "roomAddedPoints": -15,
+      "side": "right"
+    },
+    "winner": "tamarisk"
+  },
+  {
+    "_docId": "MUsVv7nRNkSNQz0Py18u",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.30",
+    "timestamp": "27.07.2025 13.10.30",
+    "tsIso": "2025-07-27T10:10:30.563Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "tamarisk",
+      "scores": 5,
+      "oldRating": 997,
+      "newRating": 983,
+      "addedPoints": -14,
+      "roomOldRating": 1018,
+      "roomNewRating": 1004,
+      "roomAddedPoints": -14,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1049,
+      "newRating": 1063,
+      "addedPoints": 14,
+      "roomOldRating": 998,
+      "roomNewRating": 1012,
+      "roomAddedPoints": 14,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "Mj5iDgqBsePnbETVgf8H",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "17.11.2025 20.36.47",
+    "tsIso": "2025-11-17T18:36:47.628Z",
+    "createdAt": "17.11.2025 20.36.47",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1057,
+      "newRating": 1068,
+      "addedPoints": 11,
+      "roomOldRating": 1042,
+      "roomNewRating": 1054,
+      "roomAddedPoints": 12,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 5,
+      "oldRating": 954,
+      "newRating": 943,
+      "addedPoints": -11,
+      "roomOldRating": 958,
+      "roomNewRating": 946,
+      "roomAddedPoints": -12,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "MvoFhVlrEdWJ671urheh",
+    "roomId": "l6i1T08oXjcJfQnGj2zJ",
+    "createdAt": "29.08.2025 21.57.10",
+    "timestamp": "29.08.2025 21.57.10",
+    "tsIso": "2025-08-29T18:57:10.816Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+    ],
+    "player1": {
+      "name": "tamarisk",
+      "scores": 2,
+      "oldRating": 1011,
+      "newRating": 997,
+      "addedPoints": -14,
+      "roomOldRating": 1003,
+      "roomNewRating": 989,
+      "roomAddedPoints": -14,
+      "side": "left"
+    },
+    "winner": "Deleted User",
+    "player2": {
+      "scores": 11,
+      "oldRating": 1058,
+      "newRating": 1072,
+      "addedPoints": 14,
+      "roomOldRating": 1012,
+      "roomNewRating": 1026,
+      "roomAddedPoints": 14,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "MxCpezcTpqxOhLdMxj66",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 22.14.29",
+    "timestamp": "26.07.2025 22.14.29",
+    "tsIso": "2025-07-26T19:14:29.799Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 1006,
+      "newRating": 989,
+      "addedPoints": -17,
+      "roomOldRating": 1006,
+      "roomNewRating": 989,
+      "roomAddedPoints": -17,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 13,
+      "oldRating": 994,
+      "newRating": 1011,
+      "addedPoints": 17,
+      "roomOldRating": 994,
+      "roomNewRating": 1011,
+      "roomAddedPoints": 17,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "NUTRK1BfQ5yLbyC3mAWT",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "timestamp": "19.11.2025 13.02.30",
+    "tsIso": "2025-11-19T11:02:30.957Z",
+    "createdAt": "19.11.2025 13.02.30",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "ghostkz",
+      "scores": 8,
+      "oldRating": 1039,
+      "newRating": 1025,
+      "addedPoints": -14,
+      "roomOldRating": 969,
+      "roomNewRating": 959,
+      "roomAddedPoints": -10,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1092,
+      "newRating": 1106,
+      "addedPoints": 14,
+      "roomOldRating": 1109,
+      "roomNewRating": 1119,
+      "roomAddedPoints": 10,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "NcDzz27S2U3rUhLyX2OC",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.56.02",
+    "timestamp": "27.07.2025 20.56.02",
+    "tsIso": "2025-07-27T17:56:01.592Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 14,
+      "oldRating": 995,
+      "newRating": 1011,
+      "addedPoints": 16,
+      "roomOldRating": 976,
+      "roomNewRating": 992,
+      "roomAddedPoints": 16,
+      "side": "right"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 992,
+      "newRating": 976,
+      "addedPoints": -16,
+      "roomOldRating": 1036,
+      "roomNewRating": 1020,
+      "roomAddedPoints": -16,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "Nkf6ReXFqjsGRGYP1ElP",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "16.08.2025 11.45.37",
+    "timestamp": "16.08.2025 11.45.37",
+    "tsIso": "2025-08-16T08:45:37.598Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1047,
+      "newRating": 1062,
+      "addedPoints": 15,
+      "roomOldRating": 1000,
+      "roomNewRating": 1015,
+      "roomAddedPoints": 15,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 5,
+      "oldRating": 1017,
+      "newRating": 1002,
+      "addedPoints": -15,
+      "roomOldRating": 1000,
+      "roomNewRating": 985,
+      "roomAddedPoints": -15,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "NpyXNUkW1TfqXshOEIri",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 12.15.34",
+    "timestamp": "16.08.2025 12.15.34",
+    "tsIso": "2025-08-16T09:15:34.025Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 932,
+      "newRating": 954,
+      "addedPoints": 22,
+      "roomOldRating": 988,
+      "roomNewRating": 1010,
+      "roomAddedPoints": 22,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 2,
+      "oldRating": 1062,
+      "newRating": 1040,
+      "addedPoints": -22,
+      "roomOldRating": 1012,
+      "roomNewRating": 990,
+      "roomAddedPoints": -22,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "OCSUvBma3DUJSR6SM0SE",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.53.36",
+    "timestamp": "27.07.2025 20.53.36",
+    "tsIso": "2025-07-27T17:53:35.297Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 983,
+      "newRating": 968,
+      "addedPoints": -15,
+      "roomOldRating": 1027,
+      "roomNewRating": 1012,
+      "roomAddedPoints": -15,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 11,
+      "oldRating": 998,
+      "newRating": 1013,
+      "addedPoints": 15,
+      "roomOldRating": 973,
+      "roomNewRating": 988,
+      "roomAddedPoints": 15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "Od4FCEom4rWfpq0JaxZd",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "29.08.2025 20.02.15",
+    "timestamp": "29.08.2025 20.02.15",
+    "tsIso": "2025-08-29T17:02:15.335Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player2": {
+      "name": "XenonRage",
+      "scores": 8,
+      "oldRating": 939,
+      "newRating": 927,
+      "addedPoints": -12,
+      "roomOldRating": 995,
+      "roomNewRating": 983,
+      "roomAddedPoints": -12,
+      "side": "left"
+    },
+    "winner": "Deleted User",
+    "player1": {
+      "scores": 11,
+      "oldRating": 1030,
+      "newRating": 1042,
+      "addedPoints": 12,
+      "roomOldRating": 1030,
+      "roomNewRating": 1042,
+      "roomAddedPoints": 12,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "PRzXBAcZdf09MqNcvLEB",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "17.11.2025 16.27.42",
+    "tsIso": "2025-11-17T16:27:42.479Z",
+    "createdAt": "17.11.2025 16.27.42",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1053,
+      "newRating": 1065,
+      "addedPoints": 12,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 5,
+      "oldRating": 958,
+      "newRating": 946,
+      "addedPoints": -12,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "RIH13IMVMw2GASAHzk0H",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "19.11.2025 12.12.52",
+    "tsIso": "2025-11-19T10:12:52.166Z",
+    "createdAt": "19.11.2025 12.12.52",
+    "winner": "ghostkz",
+    "player1": {
+      "name": "ghostkz",
+      "scores": 11,
+      "oldRating": 1027,
+      "newRating": 1039,
+      "addedPoints": 12,
+      "roomOldRating": 967,
+      "roomNewRating": 980,
+      "roomAddedPoints": 13,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 2,
+      "oldRating": 933,
+      "newRating": 921,
+      "addedPoints": -12,
+      "roomOldRating": 895,
+      "roomNewRating": 882,
+      "roomAddedPoints": -13,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "VkFa11HrNf0APUDdkfbE",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "player2Id": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+    "players": [
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+    ],
+    "timestamp": "18.11.2025 09.16.42",
+    "tsIso": "2025-11-18T07:16:42.138Z",
+    "createdAt": "18.11.2025 09.16.42",
+    "winner": "Ghost PRO",
+    "player1": {
+      "name": "Ghost",
+      "scores": 9,
+      "oldRating": 947,
+      "newRating": 933,
+      "addedPoints": -14,
+      "roomOldRating": 930,
+      "roomNewRating": 917,
+      "roomAddedPoints": -13,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost PRO",
+      "scores": 11,
+      "oldRating": 984,
+      "newRating": 998,
+      "addedPoints": 14,
+      "roomOldRating": 1005,
+      "roomNewRating": 1018,
+      "roomAddedPoints": 13,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "WEfYKnzlmBihnokAzzdm",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "16.08.2025 11.46.53",
+    "timestamp": "16.08.2025 11.46.53",
+    "tsIso": "2025-08-16T08:46:52.784Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 911,
+      "newRating": 932,
+      "addedPoints": 21,
+      "roomOldRating": 975,
+      "roomNewRating": 996,
+      "roomAddedPoints": 21,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 10,
+      "oldRating": 1027,
+      "newRating": 1006,
+      "addedPoints": -21,
+      "roomOldRating": 1010,
+      "roomNewRating": 989,
+      "roomAddedPoints": -21,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "WUNAvGkajo4PP3AU4obD",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "17.08.2025 11.59.19",
+    "timestamp": "17.08.2025 11.59.19",
+    "tsIso": "2025-08-17T08:59:19.720Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1065,
+      "newRating": 1075,
+      "addedPoints": 10,
+      "roomOldRating": 1015,
+      "roomNewRating": 1025,
+      "roomAddedPoints": 10,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 940,
+      "newRating": 930,
+      "addedPoints": -10,
+      "roomOldRating": 996,
+      "roomNewRating": 986,
+      "roomAddedPoints": -10,
+      "side": "right"
+    },
+    "winner": "tamarisk SUPER ADMIN"
+  },
+  {
+    "_docId": "Wa9BiWj6fWpqq0DnpDIc",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "17.11.2025 20.43.26",
+    "tsIso": "2025-11-17T18:43:26.000Z",
+    "createdAt": "17.11.2025 20.43.26",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1068,
+      "newRating": 1078,
+      "addedPoints": 10,
+      "roomOldRating": 1054,
+      "roomNewRating": 1065,
+      "roomAddedPoints": 11,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 5,
+      "oldRating": 943,
+      "newRating": 933,
+      "addedPoints": -10,
+      "roomOldRating": 946,
+      "roomNewRating": 935,
+      "roomAddedPoints": -11,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "XcutamnkCB8os5KSBEkR",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.10",
+    "timestamp": "27.07.2025 13.10.10",
+    "tsIso": "2025-07-27T10:10:10.594Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 2,
+      "oldRating": 952,
+      "newRating": 940,
+      "addedPoints": -12,
+      "roomOldRating": 982,
+      "roomNewRating": 970,
+      "roomAddedPoints": -12,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1051,
+      "newRating": 1063,
+      "addedPoints": 12,
+      "roomOldRating": 1000,
+      "roomNewRating": 1012,
+      "roomAddedPoints": 12,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "YEQJPZmjG1vepz7oCuto",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "16.08.2025 11.46.52",
+    "timestamp": "16.08.2025 11.46.52",
+    "tsIso": "2025-08-16T08:46:51.784Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 9,
+      "oldRating": 923,
+      "newRating": 911,
+      "addedPoints": -12,
+      "roomOldRating": 987,
+      "roomNewRating": 975,
+      "roomAddedPoints": -12,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1015,
+      "newRating": 1027,
+      "addedPoints": 12,
+      "roomOldRating": 998,
+      "roomNewRating": 1010,
+      "roomAddedPoints": 12,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "Z28guMTTLYHqcAV9te9O",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 22.17.22",
+    "timestamp": "16.08.2025 22.17.22",
+    "tsIso": "2025-08-16T19:17:22.496Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "player1": {
+      "name": "XenonRage",
+      "scores": 1,
+      "oldRating": 954,
+      "newRating": 940,
+      "addedPoints": -14,
+      "roomOldRating": 1010,
+      "roomNewRating": 996,
+      "roomAddedPoints": -14,
+      "side": "left"
+    },
+    "winner": "bear",
+    "player2": {
+      "scores": 11,
+      "oldRating": 992,
+      "newRating": 1006,
+      "addedPoints": 14,
+      "roomOldRating": 986,
+      "roomNewRating": 1000,
+      "roomAddedPoints": 14,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "Z2ntc6ye5EPgbxCZ1M0W",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "17.08.2025 11.51.30",
+    "timestamp": "17.08.2025 11.51.30",
+    "tsIso": "2025-08-17T08:51:30.423Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 14,
+      "oldRating": 1051,
+      "newRating": 1065,
+      "addedPoints": 14,
+      "roomOldRating": 1001,
+      "roomNewRating": 1015,
+      "roomAddedPoints": 14,
+      "side": "left"
+    },
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "scores": 12,
+      "oldRating": 1009,
+      "newRating": 995,
+      "addedPoints": -14,
+      "roomOldRating": 1003,
+      "roomNewRating": 989,
+      "roomAddedPoints": -14,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "ZfIGbSNbxKkkJYGsO3we",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 12.43.50",
+    "timestamp": "16.08.2025 12.43.50",
+    "tsIso": "2025-08-16T09:43:50.552Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1040,
+      "newRating": 1054,
+      "addedPoints": 14,
+      "roomOldRating": 990,
+      "roomNewRating": 1004,
+      "roomAddedPoints": 14,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 2,
+      "oldRating": 1006,
+      "newRating": 992,
+      "addedPoints": -14,
+      "roomOldRating": 1000,
+      "roomNewRating": 986,
+      "roomAddedPoints": -14,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "a6sO4f4zpw1vMb7joCdG",
+    "roomId": "l6i1T08oXjcJfQnGj2zJ",
+    "createdAt": "29.08.2025 21.56.44",
+    "timestamp": "29.08.2025 21.56.44",
+    "tsIso": "2025-08-29T18:56:44.204Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+    ],
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1011,
+      "newRating": 1029,
+      "addedPoints": 18,
+      "roomOldRating": 1000,
+      "roomNewRating": 1018,
+      "roomAddedPoints": 18,
+      "side": "left"
+    },
+    "winner": "tamarisk",
+    "player2": {
+      "scores": 4,
+      "oldRating": 1061,
+      "newRating": 1043,
+      "addedPoints": -18,
+      "roomOldRating": 1015,
+      "roomNewRating": 997,
+      "roomAddedPoints": -18,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "aPqtlNnySu6lAMntUqrp",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 12.30.14",
+    "timestamp": "16.08.2025 12.30.14",
+    "tsIso": "2025-08-16T09:30:14.083Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1020,
+      "newRating": 1034,
+      "addedPoints": 14,
+      "roomOldRating": 970,
+      "roomNewRating": 984,
+      "roomAddedPoints": 14,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 974,
+      "newRating": 960,
+      "addedPoints": -14,
+      "roomOldRating": 1030,
+      "roomNewRating": 1016,
+      "roomAddedPoints": -14,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "bRxZrgTlAZY73fGjlp9D",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.54",
+    "timestamp": "27.07.2025 21.09.54",
+    "tsIso": "2025-07-27T18:09:54.263Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 987,
+      "newRating": 971,
+      "addedPoints": -16,
+      "roomOldRating": 1031,
+      "roomNewRating": 1015,
+      "roomAddedPoints": -16,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 996,
+      "newRating": 1012,
+      "addedPoints": 16,
+      "roomOldRating": 977,
+      "roomNewRating": 993,
+      "roomAddedPoints": 16,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "cdj5n3IvJ6gwUvO1aD5B",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.15",
+    "timestamp": "27.07.2025 13.10.15",
+    "tsIso": "2025-07-27T10:10:14.594Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 940,
+      "newRating": 961,
+      "addedPoints": 21,
+      "roomOldRating": 970,
+      "roomNewRating": 991,
+      "roomAddedPoints": 21,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 10,
+      "oldRating": 1063,
+      "newRating": 1042,
+      "addedPoints": -21,
+      "roomOldRating": 1012,
+      "roomNewRating": 991,
+      "roomAddedPoints": -21,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "ceKuqxwIclgcbaHESNcF",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.53.31",
+    "timestamp": "27.07.2025 20.53.31",
+    "tsIso": "2025-07-27T17:53:31.297Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 4,
+      "oldRating": 976,
+      "newRating": 961,
+      "addedPoints": -15,
+      "roomOldRating": 1020,
+      "roomNewRating": 1005,
+      "roomAddedPoints": -15,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 11,
+      "oldRating": 1005,
+      "newRating": 1020,
+      "addedPoints": 15,
+      "roomOldRating": 980,
+      "roomNewRating": 995,
+      "roomAddedPoints": 15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "dWenvyLgdipPF4WqviHT",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.18",
+    "timestamp": "27.07.2025 13.10.18",
+    "tsIso": "2025-07-27T10:10:17.594Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 1,
+      "oldRating": 967,
+      "newRating": 954,
+      "addedPoints": -13,
+      "roomOldRating": 997,
+      "roomNewRating": 984,
+      "roomAddedPoints": -13,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1036,
+      "newRating": 1049,
+      "addedPoints": 13,
+      "roomOldRating": 985,
+      "roomNewRating": 998,
+      "roomAddedPoints": 13,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "ddUk2eQz6lxQC14tXsxG",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "17.08.2025 11.51.27",
+    "timestamp": "17.08.2025 11.51.27",
+    "tsIso": "2025-08-17T08:51:27.423Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 5,
+      "oldRating": 1036,
+      "newRating": 1019,
+      "addedPoints": -17,
+      "roomOldRating": 986,
+      "roomNewRating": 969,
+      "roomAddedPoints": -17,
+      "side": "right"
+    },
+    "winner": "bear",
+    "player1": {
+      "scores": 11,
+      "oldRating": 1024,
+      "newRating": 1041,
+      "addedPoints": 17,
+      "roomOldRating": 1018,
+      "roomNewRating": 1035,
+      "roomAddedPoints": 17,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "eBC2Y9YdYi8wB0uYgbY4",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "29.08.2025 20.02.18",
+    "timestamp": "29.08.2025 20.02.18",
+    "tsIso": "2025-08-29T17:02:18.335Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player2": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 935,
+      "newRating": 923,
+      "addedPoints": -12,
+      "roomOldRating": 991,
+      "roomNewRating": 979,
+      "roomAddedPoints": -12,
+      "side": "right"
+    },
+    "winner": "Deleted User",
+    "player1": {
+      "scores": 14,
+      "oldRating": 1034,
+      "newRating": 1046,
+      "addedPoints": 12,
+      "roomOldRating": 1034,
+      "roomNewRating": 1046,
+      "roomAddedPoints": 12,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "eCAYOrzMUYIJnQsmu4tw",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "timestamp": "17.11.2025 20.43.26",
+    "tsIso": "2025-11-17T18:43:26.902Z",
+    "createdAt": "17.11.2025 20.43.26",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "Ghost",
+      "scores": 8,
+      "oldRating": 943,
+      "newRating": 933,
+      "addedPoints": -10,
+      "roomOldRating": 935,
+      "roomNewRating": 925,
+      "roomAddedPoints": -10,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1068,
+      "newRating": 1078,
+      "addedPoints": 10,
+      "roomOldRating": 1065,
+      "roomNewRating": 1075,
+      "roomAddedPoints": 10,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "eMiEDQ2xnHjfwWKVqaSi",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 17.28.44",
+    "timestamp": "26.07.2025 17.28.44",
+    "tsIso": "2025-07-26T14:28:44.050Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1015,
+      "newRating": 1030,
+      "addedPoints": 15,
+      "roomOldRating": 1015,
+      "roomNewRating": 1030,
+      "roomAddedPoints": 15,
+      "side": "right"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 4,
+      "oldRating": 985,
+      "newRating": 970,
+      "addedPoints": -15,
+      "roomOldRating": 985,
+      "roomNewRating": 970,
+      "roomAddedPoints": -15,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "eXBMVGIfXy3mZP9FF6xx",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+    "player2Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "players": [
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+    ],
+    "timestamp": "18.11.2025 09.16.41",
+    "tsIso": "2025-11-18T07:16:41.386Z",
+    "createdAt": "18.11.2025 09.16.41",
+    "winner": "ghostkz",
+    "player1": {
+      "name": "Ghost PRO",
+      "scores": 9,
+      "oldRating": 984,
+      "newRating": 969,
+      "addedPoints": -15,
+      "roomOldRating": 1023,
+      "roomNewRating": 1005,
+      "roomAddedPoints": -18,
+      "side": "left"
+    },
+    "player2": {
+      "name": "ghostkz",
+      "scores": 11,
+      "oldRating": 1012,
+      "newRating": 1027,
+      "addedPoints": 15,
+      "roomOldRating": 972,
+      "roomNewRating": 990,
+      "roomAddedPoints": 18,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "erYAV7tU7GuHkhR7E8Nf",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "29.08.2025 20.02.17",
+    "timestamp": "29.08.2025 20.02.17",
+    "tsIso": "2025-08-29T17:02:17.335Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player2": {
+      "name": "XenonRage",
+      "scores": 2,
+      "oldRating": 948,
+      "newRating": 935,
+      "addedPoints": -13,
+      "roomOldRating": 1004,
+      "roomNewRating": 991,
+      "roomAddedPoints": -13,
+      "side": "left"
+    },
+    "winner": "Deleted User",
+    "player1": {
+      "scores": 11,
+      "oldRating": 1021,
+      "newRating": 1034,
+      "addedPoints": 13,
+      "roomOldRating": 1021,
+      "roomNewRating": 1034,
+      "roomAddedPoints": 13,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "gAkaes6jpGPG8UBM4odI",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.41.24",
+    "timestamp": "27.07.2025 18.41.24",
+    "tsIso": "2025-07-27T15:41:20.947Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 966,
+      "newRating": 985,
+      "addedPoints": 19,
+      "roomOldRating": 1012,
+      "roomNewRating": 1031,
+      "roomAddedPoints": 19,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 10,
+      "oldRating": 1026,
+      "newRating": 1007,
+      "addedPoints": -19,
+      "roomOldRating": 988,
+      "roomNewRating": 969,
+      "roomAddedPoints": -19,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "gQU602p7HD5AAeIazsnw",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "timestamp": "19.11.2025 12.12.51",
+    "tsIso": "2025-11-19T10:12:51.652Z",
+    "createdAt": "19.11.2025 12.12.51",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "ghostkz",
+      "scores": 8,
+      "oldRating": 1027,
+      "newRating": 1013,
+      "addedPoints": -14,
+      "roomOldRating": 978,
+      "roomNewRating": 967,
+      "roomAddedPoints": -11,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1078,
+      "newRating": 1092,
+      "addedPoints": 14,
+      "roomOldRating": 1087,
+      "roomNewRating": 1098,
+      "roomAddedPoints": 11,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "gbJ8W5vxpMolWS6KVjHr",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "29.08.2025 20.02.16",
+    "timestamp": "29.08.2025 20.02.16",
+    "tsIso": "2025-08-29T17:02:16.335Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player2": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 927,
+      "newRating": 948,
+      "addedPoints": 21,
+      "roomOldRating": 983,
+      "roomNewRating": 1004,
+      "roomAddedPoints": 21,
+      "side": "right"
+    },
+    "winner": "XenonRage",
+    "player1": {
+      "scores": 3,
+      "oldRating": 1042,
+      "newRating": 1021,
+      "addedPoints": -21,
+      "roomOldRating": 1042,
+      "roomNewRating": 1021,
+      "roomAddedPoints": -21,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "h7RIw6Pmg1oRONIcZol5",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.53.35",
+    "timestamp": "27.07.2025 20.53.35",
+    "tsIso": "2025-07-27T17:53:34.297Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 965,
+      "newRating": 983,
+      "addedPoints": 18,
+      "roomOldRating": 1009,
+      "roomNewRating": 1027,
+      "roomAddedPoints": 18,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 7,
+      "oldRating": 1016,
+      "newRating": 998,
+      "addedPoints": -18,
+      "roomOldRating": 991,
+      "roomNewRating": 973,
+      "roomAddedPoints": -18,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "ioUmjZBvGFEiBT876wod",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.44.25",
+    "timestamp": "27.07.2025 18.44.25",
+    "tsIso": "2025-07-27T15:44:24.892Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1001,
+      "newRating": 1019,
+      "addedPoints": 18,
+      "roomOldRating": 993,
+      "roomNewRating": 1011,
+      "roomAddedPoints": 18,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 1,
+      "oldRating": 1043,
+      "newRating": 1025,
+      "addedPoints": -18,
+      "roomOldRating": 1005,
+      "roomNewRating": 987,
+      "roomAddedPoints": -18,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "jOxqQDazxbeSB79EvVNh",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "29.08.2025 20.04.32",
+    "timestamp": "29.08.2025 20.04.32",
+    "tsIso": "2025-08-29T17:04:32.734Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "player2": {
+      "scores": 4,
+      "oldRating": 1020,
+      "newRating": 1005,
+      "addedPoints": -15,
+      "roomOldRating": 989,
+      "roomNewRating": 974,
+      "roomAddedPoints": -15,
+      "side": "right",
+      "name": "Deleted User"
+    },
+    "winner": "Deleted User",
+    "player1": {
+      "scores": 11,
+      "oldRating": 1046,
+      "newRating": 1061,
+      "addedPoints": 15,
+      "roomOldRating": 1046,
+      "roomNewRating": 1061,
+      "roomAddedPoints": 15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "jV5Stb5pbK1jbNh8JWkF",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 11.51.46",
+    "timestamp": "27.07.2025 11.51.46",
+    "tsIso": "2025-07-27T08:51:46.369Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 7,
+      "oldRating": 987,
+      "newRating": 972,
+      "addedPoints": -15,
+      "roomOldRating": 1005,
+      "roomNewRating": 990,
+      "roomAddedPoints": -15,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1016,
+      "newRating": 1031,
+      "addedPoints": 15,
+      "roomOldRating": 1016,
+      "roomNewRating": 1031,
+      "roomAddedPoints": 15,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "jiBSJ6UrdlZ6v4RI7Sop",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "29.08.2025 20.02.14",
+    "timestamp": "29.08.2025 20.02.14",
+    "tsIso": "2025-08-29T17:02:14.335Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player2": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 952,
+      "newRating": 939,
+      "addedPoints": -13,
+      "roomOldRating": 1008,
+      "roomNewRating": 995,
+      "roomAddedPoints": -13,
+      "side": "right"
+    },
+    "winner": "Deleted User",
+    "player1": {
+      "scores": 11,
+      "oldRating": 1017,
+      "newRating": 1030,
+      "addedPoints": 13,
+      "roomOldRating": 1017,
+      "roomNewRating": 1030,
+      "roomAddedPoints": 13,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "jyYT9kk8vfuoOfqEGGQQ",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 11.51.50",
+    "timestamp": "27.07.2025 11.51.50",
+    "tsIso": "2025-07-27T08:51:49.369Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 8,
+      "oldRating": 979,
+      "newRating": 965,
+      "addedPoints": -14,
+      "roomOldRating": 997,
+      "roomNewRating": 983,
+      "roomAddedPoints": -14,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1024,
+      "newRating": 1038,
+      "addedPoints": 14,
+      "roomOldRating": 1024,
+      "roomNewRating": 1038,
+      "roomAddedPoints": 14,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "k2pWV8fY32iS9XuOqWsu",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 11.51.51",
+    "timestamp": "27.07.2025 11.51.51",
+    "tsIso": "2025-07-27T08:51:50.369Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 3,
+      "oldRating": 965,
+      "newRating": 952,
+      "addedPoints": -13,
+      "roomOldRating": 983,
+      "roomNewRating": 970,
+      "roomAddedPoints": -13,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1038,
+      "newRating": 1051,
+      "addedPoints": 13,
+      "roomOldRating": 1038,
+      "roomNewRating": 1051,
+      "roomAddedPoints": 13,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "kUld3TRYDe7pWqaJTeHl",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 20.07.55",
+    "timestamp": "26.07.2025 20.07.55",
+    "tsIso": "2025-07-26T17:07:55.021Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 989,
+      "newRating": 1006,
+      "addedPoints": 17,
+      "roomOldRating": 989,
+      "roomNewRating": 1006,
+      "roomAddedPoints": 17,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 2,
+      "oldRating": 1011,
+      "newRating": 994,
+      "addedPoints": -17,
+      "roomOldRating": 1011,
+      "roomNewRating": 994,
+      "roomAddedPoints": -17,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "l1SrSK3vrPMmQFgKbgfS",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.04",
+    "timestamp": "27.07.2025 21.09.04",
+    "tsIso": "2025-07-27T18:09:04.469Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 10,
+      "oldRating": 1053,
+      "newRating": 1034,
+      "addedPoints": -19,
+      "roomOldRating": 1034,
+      "roomNewRating": 1015,
+      "roomAddedPoints": -19,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 12,
+      "oldRating": 998,
+      "newRating": 1017,
+      "addedPoints": 19,
+      "roomOldRating": 973,
+      "roomNewRating": 992,
+      "roomAddedPoints": 19,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "lCRfzxSEEa1z7KPSpBBz",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "29.08.2025 20.01.52",
+    "timestamp": "29.08.2025 20.01.52",
+    "tsIso": "2025-08-29T17:01:52.991Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63"
+    ],
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 5,
+      "oldRating": 1028,
+      "newRating": 1011,
+      "addedPoints": -17,
+      "roomOldRating": 1003,
+      "roomNewRating": 986,
+      "roomAddedPoints": -17,
+      "side": "left"
+    },
+    "winner": "Deleted User",
+    "player2": {
+      "scores": 11,
+      "oldRating": 1000,
+      "newRating": 1017,
+      "addedPoints": 17,
+      "roomOldRating": 1000,
+      "roomNewRating": 1017,
+      "roomAddedPoints": 17,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "m9CmhRdEQqBHtWQRbPcY",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.44.23",
+    "timestamp": "27.07.2025 18.44.23",
+    "tsIso": "2025-07-27T15:44:22.892Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 12,
+      "oldRating": 1033,
+      "newRating": 1016,
+      "addedPoints": -17,
+      "roomOldRating": 1025,
+      "roomNewRating": 1008,
+      "roomAddedPoints": -17,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 14,
+      "oldRating": 1011,
+      "newRating": 1028,
+      "addedPoints": 17,
+      "roomOldRating": 973,
+      "roomNewRating": 990,
+      "roomAddedPoints": 17,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "mjboC020YHbn3kAjRXM1",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "17.08.2025 11.51.29",
+    "timestamp": "17.08.2025 11.51.29",
+    "tsIso": "2025-08-17T08:51:29.423Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 12,
+      "oldRating": 1036,
+      "newRating": 1051,
+      "addedPoints": 15,
+      "roomOldRating": 986,
+      "roomNewRating": 1001,
+      "roomAddedPoints": 15,
+      "side": "right"
+    },
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "scores": 10,
+      "oldRating": 1024,
+      "newRating": 1009,
+      "addedPoints": -15,
+      "roomOldRating": 1018,
+      "roomNewRating": 1003,
+      "roomAddedPoints": -15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "mzuoy1UviZu6y85aOHcO",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "17.08.2025 11.51.28",
+    "timestamp": "17.08.2025 11.51.28",
+    "tsIso": "2025-08-17T08:51:28.423Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1019,
+      "newRating": 1036,
+      "addedPoints": 17,
+      "roomOldRating": 969,
+      "roomNewRating": 986,
+      "roomAddedPoints": 17,
+      "side": "left"
+    },
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "scores": 6,
+      "oldRating": 1041,
+      "newRating": 1024,
+      "addedPoints": -17,
+      "roomOldRating": 1035,
+      "roomNewRating": 1018,
+      "roomAddedPoints": -17,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "nDDfqTzA0wfDyGUUt2Xp",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.41.17",
+    "timestamp": "27.07.2025 18.41.17",
+    "tsIso": "2025-07-27T15:41:16.947Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 960,
+      "newRating": 979,
+      "addedPoints": 19,
+      "roomOldRating": 1006,
+      "roomNewRating": 1025,
+      "roomAddedPoints": 19,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 2,
+      "oldRating": 1032,
+      "newRating": 1013,
+      "addedPoints": -19,
+      "roomOldRating": 994,
+      "roomNewRating": 975,
+      "roomAddedPoints": -19,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "nuIK7oIVFniLvnKLhh8r",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "player2Id": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+    "players": [
+      "FCVVE5mbGkaWhVvwqlGkknErWis2",
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1"
+    ],
+    "timestamp": "18.11.2025 09.16.43",
+    "tsIso": "2025-11-18T07:16:43.461Z",
+    "createdAt": "18.11.2025 09.16.43",
+    "winner": "Ghost PRO",
+    "player1": {
+      "name": "Ghost",
+      "scores": 8,
+      "oldRating": 947,
+      "newRating": 933,
+      "addedPoints": -14,
+      "roomOldRating": 906,
+      "roomNewRating": 895,
+      "roomAddedPoints": -11,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost PRO",
+      "scores": 11,
+      "oldRating": 984,
+      "newRating": 998,
+      "addedPoints": 14,
+      "roomOldRating": 1029,
+      "roomNewRating": 1040,
+      "roomAddedPoints": 11,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "nyH4ye1FKDuOqcsIk8h0",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.56.03",
+    "timestamp": "27.07.2025 20.56.03",
+    "tsIso": "2025-07-27T17:56:02.592Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1011,
+      "newRating": 1025,
+      "addedPoints": 14,
+      "roomOldRating": 992,
+      "roomNewRating": 1006,
+      "roomAddedPoints": 14,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 6,
+      "oldRating": 976,
+      "newRating": 962,
+      "addedPoints": -14,
+      "roomOldRating": 1020,
+      "roomNewRating": 1006,
+      "roomAddedPoints": -14,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "oO7u2brXoqqqRWg3jcHk",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 12.30.17",
+    "timestamp": "16.08.2025 12.30.17",
+    "tsIso": "2025-08-16T09:30:17.083Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk SUPER ADMIN",
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 12,
+      "oldRating": 1027,
+      "newRating": 1040,
+      "addedPoints": 13,
+      "roomOldRating": 977,
+      "roomNewRating": 990,
+      "roomAddedPoints": 13,
+      "side": "right"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 10,
+      "oldRating": 967,
+      "newRating": 954,
+      "addedPoints": -13,
+      "roomOldRating": 1023,
+      "roomNewRating": 1010,
+      "roomAddedPoints": -13,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "odXBPJjMKyI7wk6VSwOy",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.53.29",
+    "timestamp": "27.07.2025 20.53.29",
+    "tsIso": "2025-07-27T17:53:29.297Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 975,
+      "newRating": 992,
+      "addedPoints": 17,
+      "roomOldRating": 1019,
+      "roomNewRating": 1036,
+      "roomAddedPoints": 17,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 6,
+      "oldRating": 1006,
+      "newRating": 989,
+      "addedPoints": -17,
+      "roomOldRating": 981,
+      "roomNewRating": 964,
+      "roomAddedPoints": -17,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "opnl4YU5A62nQUdcXbjp",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 10.40.10",
+    "timestamp": "27.07.2025 10.40.10",
+    "tsIso": "2025-07-27T07:40:10.084Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 989,
+      "newRating": 1006,
+      "addedPoints": 17,
+      "roomOldRating": 989,
+      "roomNewRating": 1006,
+      "roomAddedPoints": 17,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 6,
+      "oldRating": 1011,
+      "newRating": 994,
+      "addedPoints": -17,
+      "roomOldRating": 1011,
+      "roomNewRating": 994,
+      "roomAddedPoints": -17,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "orEEkZOE0lh5GCfWGfsW",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.32",
+    "timestamp": "27.07.2025 13.10.32",
+    "tsIso": "2025-07-27T10:10:32.563Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "tamarisk",
+      "scores": 8,
+      "oldRating": 1003,
+      "newRating": 989,
+      "addedPoints": -14,
+      "roomOldRating": 1024,
+      "roomNewRating": 1010,
+      "roomAddedPoints": -14,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1043,
+      "newRating": 1057,
+      "addedPoints": 14,
+      "roomOldRating": 992,
+      "roomNewRating": 1006,
+      "roomAddedPoints": 14,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "p76XTC86R3zqIk3lPIUx",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.41.21",
+    "timestamp": "27.07.2025 18.41.21",
+    "tsIso": "2025-07-27T15:41:18.947Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 997,
+      "newRating": 981,
+      "addedPoints": -16,
+      "roomOldRating": 1043,
+      "roomNewRating": 1027,
+      "roomAddedPoints": -16,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 11,
+      "oldRating": 995,
+      "newRating": 1011,
+      "addedPoints": 16,
+      "roomOldRating": 957,
+      "roomNewRating": 973,
+      "roomAddedPoints": 16,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "pLtW9I4vSn4mffhAP7Np",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.41.16",
+    "timestamp": "27.07.2025 18.41.16",
+    "tsIso": "2025-07-27T15:41:15.947Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 974,
+      "newRating": 960,
+      "addedPoints": -14,
+      "roomOldRating": 1020,
+      "roomNewRating": 1006,
+      "roomAddedPoints": -14,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 11,
+      "oldRating": 1018,
+      "newRating": 1032,
+      "addedPoints": 14,
+      "roomOldRating": 980,
+      "roomNewRating": 994,
+      "roomAddedPoints": 14,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "qMyVSZol0AIYjJxazPw6",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 11.13.08",
+    "timestamp": "27.07.2025 11.13.08",
+    "tsIso": "2025-07-27T08:13:08.665Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 1028,
+      "newRating": 1041,
+      "addedPoints": 13,
+      "roomOldRating": 1007,
+      "roomNewRating": 1020,
+      "roomAddedPoints": 13,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 5,
+      "oldRating": 972,
+      "newRating": 959,
+      "addedPoints": -13,
+      "roomOldRating": 993,
+      "roomNewRating": 980,
+      "roomAddedPoints": -13,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "qeYrGJg1vkxBULUZEV16",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 10.46.49",
+    "timestamp": "27.07.2025 10.46.49",
+    "tsIso": "2025-07-27T07:46:49.395Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 989,
+      "newRating": 1006,
+      "addedPoints": 17,
+      "roomOldRating": 989,
+      "roomNewRating": 1006,
+      "roomAddedPoints": 17,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 2,
+      "oldRating": 1011,
+      "newRating": 994,
+      "addedPoints": -17,
+      "roomOldRating": 1011,
+      "roomNewRating": 994,
+      "roomAddedPoints": -17,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "sA8F11JXIZ5cea3KhhAk",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 12.15.36",
+    "timestamp": "16.08.2025 12.15.36",
+    "tsIso": "2025-08-16T09:15:35.025Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 954,
+      "newRating": 974,
+      "addedPoints": 20,
+      "roomOldRating": 1010,
+      "roomNewRating": 1030,
+      "roomAddedPoints": 20,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 8,
+      "oldRating": 1040,
+      "newRating": 1020,
+      "addedPoints": -20,
+      "roomOldRating": 990,
+      "roomNewRating": 970,
+      "roomAddedPoints": -20,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "sOO8nESrhFNS2xHE9Jy0",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.53",
+    "timestamp": "27.07.2025 21.09.53",
+    "tsIso": "2025-07-27T18:09:53.263Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 12,
+      "oldRating": 969,
+      "newRating": 987,
+      "addedPoints": 18,
+      "roomOldRating": 1013,
+      "roomNewRating": 1031,
+      "roomAddedPoints": 18,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 10,
+      "oldRating": 1014,
+      "newRating": 996,
+      "addedPoints": -18,
+      "roomOldRating": 995,
+      "roomNewRating": 977,
+      "roomAddedPoints": -18,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "sdg9Kend0P7hH95MvIRF",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 10.40.10",
+    "timestamp": "27.07.2025 10.40.10",
+    "tsIso": "2025-07-27T07:40:11.084Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 10,
+      "oldRating": 1006,
+      "newRating": 989,
+      "addedPoints": -17,
+      "roomOldRating": 1006,
+      "roomNewRating": 989,
+      "roomAddedPoints": -17,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 12,
+      "oldRating": 994,
+      "newRating": 1011,
+      "addedPoints": 17,
+      "roomOldRating": 994,
+      "roomNewRating": 1011,
+      "roomAddedPoints": 17,
+      "side": "left"
+    }
+  },
+  {
+    "_docId": "shRrikLzLJK8TuGokarY",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 17.28.45",
+    "timestamp": "26.07.2025 17.28.45",
+    "tsIso": "2025-07-26T14:28:45.050Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 2,
+      "oldRating": 1030,
+      "newRating": 1011,
+      "addedPoints": -19,
+      "roomOldRating": 1030,
+      "roomNewRating": 1011,
+      "roomAddedPoints": -19,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 970,
+      "newRating": 989,
+      "addedPoints": 19,
+      "roomOldRating": 970,
+      "roomNewRating": 989,
+      "roomAddedPoints": 19,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "sxsJu4MxoFVReRsUCx7e",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.44.24",
+    "timestamp": "27.07.2025 18.44.24",
+    "tsIso": "2025-07-27T15:44:23.892Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "bear",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 5,
+      "oldRating": 1016,
+      "newRating": 1001,
+      "addedPoints": -15,
+      "roomOldRating": 1008,
+      "roomNewRating": 993,
+      "roomAddedPoints": -15,
+      "side": "right"
+    },
+    "player2": {
+      "scores": 11,
+      "oldRating": 1028,
+      "newRating": 1043,
+      "addedPoints": 15,
+      "roomOldRating": 990,
+      "roomNewRating": 1005,
+      "roomAddedPoints": 15,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "ttHhUlgnJs3U35omZnNC",
+    "roomId": "rCA7SNen9IR4bm1uKuVF",
+    "createdAt": "31.08.2025 09.54.26",
+    "timestamp": "31.08.2025 09.54.26",
+    "tsIso": "2025-08-31T06:54:26.872Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player2": {
+      "name": "xenonrage",
+      "scores": 11,
+      "oldRating": 913,
+      "newRating": 936,
+      "addedPoints": 23,
+      "roomOldRating": 990,
+      "roomNewRating": 1013,
+      "roomAddedPoints": 23,
+      "side": "left"
+    },
+    "winner": "xenonrage",
+    "player1": {
+      "scores": 2,
+      "oldRating": 1082,
+      "newRating": 1059,
+      "addedPoints": -23,
+      "roomOldRating": 1010,
+      "roomNewRating": 987,
+      "roomAddedPoints": -23,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "tw7kPmuIRWuBe6t4KWRa",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.12",
+    "timestamp": "27.07.2025 13.10.12",
+    "tsIso": "2025-07-27T10:10:12.594Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "XenonRage",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 929,
+      "newRating": 951,
+      "addedPoints": 22,
+      "roomOldRating": 959,
+      "roomNewRating": 981,
+      "roomAddedPoints": 22,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 8,
+      "oldRating": 1074,
+      "newRating": 1052,
+      "addedPoints": -22,
+      "roomOldRating": 1023,
+      "roomNewRating": 1001,
+      "roomAddedPoints": -22,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "ukandpbIVTqlrNjDiD6D",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "29.08.2025 17.33.05",
+    "timestamp": "29.08.2025 17.33.05",
+    "tsIso": "2025-08-29T14:33:05.434Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 7,
+      "oldRating": 1049,
+      "newRating": 1031,
+      "addedPoints": -18,
+      "roomOldRating": 1011,
+      "roomNewRating": 993,
+      "roomAddedPoints": -18,
+      "side": "right"
+    },
+    "winner": "bear",
+    "player2": {
+      "scores": 11,
+      "oldRating": 999,
+      "newRating": 1017,
+      "addedPoints": 18,
+      "roomOldRating": 993,
+      "roomNewRating": 1011,
+      "roomAddedPoints": 18,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "wAcVbxJJJkLVnleR6qLK",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "ydTjluOdYEYbGYhC9P4JKsJrM5n1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "ydTjluOdYEYbGYhC9P4JKsJrM5n1"
+    ],
+    "timestamp": "19.11.2025 13.02.30",
+    "tsIso": "2025-11-19T11:02:30.165Z",
+    "createdAt": "19.11.2025 13.02.30",
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1092,
+      "newRating": 1106,
+      "addedPoints": 14,
+      "roomOldRating": 1098,
+      "roomNewRating": 1109,
+      "roomAddedPoints": 11,
+      "side": "left"
+    },
+    "player2": {
+      "name": "ghostkz",
+      "scores": 9,
+      "oldRating": 1039,
+      "newRating": 1025,
+      "addedPoints": -14,
+      "roomOldRating": 980,
+      "roomNewRating": 969,
+      "roomAddedPoints": -11,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "wwWmikVxfUSbUDVskXJz",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "27.07.2025 11.51.47",
+    "timestamp": "27.07.2025 11.51.47",
+    "tsIso": "2025-07-27T08:51:47.369Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 5,
+      "oldRating": 972,
+      "newRating": 959,
+      "addedPoints": -13,
+      "roomOldRating": 990,
+      "roomNewRating": 977,
+      "roomAddedPoints": -13,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1031,
+      "newRating": 1044,
+      "addedPoints": 13,
+      "roomOldRating": 1031,
+      "roomNewRating": 1044,
+      "roomAddedPoints": 13,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "xfO136o9yhaiT3B6dxTV",
+    "roomId": "Zv5bUEuyKCRmSRFJ8QNx",
+    "createdAt": "27.07.2025 18.41.14",
+    "timestamp": "27.07.2025 18.41.14",
+    "tsIso": "2025-07-27T15:41:14.947Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 954,
+      "newRating": 974,
+      "addedPoints": 20,
+      "roomOldRating": 1000,
+      "roomNewRating": 1020,
+      "roomAddedPoints": 20,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 2,
+      "oldRating": 1038,
+      "newRating": 1018,
+      "addedPoints": -20,
+      "roomOldRating": 1000,
+      "roomNewRating": 980,
+      "roomAddedPoints": -20,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "xfz7VnsQRgULr7mhvvde",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "17.11.2025 16.49.58",
+    "tsIso": "2025-11-17T16:49:58.539Z",
+    "createdAt": "17.11.2025 16.49.58",
+    "winner": "Ghost",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 5,
+      "oldRating": 1065,
+      "newRating": 1044,
+      "addedPoints": -21,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 11,
+      "oldRating": 946,
+      "newRating": 967,
+      "addedPoints": 21,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "xfzkfNW8AkZ7QeAR8k0F",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "29.08.2025 20.04.13",
+    "timestamp": "29.08.2025 20.04.13",
+    "tsIso": "2025-08-29T17:04:13.176Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1011,
+      "newRating": 1027,
+      "addedPoints": 16,
+      "roomOldRating": 986,
+      "roomNewRating": 1002,
+      "roomAddedPoints": 16,
+      "side": "left"
+    },
+    "winner": "tamarisk SUPER ADMIN",
+    "player2": {
+      "scores": 4,
+      "oldRating": 1020,
+      "newRating": 1004,
+      "addedPoints": -16,
+      "roomOldRating": 989,
+      "roomNewRating": 973,
+      "roomAddedPoints": -16,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "y4H6DihwtovzOnHuVtgi",
+    "roomId": "8BbCLBmLp9GeIV6ARTpX",
+    "createdAt": "16.08.2025 10.02.48",
+    "timestamp": "16.08.2025 10.02.48",
+    "tsIso": "2025-08-16T07:02:48.038Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "tamarisk",
+      "scores": 11,
+      "oldRating": 1035,
+      "newRating": 1047,
+      "addedPoints": 12,
+      "roomOldRating": 1000,
+      "roomNewRating": 1012,
+      "roomAddedPoints": 12,
+      "side": "left"
+    },
+    "player2": {
+      "name": "XenonRage",
+      "scores": 2,
+      "oldRating": 948,
+      "newRating": 936,
+      "addedPoints": -12,
+      "roomOldRating": 1000,
+      "roomNewRating": 988,
+      "roomAddedPoints": -12,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "yCpZTS90amDUpnl8DEwo",
+    "roomId": "rCA7SNen9IR4bm1uKuVF",
+    "createdAt": "31.08.2025 09.54.25",
+    "timestamp": "31.08.2025 09.54.25",
+    "tsIso": "2025-08-31T06:54:25.872Z",
+    "isRanked": true,
+    "player1Id": "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "sjyh12p6ZeeaXaFYwrtVg4VFSG63",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "player2": {
+      "name": "xenonrage",
+      "scores": 5,
+      "oldRating": 923,
+      "newRating": 913,
+      "addedPoints": -10,
+      "roomOldRating": 1000,
+      "roomNewRating": 990,
+      "roomAddedPoints": -10,
+      "side": "right"
+    },
+    "winner": "Deleted User",
+    "player1": {
+      "scores": 11,
+      "oldRating": 1072,
+      "newRating": 1082,
+      "addedPoints": 10,
+      "roomOldRating": 1000,
+      "roomNewRating": 1010,
+      "roomAddedPoints": 10,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "yglHFVHfWVdXDS8a8Cac",
+    "roomId": "l2ARDKfANi23Tc0FeGCb",
+    "isRanked": true,
+    "player1Id": "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+    "player2Id": "FCVVE5mbGkaWhVvwqlGkknErWis2",
+    "players": [
+      "Czn1bBqD7mfaHmzyS0OqYoLglvm1",
+      "FCVVE5mbGkaWhVvwqlGkknErWis2"
+    ],
+    "timestamp": "18.11.2025 09.16.42",
+    "tsIso": "2025-11-18T07:16:42.799Z",
+    "createdAt": "18.11.2025 09.16.42",
+    "winner": "Ghost PRO",
+    "player1": {
+      "name": "Ghost PRO",
+      "scores": 11,
+      "oldRating": 984,
+      "newRating": 998,
+      "addedPoints": 14,
+      "roomOldRating": 1018,
+      "roomNewRating": 1029,
+      "roomAddedPoints": 11,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Ghost",
+      "scores": 9,
+      "oldRating": 947,
+      "newRating": 933,
+      "addedPoints": -14,
+      "roomOldRating": 917,
+      "roomNewRating": 906,
+      "roomAddedPoints": -11,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "yjNtBs6SdXy5MXs1H2KX",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "16.08.2025 11.46.50",
+    "timestamp": "16.08.2025 11.46.50",
+    "tsIso": "2025-08-16T08:46:50.784Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1"
+    ],
+    "winner": "bear",
+    "player2": {
+      "name": "XenonRage",
+      "scores": 6,
+      "oldRating": 936,
+      "newRating": 923,
+      "addedPoints": -13,
+      "roomOldRating": 1000,
+      "roomNewRating": 987,
+      "roomAddedPoints": -13,
+      "side": "right"
+    },
+    "player1": {
+      "scores": 11,
+      "oldRating": 1002,
+      "newRating": 1015,
+      "addedPoints": 13,
+      "roomOldRating": 985,
+      "roomNewRating": 998,
+      "roomAddedPoints": 13,
+      "side": "left",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "yrEEYS082eQprjIjIE0k",
+    "roomId": "CKYZC2zP4n7YBrIeRQka",
+    "createdAt": "29.08.2025 17.33.06",
+    "timestamp": "29.08.2025 17.33.06",
+    "tsIso": "2025-08-29T14:33:06.434Z",
+    "isRanked": true,
+    "player1Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "player1": {
+      "name": "tamarisk SUPER ADMIN",
+      "scores": 11,
+      "oldRating": 1031,
+      "newRating": 1046,
+      "addedPoints": 15,
+      "roomOldRating": 993,
+      "roomNewRating": 1008,
+      "roomAddedPoints": 15,
+      "side": "left"
+    },
+    "winner": "tamarisk SUPER ADMIN",
+    "player2": {
+      "scores": 4,
+      "oldRating": 1017,
+      "newRating": 1002,
+      "addedPoints": -15,
+      "roomOldRating": 1011,
+      "roomNewRating": 996,
+      "roomAddedPoints": -15,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "zN09j1dTEmm1TdExEuzS",
+    "roomId": "mTFKdpSsolxJV5ODwxJ7",
+    "createdAt": "27.07.2025 13.10.31",
+    "timestamp": "27.07.2025 13.10.31",
+    "tsIso": "2025-07-27T10:10:31.563Z",
+    "isRanked": true,
+    "player1Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player2": {
+      "name": "tamarisk",
+      "scores": 12,
+      "oldRating": 983,
+      "newRating": 1003,
+      "addedPoints": 20,
+      "roomOldRating": 1004,
+      "roomNewRating": 1024,
+      "roomAddedPoints": 20,
+      "side": "left"
+    },
+    "player1": {
+      "scores": 10,
+      "oldRating": 1063,
+      "newRating": 1043,
+      "addedPoints": -20,
+      "roomOldRating": 1012,
+      "roomNewRating": 992,
+      "roomAddedPoints": -20,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "zRtKHelVSxU0abtsw2g9",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 20.53.32",
+    "timestamp": "27.07.2025 20.53.32",
+    "tsIso": "2025-07-27T17:53:32.297Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "PTLbGJ9HvvOFOMmHIuwbMijBg9x2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "PTLbGJ9HvvOFOMmHIuwbMijBg9x2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 961,
+      "newRating": 980,
+      "addedPoints": 19,
+      "roomOldRating": 1005,
+      "roomNewRating": 1024,
+      "roomAddedPoints": 19,
+      "side": "left"
+    },
+    "player2": {
+      "scores": 7,
+      "oldRating": 1020,
+      "newRating": 1001,
+      "addedPoints": -19,
+      "roomOldRating": 995,
+      "roomNewRating": 976,
+      "roomAddedPoints": -19,
+      "side": "right",
+      "name": "Deleted User"
+    }
+  },
+  {
+    "_docId": "zZW3z2gxfNEdtrDf2N03",
+    "roomId": "tlILJV8SdA8ZfBJ2J793",
+    "createdAt": "26.07.2025 17.28.19",
+    "timestamp": "26.07.2025 17.28.19",
+    "tsIso": "2025-07-26T14:28:19.812Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "XenonRage",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 11,
+      "oldRating": 984,
+      "newRating": 1001,
+      "addedPoints": 17,
+      "roomOldRating": 984,
+      "roomNewRating": 1001,
+      "roomAddedPoints": 17,
+      "side": "left"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 2,
+      "oldRating": 1016,
+      "newRating": 999,
+      "addedPoints": -17,
+      "roomOldRating": 1016,
+      "roomNewRating": 999,
+      "roomAddedPoints": -17,
+      "side": "right"
+    }
+  },
+  {
+    "_docId": "zm2CZ48p8zpaW6rpy8gl",
+    "roomId": "A33xEbJaXhJeOWZy4355",
+    "createdAt": "27.07.2025 21.09.58",
+    "timestamp": "27.07.2025 21.09.58",
+    "tsIso": "2025-07-27T18:09:57.263Z",
+    "isRanked": true,
+    "player1Id": "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+    "player2Id": "0n6fI9F7CIXTUyHZAlpPI05XlKl2",
+    "players": [
+      "zFQ5Lz8IoYZkYdXNzB0iQgGkx8q1",
+      "0n6fI9F7CIXTUyHZAlpPI05XlKl2"
+    ],
+    "winner": "tamarisk",
+    "player1": {
+      "name": "XenonRage",
+      "scores": 10,
+      "oldRating": 976,
+      "newRating": 961,
+      "addedPoints": -15,
+      "roomOldRating": 1020,
+      "roomNewRating": 1005,
+      "roomAddedPoints": -15,
+      "side": "right"
+    },
+    "player2": {
+      "name": "tamarisk",
+      "scores": 12,
+      "oldRating": 1007,
+      "newRating": 1022,
+      "addedPoints": 15,
+      "roomOldRating": 988,
+      "roomNewRating": 1003,
+      "roomAddedPoints": 15,
+      "side": "left"
+    }
+  }
+]
