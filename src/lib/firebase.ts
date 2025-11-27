@@ -1,7 +1,14 @@
 // src/lib/firebase.ts
-
-import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics';
+import {
+  getAnalytics,
+  isSupported as isAnalyticsSupported,
+  type Analytics,
+} from 'firebase/analytics';
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
+import {
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+} from 'firebase/app-check';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
@@ -46,13 +53,26 @@ if (!firebaseConfig.apiKey) {
       const initializedApp = app;
 
       if (typeof window !== 'undefined') {
-        isSupported().then((yes) => {
+        isAnalyticsSupported().then((yes) => {
           if (yes) {
             analytics = getAnalytics(initializedApp);
           }
         });
+
+        const recaptchaKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+
+        if (recaptchaKey) {
+          if (process.env.NODE_ENV === 'development') {
+            (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+          }
+
+          initializeAppCheck(initializedApp, {
+            provider: new ReCaptchaEnterpriseProvider(recaptchaKey),
+            isTokenAutoRefreshEnabled: true,
+          });
+        }
       }
-      // -------------------------------
+      // -------------------------------------------------------------
     } catch (e) {
       console.error('Error initializing Firebase services:', e);
     }

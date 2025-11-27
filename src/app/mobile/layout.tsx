@@ -13,8 +13,9 @@ export const metadata: Metadata = {
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
     { media: '(prefers-color-scheme: dark)', color: '#0b0b0c' },
   ],
-  title: 'Smashlog — Mobile',
-  description: 'Track, compete, and improve on mobile.',
+  alternates: {
+    canonical: 'https://smashlog.fi/',
+  },
 };
 
 export default function MobileLayout({
@@ -24,7 +25,7 @@ export default function MobileLayout({
 }) {
   return (
     <ProtectedRoute>
-      <main className="bg-background min-h-screen">{children}</main>
+      <main className='bg-background min-h-screen'>{children}</main>
     </ProtectedRoute>
   );
 }
