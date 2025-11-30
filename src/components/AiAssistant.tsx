@@ -1,4 +1,3 @@
-// src/components/AiAssistant.tsx
 'use client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,12 +17,17 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
   Bot,
   Check,
   Loader2,
+  Minus,
   RefreshCw,
   Send,
   Trash2,
+  Trophy,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -43,15 +47,106 @@ type MatchDraft = {
   score2: number;
 };
 
+type PlayerUpdate = {
+  name: string;
+  eloDiff: number;
+  newElo: number;
+  roomElo?: number;
+  oldRank?: number;
+  newRank?: number;
+};
+
+type MatchResultData = {
+  updates: PlayerUpdate[];
+};
+
 type Message = {
   id: string;
   role: 'user' | 'ai';
   text: string;
   drafts?: MatchDraft[];
+  results?: MatchResultData;
 };
 
 type PlayerOption = { uid: string; name: string; email?: string };
 type RoomOption = { id: string; name: string };
+
+// --- КОМПОНЕНТ РЕЗУЛЬТАТОВ (ОБНОВЛЕННЫЙ) ---
+const MatchResultSummary = ({ data, t }: { data: MatchResultData; t: any }) => {
+  return (
+    <div className='mt-2 w-full bg-white dark:bg-slate-950 rounded-lg border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2'>
+      <div className='bg-muted/50 p-2 border-b flex items-center gap-2'>
+        <Trophy className='h-4 w-4 text-yellow-500' />
+        <span className='text-xs font-bold uppercase text-muted-foreground'>
+          {t('Match Results')}
+        </span>
+      </div>
+      <div className='divide-y'>
+        {data.updates.map((u, idx) => {
+          const isPositive = u.eloDiff > 0;
+          const isNeutral = u.eloDiff === 0;
+
+          return (
+            <div key={idx} className='p-3 flex items-center justify-between'>
+              <div className='flex flex-col'>
+                <span className='font-semibold text-sm'>{u.name}</span>
+
+                {u.oldRank && u.newRank ? (
+                  <div className='flex items-center gap-1 text-xs text-muted-foreground mt-0.5'>
+                    <span>#{u.oldRank}</span>
+                    <ArrowRight size={10} />
+                    <span
+                      className={
+                        u.newRank < u.oldRank
+                          ? 'text-green-600 font-bold'
+                          : u.newRank > u.oldRank
+                          ? 'text-red-500'
+                          : ''
+                      }
+                    >
+                      #{u.newRank}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className='text-right'>
+                <div
+                  className={`font-bold text-sm flex items-center justify-end gap-1 ${
+                    isPositive
+                      ? 'text-green-600'
+                      : isNeutral
+                      ? 'text-gray-500'
+                      : 'text-red-600'
+                  }`}
+                >
+                  {isPositive ? (
+                    <ArrowUp size={14} />
+                  ) : isNeutral ? (
+                    <Minus size={14} />
+                  ) : (
+                    <ArrowDown size={14} />
+                  )}
+                  {u.eloDiff > 0
+                    ? `+${Math.round(u.eloDiff)}`
+                    : Math.round(u.eloDiff)}
+                </div>
+                <div className='text-xs text-muted-foreground'>
+                  {Math.round(u.newElo)} Global
+                </div>
+                {u.roomElo && (
+                  <div className='text-xs text-blue-600/80 dark:text-blue-400 font-medium mt-0.5'>
+                    {Math.round(u.roomElo)} Room
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export function AiAssistant() {
   const { user, userProfile } = useAuth();
@@ -61,8 +156,6 @@ export function AiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-
-  // Ref для самого окна чата (Card), чтобы отслеживать клики внутри/снаружи
   const cardRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -86,7 +179,6 @@ export function AiAssistant() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [playersList, setPlayersList] = useState<PlayerOption[]>([]);
   const [roomsList, setRoomsList] = useState<RoomOption[]>([]);
-
   const functions = getFunctions(app, 'us-central1');
   const { toast } = useToast();
 
@@ -97,35 +189,21 @@ export function AiAssistant() {
     },
   ];
 
-  // --- ЛОГИКА ЗАКРЫТИЯ (ESC + CLICK OUTSIDE) ---
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
+      if (event.key === 'Escape') setIsOpen(false);
     };
-
     const handleClickOutside = (event: MouseEvent) => {
-      // Если клик был внутри карточки чата, ничего не делаем
-      if (cardRef.current && cardRef.current.contains(event.target as Node)) {
+      if (cardRef.current && cardRef.current.contains(event.target as Node))
         return;
-      }
-
-      // ВАЖНО: Если клик был по кнопке открытия чата, тоже игнорируем,
-      // иначе произойдет конфликт (чат закроется этим хендлером, а потом откроется onClick кнопки)
       const target = event.target as Element;
-      if (target.closest('#ai-assistant-trigger')) {
-        return;
-      }
-
+      if (target.closest('#ai-assistant-trigger')) return;
       setIsOpen(false);
     };
-
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
       document.addEventListener('mousedown', handleClickOutside);
     }
-
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('mousedown', handleClickOutside);
@@ -137,30 +215,25 @@ export function AiAssistant() {
       const loadData = async () => {
         try {
           const roomsCollection = config.collections.rooms;
-
           const qRooms = query(
             collection(db, roomsCollection),
             where('memberIds', 'array-contains', user.uid),
             where('isArchived', '!=', true)
           );
           const roomsSnap = await getDocs(qRooms);
-
           const activeRooms: RoomOption[] = [];
           const relevantUserIds = new Set<string>();
-
           if (userProfile.friends)
             userProfile.friends.forEach((fid: string) =>
               relevantUserIds.add(fid)
             );
           relevantUserIds.add(user.uid);
-
           roomsSnap.docs.forEach((doc) => {
             const data = doc.data();
             const history = data.seasonHistory || [];
             const isSeasonFinished =
               history.length > 0 &&
               history[history.length - 1].type === 'seasonFinish';
-
             if (!isSeasonFinished) {
               activeRooms.push({
                 id: doc.id,
@@ -172,24 +245,20 @@ export function AiAssistant() {
                 );
             }
           });
-
           setRoomsList(activeRooms);
-
           if (playersList.length === 0) {
             const allUsersSnap = await getDocs(query(collection(db, 'users')));
             const filteredPlayers = allUsersSnap.docs
               .filter((doc) => relevantUserIds.has(doc.id))
               .map((doc) => {
                 const d = doc.data();
-                const nameToUse = d.name || d.displayName || 'Unknown';
                 return {
                   uid: doc.id,
-                  name: nameToUse,
+                  name: d.name || d.displayName || 'Unknown',
                   email: d.email || '',
                 };
               })
               .sort((a, b) => a.name.localeCompare(b.name));
-
             setPlayersList(filteredPlayers);
           }
         } catch (e) {
@@ -222,13 +291,11 @@ export function AiAssistant() {
       const chatFunc = httpsCallable(functions, 'aiChat');
       const currentUserName =
         userProfile?.name || userProfile?.displayName || 'User';
-
       const response = await chatFunc({
         text: userMsg.text,
         sport,
         userName: currentUserName,
       });
-
       const responseData = response.data as {
         type: 'MATCH_DRAFT' | 'TEXT';
         data?: { matches: MatchDraft[] };
@@ -240,11 +307,9 @@ export function AiAssistant() {
         responseData.data?.matches?.length
       ) {
         const matches = responseData.data.matches;
-
         const processedDrafts: MatchDraft[] = [];
         let lastPair = '';
         let matchCountInPair = 0;
-
         matches.forEach((m) => {
           const currentPair = [
             m.player1Name.toLowerCase(),
@@ -252,12 +317,10 @@ export function AiAssistant() {
           ]
             .sort()
             .join('|');
-
           if (currentPair !== lastPair) {
             matchCountInPair = 0;
             lastPair = currentPair;
           }
-
           if (matchCountInPair % 2 !== 0) {
             processedDrafts.push({
               player1Name: m.player2Name,
@@ -270,7 +333,6 @@ export function AiAssistant() {
           }
           matchCountInPair++;
         });
-
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: 'ai',
@@ -322,18 +384,33 @@ export function AiAssistant() {
     setIsProcessing(true);
     try {
       const saveFunc = httpsCallable(functions, 'aiSaveMatch');
-      await saveFunc({ matches: drafts, roomId });
+      const result = await saveFunc({ matches: drafts, roomId });
+      const responseData = result.data as { updates?: PlayerUpdate[] };
+
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId
-            ? { ...m, drafts: undefined, text: t('✅ Matches saved!') }
-            : m
-        )
+        prev.map((m) => {
+          if (m.id === msgId) {
+            return {
+              ...m,
+              drafts: undefined,
+              text: t('✅ Matches saved!'),
+              results: responseData.updates
+                ? { updates: responseData.updates }
+                : undefined,
+            };
+          }
+          return m;
+        })
       );
-      toast({
-        title: t('Saved'),
-        description: t('{{count}} matches recorded.', { count: drafts.length }),
-      });
+
+      if (!responseData.updates) {
+        toast({
+          title: t('Saved'),
+          description: t('{{count}} matches recorded.', {
+            count: drafts.length,
+          }),
+        });
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -355,13 +432,12 @@ export function AiAssistant() {
     );
   };
 
-  // --- ПРОВЕРКА: ПОКАЗЫВАТЬ ТОЛЬКО ДЛЯ PING-PONG ---
   if (!user || sport !== 'pingpong') return null;
 
   return (
     <>
       <Button
-        id='ai-assistant-trigger' // ID для отслеживания клика
+        id='ai-assistant-trigger'
         className='fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-xl z-50 transition-transform hover:scale-110'
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -370,7 +446,7 @@ export function AiAssistant() {
 
       {isOpen && (
         <Card
-          ref={cardRef} // Привязываем ref к карточке
+          ref={cardRef}
           className='fixed bottom-24 right-6 w-[90vw] max-w-[400px] h-[600px] flex flex-col shadow-2xl z-50 animate-in slide-in-from-bottom-10 fade-in bg-background border-2 border-border'
         >
           <div className='p-4 border-b bg-primary text-primary-foreground rounded-t-lg flex items-center gap-2'>
@@ -417,6 +493,7 @@ export function AiAssistant() {
                     loading={isProcessing}
                   />
                 )}
+                {msg.results && <MatchResultSummary data={msg.results} t={t} />}
               </div>
             ))}
             {isProcessing && (

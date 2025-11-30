@@ -1,3 +1,4 @@
+// src/components/rooms/CreateRoomDialog.tsx
 'use client';
 
 import ImageCropDialog from '@/components/ImageCropDialog';

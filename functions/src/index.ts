@@ -1,5 +1,3 @@
-// functions/src/index.ts
-
 import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
@@ -22,7 +20,6 @@ const storage = admin.storage();
 // 0. HELPERS (SHARED)
 // ==========================================
 
-// 1. Нечеткий поиск (Левенштейн)
 function levenshtein(a: string, b: string): number {
   const matrix: number[][] = [];
   for (let i = 0; i <= b.length; i++) matrix[i] = [i];
@@ -42,7 +39,6 @@ function levenshtein(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
-// 2. Форматирование даты для Финляндии
 function getFinnishDate(): string {
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = {
@@ -66,7 +62,6 @@ function getFinnishDate(): string {
   )}.${getPart('minute')}.${getPart('second')}`;
 }
 
-// 3. Поиск пользователя
 const findUserOrSuggest = async (name: string) => {
   const normalized = (name || '').trim();
   if (!normalized) return { doc: null };
@@ -74,15 +69,12 @@ const findUserOrSuggest = async (name: string) => {
   const normalizedLower = normalized.toLowerCase();
   const usersRef = db.collection('users');
 
-  // A) Прямое совпадение (name)
   let snap = await usersRef.where('name', '==', normalized).limit(1).get();
   if (!snap.empty) return { doc: snap.docs[0] };
 
-  // B) Прямое совпадение (displayName)
   snap = await usersRef.where('displayName', '==', normalized).limit(1).get();
   if (!snap.empty) return { doc: snap.docs[0] };
 
-  // C) Нечеткий поиск
   const allUsers = await usersRef.get();
   let bestDoc: admin.firestore.QueryDocumentSnapshot | null = null;
   let bestMatch: string | null = null;
@@ -125,12 +117,11 @@ const ai = genkit({
       apiKey: process.env.GOOGLE_GENAI_API_KEY || '',
     }),
   ],
-  // Используем стабильную, быструю модель
   model: 'googleai/gemini-2.5-flash',
 });
 
 // ==========================================
-// 2. WEB CHAT FUNCTION (PURE PARSER)
+// 2. WEB CHAT FUNCTION
 // ==========================================
 
 export const aiChat = onCall(
@@ -148,7 +139,6 @@ export const aiChat = onCall(
     }
 
     try {
-      // Генерируем ответ без использования инструментов, чисто на промпте
       const chatResponse = await ai.generate({
         prompt: `
         You are a specialized parser for sports match results (${sport}).
@@ -156,10 +146,10 @@ export const aiChat = onCall(
 
         Rules:
         1. Extract player names and scores for *each* game/set.
-        2. Multiple matches can be listed in one message (e.g., "Pekka vs Jukka 11-9. Matti vs Teppo 11-5"). Parse ALL of them.
+        2. Multiple matches can be listed. Parse ALL of them.
         3. Names can be separated by "vs", "-", or spaces.
         4. Do NOT auto-capitalize names. Keep them exactly as typed.
-        5. If the user input does NOT contain match scores (e.g., "hello", "who is winning"), return type "TEXT" with a helpful message.
+        5. If no matches found, return type "TEXT".
 
         REQUIRED JSON OUTPUT FORMAT:
         If matches found:
@@ -178,11 +168,10 @@ export const aiChat = onCall(
           "message": "I am a match recorder. Please provide scores like 'Alex vs Bob 11-9'."
         }
 
-        IMPORTANT: Return ONLY the valid JSON string. No markdown (no \`\`\`json).
+        IMPORTANT: Return ONLY the valid JSON string.
         
         Input: "${text}"
       `,
-        // Мы не используем tools, чтобы не путать модель статистикой
         output: {
           schema: z.object({
             type: z.enum(['MATCH_DRAFT', 'TEXT']),
@@ -215,7 +204,7 @@ export const aiChat = onCall(
 );
 
 // ==========================================
-// 3. SAVE MATCH FUNCTION
+// 3. SAVE MATCH FUNCTION (PRECISE & ROBUST)
 // ==========================================
 
 export const aiSaveMatch = onCall(
@@ -230,7 +219,7 @@ export const aiSaveMatch = onCall(
       throw new HttpsError('invalid-argument', 'Missing matches or roomId');
     }
 
-    const sport = 'pingpong'; // Можно сделать динамическим, если придет из request.data.sport
+    const sport = 'pingpong';
     const collectionName = SPORT_COLLECTIONS.pingpong.matches;
     const roomsCollection = SPORT_COLLECTIONS.pingpong.rooms;
 
@@ -241,15 +230,52 @@ export const aiSaveMatch = onCall(
     }
 
     const roomData = roomSnap.data() || {};
-    const members: any[] = roomData.members || [];
+    let members: any[] = roomData.members || [];
     const batch = db.batch();
     const usersRef = db.collection('users');
-    const summary: string[] = [];
+
+    // --- 1. ПОДГОТОВКА ДАННЫХ ---
+
+    // Сортируем участников по рейтингу комнаты (для расчета мест)
+    const getSortedMembers = (mems: any[]) => {
+      return [...mems].sort((a, b) => (b.rating || 1000) - (a.rating || 1000));
+    };
+
+    const oldSorted = getSortedMembers(members);
+    const oldRanks = new Map<string, number>();
+    oldSorted.forEach((m, index) => oldRanks.set(m.userId, index + 1));
+
+    // Агрегатор обновлений пользователей (In-Memory State)
+    // Используется для отслеживания изменений ELO между матчами в одной пачке
+    type UserUpdateState = {
+      startElo: number; // ELO до начала всей серии матчей
+      currentElo: number; // Текущий ELO в процессе расчета
+      winsToAdd: number; // Накопленные победы для записи
+      lossesToAdd: number; // Накопленные поражения для записи
+      name: string; // Имя для отчета
+    };
+
+    const userUpdates = new Map<string, UserUpdateState>();
+
+    const initUser = (uid: string, data: any, name: string) => {
+      if (!userUpdates.has(uid)) {
+        const elo = data.sports?.[sport]?.globalElo ?? 1000;
+        userUpdates.set(uid, {
+          startElo: elo,
+          currentElo: elo,
+          winsToAdd: 0,
+          lossesToAdd: 0,
+          name: name,
+        });
+      }
+    };
 
     try {
+      // --- 2. ЦИКЛ ОБРАБОТКИ МАТЧЕЙ ---
       for (const match of matches) {
         const { player1Name, player2Name, score1, score2 } = match;
 
+        // Поиск пользователей
         const u1 = await findUserOrSuggest(player1Name);
         const u2 = await findUserOrSuggest(player2Name);
 
@@ -257,37 +283,37 @@ export const aiSaveMatch = onCall(
           let errorMsg = 'Error:';
           if (!u1.doc) errorMsg += ` "${player1Name}" not found.`;
           if (!u2.doc) errorMsg += ` "${player2Name}" not found.`;
-          if (u1.suggestion) errorMsg += ` Suggestion1: "${u1.suggestion}".`;
-          if (u2.suggestion) errorMsg += ` Suggestion2: "${u2.suggestion}".`;
           throw new HttpsError('not-found', errorMsg);
         }
 
-        const p1Doc = u1.doc;
-        const p2Doc = u2.doc;
-        const p1Id = p1Doc.id;
-        const p2Id = p2Doc.id;
-        const p1Data = p1Doc.data() || {};
-        const p2Data = p2Doc.data() || {};
+        const p1Id = u1.doc.id;
+        const p2Id = u2.doc.id;
+        const p1Data = u1.doc.data() || {};
+        const p2Data = u2.doc.data() || {};
 
         const p1RealName = p1Data.name || p1Data.displayName || 'Unknown';
         const p2RealName = p2Data.name || p2Data.displayName || 'Unknown';
 
+        // Инициализация состояния
+        initUser(p1Id, p1Data, p1RealName);
+        initUser(p2Id, p2Data, p2RealName);
+
+        // Проверка членства в комнате
         const m1Index = members.findIndex((m: any) => m.userId === p1Id);
         const m2Index = members.findIndex((m: any) => m.userId === p2Id);
 
         if (m1Index === -1 || m2Index === -1) {
-          throw new HttpsError(
-            'failed-precondition',
-            `Players must be members of room ${roomData?.name || roomId}`
-          );
+          throw new HttpsError('failed-precondition', 'Players not in room');
         }
 
-        const p1Member = { ...(members[m1Index] || {}) };
-        const p2Member = { ...(members[m2Index] || {}) };
+        const p1Member = members[m1Index];
+        const p2Member = members[m2Index];
 
-        const currentGlobalG1 = p1Data.sports?.[sport]?.globalElo ?? 1000;
-        const currentGlobalG2 = p2Data.sports?.[sport]?.globalElo ?? 1000;
+        // Получаем актуальные рейтинги из агрегатора (возможно, измененные предыдущим матчем)
+        const currentGlobalG1 = userUpdates.get(p1Id)!.currentElo;
+        const currentGlobalG2 = userUpdates.get(p2Id)!.currentElo;
 
+        // Расчет новых глобальных рейтингов
         const newGlobalG1 = calculateElo(
           currentGlobalG1,
           currentGlobalG2,
@@ -301,9 +327,27 @@ export const aiSaveMatch = onCall(
           score1
         );
 
-        const diffGlobal1 = newGlobalG1 - currentGlobalG1;
-        const diffGlobal2 = newGlobalG2 - currentGlobalG2;
+        // Обновляем агрегатор
+        const p1State = userUpdates.get(p1Id)!;
+        const p2State = userUpdates.get(p2Id)!;
 
+        p1State.currentElo = newGlobalG1;
+        p2State.currentElo = newGlobalG2;
+
+        if (score1 > score2) {
+          p1State.winsToAdd += 1;
+          p2State.lossesToAdd += 1;
+          // Обновляем статистику комнаты (в памяти, для сохранения в room doc)
+          p1Member.wins = (p1Member.wins || 0) + 1;
+          p2Member.losses = (p2Member.losses || 0) + 1;
+        } else {
+          p2State.winsToAdd += 1;
+          p1State.lossesToAdd += 1;
+          p2Member.wins = (p2Member.wins || 0) + 1;
+          p1Member.losses = (p1Member.losses || 0) + 1;
+        }
+
+        // Расчет рейтингов комнаты (Room ELO)
         const currentRoomR1 = p1Member.rating ?? 1000;
         const currentRoomR2 = p2Member.rating ?? 1000;
         const newRoomR1 = calculateElo(
@@ -318,25 +362,13 @@ export const aiSaveMatch = onCall(
           score2,
           score1
         );
-        const diffRoom1 = newRoomR1 - currentRoomR1;
-        const diffRoom2 = newRoomR2 - currentRoomR2;
 
         p1Member.rating = newRoomR1;
         p2Member.rating = newRoomR2;
         p1Member.globalElo = newGlobalG1;
         p2Member.globalElo = newGlobalG2;
 
-        if (score1 > score2) {
-          p1Member.wins = (p1Member.wins || 0) + 1;
-          p2Member.losses = (p2Member.losses || 0) + 1;
-        } else if (score2 > score1) {
-          p2Member.wins = (p2Member.wins || 0) + 1;
-          p1Member.losses = (p1Member.losses || 0) + 1;
-        }
-
-        members[m1Index] = p1Member;
-        members[m2Index] = p2Member;
-
+        // Создание документа матча
         const matchRef = db.collection(collectionName).doc();
         const tsIso = new Date().toISOString();
         const timestamp = getFinnishDate();
@@ -356,10 +388,10 @@ export const aiSaveMatch = onCall(
             scores: score1,
             oldRating: currentGlobalG1,
             newRating: newGlobalG1,
-            addedPoints: diffGlobal1,
+            addedPoints: newGlobalG1 - currentGlobalG1,
             roomOldRating: currentRoomR1,
             roomNewRating: newRoomR1,
-            roomAddedPoints: diffRoom1,
+            roomAddedPoints: newRoomR1 - currentRoomR1,
             side: 'left',
           },
           player2: {
@@ -367,43 +399,83 @@ export const aiSaveMatch = onCall(
             scores: score2,
             oldRating: currentGlobalG2,
             newRating: newGlobalG2,
-            addedPoints: diffGlobal2,
+            addedPoints: newGlobalG2 - currentGlobalG2,
             roomOldRating: currentRoomR2,
             roomNewRating: newRoomR2,
-            roomAddedPoints: diffRoom2,
+            roomAddedPoints: newRoomR2 - currentRoomR2,
             side: 'right',
           },
         });
-
-        batch.update(usersRef.doc(p1Id), {
-          [`sports.${sport}.globalElo`]: newGlobalG1,
-          [`sports.${sport}.wins`]: admin.firestore.FieldValue.increment(
-            score1 > score2 ? 1 : 0
-          ),
-          [`sports.${sport}.losses`]: admin.firestore.FieldValue.increment(
-            score1 < score2 ? 1 : 0
-          ),
-        });
-
-        batch.update(usersRef.doc(p2Id), {
-          [`sports.${sport}.globalElo`]: newGlobalG2,
-          [`sports.${sport}.wins`]: admin.firestore.FieldValue.increment(
-            score2 > score1 ? 1 : 0
-          ),
-          [`sports.${sport}.losses`]: admin.firestore.FieldValue.increment(
-            score2 < score1 ? 1 : 0
-          ),
-        });
-
-        summary.push(`${score1}:${score2}`);
       }
+      // --- КОНЕЦ ЦИКЛА ---
 
+      // --- 3. ПРИМЕНЕНИЕ ИЗМЕНЕНИЙ ---
+
+      // Обновляем пользователей (один раз для каждого)
+      userUpdates.forEach((data, uid) => {
+        const updates: any = {
+          [`sports.${sport}.globalElo`]: data.currentElo,
+        };
+        // Используем атомарный инкремент для счетчиков, чтобы не потерять победы из других одновременных матчей
+        if (data.winsToAdd > 0) {
+          updates[`sports.${sport}.wins`] =
+            admin.firestore.FieldValue.increment(data.winsToAdd);
+        }
+        if (data.lossesToAdd > 0) {
+          updates[`sports.${sport}.losses`] =
+            admin.firestore.FieldValue.increment(data.lossesToAdd);
+        }
+
+        // Добавляем историю ELO (последнюю точку)
+        updates[`sports.${sport}.eloHistory`] =
+          admin.firestore.FieldValue.arrayUnion({
+            ts: new Date().toISOString(),
+            elo: data.currentElo,
+          });
+
+        batch.update(usersRef.doc(uid), updates);
+      });
+
+      // Обновляем комнату
       batch.update(roomRef, { members });
+
       await batch.commit();
-      return { success: true, summary };
+
+      // --- 4. ФОРМИРОВАНИЕ ОТЧЕТА ---
+
+      const newSorted = getSortedMembers(members);
+      const newRanks = new Map<string, number>();
+      // Карта для быстрого доступа к рейтингу комнаты для ответа
+      const newRoomElos = new Map<string, number>();
+
+      newSorted.forEach((m, index) => {
+        newRanks.set(m.userId, index + 1);
+        newRoomElos.set(m.userId, m.rating || 1000);
+      });
+
+      const updatesList: any[] = [];
+
+      userUpdates.forEach((data, uid) => {
+        const oldRank = oldRanks.get(uid) || 0;
+        const newRank = newRanks.get(uid) || 0;
+        const eloDiff = data.currentElo - data.startElo;
+        const roomElo = newRoomElos.get(uid) || 1000;
+
+        updatesList.push({
+          name: data.name,
+          eloDiff: eloDiff,
+          newElo: data.currentElo,
+          roomElo: roomElo, // Добавлено поле для отображения
+          oldRank: oldRank,
+          newRank: newRank,
+        });
+      });
+
+      updatesList.sort((a, b) => b.eloDiff - a.eloDiff);
+
+      return { success: true, updates: updatesList };
     } catch (error: any) {
       logger.error('aiSaveMatch error:', error);
-      if (error instanceof HttpsError) throw error;
       throw new HttpsError(
         'internal',
         error?.message || 'Failed to save matches'
