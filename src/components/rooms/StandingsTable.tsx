@@ -1,4 +1,3 @@
-// src/components/rooms/StandingsTable.tsx
 'use client';
 
 import {
@@ -25,7 +24,6 @@ import { Info, ShieldCheck } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// Типы для мини-истории матчей (W/L)
 type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
 interface StandingsTableProps {
@@ -44,21 +42,17 @@ export function StandingsTable({
   const { t } = useTranslation();
   const { sport } = useSport();
 
-  // Если сезон завершен, по умолчанию показываем Final, иначе Regular
   const [viewMode, setViewMode] = useState<ViewMode>(
     latestSeason ? 'final' : 'regular'
   );
 
-  // Конфигурация сортировки для Regular таблицы
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     dir: 'asc' | 'desc';
   }>({ key: 'rating', dir: 'desc' });
 
-  // Сортировка "на лету" для Regular
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a: any, b: any) => {
-      // Игроки без рейтинга (мало матчей) всегда внизу
       if (a.ratingVisible !== b.ratingVisible) return a.ratingVisible ? -1 : 1;
 
       const { key, dir } = sortConfig;
@@ -70,7 +64,6 @@ export function StandingsTable({
       if (key === 'name') {
         return factor * a.name.localeCompare(b.name);
       }
-      // Для чисел
       return factor * ((a[key] ?? 0) - (b[key] ?? 0));
     });
   }, [players, sortConfig]);
@@ -117,10 +110,12 @@ export function StandingsTable({
 
         <CardDescription>
           {viewMode === 'regular'
-            ? t('Live season standings based on Room Rating.')
+            ? t(
+                'Current live standings sorted by Room Rating. This is the main leaderboard for daily games.'
+              )
             : viewMode === 'liveFinal'
             ? t(
-                'Projected final standings calculated right now (Rating × Activity).'
+                'Projected Season Winner. Calculated using "Adjusted Points" which rewards high activity.'
               )
             : t('Official results of the last finalized season.')}
         </CardDescription>
@@ -149,7 +144,6 @@ export function StandingsTable({
   );
 }
 
-// --- REGULAR VIEW ---
 function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   const headers = useMemo(() => {
     const common = [
@@ -168,7 +162,6 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
       },
     ];
 
-    // Специфичные колонки для PingPong/Badminton
     const standardSpecific = [
       {
         key: 'deltaRoom',
@@ -227,7 +220,6 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
       },
     ];
 
-    // Специфичные колонки для Tennis
     const tennisSpecific = [
       {
         key: 'totalMatches',
@@ -433,15 +425,11 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   );
 }
 
-// --- LIVE FINAL VIEW (PREVIEW) ---
 function LiveFinalStandings({ players, sport, t }: any) {
   const rows = useMemo(() => {
     const base = (players ?? []).map((p: any) => {
       const matchesPlayed = Number(p.totalMatches ?? p.wins + p.losses ?? 0);
       const roomRating = Number(p.rating ?? 1000);
-      // Total Added Points = Текущий рейтинг - 1000 (базовый)
-      // В season.ts используется сумма addedPoints из матчей, что математически равно rating - 1000,
-      // если мы стартовали с 1000.
       const totalAddedPoints = roomRating - 1000;
 
       return {
@@ -458,7 +446,6 @@ function LiveFinalStandings({ players, sport, t }: any) {
       };
     });
 
-    // Расчет среднего количества матчей (только среди тех, кто играл)
     const activePlayers = base.filter((p: any) => p.matchesPlayed > 0);
     const totalMatchesAll = activePlayers.reduce(
       (sum: number, r: any) => sum + r.matchesPlayed,
@@ -467,7 +454,6 @@ function LiveFinalStandings({ players, sport, t }: any) {
     const avgM =
       activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
 
-    // Формула корректировки (ТОЧНО КАК В season.ts)
     const adjFactor = (ratio: number) => {
       if (!isFinite(ratio) || ratio <= 0) return 0;
       return Math.sqrt(ratio);
@@ -475,23 +461,17 @@ function LiveFinalStandings({ players, sport, t }: any) {
 
     const withAdj = base.map((r: any) => ({
       ...r,
-      // Основная формула: (Rating - 1000) * sqrt(Matches / Avg)
       adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM),
     }));
 
-    // Сортировка (ТОЧНО КАК В season.ts)
     withAdj.sort((a: any, b: any) => {
-      // Сначала те, кто играл
       const aZero = a.matchesPlayed === 0;
       const bZero = b.matchesPlayed === 0;
       if (aZero !== bZero) return aZero ? 1 : -1;
 
-      // 1. Adjusted Points
       if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
-      // 2. Total Points (Rating diff)
-      if (b.totalAddedPoints !== a.totalAddedPoints)
-        return b.totalAddedPoints - a.totalAddedPoints;
-      // 3. Win Rate
+      if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+      if (b.wins !== a.wins) return b.wins - a.wins;
       return b.winRate - a.winRate;
     });
 
@@ -505,8 +485,8 @@ function LiveFinalStandings({ players, sport, t }: any) {
     { key: 'wins', label: 'W' },
     { key: 'losses', label: 'L' },
     { key: 'roomRating', label: 'Rating' },
-    { key: 'totalAddedPoints', label: 'Net Pts' }, // Чистые очки (Rating - 1000)
-    { key: 'adjPoints', label: 'Adj Pts' }, // Скорректированные
+    { key: 'totalAddedPoints', label: 'Net Pts' },
+    { key: 'adjPoints', label: 'Adj Pts' },
   ];
 
   return (
@@ -556,20 +536,31 @@ function LiveFinalStandings({ players, sport, t }: any) {
         </TableBody>
       </Table>
 
-      <div className='mt-4 p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground border'>
-        <p className='font-semibold mb-1'>{t('How Adjusted Points work:')}</p>
-        <p>{t('Adj Points = Net Points × √(Games / Average Games).')}</p>
-        <p className='mt-1'>
-          {t(
-            'This formula rewards active players. If you have positive points but play very few games, your score is reduced. If you play more than average, your score is boosted.'
-          )}
-        </p>
+      <div className='mt-4 p-4 bg-primary/5 rounded-lg border border-primary/10'>
+        <h4 className='font-bold text-sm mb-2 flex items-center gap-2'>
+          🏆 {t('How the Season Winner is decided')}
+        </h4>
+        <ul className='list-disc pl-5 space-y-1 text-xs text-muted-foreground'>
+          <li>
+            <strong>{t('Main Criteria')}:</strong>{' '}
+            {t('Adjusted Points (Adj Pts)')}.
+          </li>
+          <li>
+            <strong>{t('Formula')}:</strong>{' '}
+            <code>(Rating - 1000) × √(Games / Average)</code>
+          </li>
+          <li>
+            <strong>{t('Why?')}:</strong>{' '}
+            {t(
+              'This system rewards both skill AND activity. A player with a lower rating who plays a lot can beat a player with a higher rating who rarely plays.'
+            )}
+          </li>
+        </ul>
       </div>
     </div>
   );
 }
 
-// --- FINAL STANDINGS (HISTORY) ---
 function FinalStandings({ season, sport, t }: any) {
   const data = useMemo(
     () => (Array.isArray(season?.summary) ? season.summary : []),

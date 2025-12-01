@@ -1,28 +1,27 @@
-Here is the fully updated and detailed **blueprint.md** in English, reflecting the current state of your project, including the latest AI architecture with Gemini 2.0 Flash, the specific ELO logic, and the database structure.
-
----
-
 # Smashlog (PaddleTracker) — Architectural Blueprint
 
-## 1\. Project Overview
+## 1. Project Overview
 
 **Smashlog** is a progressive web application (PWA) designed to track ELO ratings, manage match history, and organize tournaments for racket sports.
 **Supported Sports:** Ping-Pong, Tennis, Badminton.
 
-The core philosophy is a **dual-rating system**: players have a **Global ELO** (persists across all games) and a **Room ELO** (specific to a private club or league).
+The core philosophy is a **Dual-Rating System** designed to balance competitive fairness with social engagement:
+
+1.  **Global ELO (True Skill):** A strict, zero-sum rating that persists across all games and rooms. It represents the player's objective skill level.
+2.  **Room ELO (Season Progress):** A local, inflationary rating specific to a private club or season. It resets to 1000 for everyone at the start of a room/season and is designed to reward activity and prevent stagnation.
 
 ---
 
-## 2\. Technology Stack
+## 2. Technology Stack
 
 ### Frontend
 
-- **Framework:** Next.js 14 (App Router)
+- **Framework:** Next.js 15 (App Router)
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS, Shadcn UI
-- **Icons:** Lucide React
+- **Icons:** Lucide React, React Icons
 - **State Management:** React Context API (`AuthContext`, `SportContext`)
-- **Internationalization:** i18next (Hybrid: Local JSON + Firestore overrides)
+- **Internationalization:** i18next (English, Finnish, Russian, Korean)
 
 ### Backend (Firebase)
 
@@ -34,13 +33,13 @@ The core philosophy is a **dual-rating system**: players have a **Global ELO** (
 
 ---
 
-## 3\. Directory Structure & Key Files
+## 3. Directory Structure & Key Files
 
 ```text
 src/
 ├── app/
 │   ├── (page)/           # Protected routes (Dashboard, Profile, etc.)
-│   ├── rooms/            # Room lists and details
+│   ├── rooms/            # Room lists, details, and standings
 │   ├── login/            # Authentication pages
 │   └── mobile/           # Mobile-optimized views
 ├── components/
@@ -51,188 +50,179 @@ src/
 │   ├── AuthContext.tsx   # User profile & auth state
 │   └── SportContext.tsx  # Active sport switcher & DB config
 ├── lib/
-│   ├── elo.ts            # Client-side ELO logic & Firestore transactions
+│   ├── elo.ts            # Client-side ELO calculation (Dual logic)
+│   ├── season.ts         # Season finishing & Adjusted Points logic
 │   ├── firebase.ts       # Firebase Client SDK initialization
 │   └── types.ts          # TS Interfaces (User, Room, Match)
 functions/
 ├── src/
-│   ├── index.ts          # Cloud Functions (aiChat, aiSaveMatch, user delete)
+│   ├── index.ts          # Cloud Functions (aiChat, aiSaveMatch)
 │   ├── config.ts         # Collection names configuration
-│   └── lib/
-│       └── eloMath.ts    # Server-side ELO math (mirrors client logic)
+│   └── ...
 ```
 
 ---
 
-## 4\. ELO Rating System
+## 4\. ELO Rating System & Logic
 
 ### Configuration
 
-- **Algorithm:** Standard ELO Rating System.
-- **K-Factor:** `32` (High volatility for dynamic rank adjustments).
-- **Starting Rating:** `1000`.
+- **Algorithm:** Standard ELO Rating System (modified).
+- **K-Factor:** `32` (High volatility for dynamic adjustments).
+- **Granularity:** **Per-Game/Set**. Every scored unit (e.g., a single Ping Pong game 11-9) is calculated as a distinct transaction.
 
-### Logic Locations
+### The Dual-Layer Formula
 
-1.  **Client-Side:** `src/lib/elo.ts` (Used for manual entry in `RecordBlock`).
-2.  **Server-Side:** `functions/src/lib/eloMath.ts` (Used for AI-processed matches).
+Every match triggers two independent calculations.
 
-### The Formula
+#### A. Global ELO (Zero-Sum)
 
-For Player A ($R_a$) vs Player B ($R_b$):
+Used for cross-room skill comparison.
 
-1.  **Calculate Expected Score ($E_a$):**
-    $$E_a = \frac{1}{1 + 10^{(R_b - R_a) / 400}}$$
+1.  **Expected Score ($E_a$):** Standard logistic curve.
+2.  **New Rating:** $R'_a = R_a + 32 \times (S_a - E_a)$.
+3.  **Property:** Points gained by the winner equal points lost by the loser.
 
-2.  **Calculate New Rating ($R'_a$):**
-    $$R'_a = R_a + 32 \times (S_a - E_a)$$
-    _Where $S_a$ is the actual score (1 for win, 0 for loss)._
+#### B. Room ELO (Inflationary)
 
-### Dual-Layer Updates
+Used for room leaderboards and season standings.
 
-Every match triggers **four** rating updates:
-
-1.  Player 1 **Global** Rating.
-2.  Player 2 **Global** Rating.
-3.  Player 1 **Room** Rating (Specific to the room where the match was played).
-4.  Player 2 **Room** Rating.
+1.  **Start:** Everyone starts at **1000** in a new room.
+2.  **Winner:** Gains full delta ($+32 \times (1 - E_a)$).
+3.  **Loser (The Twist):** Loses only **80%** of the delta.
+    - _Formula:_ $\text{Loss} = \text{BaseDelta} \times 0.8$
+    - _Effect:_ Every match injects \~20% of the "energy" into the system. This prevents the "1200 trap" and allows active players ("grinders") to progress even with a \~50% win rate.
 
 ---
 
-## 5\. Database Structure (Firestore)
+## 5\. Season Ranking & Adjusted Points
 
-The database is segmented by sport to ensure scalability.
+To further encourage activity in office leagues, the final season ranking is **not** based solely on raw ELO.
+
+### The Problem
+
+A player with 10 wins and 0 losses (ELO \~1300) often ranked higher than a player with 50 wins and 40 losses (ELO \~1250), discouraging active play.
+
+### The Solution: Adjusted Points
+
+The "Live Final" and "Season Finish" standings use a weighted formula:
+
+$$ \text{AdjPoints} = (\text{RoomRating} - 1000) \times \sqrt{\frac{\text{MatchesPlayed}}{\text{AverageMatches}}} $$
+
+- **Net Points:** Points gained above the baseline 1000.
+- **Activity Multiplier:** Square root of the player's volume vs. the room average.
+- **Result:** A player who plays significantly more matches can outrank a slightly higher-rated player who camps on a good score.
+
+---
+
+## 6\. Database Structure (Firestore)
+
+The database is partitioned by sport to ensure scalability.
 
 ### Users Collection (`users`)
 
-A single collection for all users.
+Stores profile data and nested statistics per sport.
 
 ```json
 users/{uid}
 {
   "uid": "string",
   "displayName": "Pekka",
-  "email": "pekka@example.com",
-  "photoURL": "url",
-  "friends": ["uid2", "uid3"],
-  // Nested object for sport-specific global stats
   "sports": {
     "pingpong": {
-      "globalElo": 1200,
+      "globalElo": 1200, // <-- GLOBAL RATING
       "wins": 15,
       "losses": 5,
       "eloHistory": [{ "ts": "ISO", "elo": 1200 }]
-    },
-    "tennis": { ... }
+    }
   }
 }
 ```
 
-### Rooms Collections (`rooms-pingpong`, `rooms-tennis`, etc.)
+### Rooms Collections (`rooms-pingpong`, etc.)
 
-Stores leagues/clubs data.
+Embeds member data for fast leaderboards.
 
 ```json
 rooms-pingpong/{roomId}
 {
   "id": "roomId",
   "name": "Office League",
-  "isRanked": true,
-  "memberIds": ["uid1", "uid2"], // For security rules & quick lookup
   "members": [
     {
       "userId": "uid1",
       "name": "Pekka",
-      "rating": 1050, // <-- ROOM-SPECIFIC ELO
+      "rating": 1050, // <-- ROOM RATING (Inflationary)
+      "globalElo": 1210, // Snapshot of Global
       "wins": 5,
-      "losses": 1,
-      "role": "admin"
+      "losses": 1
     }
   ]
 }
 ```
 
-### Matches Collections (`matches-pingpong`, `matches-tennis`, etc.)
+### Matches Collections (`matches-pingpong`, etc.)
 
-Stores individual match records.
+Stores details of both rating changes.
 
 ```json
 matches-pingpong/{matchId}
 {
   "roomId": "roomId",
-  "timestamp": "19.11.2025 18:30:00",
-  "tsIso": "2025-11-19T18:30:00.000Z",
   "winner": "Pekka",
-  "players": ["uid1", "uid2"], // For composite indexes
   "player1": {
     "name": "Pekka",
     "scores": 11,
-    "side": "left",
-    "oldRating": 1000,      // Global ELO Before
-    "newRating": 1016,      // Global ELO After
-    "roomOldRating": 1000,  // Room ELO Before
-    "roomNewRating": 1016   // Room ELO After
+    "oldRating": 1200,      // Global Before
+    "newRating": 1216,      // Global After (+16)
+    "roomOldRating": 1000,  // Room Before
+    "roomNewRating": 1016,  // Room After (+16)
+    "roomAddedPoints": 16
   },
   "player2": {
     "name": "Jukka",
     "scores": 9,
-    "side": "right",
-    // ... ratings ...
+    "oldRating": 1200,
+    "newRating": 1184,      // Global After (-16)
+    "roomOldRating": 1000,
+    "roomNewRating": 987,   // Room After (-13) <-- INFLATION APPLIED
+    "roomAddedPoints": -13
   }
 }
 ```
 
 ---
 
-## 6\. Match Submission Workflows
+## 7\. Match Submission Workflows
 
-### A. Manual Entry (UI)
+### A. Manual Entry (Client-Side)
 
-**File:** `src/components/RecordBlock.tsx`
+**File:** `src/lib/elo.ts`
 
-1.  User selects "Player 1", "Player 2", and enters scores.
-2.  **Validation:** Client checks if score is valid (e.g., 11-9).
-3.  **Calculation:** `src/lib/elo.ts` calculates the new ratings locally.
-4.  **Transaction:** A Firestore Batch is committed:
-    - `matches-{sport}`: Create new doc.
-    - `rooms-{sport}`: Update `members` array with new Room ELOs.
-    - `users/{uid1}`: Update Global ELO, win count, history.
-    - `users/{uid2}`: Update Global ELO, loss count, history.
+1.  **Logic:** Iterates through input rows (sets).
+2.  **Calc:** Computes both Global (Zero-Sum) and Room (Inflationary) deltas for each set.
+3.  **Write:** Saves matches sequentially to Firestore (with 1000ms delay for timestamp ordering).
+4.  **Update:** Updates `users` (Global) and `rooms` (Room) documents via `updateDoc`.
 
-### B. AI Assistant (Chat)
+### B. AI Assistant (Server-Side)
 
-**Files:** `src/components/AiAssistant.tsx` -\> `functions/src/index.ts`
+**File:** `functions/src/index.ts`
 
-1.  **User Input:** "Pekka vs Jukka 11-9, 11-8".
-2.  **Step 1: Parsing (`aiChat` Cloud Function)**
-    - Uses **Gemini 2.0 Flash**.
-    - System Prompt: Acts as a strict JSON parser.
-    - Output: `{ type: "MATCH_DRAFT", data: { matches: [...] } }`.
-3.  **Verification:** Frontend displays a draft form for user confirmation.
-4.  **Step 2: Execution (`aiSaveMatch` Cloud Function)**
-    - Frontend sends confirmed JSON + `roomId` to backend.
-    - **Fuzzy Search:** Backend searches Firestore for players using Levenshtein distance (handling typos like "Peka").
-    - **Calculation:** Server calculates ELO (`functions/src/lib/eloMath.ts`).
-    - **Transaction:** Server executes Firestore Batch write (same structure as Manual Entry).
+1.  **Parsing:** Genkit + Gemini 2.0 Flash parses natural text into JSON.
+2.  **Execution (`aiSaveMatch`):**
+    - **Optimization:** Pre-fetches all user profiles and room members in bulk (mapped by Name/ID).
+    - **In-Memory Calculation:** Performs the entire ELO simulation (150+ matches) in memory to determine final states.
+    - **Batch Write:** Commits all matches and updates in a single Firestore Batch (max 500 ops).
+    - **Speed:** Capable of processing \~200 matches in \<2 seconds.
 
 ---
 
-## 7\. AI Architecture
+## 8\. Critical Implementation Details
 
-The AI is implemented using **Firebase Genkit**.
+- **Inflation Factor:** `0.8` (Losers lose 20% less in Room ELO).
+- **Season Reset:** Creating a new room resets all participants' Room ELO to 1000, while Global ELO remains untouched.
+- **Indexes:** Complex queries (e.g., "Player's history in a specific room") require composite indexes on `roomId` + `tsIso`.
 
-- **Model:** `googleai/gemini-2.0-flash` (Chosen for speed and stability).
-- **Functions:**
-  1.  **`aiChat`**: A stateless callable function. It takes text + context (sport, username) and returns structured JSON or conversational text. It does **not** write to the DB directly.
-  2.  **`aiSaveMatch`**: A deterministic callable function. It takes validated match data, performs DB lookups, math, and writes. It does **not** use the LLM (to ensure data integrity).
+```
 
----
-
-## 8\. Composite Indexes
-
-Due to the data structure, complex queries require `firestore.indexes.json`.
-**Critical Index:**
-
-- Collection: `matches-pingpong`
-- Fields: `players` (Array Contains) + `tsIso` (Descending)
-- _Purpose:_ Allows querying "Show me the recent match history for Player X".
+```

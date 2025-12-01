@@ -13,20 +13,36 @@ import { db } from './firebase';
 import type { Match, Room, Sport, SportConfig, UserProfile } from './types';
 import { getFinnishFormattedDate } from './utils';
 
-const calculateElo = (
+const calculateDelta = (
   rating1: number,
   rating2: number,
   score1: number,
-  score2: number
+  score2: number,
+  isGlobal: boolean
 ) => {
   const K = 32;
+
   const result = score1 > score2 ? 1 : 0;
   const expected = 1 / (1 + 10 ** ((rating2 - rating1) / 400));
-  const newRating1 = Math.round(rating1 + K * (result - expected));
-  return newRating1;
+
+  let delta = Math.round(K * (result - expected));
+
+  if (!isGlobal) {
+    if (delta < 0) {
+      const inflationFactor = 0.8;
+      delta = Math.round(delta * inflationFactor);
+    }
+  }
+
+  return delta;
 };
 
-type NonTennisRow = { score1: string; score2: string; side1: string; side2: string };
+type NonTennisRow = {
+  score1: string;
+  score2: string;
+  side1: string;
+  side2: string;
+};
 type MatchInputData = NonTennisRow | TennisSetData;
 
 export async function processAndSaveMatches(
@@ -72,22 +88,46 @@ export async function processAndSaveMatches(
       const oldG1 = currentG1;
       const oldG2 = currentG2;
 
-      const p1OldRoomRating = p1Member.rating;
-      const p2OldRoomRating = p2Member.rating;
+      const p1OldRoomRating = p1Member.rating ?? 1000;
+      const p2OldRoomRating = p2Member.rating ?? 1000;
 
       let newG1 = oldG1;
       let newG2 = oldG2;
-      let d1 = 0;
-      let d2 = 0;
+      let d1_Global = 0;
+      let d2_Global = 0;
+
+      let p1NewRoomRating = p1OldRoomRating;
+      let p2NewRoomRating = p2OldRoomRating;
+      let d1_Room = 0;
+      let d2_Room = 0;
 
       if (room.isRanked !== false) {
-        newG1 = calculateElo(oldG1, oldG2, score1, score2);
-        newG2 = calculateElo(oldG2, oldG1, score2, score1);
-        d1 = newG1 - oldG1;
-        d2 = newG2 - oldG2;
+        d1_Global = calculateDelta(oldG1, oldG2, score1, score2, true);
+        d2_Global = calculateDelta(oldG2, oldG1, score2, score1, true);
 
-        p1Member.rating = p1OldRoomRating + d1;
-        p2Member.rating = p2OldRoomRating + d2;
+        newG1 = oldG1 + d1_Global;
+        newG2 = oldG2 + d2_Global;
+
+        d1_Room = calculateDelta(
+          p1OldRoomRating,
+          p2OldRoomRating,
+          score1,
+          score2,
+          false
+        );
+        d2_Room = calculateDelta(
+          p2OldRoomRating,
+          p1OldRoomRating,
+          score2,
+          score1,
+          false
+        );
+
+        p1NewRoomRating = p1OldRoomRating + d1_Room;
+        p2NewRoomRating = p2OldRoomRating + d2_Room;
+
+        p1Member.rating = p1NewRoomRating;
+        p2Member.rating = p2NewRoomRating;
 
         currentG1 = newG1;
         currentG2 = newG2;
@@ -95,20 +135,23 @@ export async function processAndSaveMatches(
         p1Member.globalElo = newG1;
         p2Member.globalElo = newG2;
       } else {
-        const p1NewRoomRating = calculateElo(
+        d1_Room = calculateDelta(
           p1OldRoomRating,
           p2OldRoomRating,
           score1,
-          score2
+          score2,
+          false
         );
-        const p2NewRoomRating = calculateElo(
+        d2_Room = calculateDelta(
           p2OldRoomRating,
           p1OldRoomRating,
           score2,
-          score1
+          score1,
+          false
         );
-        d1 = p1NewRoomRating - p1OldRoomRating;
-        d2 = p2NewRoomRating - p2OldRoomRating;
+
+        p1NewRoomRating = p1OldRoomRating + d1_Room;
+        p2NewRoomRating = p2OldRoomRating + d2_Room;
 
         p1Member.rating = p1NewRoomRating;
         p2Member.rating = p2NewRoomRating;
@@ -162,10 +205,10 @@ export async function processAndSaveMatches(
           scores: score1,
           oldRating: oldG1,
           newRating: newG1,
-          addedPoints: d1,
+          addedPoints: d1_Global,
           roomOldRating: p1OldRoomRating,
           roomNewRating: p1Member.rating,
-          roomAddedPoints: d1,
+          roomAddedPoints: d1_Room,
           ...player1Data,
         },
         player2: {
@@ -173,10 +216,10 @@ export async function processAndSaveMatches(
           scores: score2,
           oldRating: oldG2,
           newRating: newG2,
-          addedPoints: d2,
+          addedPoints: d2_Global,
           roomOldRating: p2OldRoomRating,
           roomNewRating: p2Member.rating,
-          roomAddedPoints: d2,
+          roomAddedPoints: d2_Room,
           ...player2Data,
         },
         winner: score1 > score2 ? p1Member.name : p2Member.name,

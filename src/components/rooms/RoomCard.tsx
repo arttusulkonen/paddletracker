@@ -1,3 +1,4 @@
+// src/components/rooms/RoomCard.tsx
 'use client';
 
 import {

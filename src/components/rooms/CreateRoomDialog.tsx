@@ -304,6 +304,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       const now = getFinnishFormattedDate();
       const meName = userProfile!.name ?? userProfile!.displayName ?? '';
       const meEmail = userProfile!.email ?? '';
+
       const invited = selectedFriends.map((uid) => {
         const f =
           allCandidates.find((x) => x.uid === uid) ??
@@ -313,18 +314,21 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
           name: f?.name ?? f?.displayName ?? '',
           email: f?.email ?? '',
           rating: 1000,
+          globalElo: f?.sports?.[sport]?.globalElo ?? 1000,
           wins: 0,
           losses: 0,
           date: now,
           role: 'editor' as const,
         };
       });
+
       const initialMembers = [
         {
           userId: user!.uid,
           name: meName,
           email: meEmail,
           rating: 1000,
+          globalElo: userProfile?.sports?.[sport]?.globalElo ?? 1000,
           wins: 0,
           losses: 0,
           date: now,
@@ -332,6 +336,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         },
         ...invited,
       ];
+
       const superAdmins = await getSuperAdminIds(true);
       const adminIds = withSuperAdmins(user!.uid, superAdmins);
       const memberIds = Array.from(new Set([user!.uid, ...selectedFriends]));
@@ -418,7 +423,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                 </AvatarFallback>
               </Avatar>
               <div className='flex items-center gap-2'>
-                {/* --- НАЧАЛО ИЗМЕНЕНИЙ --- */}
                 <Button variant='outline' asChild>
                   <Label
                     htmlFor='room-avatar-upload'
@@ -427,7 +431,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                     {t('Upload Image')}
                   </Label>
                 </Button>
-                {/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */}
                 {avatarPreview && (
                   <Button
                     variant='ghost'
@@ -444,7 +447,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   </Button>
                 )}
               </div>
-              {/* --- НАЧАЛО ИЗМЕНЕНИЙ --- */}
               <Input
                 id='room-avatar-upload'
                 ref={fileInputRef}
@@ -453,7 +455,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                 accept={ACCEPT_MIME}
                 onChange={onPickFile}
               />
-              {/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */}
               <div className='text-xs text-muted-foreground'>
                 {t('PNG/JPEG/WEBP up to 2MB')}
                 {uploadPct > 0 && (

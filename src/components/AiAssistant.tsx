@@ -71,7 +71,6 @@ type Message = {
 type PlayerOption = { uid: string; name: string; email?: string };
 type RoomOption = { id: string; name: string };
 
-// --- КОМПОНЕНТ РЕЗУЛЬТАТОВ (ОБНОВЛЕННЫЙ) ---
 const MatchResultSummary = ({ data, t }: { data: MatchResultData; t: any }) => {
   return (
     <div className='mt-2 w-full bg-white dark:bg-slate-950 rounded-lg border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2'>
@@ -385,7 +384,7 @@ export function AiAssistant() {
     try {
       const saveFunc = httpsCallable(functions, 'aiSaveMatch');
       const result = await saveFunc({ matches: drafts, roomId });
-      const responseData = result.data as { updates?: PlayerUpdate[] };
+      const responseData = result.data as MatchResultData;
 
       setMessages((prev) =>
         prev.map((m) => {
@@ -394,23 +393,19 @@ export function AiAssistant() {
               ...m,
               drafts: undefined,
               text: t('✅ Matches saved!'),
-              results: responseData.updates
-                ? { updates: responseData.updates }
-                : undefined,
+              results: { updates: responseData.updates },
             };
           }
           return m;
         })
       );
 
-      if (!responseData.updates) {
-        toast({
-          title: t('Saved'),
-          description: t('{{count}} matches recorded.', {
-            count: drafts.length,
-          }),
-        });
-      }
+      toast({
+        title: t('Saved'),
+        description: t('{{count}} matches recorded.', {
+          count: drafts.length,
+        }),
+      });
     } catch (error: any) {
       toast({
         variant: 'destructive',
