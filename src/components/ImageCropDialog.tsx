@@ -1,3 +1,4 @@
+// src/components/ImageCropDialog.tsx
 'use client';
 
 import {

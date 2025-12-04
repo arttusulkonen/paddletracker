@@ -1,4 +1,3 @@
-// src/lib/elo.ts
 import { TennisSetData } from '@/components/record-blocks/TennisRecordBlock';
 import {
   addDoc,
@@ -10,7 +9,14 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Match, Room, Sport, SportConfig, UserProfile } from './types';
+import type {
+  Match,
+  Room,
+  RoomMode,
+  Sport,
+  SportConfig,
+  UserProfile,
+} from './types';
 import { getFinnishFormattedDate } from './utils';
 
 const calculateDelta = (
@@ -18,17 +24,20 @@ const calculateDelta = (
   rating2: number,
   score1: number,
   score2: number,
-  isGlobal: boolean
+  isGlobal: boolean,
+  mode: RoomMode = 'office',
+  kFactor: number = 32
 ) => {
-  const K = 32;
+  if (!isGlobal && mode === 'arcade') return 0;
 
+  const K = isGlobal ? 32 : kFactor;
   const result = score1 > score2 ? 1 : 0;
   const expected = 1 / (1 + 10 ** ((rating2 - rating1) / 400));
 
   let delta = Math.round(K * (result - expected));
 
   if (!isGlobal) {
-    if (delta < 0) {
+    if (mode === 'office' && delta < 0) {
       const inflationFactor = 0.8;
       delta = Math.round(delta * inflationFactor);
     }
@@ -77,6 +86,9 @@ export async function processAndSaveMatches(
     let tennisStatsP1 = { aces: 0, doubleFaults: 0, winners: 0 };
     let tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
 
+    const mode = room.mode || 'office';
+    const kFactor = typeof room.kFactor === 'number' ? room.kFactor : 32;
+
     for (let i = 0; i < matchesInput.length; i++) {
       const row = matchesInput[i] as any;
       const score1 = +row.score1;
@@ -102,60 +114,58 @@ export async function processAndSaveMatches(
       let d2_Room = 0;
 
       if (room.isRanked !== false) {
-        d1_Global = calculateDelta(oldG1, oldG2, score1, score2, true);
-        d2_Global = calculateDelta(oldG2, oldG1, score2, score1, true);
+        d1_Global = calculateDelta(
+          oldG1,
+          oldG2,
+          score1,
+          score2,
+          true,
+          'professional',
+          32
+        );
+        d2_Global = calculateDelta(
+          oldG2,
+          oldG1,
+          score2,
+          score1,
+          true,
+          'professional',
+          32
+        );
 
         newG1 = oldG1 + d1_Global;
         newG2 = oldG2 + d2_Global;
 
-        d1_Room = calculateDelta(
-          p1OldRoomRating,
-          p2OldRoomRating,
-          score1,
-          score2,
-          false
-        );
-        d2_Room = calculateDelta(
-          p2OldRoomRating,
-          p1OldRoomRating,
-          score2,
-          score1,
-          false
-        );
-
-        p1NewRoomRating = p1OldRoomRating + d1_Room;
-        p2NewRoomRating = p2OldRoomRating + d2_Room;
-
-        p1Member.rating = p1NewRoomRating;
-        p2Member.rating = p2NewRoomRating;
-
         currentG1 = newG1;
         currentG2 = newG2;
-
         p1Member.globalElo = newG1;
         p2Member.globalElo = newG2;
-      } else {
-        d1_Room = calculateDelta(
-          p1OldRoomRating,
-          p2OldRoomRating,
-          score1,
-          score2,
-          false
-        );
-        d2_Room = calculateDelta(
-          p2OldRoomRating,
-          p1OldRoomRating,
-          score2,
-          score1,
-          false
-        );
-
-        p1NewRoomRating = p1OldRoomRating + d1_Room;
-        p2NewRoomRating = p2OldRoomRating + d2_Room;
-
-        p1Member.rating = p1NewRoomRating;
-        p2Member.rating = p2NewRoomRating;
       }
+
+      d1_Room = calculateDelta(
+        p1OldRoomRating,
+        p2OldRoomRating,
+        score1,
+        score2,
+        false,
+        mode,
+        kFactor
+      );
+      d2_Room = calculateDelta(
+        p2OldRoomRating,
+        p1OldRoomRating,
+        score2,
+        score1,
+        false,
+        mode,
+        kFactor
+      );
+
+      p1NewRoomRating = p1OldRoomRating + d1_Room;
+      p2NewRoomRating = p2OldRoomRating + d2_Room;
+
+      p1Member.rating = p1NewRoomRating;
+      p2Member.rating = p2NewRoomRating;
 
       if (score1 > score2) totalWinsP1++;
       else totalWinsP2++;

@@ -14,6 +14,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import type { RoomMode } from './types';
 
 const toDate = (v: string | Timestamp): Date => {
   if (v instanceof Timestamp) return v.toDate();
@@ -73,7 +74,8 @@ const adjFactor = (ratio: number): number => {
 
 async function collectStats(
   roomId: string,
-  matchesCollectionName: string
+  matchesCollectionName: string,
+  mode: RoomMode
 ): Promise<SeasonRow[]> {
   const snap = await getDocs(
     query(
@@ -169,10 +171,23 @@ async function collectStats(
   });
 
   finalRows.sort((a, b) => {
-    if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
-    if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    return b.winRate - a.winRate;
+    const aPlayed = a.matchesPlayed > 0;
+    const bPlayed = b.matchesPlayed > 0;
+    if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
+
+    if (mode === 'professional') {
+      if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      return b.wins - a.wins;
+    } else if (mode === 'arcade') {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      return b.matchesPlayed - a.matchesPlayed;
+    } else {
+      if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
+      if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+      return b.winRate - a.winRate;
+    }
   });
 
   finalRows.forEach((r, i) => (r.place = i + 1));
@@ -210,13 +225,14 @@ export async function finalizeSeason(
   config: SportConfig['collections'],
   sport: Sport
 ): Promise<void> {
-  const summary = await collectStats(roomId, config.matches);
-  if (!summary.length) return;
-
   const roomRef = doc(db, config.rooms, roomId);
   const roomSnap = await getDoc(roomRef);
   if (!roomSnap.exists()) return;
   const roomData = roomSnap.data() as any;
+  const mode = roomData.mode || 'office';
+
+  const summary = await collectStats(roomId, config.matches, mode);
+  if (!summary.length) return;
 
   const enrichedSummary: SeasonRow[] = summary.map((r) => ({
     ...r,
@@ -236,6 +252,7 @@ export async function finalizeSeason(
     summary: enrichedSummary,
     sport,
     type: 'seasonFinish',
+    mode,
   };
 
   const updatedMembers = (roomData.members ?? []).map((m: any) => {
@@ -270,6 +287,7 @@ export async function finalizeSeason(
       roomRating: r.roomRating,
       startGlobalElo: r.startGlobalElo,
       endGlobalElo: r.endGlobalElo,
+      mode,
     };
 
     await updateDoc(doc(db, 'users', r.userId), {

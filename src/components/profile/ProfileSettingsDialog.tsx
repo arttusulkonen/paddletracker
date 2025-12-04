@@ -2,33 +2,33 @@
 
 import ImageCropDialog from '@/components/ImageCropDialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Checkbox,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  Label,
-  ScrollArea,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea,
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Checkbox,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	Input,
+	Label,
+	ScrollArea,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+	Textarea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
@@ -40,10 +40,10 @@ import { updateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
-  deleteObject,
-  getDownloadURL,
-  ref,
-  uploadBytesResumable,
+	deleteObject,
+	getDownloadURL,
+	ref,
+	uploadBytesResumable,
 } from 'firebase/storage';
 import { Image as ImageIcon, Trash2, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -268,7 +268,7 @@ export function ProfileSettingsDialog({
                   )}
                 </div>
               </div>
-              <Input
+              <input
                 type='file'
                 ref={fileInputRef}
                 className='hidden'

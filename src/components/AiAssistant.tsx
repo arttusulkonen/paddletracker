@@ -7,28 +7,28 @@ import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { app, db } from '@/lib/firebase';
 import {
-  collection,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
+	collection,
+	getDocs,
+	limit,
+	orderBy,
+	query,
+	where,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
-  Bot,
-  Check,
-  Loader2,
-  Minus,
-  RefreshCw,
-  Send,
-  Trash2,
-  Trophy,
-  X,
+	AlertTriangle,
+	ArrowDown,
+	ArrowRight,
+	ArrowUp,
+	Bot,
+	Check,
+	Loader2,
+	Minus,
+	RefreshCw,
+	Send,
+	Trash2,
+	Trophy,
+	X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -442,7 +442,7 @@ export function AiAssistant() {
       {isOpen && (
         <Card
           ref={cardRef}
-          className='fixed bottom-24 right-6 w-[90vw] max-w-[400px] h-[600px] flex flex-col shadow-2xl z-50 animate-in slide-in-from-bottom-10 fade-in bg-background border-2 border-border'
+          className='fixed bottom-0 left-0 right-0 top-0 w-full h-full flex flex-col shadow-2xl z-[60] animate-in fade-in bg-background border-2 border-border'
         >
           <div className='p-4 border-b bg-primary text-primary-foreground rounded-t-lg flex items-center gap-2'>
             <Bot size={20} />

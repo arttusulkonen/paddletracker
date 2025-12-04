@@ -1,5 +1,5 @@
-// src/lib/types.ts
 export type Sport = 'pingpong' | 'tennis' | 'badminton';
+export type RoomMode = 'office' | 'professional' | 'arcade';
 
 export interface SportProfile {
   globalElo: number;
@@ -82,6 +82,7 @@ export interface Room {
   seasonHistory?: any[];
   description?: string;
   sport?: Sport;
+  mode?: RoomMode;
 }
 
 export interface Member {

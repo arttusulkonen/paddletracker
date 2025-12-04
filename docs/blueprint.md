@@ -5,10 +5,12 @@
 **Smashlog** is a progressive web application (PWA) designed to track ELO ratings, manage match history, and organize tournaments for racket sports.
 **Supported Sports:** Ping-Pong, Tennis, Badminton.
 
-The core philosophy is a **Dual-Rating System** designed to balance competitive fairness with social engagement:
+The platform supports flexible **Game Modes** to cater to different groups: from casual office environments ("Office League") to serious competitive clubs ("Professional") and purely fun sessions ("Arcade").
 
-1.  **Global ELO (True Skill):** A strict, zero-sum rating that persists across all games and rooms. It represents the player's objective skill level.
-2.  **Room ELO (Season Progress):** A local, inflationary rating specific to a private club or season. It resets to 1000 for everyone at the start of a room/season and is designed to reward activity and prevent stagnation.
+The core philosophy is a **Dual-Rating System**:
+
+1.  **Global ELO:** A persistent, strict zero-sum rating (True Skill) that follows the player everywhere.
+2.  **Room ELO:** A local, seasonal rating specific to a private room, with rules defined by the selected Game Mode.
 
 ---
 
@@ -33,7 +35,40 @@ The core philosophy is a **Dual-Rating System** designed to balance competitive 
 
 ---
 
-## 3. Directory Structure & Key Files
+## 3. Game Modes & Logic
+
+When creating a room, admins select a **Game Mode** which dictates how ELO is calculated and how the leaderboard is ranked.
+
+### A. Office League (Default)
+
+_Designed for workplace rivalries and casual leagues where activity should be rewarded._
+
+- **ELO Logic:** **Inflationary**. Winners gain full points, losers lose only **80%** of the calculated delta. This injects points into the system, preventing stagnation.
+- **K-Factor:** Default `32`.
+- **Ranking Criteria:** **Adjusted Points**.
+  $$\text{AdjPoints} = (\text{Rating} - 1000) \times \sqrt{\frac{\text{MatchesPlayed}}{\text{AverageMatches}}}$$
+  _Active players can outrank higher-rated campers._
+
+### B. Professional
+
+_Designed for serious clubs and competitive play._
+
+- **ELO Logic:** **Strict Zero-Sum**. Points gained = Points lost.
+- **K-Factor:** Default `32` (Customizable: 10–64). Lower K for less volatility, Higher K for faster placement.
+- **Ranking Criteria:** **Room Rating** (Pure ELO).
+  _Tie-breakers: Win Rate -> Wins._
+
+### C. Arcade
+
+_Designed for "just for fun" games without ranking stress._
+
+- **ELO Logic:** **None**. K-Factor is forced to `0`. Ratings remain at 1000.
+- **Ranking Criteria:** **Total Wins**.
+  _Tie-breakers: Win Rate -> Matches Played._
+
+---
+
+## 4. Directory Structure & Key Files
 
 ```text
 src/
@@ -43,81 +78,58 @@ src/
 │   ├── login/            # Authentication pages
 │   └── mobile/           # Mobile-optimized views
 ├── components/
-│   ├── AiAssistant.tsx   # AI Chat Interface (Genkit integration)
-│   ├── RecordBlock.tsx   # Manual match entry component
+│   ├── AiAssistant.tsx         # AI Chat Interface (Genkit integration)
+│   ├── RecordBlock.tsx         # Manual match entry component
+│   ├── rooms/
+│   │   ├── CreateRoomDialog.tsx # Room creation with Mode & K-Factor selection
+│   │   └── StandingsTable.tsx   # Dynamic leaderboard based on Mode
 │   └── ...
 ├── contexts/
 │   ├── AuthContext.tsx   # User profile & auth state
 │   └── SportContext.tsx  # Active sport switcher & DB config
 ├── lib/
-│   ├── elo.ts            # Client-side ELO calculation (Dual logic)
-│   ├── season.ts         # Season finishing & Adjusted Points logic
+│   ├── elo.ts            # Client-side ELO calculation (Mode-aware)
+│   ├── season.ts         # Season statistics & sorting logic (Mode-aware)
 │   ├── firebase.ts       # Firebase Client SDK initialization
 │   └── types.ts          # TS Interfaces (User, Room, Match)
 functions/
 ├── src/
-│   ├── index.ts          # Cloud Functions (aiChat, aiSaveMatch)
+│   ├── index.ts          # Cloud Functions (AI Match processing)
 │   ├── config.ts         # Collection names configuration
 │   └── ...
 ```
 
 ---
 
-## 4\. ELO Rating System & Logic
-
-### Configuration
-
-- **Algorithm:** Standard ELO Rating System (modified).
-- **K-Factor:** `32` (High volatility for dynamic adjustments).
-- **Granularity:** **Per-Game/Set**. Every scored unit (e.g., a single Ping Pong game 11-9) is calculated as a distinct transaction.
+## 5\. ELO Rating System Details
 
 ### The Dual-Layer Formula
 
-Every match triggers two independent calculations.
+Every match triggers two independent calculations in `src/lib/elo.ts`.
 
-#### A. Global ELO (Zero-Sum)
+#### 1\. Global ELO (Always Professional)
 
-Used for cross-room skill comparison.
+- Used for cross-room skill comparison.
+- **Formula:** Standard ELO ($R_a' = R_a + K \cdot (S_a - E_a)$).
+- **K-Factor:** Always fixed at `32`.
+- **Type:** Zero-Sum.
 
-1.  **Expected Score ($E_a$):** Standard logistic curve.
-2.  **New Rating:** $R'_a = R_a + 32 \times (S_a - E_a)$.
-3.  **Property:** Points gained by the winner equal points lost by the loser.
+#### 2\. Room ELO (Mode Dependent)
 
-#### B. Room ELO (Inflationary)
-
-Used for room leaderboards and season standings.
-
-1.  **Start:** Everyone starts at **1000** in a new room.
-2.  **Winner:** Gains full delta ($+32 \times (1 - E_a)$).
-3.  **Loser (The Twist):** Loses only **80%** of the delta.
-    - _Formula:_ $\text{Loss} = \text{BaseDelta} \times 0.8$
-    - _Effect:_ Every match injects \~20% of the "energy" into the system. This prevents the "1200 trap" and allows active players ("grinders") to progress even with a \~50% win rate.
-
----
-
-## 5\. Season Ranking & Adjusted Points
-
-To further encourage activity in office leagues, the final season ranking is **not** based solely on raw ELO.
-
-### The Problem
-
-A player with 10 wins and 0 losses (ELO \~1300) often ranked higher than a player with 50 wins and 40 losses (ELO \~1250), discouraging active play.
-
-### The Solution: Adjusted Points
-
-The "Live Final" and "Season Finish" standings use a weighted formula:
-
-$$ \text{AdjPoints} = (\text{RoomRating} - 1000) \times \sqrt{\frac{\text{MatchesPlayed}}{\text{AverageMatches}}} $$
-
-- **Net Points:** Points gained above the baseline 1000.
-- **Activity Multiplier:** Square root of the player's volume vs. the room average.
-- **Result:** A player who plays significantly more matches can outrank a slightly higher-rated player who camps on a good score.
+- **Office Mode:**
+  - K = 32.
+  - If Delta \< 0 (Loss): $\text{FinalDelta} = \text{Delta} \times 0.8$.
+- **Professional Mode:**
+  - K = Custom (10-64).
+  - Standard Zero-Sum logic.
+- **Arcade Mode:**
+  - K = 0. Delta is always 0.
 
 ---
 
 ## 6\. Database Structure (Firestore)
 
-The database is partitioned by sport to ensure scalability.
+The database is partitioned by sport (`pingpong`, `tennis`, `badminton`).
 
 ### Users Collection (`users`)
 
@@ -126,36 +138,167 @@ Stores profile data and nested statistics per sport.
 ```json
 users/{uid}
 {
-  "uid": "string",
-  "displayName": "Pekka",
-  "sports": {
-    "pingpong": {
-      "globalElo": 1200, // <-- GLOBAL RATING
-      "wins": 15,
-      "losses": 5,
-      "eloHistory": [{ "ts": "ISO", "elo": 1200 }]
-    }
-  }
+	"uid": "string (Primary Key)",
+	"email": "string",
+	"displayName": "string",
+	"name": "string",
+	"photoURL": "string | null",
+	"bio": "string",
+	"createdAt": "string (Custom format: DD.MM.YYYY HH.mm.ss or ISO)",
+	"approved": "boolean",
+	"approvedAt": "string (ISO)",
+	"approvedBy": "string (UID)",
+	"isPublic": "boolean",
+	"isDeleted": "boolean",
+	"activeSport": "string ('pingpong' | 'tennis' | 'badminton')",
+	"maxRating": "number",
+	"matchesPlayed": "number",
+	"wins": "number",
+	"losses": "number",
+	"globalElo": "number",
+	"friends": [
+		"string (UID)"
+	],
+	"incomingRequests": [
+		"string (UID)"
+	],
+	"outgoingRequests": [
+		"string (UID)"
+	],
+	"rooms": [
+		"string (RoomID)"
+	],
+	"tournaments": [
+		"string (TournamentID)"
+	],
+	"achievements": [
+		{
+			"type": "string",
+			"sport": "string",
+			"dateFinished": "string",
+			"place": "number",
+			"wins": "number",
+			"losses": "number",
+			"winRate": "number",
+			"roomId": "string",
+			"roomName": "string",
+			"roomRating": "number",
+			"startGlobalElo": "number",
+			"endGlobalElo": "number",
+			"totalAddedPoints": "number",
+			"adjPoints": "number",
+			"longestWinStreak": "number",
+			"userId": "string"
+		}
+	],
+	"eloHistory": [
+		{
+			"date": "string",
+			"elo": "number"
+		}
+	],
+	"sports": {
+		"pingpong": {
+			"globalElo": "number",
+			"wins": "number",
+			"losses": "number",
+			"eloHistory": [
+				{
+					"ts": "string (ISO)",
+					"elo": "number"
+				}
+			]
+		},
+		"tennis": {
+			"globalElo": "number",
+			"wins": "number",
+			"losses": "number",
+			"aces": "number",
+			"doubleFaults": "number",
+			"winners": "number",
+			"eloHistory": [
+				{
+					"ts": "string (ISO)",
+					"elo": "number"
+				}
+			]
+		},
+		"badminton": {
+			"globalElo": "number",
+			"wins": "number",
+			"losses": "number",
+			"eloHistory": [
+				{
+					"ts": "string (ISO)",
+					"elo": "number"
+				}
+			]
+		}
+	}
 }
 ```
 
 ### Rooms Collections (`rooms-pingpong`, etc.)
 
-Embeds member data for fast leaderboards.
+Stores league configuration and embedded member data.
 
 ```json
 rooms-pingpong/{roomId}
 {
-  "id": "roomId",
-  "name": "Office League",
+  "id": "string (RoomID)",
+  "createdAt": "string (Format: DD.MM.YYYY HH.mm.ss)",
+  "creator": "string (UID)",
+  "creatorName": "string",
+  "name": "string",
+  "description": "string",
+  "avatarURL": "string | null",
+  "mode": "string ('office' | 'professional' | 'arcade')",
+  "kFactor": "number",
+  "isPublic": "boolean",
+  "isRanked": "boolean",
+  "isArchived": "boolean",
+  "adminIds": [ "string (UID)" ],
+  "memberIds": [ "string (UID)" ],
   "members": [
     {
-      "userId": "uid1",
-      "name": "Pekka",
-      "rating": 1050, // <-- ROOM RATING (Inflationary)
-      "globalElo": 1210, // Snapshot of Global
-      "wins": 5,
-      "losses": 1
+      "userId": "string (UID)",
+      "name": "string",
+      "email": "string",
+      "role": "string ('admin' | 'editor' | 'member')",
+      "photoURL": "string | null",
+      "date": "string (Join date)",
+      "rating": "number (Room ELO)",
+      "wins": "number",
+      "losses": "number",
+      "globalElo": "number"
+    }
+  ],
+
+  "seasonHistory": [
+    {
+      "type": "seasonFinish",
+      "dateFinished": "string",
+      "roomId": "string",
+      "roomName": "string",
+      "sport": "string",
+      "mode": "string ('office' | 'professional' | 'arcade')",
+      "summary": [
+        {
+          "userId": "string",
+          "name": "string",
+          "place": "number",
+          "wins": "number",
+          "losses": "number",
+          "winRate": "number",
+          "matchesPlayed": "number",
+          "longestWinStreak": "number",
+          "startGlobalElo": "number",
+          "endGlobalElo": "number",
+          "totalAddedPoints": "number",
+          "adjPoints": "number",
+          "roomRating": "number"
+        }
+      ]
     }
   ]
 }
@@ -167,62 +310,81 @@ Stores details of both rating changes.
 
 ```json
 matches-pingpong/{matchId}
+matches-pingpong/{matchId}
 {
-  "roomId": "roomId",
-  "winner": "Pekka",
+  "id": "string (MatchID)",
+  "roomId": "string",
+  "isRanked": "boolean",
+  "timestamp": "string (Format: DD.MM.YYYY HH.mm.ss)",
+  "tsIso": "string (ISO 8601)",
+  "createdAt": "string",
+  "players": [ "string (UID)", "string (UID)" ],
+  "player1Id": "string (UID)",
+  "player2Id": "string (UID)",
+  "winner": "string (Player Name)",
+
   "player1": {
-    "name": "Pekka",
-    "scores": 11,
-    "oldRating": 1200,      // Global Before
-    "newRating": 1216,      // Global After (+16)
-    "roomOldRating": 1000,  // Room Before
-    "roomNewRating": 1016,  // Room After (+16)
-    "roomAddedPoints": 16
+    "name": "string",
+    "scores": "number",
+    "side": "string ('left' | 'right')",
+
+    // GLOBAL ELO (Всегда Zero-Sum, K=32)
+    "oldRating": "number",
+    "newRating": "number",
+    "addedPoints": "number",
+
+    // ROOM ELO (Зависит от Mode и kFactor комнаты)
+    "roomOldRating": "number",
+    "roomNewRating": "number",
+
+    // В режиме 'arcade' здесь будет 0
+    // В режиме 'office' при поражении здесь будет "мягкий" минус (инфляция)
+    "roomAddedPoints": "number"
   },
+
   "player2": {
-    "name": "Jukka",
-    "scores": 9,
-    "oldRating": 1200,
-    "newRating": 1184,      // Global After (-16)
-    "roomOldRating": 1000,
-    "roomNewRating": 987,   // Room After (-13) <-- INFLATION APPLIED
-    "roomAddedPoints": -13
+    "name": "string",
+    "scores": "number",
+    "side": "string ('left' | 'right')",
+    "oldRating": "number",
+    "newRating": "number",
+    "addedPoints": "number",
+    "roomOldRating": "number",
+    "roomNewRating": "number",
+    "roomAddedPoints": "number"
   }
 }
 ```
 
 ---
 
-## 7\. Match Submission Workflows
+## 7\. Workflows
 
-### A. Manual Entry (Client-Side)
+### A. Match Entry (Client-Side)
 
 **File:** `src/lib/elo.ts`
 
-1.  **Logic:** Iterates through input rows (sets).
-2.  **Calc:** Computes both Global (Zero-Sum) and Room (Inflationary) deltas for each set.
-3.  **Write:** Saves matches sequentially to Firestore (with 1000ms delay for timestamp ordering).
-4.  **Update:** Updates `users` (Global) and `rooms` (Room) documents via `updateDoc`.
+1.  Read `room.mode` and `room.kFactor`.
+2.  Calculate Global Delta (Fixed K=32, Zero-Sum).
+3.  Calculate Room Delta based on Mode:
+    - **Arcade:** Delta = 0.
+    - **Office:** Apply 0.8 multiplier to negative deltas.
+    - **Professional:** Use room's `kFactor`.
+4.  Commit to Firestore.
 
-### B. AI Assistant (Server-Side)
+### B. Season Finalization
+
+**File:** `src/lib/season.ts`
+
+1.  Fetch all matches for the room.
+2.  Re-calculate statistics (Wins/Losses/Streaks).
+3.  **Sort Leaderboard:**
+    - **Office:** Sort by `AdjPoints`.
+    - **Professional:** Sort by `RoomRating`.
+    - **Arcade:** Sort by `Wins`.
+4.  Save snapshot to `seasonHistory` and award Achievements.
+
+### C. AI Assistant
 
 **File:** `functions/src/index.ts`
-
-1.  **Parsing:** Genkit + Gemini 2.0 Flash parses natural text into JSON.
-2.  **Execution (`aiSaveMatch`):**
-    - **Optimization:** Pre-fetches all user profiles and room members in bulk (mapped by Name/ID).
-    - **In-Memory Calculation:** Performs the entire ELO simulation (150+ matches) in memory to determine final states.
-    - **Batch Write:** Commits all matches and updates in a single Firestore Batch (max 500 ops).
-    - **Speed:** Capable of processing \~200 matches in \<2 seconds.
-
----
-
-## 8\. Critical Implementation Details
-
-- **Inflation Factor:** `0.8` (Losers lose 20% less in Room ELO).
-- **Season Reset:** Creating a new room resets all participants' Room ELO to 1000, while Global ELO remains untouched.
-- **Indexes:** Complex queries (e.g., "Player's history in a specific room") require composite indexes on `roomId` + `tsIso`.
-
-```
-
-```
+The server-side AI handler `aiSaveMatch` implements the **exact same logic** as the client-side `elo.ts`. It fetches the room configuration, determines the mode/K-factor, and applies the appropriate math before writing to the database.

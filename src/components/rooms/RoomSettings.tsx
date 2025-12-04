@@ -2,35 +2,35 @@
 
 import ImageCropDialog from '@/components/ImageCropDialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Checkbox,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  Label,
-  Separator,
-  Textarea,
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Checkbox,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	Input,
+	Label,
+	Separator,
+	Textarea,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
 import type { Room } from '@/lib/types';
-import { doc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, updateDoc } from 'firebase/firestore'; // <-- Добавлен deleteDoc
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Image as ImageIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -162,6 +162,22 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
       setIsActing(false);
     }
   };
+  
+  // New function for deleting the room
+  const handleDelete = async () => {
+    setIsActing(true);
+    try {
+      await deleteDoc(doc(db, config.collections.rooms, room.id));
+      toast({ title: t('Room deleted'), description: t('The room has been permanently removed.') });
+      // Redirect to the room list page after successful deletion
+      router.push('/rooms');
+    } catch (error) {
+      console.error("Error deleting room:", error);
+      toast({ title: t('Error deleting room'), variant: 'destructive' });
+    } finally {
+      setIsActing(false);
+    }
+  };
 
   return (
     <>
@@ -235,6 +251,8 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
           <Separator />
           <div className='space-y-2'>
             <h4 className='font-medium text-destructive'>{t('Danger Zone')}</h4>
+            
+            {/* Archive / Unarchive Block */}
             {room.isArchived ? (
               <Button
                 variant='outline'
@@ -275,6 +293,37 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
                 </AlertDialogContent>
               </AlertDialog>
             )}
+
+            {/* Delete Room Block */}
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant='destructive'
+                    className='w-full mt-2' // Added margin top for separation
+                    disabled={isActing}
+                  >
+                    {t('Delete Room')}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t('Permanently delete this room?')}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t(
+                        "This action cannot be undone. All room data, including its match history and member standings, will be permanently removed. Players' Global ELO will remain unaffected, but their Room ELO history will be lost."
+                      )}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className='bg-red-600 hover:bg-red-700'>
+                      {t('Yes, Delete Permanently')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
           </div>
         </div>
         <DialogFooter>

@@ -3,22 +3,25 @@
 
 import ImageCropDialog from '@/components/ImageCropDialog';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Checkbox,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  Input,
-  Label,
-  ScrollArea,
-  Textarea,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Checkbox,
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+	Input,
+	Label,
+	RadioGroup,
+	RadioGroupItem,
+	ScrollArea,
+	Slider,
+	Textarea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
@@ -26,20 +29,29 @@ import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
 import { getUserLite } from '@/lib/friends';
 import { getSuperAdminIds, withSuperAdmins } from '@/lib/superAdmins';
-import type { UserProfile } from '@/lib/types';
+import type { RoomMode, UserProfile } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import {
-  addDoc,
-  arrayUnion,
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  where,
-  writeBatch,
+	addDoc,
+	arrayUnion,
+	collection,
+	doc,
+	onSnapshot,
+	query,
+	where,
+	writeBatch,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
-import { Image as ImageIcon, PlusCircle, X } from 'lucide-react';
+import {
+	Briefcase,
+	Gamepad2,
+	Image as ImageIcon,
+	Medal,
+	PlusCircle,
+	Search,
+	Settings2,
+	X,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -65,6 +77,9 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const [roomDescription, setRoomDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [isRanked, setIsRanked] = useState(true);
+  const [roomMode, setRoomMode] = useState<RoomMode>('office');
+  const [kFactor, setKFactor] = useState(32);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
@@ -76,6 +91,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -176,14 +192,10 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   };
 
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('--- onPickFile triggered ---');
     const f = e.target.files?.[0] ?? null;
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    e.target.value = '';
 
-    if (!f) {
-      console.log('No file selected.');
-      return;
-    }
+    if (!f) return;
 
     const allowedMimeTypes = ACCEPT_MIME.split(',');
     const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
@@ -213,7 +225,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       return;
     }
 
-    console.log('Validation passed. Opening crop dialog...');
     const src = URL.createObjectURL(f);
     setAvatarSrc(src);
     setCropOpen(true);
@@ -231,6 +242,9 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     setRoomDescription('');
     setIsPublic(false);
     setIsRanked(true);
+    setRoomMode('office');
+    setKFactor(32);
+    setShowAdvanced(false);
     setSelectedFriends([]);
     setSearch('');
     setUploadPct(0);
@@ -350,6 +364,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         members: initialMembers,
         isPublic,
         isRanked,
+        mode: roomMode,
+        kFactor: roomMode === 'arcade' ? 0 : kFactor,
         memberIds,
         adminIds,
         isArchived: false,
@@ -399,7 +415,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
             {t('Create New Room')}
           </Button>
         </DialogTrigger>
-        <DialogContent className='sm:max-w-lg'>
+        <DialogContent className='sm:max-w-lg max-h-[90vh] overflow-y-auto'>
           <DialogHeader>
             <DialogTitle>
               {t('Create a Match Room')}{' '}
@@ -447,7 +463,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   </Button>
                 )}
               </div>
-              <Input
+
+              <input
                 id='room-avatar-upload'
                 ref={fileInputRef}
                 type='file'
@@ -455,6 +472,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                 accept={ACCEPT_MIME}
                 onChange={onPickFile}
               />
+
               <div className='text-xs text-muted-foreground'>
                 {t('PNG/JPEG/WEBP up to 2MB')}
                 {uploadPct > 0 && (
@@ -464,6 +482,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                 )}
               </div>
             </div>
+
             <div className='grid gap-2'>
               <Label htmlFor='roomName'>{t('Room Name')}</Label>
               <Input
@@ -473,10 +492,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                 onChange={(e) => setRoomName(e.target.value)}
                 placeholder={t('Office Champs')}
               />
-              <p className='text-xs text-muted-foreground'>
-                {roomName.length}/{NAME_MAX}
-              </p>
             </div>
+
             <div className='grid gap-2'>
               <Label htmlFor='roomDescription'>
                 {t('Description')} ({t('optional')})
@@ -488,128 +505,231 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                 onChange={(e) => setRoomDescription(e.target.value)}
                 placeholder={t('A brief description of your room')}
               />
-              <p className='text-xs text-muted-foreground'>
-                {roomDescription.length}/{DESC_MAX}
-              </p>
             </div>
-            <div className='space-y-4'>
-              <div className='flex items-start gap-2'>
-                <Checkbox
-                  id='isPublic'
-                  checked={isPublic}
-                  onCheckedChange={(c) => setIsPublic(Boolean(c))}
-                />
-                <div className='grid gap-1.5 leading-none'>
-                  <Label htmlFor='isPublic'>{t('Make room public?')}</Label>
-                  <p className='text-xs text-muted-foreground'>
-                    {t(
-                      'Public rooms are visible to all players. Private rooms are visible only to members.'
-                    )}
-                  </p>
+
+            <div className='space-y-3'>
+              <Label className='text-base font-semibold'>
+                {t('Game Mode')}
+              </Label>
+              <RadioGroup
+                value={roomMode}
+                onValueChange={(v) => {
+                  setRoomMode(v as RoomMode);
+                  if (v === 'arcade') setKFactor(0);
+                  else if (v === 'office') setKFactor(32);
+                  else setKFactor(32);
+                }}
+                className='grid grid-cols-1 gap-4'
+              >
+                <div>
+                  <RadioGroupItem
+                    value='office'
+                    id='mode-office'
+                    className='peer sr-only'
+                  />
+                  <Label
+                    htmlFor='mode-office'
+                    className='flex items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer'
+                  >
+                    <div className='flex items-center gap-4'>
+                      <Briefcase className='h-6 w-6 text-primary' />
+                      <div className='grid gap-1'>
+                        <span className='font-semibold'>
+                          {t('Office League')}
+                        </span>
+                        <span className='text-xs text-muted-foreground'>
+                          {t(
+                            'Inflationary ELO (Losers lose less). Ranking by Activity.'
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </Label>
                 </div>
-              </div>
-              <div className='flex items-start gap-2'>
-                <Checkbox
-                  id='isRanked'
-                  checked={isRanked}
-                  onCheckedChange={(c) => setIsRanked(Boolean(c))}
-                />
-                <div className='grid gap-1.5 leading-none'>
-                  <Label htmlFor='isRanked'>{t('Ranked Room')}</Label>
-                  <p className='text-xs text-muted-foreground'>
-                    {t("Matches will affect players' global ELO.")}
-                  </p>
+
+                <div>
+                  <RadioGroupItem
+                    value='professional'
+                    id='mode-pro'
+                    className='peer sr-only'
+                  />
+                  <Label
+                    htmlFor='mode-pro'
+                    className='flex items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer'
+                  >
+                    <div className='flex items-center gap-4'>
+                      <Medal className='h-6 w-6 text-amber-500' />
+                      <div className='grid gap-1'>
+                        <span className='font-semibold'>
+                          {t('Professional')}
+                        </span>
+                        <span className='text-xs text-muted-foreground'>
+                          {t('Strict Zero-Sum ELO. Ranking by pure Rating.')}
+                        </span>
+                      </div>
+                    </div>
+                  </Label>
                 </div>
-              </div>
+
+                <div>
+                  <RadioGroupItem
+                    value='arcade'
+                    id='mode-arcade'
+                    className='peer sr-only'
+                  />
+                  <Label
+                    htmlFor='mode-arcade'
+                    className='flex items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer'
+                  >
+                    <div className='flex items-center gap-4'>
+                      <Gamepad2 className='h-6 w-6 text-purple-500' />
+                      <div className='grid gap-1'>
+                        <span className='font-semibold'>
+                          {t('Arcade / No Rating')}
+                        </span>
+                        <span className='text-xs text-muted-foreground'>
+                          {t('Just fun. No ELO changes. Ranking by Wins.')}
+                        </span>
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
-            <div className='grid gap-2'>
+
+            {roomMode !== 'arcade' && (
+              <div className='pt-2'>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className='text-muted-foreground'
+                >
+                  <Settings2 className='mr-2 h-4 w-4' />
+                  {showAdvanced ? t('Hide Advanced') : t('Show Advanced')}
+                </Button>
+
+                {showAdvanced && (
+                  <div className='mt-4 p-4 bg-muted/30 rounded-lg border border-dashed space-y-4'>
+                    <div className='flex justify-between items-center'>
+                      <Label htmlFor='kFactor'>
+                        {t('K-Factor (Volatility)')}
+                      </Label>
+                      <span className='font-mono font-bold text-sm'>
+                        {kFactor}
+                      </span>
+                    </div>
+                    <Slider
+                      id='kFactor'
+                      min={10}
+                      max={64}
+                      step={1}
+                      value={[kFactor]}
+                      onValueChange={(v) => setKFactor(v[0])}
+                    />
+                    <p className='text-xs text-muted-foreground'>
+                      {t(
+                        'Higher K means faster rating changes. Standard is 32. Pro leagues use 16-20.'
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className='grid gap-2 pt-2'>
               <Label className='text-sm font-medium'>
                 {t('Invite players:')}
               </Label>
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('Search by name…')}
-              />
-              <ScrollArea className='h-40 mt-2 border rounded-md p-2'>
+              <div className='relative'>
+                <Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('Search by name…')}
+                  className='pl-9'
+                />
+              </div>
+              {/* UPDATED: Increased height to h-80 (320px) */}
+              <ScrollArea className='h-80 mt-2 border rounded-md p-2 bg-background'>
                 {filteredFriends.length + filteredOthers.length > 0 ? (
                   <>
                     {filteredFriends.length > 0 && (
                       <>
-                        <div className='px-2 pt-1 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
+                        <div className='px-2 pt-1 pb-2 text-xs uppercase tracking-wide text-muted-foreground font-semibold'>
                           {t('Friends')}
                         </div>
-                        {filteredFriends.map((p) => {
-                          const displayName = p.name ?? p.displayName ?? '?';
-                          return (
-                            <label
-                              key={p.uid}
-                              className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
-                            >
-                              <Checkbox
-                                checked={selectedFriends.includes(p.uid)}
-                                onCheckedChange={(v) =>
-                                  toggleSelected(p.uid, v)
-                                }
-                              />
-                              <div className='flex items-center gap-2'>
-                                <Avatar className='h-6 w-6'>
-                                  <AvatarImage src={p.photoURL ?? undefined} />
-                                  <AvatarFallback>
-                                    {displayName.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>{displayName}</span>
+                        {filteredFriends.map((p) => (
+                          <label
+                            key={p.uid}
+                            className='flex items-center gap-3 py-2 px-3 rounded-md hover:bg-accent/50 cursor-pointer transition-colors border border-transparent hover:border-border/50'
+                          >
+                            <Checkbox
+                              checked={selectedFriends.includes(p.uid)}
+                              onCheckedChange={(v) => toggleSelected(p.uid, v)}
+                              className='h-5 w-5'
+                            />
+                            <div className='flex items-center gap-3'>
+                              <Avatar className='h-8 w-8 border'>
+                                <AvatarImage src={p.photoURL ?? undefined} />
+                                <AvatarFallback>
+                                  {(p.name ?? '?').charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className='flex flex-col'>
+                                <span className='text-sm font-medium leading-none'>
+                                  {p.name ?? p.displayName}
+                                </span>
+                                {p.email && (
+                                  <span className='text-[10px] text-muted-foreground truncate max-w-[150px]'>
+                                    {p.email}
+                                  </span>
+                                )}
                               </div>
-                            </label>
-                          );
-                        })}
+                            </div>
+                          </label>
+                        ))}
                       </>
                     )}
                     {filteredOthers.length > 0 && (
                       <>
-                        <div className='px-2 pt-3 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
+                        <div className='px-2 pt-4 pb-2 text-xs uppercase tracking-wide text-muted-foreground font-semibold'>
                           {t('From your sport rooms')}
                         </div>
-                        {filteredOthers.map((p) => {
-                          const displayName = p.name ?? p.displayName ?? '?';
-                          return (
-                            <label
-                              key={p.uid}
-                              className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
-                            >
-                              <Checkbox
-                                checked={selectedFriends.includes(p.uid)}
-                                onCheckedChange={(v) =>
-                                  toggleSelected(p.uid, v)
-                                }
-                              />
-                              <div className='flex items-center gap-2'>
-                                <Avatar className='h-6 w-6'>
-                                  <AvatarImage src={p.photoURL ?? undefined} />
-                                  <AvatarFallback>
-                                    {displayName.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>{displayName}</span>
+                        {filteredOthers.map((p) => (
+                          <label
+                            key={p.uid}
+                            className='flex items-center gap-3 py-2 px-3 rounded-md hover:bg-accent/50 cursor-pointer transition-colors border border-transparent hover:border-border/50'
+                          >
+                            <Checkbox
+                              checked={selectedFriends.includes(p.uid)}
+                              onCheckedChange={(v) => toggleSelected(p.uid, v)}
+                              className='h-5 w-5'
+                            />
+                            <div className='flex items-center gap-3'>
+                              <Avatar className='h-8 w-8 border'>
+                                <AvatarImage src={p.photoURL ?? undefined} />
+                                <AvatarFallback>
+                                  {(p.name ?? '?').charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className='flex flex-col'>
+                                <span className='text-sm font-medium leading-none'>
+                                  {p.name ?? p.displayName}
+                                </span>
                               </div>
-                            </label>
-                          );
-                        })}
+                            </div>
+                          </label>
+                        ))}
                       </>
                     )}
                   </>
                 ) : (
-                  <p className='text-muted-foreground text-sm text-center py-4'>
-                    {t('No players to show here yet.')}
-                  </p>
+                  <div className='flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2'>
+                    <p>{t('No players found.')}</p>
+                  </div>
                 )}
               </ScrollArea>
-              <p className='text-xs text-muted-foreground'>
-                {t(
-                  'You can also invite more players later from the room page.'
-                )}
-              </p>
             </div>
           </div>
           <DialogFooter>

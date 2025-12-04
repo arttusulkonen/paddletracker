@@ -32,10 +32,13 @@ import {
 import {
   ArrowRight,
   BarChart2,
+  Briefcase,
   Compass,
+  Gamepad2,
   Handshake,
   History,
   LogIn,
+  Medal,
   Network,
   Play,
   Rocket,
@@ -493,6 +496,72 @@ const Dashboard = () => {
   );
 };
 
+const GameModesShowcase = () => {
+  const { t } = useTranslation();
+  return (
+    <section className='mb-24'>
+      <div className='text-center mb-12'>
+        <h2 className='text-3xl font-bold'>{t('Play Your Way')}</h2>
+        <p className='text-muted-foreground mt-2'>
+          {t('Choose the scoring system that fits your group.')}
+        </p>
+      </div>
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+        <Card className='border-l-4 border-l-primary hover:shadow-md transition-all'>
+          <CardHeader>
+            <div className='mb-4 w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary'>
+              <Briefcase size={24} />
+            </div>
+            <CardTitle className='text-xl'>{t('Office League')}</CardTitle>
+            <CardDescription className='text-sm font-medium text-primary'>
+              {t('Fun & Engaging')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='text-sm text-muted-foreground leading-relaxed'>
+            {t(
+              'Inflationary ELO keeps everyone motivated. Losers lose less points, active players climb higher. Perfect for workplace rivalries.'
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className='border-l-4 border-l-amber-500 hover:shadow-md transition-all'>
+          <CardHeader>
+            <div className='mb-4 w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-600'>
+              <Medal size={24} />
+            </div>
+            <CardTitle className='text-xl'>{t('Professional')}</CardTitle>
+            <CardDescription className='text-sm font-medium text-amber-600'>
+              {t('Strict & Fair')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='text-sm text-muted-foreground leading-relaxed'>
+            {t(
+              'Classic Zero-Sum ELO (K-32). Every point is earned. The true test of skill for competitive clubs and serious players.'
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className='border-l-4 border-l-purple-500 hover:shadow-md transition-all'>
+          <CardHeader>
+            <div className='mb-4 w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-600'>
+              <Gamepad2 size={24} />
+            </div>
+            <CardTitle className='text-xl'>{t('Arcade')}</CardTitle>
+            <CardDescription className='text-sm font-medium text-purple-600'>
+              {t('Just for Fun')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='text-sm text-muted-foreground leading-relaxed'>
+            {t(
+              'No ELO stress. Track wins, losses, and history without worrying about your rating. Pure gameplay for chill sessions.'
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </section>
+  );
+};
+
 const SportsShowcase = () => {
   const { t } = useTranslation();
   const sports: Array<{
@@ -525,28 +594,30 @@ const SportsShowcase = () => {
   );
 
   return (
-    <section className='mb-20'>
-      <h2 className='text-3xl font-bold text-center mb-10'>
+    <section className='mb-24'>
+      <h2 className='text-3xl font-bold text-center mb-12'>
         {t('What sports can I track?')}
       </h2>
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
         {sports.map((s) => (
           <Card
             key={s.key}
-            className='hover:shadow-lg transition-all duration-300 group border-muted'
+            className='hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group border-muted'
           >
-            <CardHeader className='items-center text-center pt-8'>
-              <div className='relative h-20 w-20 mb-4 transform group-hover:scale-110 transition-transform duration-300'>
+            <CardHeader className='items-center text-center pt-10 pb-8'>
+              <div className='relative h-24 w-24 mb-6 transform group-hover:scale-110 transition-transform duration-300 drop-shadow-md'>
                 <Image
                   src={s.icon}
                   alt={s.name}
                   fill
                   className='object-contain'
-                  sizes='80px'
+                  sizes='96px'
                 />
               </div>
-              <CardTitle className='text-xl'>{s.name}</CardTitle>
-              <CardDescription className='mt-2'>{s.blurb}</CardDescription>
+              <CardTitle className='text-2xl'>{s.name}</CardTitle>
+              <CardDescription className='mt-3 text-base'>
+                {s.blurb}
+              </CardDescription>
             </CardHeader>
           </Card>
         ))}
@@ -559,22 +630,26 @@ const LandingPage = () => {
   const { t } = useTranslation();
   return (
     <div className='animate-in fade-in duration-700'>
-      <section className='mb-24 text-center pt-10'>
+      <section className='mb-32 text-center pt-16'>
         <h1 className='text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter mb-6'>
-          <span className='bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-violet-600'>
+          <span className='bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600'>
             Smashlog
           </span>
         </h1>
         <h2 className='text-2xl sm:text-3xl font-bold text-slate-800 dark:text-slate-200 mb-6'>
           {t('Track. Compete. Improve.')}
         </h2>
-        <p className='max-w-2xl mx-auto text-lg text-muted-foreground leading-relaxed mb-10'>
+        <p className='max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground leading-relaxed mb-10'>
           {t(
             'The ultimate multi-sport ELO tracker. Create leagues, join tournaments, and visualize your progress in Ping-Pong, Tennis, and Badminton.'
           )}
         </p>
         <div className='flex flex-col sm:flex-row gap-4 justify-center'>
-          <Button size='lg' className='text-lg px-8 h-14 shadow-lg' asChild>
+          <Button
+            size='lg'
+            className='text-lg px-8 h-14 shadow-lg hover:shadow-xl transition-shadow'
+            asChild
+          >
             <Link href='/register' className='flex items-center gap-2'>
               <Rocket className='h-5 w-5' /> {t('Get Started for Free')}
             </Link>
@@ -592,52 +667,54 @@ const LandingPage = () => {
         </div>
       </section>
 
+      <GameModesShowcase />
+
       <SportsShowcase />
 
       <section className='mb-24'>
         <div className='text-center mb-12'>
           <h2 className='text-3xl font-bold'>{t('Everything you need')}</h2>
-          <p className='text-muted-foreground mt-2'>
+          <p className='text-muted-foreground mt-2 text-lg'>
             {t('Built for clubs, offices, and friendly rivalries.')}
           </p>
         </div>
         <div className='grid grid-cols-1 md:grid-cols-3 gap-8'>
           <FeatureCard
             icon={<BarChart2 size={32} />}
-            title={t('Advanced Analytics')}
+            title={t('Dual ELO System')}
           >
             {t(
-              'Fair ELO rating system (K-32), win rates, streaks, and head-to-head records.'
+              'Track your True Skill globally while enjoying seasonal progress in private rooms.'
             )}
           </FeatureCard>
           <FeatureCard icon={<Network size={32} />} title={t('Private Rooms')}>
             {t(
-              'Create invite-only leagues for your office or club with separate leaderboards.'
+              'Create invite-only leagues for your office or club with custom rules and separate leaderboards.'
             )}
           </FeatureCard>
           <FeatureCard icon={<Trophy size={32} />} title={t('Tournaments')}>
             {t(
-              'Organize brackets seamlessly. We handle the scheduling and score tracking.'
+              'Organize brackets seamlessly. We handle the scheduling, score tracking, and rewards.'
             )}
           </FeatureCard>
         </div>
       </section>
 
       <section className='text-center pb-12'>
-        <Card className='max-w-2xl mx-auto bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none shadow-2xl'>
-          <CardHeader>
-            <CardTitle className='text-2xl'>
+        <Card className='max-w-3xl mx-auto bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none shadow-2xl overflow-hidden'>
+          <CardHeader className='pt-12 pb-8'>
+            <CardTitle className='text-3xl md:text-4xl font-bold'>
               {t('Ready to climb the ranks?')}
             </CardTitle>
-            <CardDescription className='text-slate-300'>
+            <CardDescription className='text-slate-300 text-lg mt-2'>
               {t('Join thousands of players tracking their matches today.')}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className='pb-12'>
             <Button
               size='lg'
               variant='secondary'
-              className='w-full sm:w-auto font-bold text-lg h-12 px-8'
+              className='w-full sm:w-auto font-bold text-lg h-14 px-10 shadow-lg hover:shadow-white/10'
               asChild
             >
               <Link href='/register'>{t('Create Account Now')}</Link>
