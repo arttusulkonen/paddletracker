@@ -1,23 +1,36 @@
+// src/lib/elo.ts
 import { TennisSetData } from '@/components/record-blocks/TennisRecordBlock';
 import {
-  addDoc,
-  arrayUnion,
-  collection,
-  doc,
-  getDoc,
-  increment,
-  updateDoc,
+	addDoc,
+	arrayUnion,
+	collection,
+	doc,
+	getDoc,
+	increment,
+	updateDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type {
-  Match,
-  Room,
-  RoomMode,
-  Sport,
-  SportConfig,
-  UserProfile,
+	Match,
+	Room,
+	RoomMode,
+	Sport,
+	SportConfig,
+	UserProfile,
 } from './types';
 import { getFinnishFormattedDate } from './utils';
+
+// Helper to determine Dynamic K-Factor
+// If player has < 10 matches in this room, use higher volatility (Placement matches)
+const getDynamicK = (baseK: number, matchesPlayed: number, mode: RoomMode) => {
+  if (mode !== 'professional') return baseK; // Static for office/arcade (though arcade is 0)
+  
+  // Placement games: First 10 games have 2x volatility (e.g. K=64 if base is 32)
+  if (matchesPlayed < 10) return baseK * 2; 
+  
+  // Standard games
+  return baseK;
+};
 
 const calculateDelta = (
   rating1: number,
@@ -87,7 +100,7 @@ export async function processAndSaveMatches(
     let tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
 
     const mode = room.mode || 'office';
-    const kFactor = typeof room.kFactor === 'number' ? room.kFactor : 32;
+    const baseK = typeof room.kFactor === 'number' ? room.kFactor : 32;
 
     for (let i = 0; i < matchesInput.length; i++) {
       const row = matchesInput[i] as any;
@@ -96,6 +109,11 @@ export async function processAndSaveMatches(
 
       const p1Member = draft.find((m) => m.userId === player1Id)!;
       const p2Member = draft.find((m) => m.userId === player2Id)!;
+
+      // Get match counts for dynamic K calculation
+      // Note: We count wins+losses from DB state + 'i' (current batch index)
+      const p1Matches = (p1Member.wins ?? 0) + (p1Member.losses ?? 0) + i; 
+      const p2Matches = (p2Member.wins ?? 0) + (p2Member.losses ?? 0) + i;
 
       const oldG1 = currentG1;
       const oldG2 = currentG2;
@@ -113,25 +131,12 @@ export async function processAndSaveMatches(
       let d1_Room = 0;
       let d2_Room = 0;
 
+      // --- GLOBAL ELO CALCULATION ---
       if (room.isRanked !== false) {
-        d1_Global = calculateDelta(
-          oldG1,
-          oldG2,
-          score1,
-          score2,
-          true,
-          'professional',
-          32
-        );
-        d2_Global = calculateDelta(
-          oldG2,
-          oldG1,
-          score2,
-          score1,
-          true,
-          'professional',
-          32
-        );
+        // Global always uses standard constant K=32. 
+        // Zero-Sum logic enforced by 'professional' override here.
+        d1_Global = calculateDelta(oldG1, oldG2, score1, score2, true, 'professional', 32);
+        d2_Global = calculateDelta(oldG2, oldG1, score2, score1, true, 'professional', 32);
 
         newG1 = oldG1 + d1_Global;
         newG2 = oldG2 + d2_Global;
@@ -142,24 +147,15 @@ export async function processAndSaveMatches(
         p2Member.globalElo = newG2;
       }
 
-      d1_Room = calculateDelta(
-        p1OldRoomRating,
-        p2OldRoomRating,
-        score1,
-        score2,
-        false,
-        mode,
-        kFactor
-      );
-      d2_Room = calculateDelta(
-        p2OldRoomRating,
-        p1OldRoomRating,
-        score2,
-        score1,
-        false,
-        mode,
-        kFactor
-      );
+      // --- ROOM ELO CALCULATION (Dynamic K) ---
+      // Determine K for each player individually (Provisional ratings)
+      const k1 = getDynamicK(baseK, p1Matches, mode);
+      const k2 = getDynamicK(baseK, p2Matches, mode);
+
+      // Note: We calculate delta separately because K factors might differ
+      d1_Room = calculateDelta(p1OldRoomRating, p2OldRoomRating, score1, score2, false, mode, k1);
+      // Reverse perspective for P2
+      d2_Room = calculateDelta(p2OldRoomRating, p1OldRoomRating, score2, score1, false, mode, k2);
 
       p1NewRoomRating = p1OldRoomRating + d1_Room;
       p2NewRoomRating = p2OldRoomRating + d2_Room;
@@ -242,6 +238,14 @@ export async function processAndSaveMatches(
       }
     }
 
+    // Update Room Members Stats (Wins/Losses)
+    const p1Member = draft.find((m) => m.userId === player1Id)!;
+    const p2Member = draft.find((m) => m.userId === player2Id)!;
+    p1Member.wins = (p1Member.wins || 0) + totalWinsP1;
+    p1Member.losses = (p1Member.losses || 0) + totalWinsP2; 
+    p2Member.wins = (p2Member.wins || 0) + totalWinsP2;
+    p2Member.losses = (p2Member.losses || 0) + totalWinsP1;
+
     await updateDoc(doc(db, config.collections.rooms, roomId), {
       members: draft,
     });
@@ -257,14 +261,10 @@ export async function processAndSaveMatches(
 
     if (sport === 'tennis') {
       p1Update[`sports.tennis.aces`] = increment(tennisStatsP1.aces);
-      p1Update[`sports.tennis.doubleFaults`] = increment(
-        tennisStatsP1.doubleFaults
-      );
+      p1Update[`sports.tennis.doubleFaults`] = increment(tennisStatsP1.doubleFaults);
       p1Update[`sports.tennis.winners`] = increment(tennisStatsP1.winners);
       p2Update[`sports.tennis.aces`] = increment(tennisStatsP2.aces);
-      p2Update[`sports.tennis.doubleFaults`] = increment(
-        tennisStatsP2.doubleFaults
-      );
+      p2Update[`sports.tennis.doubleFaults`] = increment(tennisStatsP2.doubleFaults);
       p2Update[`sports.tennis.winners`] = increment(tennisStatsP2.winners);
     }
 

@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "collection": "rooms-tennis",
+    "totalDocs": 2,
+    "exportedAt": "2025-12-09T11:13:37.346Z",
+    "variationsCount": 1
+  },
+  "latest": {
+    "_note": "LATEST DOCUMENT (Date: 2025-07-29T12:08:08.000Z)",
+    "_id": "dK09PRq7IEnd8sE5ffPm",
+    "name": "demo",
+    "description": "",
+    "avatarURL": "",
+    "creator": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+    "creatorName": "drapefar",
+    "createdAt": "29.07.2025 15.08.08",
+    "isPublic": false,
+    "isRanked": true,
+    "memberIds": [
+      "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+      "MYjQu3t0dNPKys041E64sDLgV2t1",
+      "34ga410whbMHfsaBz41skYrlpPG3"
+    ],
+    "isArchived": false,
+    "adminIds": [
+      "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+      "NoYtP49TLoUHOiNEcknW63cw2mw2"
+    ],
+    "members": [
+      {
+        "photoURL": null,
+        "losses": 6,
+        "globalElo": 977,
+        "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+        "wins": 5,
+        "name": "drapefar",
+        "role": "admin",
+        "rating": 977,
+        "date": "29.07.2025 15.08.08",
+        "email": "drapefar@gmail.com"
+      },
+      {
+        "email": "ickfollowing@gmail.com",
+        "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+        "date": "29.07.2025 15.08.08",
+        "role": "editor",
+        "losses": 1,
+        "rating": 1065,
+        "globalElo": 1065,
+        "wins": 5,
+        "name": "ickfollowing"
+      },
+      {
+        "photoURL": "https://firebasestorage.googleapis.com/v0/b/tabletennis-f4c23.firebasestorage.app/o/avatars%2F34ga410whbMHfsaBz41skYrlpPG3%2F1551511801_1.jpg?alt=media&token=312e3c1b-934d-4243-a6bd-c3bb6b8ac282",
+        "email": "drapemid@gmail.com",
+        "name": "drapemid",
+        "losses": 4,
+        "date": "29.07.2025 15.08.08",
+        "rating": 958,
+        "globalElo": 958,
+        "role": "editor",
+        "wins": 1,
+        "userId": "34ga410whbMHfsaBz41skYrlpPG3"
+      }
+    ]
+  },
+  "allStructureVariations": [
+    {
+      "_note": "Structure Variant (Keys: _id|adminIds|avatarURL|createdAt|creator|creatorName|description|isArchived|isPublic|isRanked|memberIds|members|name)",
+      "_id": "dK09PRq7IEnd8sE5ffPm",
+      "name": "demo",
+      "description": "",
+      "avatarURL": "",
+      "creator": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+      "creatorName": "drapefar",
+      "createdAt": "29.07.2025 15.08.08",
+      "isPublic": false,
+      "isRanked": true,
+      "memberIds": [
+        "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+        "MYjQu3t0dNPKys041E64sDLgV2t1",
+        "34ga410whbMHfsaBz41skYrlpPG3"
+      ],
+      "isArchived": false,
+      "adminIds": [
+        "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ],
+      "members": [
+        {
+          "photoURL": null,
+          "losses": 6,
+          "globalElo": 977,
+          "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+          "wins": 5,
+          "name": "drapefar",
+          "role": "admin",
+          "rating": 977,
+          "date": "29.07.2025 15.08.08",
+          "email": "drapefar@gmail.com"
+        },
+        {
+          "email": "ickfollowing@gmail.com",
+          "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+          "date": "29.07.2025 15.08.08",
+          "role": "editor",
+          "losses": 1,
+          "rating": 1065,
+          "globalElo": 1065,
+          "wins": 5,
+          "name": "ickfollowing"
+        },
+        {
+          "photoURL": "https://firebasestorage.googleapis.com/v0/b/tabletennis-f4c23.firebasestorage.app/o/avatars%2F34ga410whbMHfsaBz41skYrlpPG3%2F1551511801_1.jpg?alt=media&token=312e3c1b-934d-4243-a6bd-c3bb6b8ac282",
+          "email": "drapemid@gmail.com",
+          "name": "drapemid",
+          "losses": 4,
+          "date": "29.07.2025 15.08.08",
+          "rating": 958,
+          "globalElo": 958,
+          "role": "editor",
+          "wins": 1,
+          "userId": "34ga410whbMHfsaBz41skYrlpPG3"
+        }
+      ]
+    }
+  ]
+}

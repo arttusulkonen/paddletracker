@@ -1,34 +1,34 @@
 // src/components/layout/Navbar.tsx
 'use client';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Sheet,
-  SheetContent,
-  SheetTrigger,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+	Sheet,
+	SheetContent,
+	SheetTrigger,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
-import { getSuperAdminIds } from '@/lib/superAdmins';
 import { cn } from '@/lib/utils';
 import {
-  Bell,
-  Globe,
-  HomeIcon,
-  LogIn,
-  Menu,
-  ShieldCheck,
-  TrophyIcon,
-  UserCircle,
-  UsersIcon,
+	Bell,
+	Briefcase,
+	Globe,
+	HomeIcon,
+	LogIn,
+	Menu,
+	ShieldCheck,
+	TrophyIcon,
+	UserCircle,
+	UsersIcon,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -36,14 +36,18 @@ import { usePathname, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+// --- Components ---
+
 const MobileNav = ({
   user,
   t,
   isSuperAdmin,
+  isCoach,
 }: {
   user: any;
   t: (key: string) => string;
   isSuperAdmin: boolean;
+  isCoach: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { sport, setSport } = useSport();
@@ -55,6 +59,8 @@ const MobileNav = ({
     { code: 'fi', label: 'Suomi' },
     { code: 'ko', label: '한국어' },
   ];
+
+  const close = () => setIsOpen(false);
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -71,34 +77,61 @@ const MobileNav = ({
 
       <SheetContent
         side='left'
-        className='w-64 p-0 md:hidden'
+        className='w-64 p-0 md:hidden flex flex-col'
         title={t('Main navigation')}
       >
-        <div className='flex h-full flex-col'>
-          <div className='flex flex-col gap-2 p-6'>
-            <NavLink href='/' onClick={() => setIsOpen(false)}>
-              <HomeIcon /> {t('Home')}
+        <div className='p-6 border-b'>
+            <div className='font-bold text-lg mb-1'>{t('Menu')}</div>
+            {user && (
+               <div className='text-xs text-muted-foreground'>
+                  {isCoach ? t('Coach Account') : t('Player Account')}
+               </div>
+            )}
+        </div>
+
+        <div className='flex-1 overflow-y-auto py-4 px-4 flex flex-col gap-2'>
+            <NavLink href='/' onClick={close}>
+              <HomeIcon className="w-4 h-4" /> {t('Home')}
             </NavLink>
+            
             {user && (
               <>
-                <NavLink href='/rooms' onClick={() => setIsOpen(false)}>
-                  <UsersIcon /> {t('Rooms')}
-                </NavLink>
-                <NavLink href='/tournaments' onClick={() => setIsOpen(false)}>
-                  <TrophyIcon /> {t('Tournaments')}
-                </NavLink>
-                {isSuperAdmin && (
-                  <NavLink href='/admin/users' onClick={() => setIsOpen(false)}>
-                    <ShieldCheck /> {t('Admin')}
+                {/* COACH SECTION */}
+                {isCoach && (
+                  <div className='my-2'>
+                    <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Management')}</div>
+                    <NavLink href='/manage/players' onClick={close}>
+                      <Briefcase className="w-4 h-4 text-primary" /> {t('My Players')}
+                    </NavLink>
+                  </div>
+                )}
+
+                {/* GENERAL SECTION */}
+                <div className='my-2'>
+                  <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Play')}</div>
+                  <NavLink href='/rooms' onClick={close}>
+                    <UsersIcon className="w-4 h-4" /> {t('Rooms')}
                   </NavLink>
+                  <NavLink href='/tournaments' onClick={close}>
+                    <TrophyIcon className="w-4 h-4" /> {t('Tournaments')}
+                  </NavLink>
+                </div>
+
+                {/* ADMIN SECTION */}
+                {isSuperAdmin && (
+                  <div className='my-2'>
+                    <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Admin')}</div>
+                    <NavLink href='/admin/users' onClick={close}>
+                      <ShieldCheck className="w-4 h-4 text-destructive" /> {t('Admin Panel')}
+                    </NavLink>
+                  </div>
                 )}
               </>
             )}
-          </div>
+        </div>
 
-          <div className='mt-2 border-t' />
-
-          <div className='mt-auto p-6 space-y-4'>
+        <div className='p-6 bg-muted/20 border-t space-y-4'>
+            {/* Sport Switcher */}
             <div>
               <div className='mb-2 text-xs font-medium text-muted-foreground'>
                 {t('Sport')}
@@ -113,15 +146,15 @@ const MobileNav = ({
                       variant={active ? 'default' : 'outline'}
                       size='sm'
                       className={cn(
-                        'gap-2',
-                        active && 'ring-2 ring-ring ring-offset-2'
+                        'gap-2 h-8',
+                        active && 'ring-1 ring-offset-1'
                       )}
                       onClick={() => {
                         setSport(k);
-                        setIsOpen(false);
+                        close();
                       }}
                     >
-                      <span className='inline-flex h-4 w-4 items-center justify-center'>
+                      <span className='inline-flex h-3 w-3 items-center justify-center'>
                         {sportConfig[k].icon}
                       </span>
                       <span className='text-xs'>{sportConfig[k].name}</span>
@@ -131,6 +164,7 @@ const MobileNav = ({
               </div>
             </div>
 
+            {/* Lang Switcher */}
             <div>
               <div className='mb-2 text-xs font-medium text-muted-foreground'>
                 {t('Language')}
@@ -143,9 +177,10 @@ const MobileNav = ({
                       key={lng.code}
                       variant={active ? 'default' : 'outline'}
                       size='sm'
+                      className="h-8 text-xs"
                       onClick={() => {
                         i18n.changeLanguage(lng.code);
-                        setIsOpen(false);
+                        close();
                       }}
                     >
                       {lng.label}
@@ -154,7 +189,6 @@ const MobileNav = ({
                 })}
               </div>
             </div>
-          </div>
         </div>
       </SheetContent>
     </Sheet>
@@ -176,11 +210,12 @@ const NavLink = ({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+      className={cn(
+        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         isActive
-          ? 'bg-muted text-foreground'
-          : 'text-muted-foreground hover:bg-muted/50'
-      }`}
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+      )}
     >
       {children}
     </Link>
@@ -189,34 +224,14 @@ const NavLink = ({
 
 export function Navbar() {
   const { t, i18n } = useTranslation();
-  const { user, userProfile, roomRequestCount, loading, logout } = useAuth();
+  const { user, userProfile, roomRequestCount, loading, logout, isGlobalAdmin } = useAuth();
   const router = useRouter();
   const { sport, setSport, config } = useSport();
   const [hasMounted, setHasMounted] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
-
-  useEffect(() => {
-    let canceled = false;
-    (async () => {
-      if (!user) {
-        setIsSuperAdmin(false);
-        return;
-      }
-      try {
-        const ids = await getSuperAdminIds();
-        if (!canceled) setIsSuperAdmin(ids.includes(user.uid));
-      } catch {
-        if (!canceled) setIsSuperAdmin(false);
-      }
-    })();
-    return () => {
-      canceled = true;
-    };
-  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -225,6 +240,9 @@ export function Navbar() {
 
   const friendReqCount = userProfile?.incomingRequests?.length ?? 0;
   const totalReqCount = friendReqCount + roomRequestCount;
+  
+  // Role checks
+  const isCoach = userProfile?.accountType === 'coach' || userProfile?.roles?.includes('coach') || false;
 
   if (!hasMounted) {
     return (
@@ -243,21 +261,23 @@ export function Navbar() {
   return (
     <header className='bg-card border-b sticky top-0 z-50 shadow-sm'>
       <div className='container mx-auto px-4 h-16 flex items-center justify-between'>
-        <div className='flex items-center gap-4'>
-          <MobileNav user={user} t={t} isSuperAdmin={isSuperAdmin} />
+        <div className='flex items-center gap-6'>
+          {/* Mobile Menu Trigger */}
+          <MobileNav user={user} t={t} isSuperAdmin={isGlobalAdmin} isCoach={isCoach} />
+          
+          {/* Logo */}
           <Link
             href='/'
             aria-label={`${config.name}Tracker`}
             className='flex items-center gap-2 text-foreground hover:opacity-80 transition-opacity'
           >
             {config.brandIcon ? (
-              <div className='relative h-9 w-9 md:hidden'>
+              <div className='relative h-8 w-8 md:hidden'>
                 <Image
                   src={config.brandIcon}
                   alt={`${config.name} icon`}
                   fill
                   priority
-                  sizes='(max-width: 767px) 36px, 0px'
                   className='object-contain'
                   quality={100}
                 />
@@ -268,7 +288,7 @@ export function Navbar() {
                   React.cloneElement(config.icon as React.ReactElement, {
                     className: cn(
                       (config.icon as any).props?.className,
-                      'h-9 w-9',
+                      'h-8 w-8',
                       config.theme.primary
                     ),
                     'aria-hidden': true,
@@ -276,63 +296,76 @@ export function Navbar() {
               </span>
             )}
             {config.brandLogo ? (
-              <div className='relative hidden md:block md:h-9 md:w-[160px]'>
+              <div className='relative hidden md:block md:h-8 md:w-[140px]'>
                 <Image
                   src={config.brandLogo}
                   alt={`${config.name} logo`}
                   fill
                   priority
-                  sizes='(min-width: 768px) 160px, 0px'
                   className='object-contain'
                   quality={100}
                 />
               </div>
             ) : (
-              <span className='hidden md:inline-block'>
-                {React.isValidElement(config.icon) &&
+              <span className='hidden md:inline-flex items-center gap-2 font-bold text-xl'>
+                 {React.isValidElement(config.icon) &&
                   React.cloneElement(config.icon as React.ReactElement, {
                     className: cn(
                       (config.icon as any).props?.className,
-                      'h-9 w-9',
+                      'h-6 w-6',
                       config.theme.primary
                     ),
-                    'aria-hidden': true,
                   })}
+                 {config.name}
               </span>
             )}
-            <span className='sr-only'>{`${config.name}Tracker`}</span>
           </Link>
-          <nav className='hidden md:flex items-center gap-2'>
+
+          {/* Desktop Navigation */}
+          <nav className='hidden md:flex items-center gap-1'>
             {user && (
               <>
-                <NavLink href='/rooms' onClick={() => setIsOpen(false)}>
-                  <UsersIcon /> {t('Rooms')}
-                </NavLink>
-                <NavLink href='/tournaments' onClick={() => setIsOpen(false)}>
-                  <TrophyIcon /> {t('Tournaments')}
-                </NavLink>
-                <AdminOnly>
-                  <NavLink href='/admin/users' onClick={() => setIsOpen(false)}>
-                    <UsersIcon /> Admin
-                  </NavLink>
-                </AdminOnly>
+                <DesktopLink href='/rooms' icon={<UsersIcon className="w-4 h-4"/>} label={t('Rooms')} />
+                <DesktopLink href='/tournaments' icon={<TrophyIcon className="w-4 h-4"/>} label={t('Tournaments')} />
+                
+                {/* Separator for specialized roles */}
+                {(isCoach || isGlobalAdmin) && <div className="w-px h-6 bg-border mx-2" />}
+
+                {isCoach && (
+                   <DesktopLink 
+                      href='/manage/players' 
+                      icon={<Briefcase className="w-4 h-4" />} 
+                      label={t('My Players')} 
+                      variant="coach"
+                   />
+                )}
+                
+                {isGlobalAdmin && (
+                   <DesktopLink 
+                      href='/admin/users' 
+                      icon={<ShieldCheck className="w-4 h-4" />} 
+                      label="Admin" 
+                      variant="admin"
+                   />
+                )}
               </>
             )}
           </nav>
         </div>
 
-        <nav className='flex items-center gap-1 sm:gap-2'>
+        {/* Right Actions */}
+        <div className='flex items-center gap-1 sm:gap-2'>
+          {/* Sport Selector (Desktop) */}
           <div className='hidden md:block'>
             <DropdownMenu>
               {user && (
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant='ghost'
-                    className='flex items-center gap-2'
-                    aria-label='Change sport'
+                    className='flex items-center gap-2 text-muted-foreground hover:text-foreground'
                   >
                     {config.icon}
-                    <span className='hidden sm:inline'>{config.name}</span>
+                    <span className='text-sm font-medium'>{config.name}</span>
                   </Button>
                 </DropdownMenuTrigger>
               )}
@@ -351,67 +384,59 @@ export function Navbar() {
             </DropdownMenu>
           </div>
 
+          {/* Language Selector (Desktop) */}
           <div className='hidden md:block'>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  aria-label='Change language'
-                >
+                <Button variant='ghost' size='icon' className='text-muted-foreground'>
                   <Globe className='h-5 w-5' />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align='end'>
-                <DropdownMenuItem onClick={() => i18n.changeLanguage('en')}>
-                  English
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => i18n.changeLanguage('ru')}>
-                  Русский
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => i18n.changeLanguage('fi')}>
-                  Suomi
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => i18n.changeLanguage('ko')}>
-                  한국어
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage('en')}>English</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage('ru')}>Русский</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage('fi')}>Suomi</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage('ko')}>한국어</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
 
           {loading ? (
-            <div className='h-10 w-10 bg-muted rounded-full animate-pulse' />
+            <div className='h-9 w-9 bg-muted rounded-full animate-pulse' />
           ) : user ? (
             <>
+              {/* Notifications */}
               <Link href='/friend-requests'>
                 <Button
                   variant='ghost'
                   size='icon'
-                  aria-label='Requests'
-                  className='relative'
+                  className='relative text-muted-foreground'
+                  aria-label={t('Notifications')}
                 >
                   {totalReqCount > 0 && (
-                    <span className='absolute top-1.5 right-1.5 flex h-3 w-3'>
+                    <span className='absolute top-2 right-2 flex h-2.5 w-2.5'>
                       <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75' />
-                      <span className='relative inline-flex rounded-full h-3 w-3 bg-destructive' />
+                      <span className='relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive' />
                     </span>
                   )}
                   <Bell className='h-5 w-5' />
                 </Button>
               </Link>
+              
+              {/* Profile Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant='ghost'
-                    className='relative h-10 w-10 rounded-full'
+                    className='relative h-9 w-9 rounded-full ml-1'
                   >
-                    <Avatar className='h-9 w-9'>
+                    <Avatar className='h-9 w-9 border'>
                       <AvatarImage src={user.photoURL || undefined} />
                       <AvatarFallback>
                         {user.displayName ? (
                           user.displayName[0].toUpperCase()
                         ) : (
-                          <UserCircle />
+                          <UserCircle className="w-6 h-6" />
                         )}
                       </AvatarFallback>
                     </Avatar>
@@ -420,53 +445,85 @@ export function Navbar() {
                 <DropdownMenuContent className='w-56' align='end' forceMount>
                   <DropdownMenuLabel className='font-normal'>
                     <div className='flex flex-col space-y-1'>
-                      <p className='text-sm font-medium'>
+                      <p className='text-sm font-medium leading-none'>
                         {user.displayName || 'User'}
                       </p>
-                      <p className='text-xs text-muted-foreground'>
+                      <p className='text-xs text-muted-foreground truncate'>
                         {user.email}
                       </p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href={`/profile/${user.uid}`}>
-                      <UserCircle className='mr-2' />
+                    <Link href={`/profile/${user.uid}`} className="cursor-pointer">
+                      <UserCircle className='mr-2 h-4 w-4' />
                       <span>{t('Profile')}</span>
                     </Link>
                   </DropdownMenuItem>
-                  {isSuperAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link href='/admin/users'>
-                        <ShieldCheck className='mr-2' />
-                        <span>{t('Admin')}</span>
+                  
+                  {isCoach && (
+                     <DropdownMenuItem asChild>
+                      <Link href='/manage/players' className="cursor-pointer">
+                        <Briefcase className='mr-2 h-4 w-4' />
+                        <span>{t('My Players')}</span>
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogIn className='mr-2' />
+
+                  {isGlobalAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href='/admin/users' className="cursor-pointer">
+                        <ShieldCheck className='mr-2 h-4 w-4 text-destructive' />
+                        <span>{t('Admin Panel')}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+                    <LogIn className='mr-2 h-4 w-4' />
                     <span>{t('Log out')}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
           ) : (
-            <>
-              <Button variant='ghost' asChild>
+            <div className="flex gap-2">
+              <Button variant='ghost' size="sm" asChild>
                 <Link href='/login'>{t('Login')}</Link>
               </Button>
-              <Button asChild>
+              <Button size="sm" asChild>
                 <Link href='/register'>{t('Register')}</Link>
               </Button>
-            </>
+            </div>
           )}
-        </nav>
+        </div>
       </div>
     </header>
   );
 }
 
-function AdminOnly({ children }: { children: React.ReactNode }) {
-  const { isGlobalAdmin } = useAuth();
-  return isGlobalAdmin ? <>{children}</> : null;
+// Helper for desktop links
+function DesktopLink({ href, icon, label, variant = 'default' }: { href: string; icon: React.ReactNode; label: string; variant?: 'default' | 'admin' | 'coach' }) {
+  const pathname = usePathname();
+  const isActive = pathname.startsWith(href);
+  
+  const colors = {
+     default: isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+     admin: isActive ? 'text-destructive bg-destructive/10' : 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+     coach: isActive ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950/30' : 'text-muted-foreground hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/30',
+  }
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all",
+        colors[variant]
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+    </Link>
+  )
 }

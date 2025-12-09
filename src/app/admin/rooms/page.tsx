@@ -1,3 +1,4 @@
+// src/app/admin/rooms/page.tsx
 'use client';
 
 import { collection, doc, getDoc, getDocs, query } from 'firebase/firestore';
@@ -6,11 +7,11 @@ import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';

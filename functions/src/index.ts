@@ -1,10 +1,11 @@
+// functions/src/index.ts
 import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import {
-  CallableRequest,
-  HttpsError,
-  onCall,
+	CallableRequest,
+	HttpsError,
+	onCall,
 } from 'firebase-functions/v2/https';
 import { genkit, z } from 'genkit';
 import { SPORT_COLLECTIONS } from './config';

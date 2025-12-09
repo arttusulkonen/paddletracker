@@ -1,15 +1,15 @@
-
+// src/app/mobile/page.tsx
 'use client';
 
 import { RoomCard } from '@/components/rooms/RoomCard';
 import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Input,
+	Button,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+	Input,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
@@ -18,13 +18,13 @@ import { db } from '@/lib/firebase';
 import type { Room } from '@/lib/types';
 import { parseFlexDate } from '@/lib/utils/date';
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  where,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	onSnapshot,
+	query,
+	where,
 } from 'firebase/firestore';
 import { Plus, SearchIcon, UsersIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -69,10 +69,14 @@ export default function MobileHomePage() {
     const roomsCollectionName = config.collections.rooms;
     const roomsMap = new Map<string, any>();
 
-    const processRooms = async (roomMap: Map<string, any>): Promise<AnyRoom[]> => {
+    const processRooms = async (
+      roomMap: Map<string, any>
+    ): Promise<AnyRoom[]> => {
       let list = Array.from(roomMap.values());
 
-      const creatorIds = [...new Set(list.map((r) => r.creator).filter(Boolean))];
+      const creatorIds = [
+        ...new Set(list.map((r) => r.creator).filter(Boolean)),
+      ];
       const creatorNameMap: Record<string, string> = {};
       if (creatorIds.length > 0) {
         const creatorDocs = await Promise.all(
@@ -186,7 +190,10 @@ export default function MobileHomePage() {
       if (!debounced) return true;
       const name = (r.name || '').toLowerCase();
       const creator = (r.creatorName || '').toLowerCase();
-      return name.includes(debounced.toLowerCase()) || creator.includes(debounced.toLowerCase());
+      return (
+        name.includes(debounced.toLowerCase()) ||
+        creator.includes(debounced.toLowerCase())
+      );
     });
 
     return filtered.sort((a, b) => {
@@ -222,62 +229,64 @@ export default function MobileHomePage() {
   if (!hasMounted) return null;
 
   return (
-    <div className="container mx-auto py-4 px-2">
-      <Card className="mb-4 shadow-lg">
+    <div className='container mx-auto py-4 px-2'>
+      <Card className='mb-4 shadow-lg'>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UsersIcon className="h-6 w-6 text-primary" />
+          <CardTitle className='flex items-center gap-2'>
+            <UsersIcon className='h-6 w-6 text-primary' />
             {t('Your Rooms')}
           </CardTitle>
           <CardDescription>
-            {t('Enter a room to record matches, view standings, and invite friends.')}
+            {t(
+              'Enter a room to record matches, view standings, and invite friends.'
+            )}
           </CardDescription>
 
-          <div className="relative mt-3">
+          <div className='relative mt-3'>
             <SearchIcon
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"
+              className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground'
               aria-hidden
             />
             <Input
               placeholder={t('Search by name or creator…')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full"
+              className='pl-10 w-full'
               aria-label={t('Search rooms')}
-              inputMode="search"
+              inputMode='search'
             />
           </div>
         </CardHeader>
 
         <CardContent>
           {isLoadingRooms ? (
-            <div className="flex items-center justify-center h-40">
-              <div className="animate-spin h-12 w-12 rounded-full border-b-2 border-primary" />
+            <div className='flex items-center justify-center h-40'>
+              <div className='animate-spin h-12 w-12 rounded-full border-b-2 border-primary' />
             </div>
           ) : displayRooms.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 p-1">
+            <div className='grid grid-cols-1 gap-4 p-1'>
               {displayRooms.map((r) => (
                 <RoomCard
                   key={r.id}
                   room={r}
                   myMatches={myMatches[r.id]}
                   myRating={roomRating[r.id]}
-                  hrefBase="/mobile/rooms"
+                  hrefBase='/mobile/rooms'
                 />
               ))}
             </div>
           ) : (
-            <div className="text-center text-muted-foreground py-8 space-y-4">
+            <div className='text-center text-muted-foreground py-8 space-y-4'>
               <p>
                 {debounced
                   ? t('No rooms match your search.')
                   : t('You are not a member of any rooms yet.')}
               </p>
               {!debounced && (
-                <div className="flex justify-center">
+                <div className='flex justify-center'>
                   <Button asChild>
-                    <a href="/rooms" className="inline-flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
+                    <a href='/rooms' className='inline-flex items-center gap-2'>
+                      <Plus className='h-4 w-4' />
                       {t('Browse public rooms')}
                     </a>
                   </Button>

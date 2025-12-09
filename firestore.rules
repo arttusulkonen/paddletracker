@@ -1,8 +1,51 @@
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{db}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+  match /databases/{database}/documents {
+
+    // --- ФУНКЦИИ-ПОМОЩНИКИ ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- КОЛЛЕКЦИЯ USERS ---
+    match /users/{userId} {
+      allow read: if isOwner(userId) 
+                  // Публичные профили видны всем
+                  || resource.data.isPublic == true 
+                  // Призрачные профили видны всем (для инвайтов)
+                  || resource.data.isGhost == true
+                  // Тренер видит своих игроков
+                  || resource.data.managedBy == request.auth.uid
+                  // Друзья видят друг друга (даже если приватный)
+                  || (resource.data.friends is list && request.auth.uid in resource.data.friends);
+
+      // Писать/обновлять может любой авторизованный (для добавления в комнаты/друзья)
+      allow write: if isSignedIn();
+    }
+
+    // --- КОЛЛЕКЦИЯ COMMUNITIES ---
+    match /communities/{communityId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // --- КОЛЛЕКЦИИ КОМНАТ ---
+    match /rooms-pingpong/{roomId} { allow read: if true; allow write: if isSignedIn(); }
+    match /rooms-tennis/{roomId}   { allow read: if true; allow write: if isSignedIn(); }
+    match /rooms-badminton/{roomId}{ allow read: if true; allow write: if isSignedIn(); }
+
+    // --- КОЛЛЕКЦИИ МАТЧЕЙ ---
+    match /matches-pingpong/{matchId} { allow read: if true; allow write: if isSignedIn(); }
+    match /matches-tennis/{matchId}   { allow read: if true; allow write: if isSignedIn(); }
+    match /matches-badminton/{matchId}{ allow read: if true; allow write: if isSignedIn(); }
+
+    // --- СИСТЕМНЫЕ КОНФИГИ ---
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
     }
   }
 }

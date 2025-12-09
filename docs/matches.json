@@ -1,0 +1,48 @@
+{
+  "_id": "string (MatchID)",
+  "roomId": "string (RoomID)",
+  "createdAt": "string (Format: DD.MM.YYYY HH.mm.ss)",
+  "timestamp": "string (Format: DD.MM.YYYY HH.mm.ss)",
+  "tsIso": "string (ISO 8601)",
+  "isRanked": "boolean",
+  "isTournament": "boolean (Optional)",
+  "tournamentId": "string (Optional)",
+  "tournamentName": "string (Optional)",
+  "tournamentStage": "string (Optional, e.g. 'final')",
+  "playedAt": "string (ISO 8601, Optional)",
+  "winner": "string (Player Name)",
+
+  "players": ["string (UID Player 1)", "string (UID Player 2)"],
+  "player1Id": "string (UID)",
+  "player2Id": "string (UID)",
+
+  "player1": {
+    "name": "string",
+    "scores": "number",
+    "side": "string ('left' | 'right' | undefined)",
+
+    // Global ELO changes
+    "oldRating": "number",
+    "newRating": "number",
+    "addedPoints": "number",
+
+    // Room ELO changes
+    "roomOldRating": "number",
+    "roomNewRating": "number",
+    "roomAddedPoints": "number"
+  },
+
+  "player2": {
+    "name": "string",
+    "scores": "number",
+    "side": "string ('left' | 'right' | undefined)",
+
+    "oldRating": "number",
+    "newRating": "number",
+    "addedPoints": "number",
+
+    "roomOldRating": "number",
+    "roomNewRating": "number",
+    "roomAddedPoints": "number"
+  }
+}

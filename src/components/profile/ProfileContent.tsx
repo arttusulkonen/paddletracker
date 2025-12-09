@@ -1,57 +1,55 @@
+// src/components/profile/ProfileContent.tsx
 'use client';
 
 import AchievementsPanel from '@/components/AchievementsPanel';
 import ProfileCharts from '@/components/profile/ProfileCharts';
-import { RankedInsights } from '@/components/RankedInsights'; // <--- Импорт
+import { RankedInsights } from '@/components/RankedInsights';
 import {
-  Badge,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Label,
-  ScrollArea,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Badge,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	Label,
+	ScrollArea,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, SportConfig, sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Match, Room, UserProfile } from '@/lib/types';
-import { safeFormatDate } from '@/lib/utils/date';
+import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
 import {
-  buildInsights,
-  computeSideStats,
-  computeStats,
-  groupByMonth,
-  opponentStats,
+	buildInsights,
+	computeSideStats,
+	computeStats,
+	groupByMonth,
+	opponentStats,
 } from '@/lib/utils/profileUtils';
 import { doc, getDoc } from 'firebase/firestore';
 import {
-  BarChart,
-  CornerUpLeft,
-  CornerUpRight,
-  Flame,
-  LineChart as LineChartIcon,
-  ListOrdered,
-  Lock,
-  Percent,
-  Trophy,
+	BarChart,
+	CornerUpLeft,
+	CornerUpRight,
+	Flame,
+	LineChart as LineChartIcon,
+	ListOrdered,
+	Lock,
+	Percent,
+	Trophy,
 } from 'lucide-react';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-// ... (типы ProfileContentProps и компоненты StatCard, StatItem, TennisStatsCard, DetailedStatsCard, MatchesTableCard оставляем без изменений, они у вас правильные) ...
-// Я приведу только начало и конец основного компонента, чтобы вы видели, куда вставить RankedInsights
 
 interface ProfileContentProps {
   canViewProfile: boolean;
@@ -77,11 +75,6 @@ interface ProfileContentProps {
   tennisStats: any | null;
   achievements: any[];
 }
-
-// ... (Вспомогательные компоненты StatCard и другие оставляем как есть) ...
-
-// --- Вспомогательные компоненты (если их нет в файле, добавьте их обратно из вашего старого кода, они были верными) ---
-// (Для краткости я их пропущу, так как ошибка была только в рендере инсайтов)
 
 const TennisStatsCard: FC<{
   stats: any;

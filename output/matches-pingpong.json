@@ -1,0 +1,129 @@
+{
+  "meta": {
+    "collection": "matches-pingpong",
+    "totalDocs": 3021,
+    "exportedAt": "2025-12-09T11:13:36.810Z",
+    "variationsCount": 2
+  },
+  "latest": {
+    "_note": "LATEST DOCUMENT (Date: 2025-12-04T15:16:48.000Z)",
+    "_id": "UEZ8TUgqBJ3rTYDEYy6S",
+    "roomId": "Tr6Tf7oXBr8pGWxuspUD",
+    "createdAt": "04.12.2025 17.16.48",
+    "timestamp": "04.12.2025 17.16.48",
+    "tsIso": "2025-12-04T15:16:46.810Z",
+    "isRanked": true,
+    "player1Id": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+    "player2Id": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+    "players": [
+      "emy5n4URBVUTVLfC72cwiJpOvrF2",
+      "NoYtP49TLoUHOiNEcknW63cw2mw2"
+    ],
+    "player1": {
+      "name": "Moon",
+      "scores": 9,
+      "oldRating": 1131,
+      "newRating": 1118,
+      "addedPoints": -13,
+      "roomOldRating": 989,
+      "roomNewRating": 977,
+      "roomAddedPoints": -12,
+      "side": "right"
+    },
+    "player2": {
+      "name": "Arttu",
+      "scores": 11,
+      "oldRating": 1192,
+      "newRating": 1205,
+      "addedPoints": 13,
+      "roomOldRating": 1012,
+      "roomNewRating": 1027,
+      "roomAddedPoints": 15,
+      "side": "left"
+    },
+    "winner": "Arttu"
+  },
+  "allStructureVariations": [
+    {
+      "_note": "Structure Variant (Keys: _id|createdAt|isRanked|player1|player1Id|player2|player2Id|players|roomId|timestamp|tsIso|winner)",
+      "_id": "UEZ8TUgqBJ3rTYDEYy6S",
+      "roomId": "Tr6Tf7oXBr8pGWxuspUD",
+      "createdAt": "04.12.2025 17.16.48",
+      "timestamp": "04.12.2025 17.16.48",
+      "tsIso": "2025-12-04T15:16:46.810Z",
+      "isRanked": true,
+      "player1Id": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+      "player2Id": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+      "players": [
+        "emy5n4URBVUTVLfC72cwiJpOvrF2",
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ],
+      "player1": {
+        "name": "Moon",
+        "scores": 9,
+        "oldRating": 1131,
+        "newRating": 1118,
+        "addedPoints": -13,
+        "roomOldRating": 989,
+        "roomNewRating": 977,
+        "roomAddedPoints": -12,
+        "side": "right"
+      },
+      "player2": {
+        "name": "Arttu",
+        "scores": 11,
+        "oldRating": 1192,
+        "newRating": 1205,
+        "addedPoints": 13,
+        "roomOldRating": 1012,
+        "roomNewRating": 1027,
+        "roomAddedPoints": 15,
+        "side": "left"
+      },
+      "winner": "Arttu"
+    },
+    {
+      "_note": "Structure Variant (Keys: _id|createdAt|isRanked|isTournament|playedAt|player1|player1Id|player2|player2Id|players|roomId|timestamp|tournamentId|tournamentName|tournamentStage|tsIso|winner)",
+      "_id": "tKzNdWHv7cefEktmIGps",
+      "tournamentId": "56KzkQsIsdvHqXXEfpfq",
+      "tournamentName": "4",
+      "tournamentStage": "final",
+      "isTournament": true,
+      "timestamp": "18.05.2025 11.19.28",
+      "playedAt": "2025-05-18T08:19:28.940Z",
+      "roomId": "56KzkQsIsdvHqXXEfpfq",
+      "players": [
+        "MYjQu3t0dNPKys041E64sDLgV2t1",
+        "34ga410whbMHfsaBz41skYrlpPG3"
+      ],
+      "player1Id": "MYjQu3t0dNPKys041E64sDLgV2t1",
+      "player2Id": "34ga410whbMHfsaBz41skYrlpPG3",
+      "createdAt": "18.05.2025 11.19.28",
+      "isRanked": true,
+      "tsIso": "2025-05-18T08:19:28.000Z",
+      "winner": "Deleted User",
+      "player1": {
+        "name": "Deleted User",
+        "scores": 11,
+        "side": "left",
+        "oldRating": 1020,
+        "newRating": 1034,
+        "addedPoints": 14,
+        "roomOldRating": 1000,
+        "roomNewRating": 1016,
+        "roomAddedPoints": 16
+      },
+      "player2": {
+        "name": "Deleted User",
+        "scores": 2,
+        "side": "right",
+        "oldRating": 981,
+        "newRating": 967,
+        "addedPoints": -14,
+        "roomOldRating": 1000,
+        "roomNewRating": 987,
+        "roomAddedPoints": -13
+      }
+    }
+  ]
+}

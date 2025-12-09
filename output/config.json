@@ -1,0 +1,24 @@
+{
+  "meta": {
+    "collection": "config",
+    "totalDocs": 1,
+    "exportedAt": "2025-12-09T11:13:35.784Z",
+    "variationsCount": 1
+  },
+  "latest": {
+    "_note": "LATEST DOCUMENT (Date: 1970-01-01T00:00:00.000Z)",
+    "_id": "app",
+    "superAdminIds": [
+      "NoYtP49TLoUHOiNEcknW63cw2mw2"
+    ]
+  },
+  "allStructureVariations": [
+    {
+      "_note": "Structure Variant (Keys: _id|superAdminIds)",
+      "_id": "app",
+      "superAdminIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ]
+    }
+  ]
+}

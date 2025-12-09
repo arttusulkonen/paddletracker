@@ -5,12 +5,11 @@ import PlayersTable from '@/components/PlayersTable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { WrapAnnouncement } from '@/components/WrapAnnouncement';
@@ -20,43 +19,54 @@ import { db } from '@/lib/firebase';
 import type { Room } from '@/lib/types';
 import { getRank, medalMap } from '@/lib/utils/profileUtils';
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	limit,
+	orderBy,
+	query,
+	where,
 } from 'firebase/firestore';
 import {
-  ArrowRight,
-  BarChart2,
-  Briefcase,
-  Compass,
-  Gamepad2,
-  Handshake,
-  History,
-  LogIn,
-  Medal,
-  Network,
-  Play,
-  Rocket,
-  Search,
-  Shield,
-  Swords,
-  Target,
-  Trophy,
-  User,
-  UserPlus,
-  Users,
-  Zap,
+	ArrowRight,
+	BarChart2,
+	Briefcase,
+	Compass,
+	Gamepad2,
+	History,
+	LogIn,
+	Medal,
+	Network,
+	Play,
+	Rocket,
+	Shield,
+	Target,
+	Trophy,
+	User,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+// --- Helpers ---
+const AI_CUTOFF_DATE = new Date('2025-12-01').getTime();
+
+const parseCreatedAt = (dateStr?: string) => {
+  if (!dateStr) return 0;
+  // Пытаемся распарсить финский формат "DD.MM.YYYY"
+  const parts = dateStr.split(' ');
+  const dateParts = parts[0].split('.');
+  if (dateParts.length === 3) {
+    const d = new Date(+dateParts[2], +dateParts[1] - 1, +dateParts[0]);
+    return d.getTime();
+  }
+  // Если формат другой, пробуем стандартный парсер
+  const iso = Date.parse(dateStr);
+  return isNaN(iso) ? 0 : iso;
+};
 
 // --- Components ---
 
@@ -102,7 +112,7 @@ const DefaultSportSelector = () => {
             <button
               key={sportKey}
               onClick={() => updateActiveSport(sportKey)}
-              className='group relative overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-lg hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'
+              className='group relative overflow-hidden rounded-2xl bg-card text-card-foreground shadow-lg transition-all hover:shadow-lg hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'
             >
               <div className='p-6 flex flex-col items-center h-full'>
                 <div
@@ -133,6 +143,7 @@ const DefaultSportSelector = () => {
 
 const Dashboard = () => {
   const { t } = useTranslation();
+  const router = useRouter();
   const { user, userProfile } = useAuth();
   const { sport, config } = useSport();
   const [lastActiveRoom, setLastActiveRoom] = useState<
@@ -149,20 +160,7 @@ const Dashboard = () => {
   const elo = sportProfile?.globalElo ?? 1000;
 
   // Rank Logic
-  const rankKey =
-    elo < 1001
-      ? 'Ping-Pong Padawan'
-      : elo < 1100
-      ? 'Table-Tennis Trainee'
-      : elo < 1200
-      ? 'Racket Rookie'
-      : elo < 1400
-      ? 'Paddle Prodigy'
-      : elo < 1800
-      ? 'Spin Sensei'
-      : elo < 2000
-      ? 'Smash Samurai'
-      : 'Ping-Pong Paladin';
+  const rankKey = getRank(elo);
   const rankLabel = t(rankKey);
   const medalSrc = medalMap[rankKey];
 
@@ -171,7 +169,7 @@ const Dashboard = () => {
   const nextRankElo = thresholds.find((t) => t > elo) || 3000;
   const prevRankElo =
     [...thresholds].reverse().find((t) => t <= elo) || (elo < 1001 ? 0 : 1000);
-  const pointsNeeded = nextRankElo - elo;
+  // const pointsNeeded = nextRankElo - elo; 
   const progress = Math.min(
     100,
     Math.max(0, ((elo - prevRankElo) / (nextRankElo - prevRankElo || 1)) * 100)
@@ -179,6 +177,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchLastActiveRoom = async () => {
+      setLastActiveRoom(null); // Reset on sport change
+      
       if (!user || !db || !userProfile) {
         setIsFetchingRoom(false);
         return;
@@ -216,258 +216,161 @@ const Dashboard = () => {
     fetchLastActiveRoom();
   }, [user, userProfile, sport, config]);
 
+  const handleRecordMatch = () => {
+    // 1. Проверяем, есть ли активная комната
+    if (lastActiveRoom) {
+      router.push(`/rooms/${lastActiveRoom.id}`);
+      return;
+    }
+
+    // 2. Если комнаты нет, проверяем дату регистрации пользователя
+    const createdTs = parseCreatedAt(userProfile?.createdAt);
+    const isNewUser = createdTs >= AI_CUTOFF_DATE;
+
+    if (isNewUser) {
+      // Новых пользователей отправляем выбирать комнату
+      router.push('/rooms');
+    } else {
+      // Старых пользователей отправляем к AI (триггерим событие)
+      window.dispatchEvent(new CustomEvent('open-ai-assistant'));
+    }
+  };
+
   return (
     <div className='animate-in fade-in duration-500 space-y-8'>
-      {/* HERO GRID: Profile & Quick Actions */}
-      <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-        {/* 1. Main Player Card (Left 2/3) */}
-        <Card className='lg:col-span-2 shadow-lg border-none overflow-hidden relative flex flex-col justify-between'>
-          {/* Gradient Header */}
-          <div
-            className={`absolute top-0 left-0 w-full h-28 bg-gradient-to-r ${config.theme.gradientFrom} ${config.theme.gradientTo} opacity-10`}
-          />
-
-          <CardHeader className='relative pt-8 pb-2'>
-            <div className='flex flex-col sm:flex-row items-center sm:items-start gap-5'>
-              <Avatar className='h-24 w-24 border-4 border-background shadow-xl'>
-                <AvatarImage src={userProfile?.photoURL || undefined} />
-                <AvatarFallback className='text-2xl bg-primary/10 text-primary'>
+      {/* 1. PLAYER HERO CARD */}
+      <Card className='border-none shadow-lg overflow-hidden bg-card relative'>
+        <div
+          className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${config.theme.gradientFrom} ${config.theme.gradientTo}`}
+        />
+        <div className='p-6 sm:p-8 flex flex-col md:flex-row gap-8 items-start md:items-center'>
+          
+          {/* Avatar & Rank */}
+          <div className='flex items-center gap-5'>
+            <div className='relative'>
+              <Avatar className='h-24 w-24 border-4 border-background shadow-md overflow-hidden bg-muted'>
+                <AvatarImage src={userProfile?.photoURL || undefined} className="object-cover" />
+                <AvatarFallback className='text-3xl bg-muted'>
                   {userProfile?.name?.[0]}
                 </AvatarFallback>
               </Avatar>
-
-              <div className='flex-1 text-center sm:text-left space-y-1 mt-2'>
-                <div className='flex items-center justify-center sm:justify-between w-full'>
-                  <CardTitle className='text-3xl font-bold'>
-                    {userProfile?.name}
-                  </CardTitle>
-                  <div className='hidden sm:block text-right'>
-                    <div className='text-4xl font-black text-primary tracking-tight'>
-                      {elo.toFixed(0)}
-                    </div>
-                    <div className='text-[10px] uppercase font-bold text-muted-foreground tracking-wider'>
-                      {t('Global ELO')}
-                    </div>
-                  </div>
-                </div>
-
-                <div className='flex items-center justify-center sm:justify-start gap-2 text-muted-foreground'>
-                  {medalSrc && (
-                    <Image
-                      src={medalSrc}
-                      alt='Rank'
-                      width={20}
-                      height={20}
-                      className='drop-shadow-sm'
-                    />
-                  )}
-                  <span className='font-medium text-sm'>{rankLabel}</span>
-                </div>
-
-                {/* Mobile ELO display */}
-                <div className='sm:hidden mt-2'>
-                  <span className='text-3xl font-black text-primary'>
-                    {elo.toFixed(0)}
-                  </span>
-                  <span className='text-xs text-muted-foreground ml-2'>
-                    {t('ELO')}
-                  </span>
-                </div>
+            </div>
+            <div>
+              <h1 className='text-3xl font-bold tracking-tight'>
+                {userProfile?.name}
+              </h1>
+              <div className='flex items-center gap-2 text-muted-foreground font-medium'>
+                <span>{rankLabel}</span>
+                <span className='w-1 h-1 bg-muted-foreground/40 rounded-full' />
+                <span className='text-primary font-bold'>{elo.toFixed(0)} ELO</span>
               </div>
             </div>
-          </CardHeader>
-
-          <CardContent className='space-y-6 pt-6'>
-            {/* Stats Grid */}
-            <div className='grid grid-cols-3 gap-4 text-center'>
-              <div className='p-3 rounded-xl bg-muted/40 border'>
-                <div className='text-2xl font-bold text-foreground'>
-                  {matchesPlayed}
-                </div>
-                <div className='text-[10px] uppercase tracking-wider text-muted-foreground font-semibold'>
-                  {t('Matches')}
-                </div>
-              </div>
-              <div className='p-3 rounded-xl bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900'>
-                <div className='text-2xl font-bold text-green-600 dark:text-green-400'>
-                  {wins}
-                </div>
-                <div className='text-[10px] uppercase tracking-wider text-muted-foreground font-semibold'>
-                  {t('Wins')}
-                </div>
-              </div>
-              <div className='p-3 rounded-xl bg-muted/40 border'>
-                <div className='text-2xl font-bold text-foreground'>
-                  {winRate}%
-                </div>
-                <div className='text-[10px] uppercase tracking-wider text-muted-foreground font-semibold'>
-                  {t('Win Rate')}
-                </div>
-              </div>
-            </div>
-
-            {/* Next Milestone (Integrated) */}
-            <div className='bg-muted/30 p-4 rounded-xl border border-dashed'>
-              <div className='flex justify-between items-center mb-2'>
-                <div className='flex items-center gap-2'>
-                  <Target className='h-4 w-4 text-primary' />
-                  <span className='text-sm font-semibold'>
-                    {t('Next Rank')}
-                  </span>
-                </div>
-                <span className='text-xs font-medium text-muted-foreground'>
-                  {pointsNeeded} {t('pts to go')}
-                </span>
-              </div>
-              <Progress value={progress} className='h-2.5' />
-              <div className='flex justify-between mt-1.5 text-[10px] text-muted-foreground font-medium uppercase tracking-wide'>
-                <span>{prevRankElo}</span>
-                <span>{nextRankElo}</span>
-              </div>
-            </div>
-          </CardContent>
-
-          {/* Actions Footer */}
-          <div className='bg-muted/30 p-4 flex flex-wrap gap-3 items-center border-t mt-auto'>
-            {lastActiveRoom ? (
-              <Button className='flex-1 gap-2 shadow-sm h-10' asChild>
-                <Link href={`/rooms/${lastActiveRoom.id}`}>
-                  <Play className='h-4 w-4 fill-current' />
-                  {t('Jump back into: {{room}}', { room: lastActiveRoom.name })}
-                </Link>
-              </Button>
-            ) : (
-              <Button className='flex-1 gap-2 shadow-sm h-10' asChild>
-                <Link href='/rooms'>
-                  <Rocket className='h-4 w-4' />
-                  {t('Play a Match')}
-                </Link>
-              </Button>
-            )}
-            <Button variant='secondary' className='gap-2 h-10 px-5' asChild>
-              <Link href={`/profile/${user?.uid}`}>
-                <User className='h-4 w-4' />
-                {t('Profile')}
-              </Link>
-            </Button>
-            <Button
-              variant='outline'
-              size='icon'
-              className='flex-1 h-10 w-10'
-              asChild
-              title={t('Wrap 2025')}
-            >
-              <Link href='/wrap'>
-                <History className='h-4 w-4' />
-                {t('Wrap')} {new Date().getFullYear()}
-              </Link>
-            </Button>
           </div>
-        </Card>
 
-        {/* 2. Sidebar (Right 1/3): Quick Navigation */}
-        <div className='flex flex-col gap-6'>
-          <Card className='h-full flex flex-col shadow-md border-l-4 border-l-primary'>
-            <CardHeader className='pb-4'>
-              <CardTitle className='text-lg flex items-center gap-2'>
-                <Zap className='h-5 w-5 text-amber-500' />
-                {t('Quick Actions')}
-              </CardTitle>
-              <CardDescription>{t('Jump to key areas')}</CardDescription>
-            </CardHeader>
-            <CardContent className='grid gap-3 flex-1'>
-              <Link
-                href='/rooms'
-                className='group flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-all border hover:border-primary/30'
-              >
-                <div className='flex items-center gap-3'>
-                  <div className='p-2 bg-blue-100 dark:bg-blue-900/30 rounded-md text-blue-600 group-hover:scale-110 transition-transform'>
-                    <Search size={18} />
-                  </div>
-                  <div className='flex flex-col'>
-                    <span className='font-medium text-sm'>
-                      {t('Find a Room')}
-                    </span>
-                    <span className='text-xs text-muted-foreground'>
-                      {t('Join leagues')}
-                    </span>
-                  </div>
-                </div>
-                <ArrowRight
-                  size={16}
-                  className='text-muted-foreground group-hover:text-primary transition-colors'
-                />
-              </Link>
-
-              <Link
-                href='/tournaments'
-                className='group flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-all border hover:border-primary/30'
-              >
-                <div className='flex items-center gap-3'>
-                  <div className='p-2 bg-amber-100 dark:bg-amber-900/30 rounded-md text-amber-600 group-hover:scale-110 transition-transform'>
-                    <Trophy size={18} />
-                  </div>
-                  <div className='flex flex-col'>
-                    <span className='font-medium text-sm'>
-                      {t('Tournaments')}
-                    </span>
-                    <span className='text-xs text-muted-foreground'>
-                      {t('Compete')}
-                    </span>
-                  </div>
-                </div>
-                <ArrowRight
-                  size={16}
-                  className='text-muted-foreground group-hover:text-primary transition-colors'
-                />
-              </Link>
-
-              <Link
-                href='/friend-requests'
-                className='group flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-all border hover:border-primary/30'
-              >
-                <div className='flex items-center gap-3'>
-                  <div className='p-2 bg-violet-100 dark:bg-violet-900/30 rounded-md text-violet-600 group-hover:scale-110 transition-transform'>
-                    <UserPlus size={18} />
-                  </div>
-                  <div className='flex flex-col'>
-                    <span className='font-medium text-sm'>{t('Requests')}</span>
-                    <span className='text-xs text-muted-foreground'>
-                      {t('Manage friends')}
-                    </span>
-                  </div>
-                </div>
-                <ArrowRight
-                  size={16}
-                  className='text-muted-foreground group-hover:text-primary transition-colors'
-                />
-              </Link>
-            </CardContent>
-
-            {/* Mini Tip or Callout at bottom of sidebar */}
-            <div className='p-4 mt-auto bg-muted/20 border-t text-xs text-muted-foreground text-center'>
-              {t('Tip: Join a room to start ranking up!')}
+          {/* Key Stats */}
+          <div className='flex-1 grid grid-cols-3 gap-2 w-full md:w-auto md:border-l md:pl-8'>
+            <div className='text-center md:text-left'>
+              <div className='text-2xl font-bold'>{matchesPlayed}</div>
+              <div className='text-[10px] uppercase text-muted-foreground font-bold tracking-wider'>{t('Matches')}</div>
             </div>
+            <div className='text-center md:text-left'>
+              <div className='text-2xl font-bold text-green-600'>{wins}</div>
+              <div className='text-[10px] uppercase text-muted-foreground font-bold tracking-wider'>{t('Wins')}</div>
+            </div>
+            <div className='text-center md:text-left'>
+              <div className='text-2xl font-bold'>{winRate}%</div>
+              <div className='text-[10px] uppercase text-muted-foreground font-bold tracking-wider'>{t('Win Rate')}</div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className='flex flex-col sm:flex-row gap-3 w-full md:w-auto min-w-[200px]'>
+            <Button size='lg' className='w-full shadow-md gap-2' onClick={handleRecordMatch}>
+              <Rocket size={18} /> {t('Record Match')}
+            </Button>
+            <div className='flex gap-2'>
+              <Button variant='outline' className='flex-1 gap-2' asChild title={t('Wrap 2025')}>
+                <Link href='/wrap'>
+                  <History size={18} /> {t('Wrap')}
+                </Link>
+              </Button>
+              <Button variant='outline' size='icon' asChild title={t('Profile')}>
+                <Link href={`/profile/${user?.uid}`}>
+                  <User size={18} />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Bar Footer */}
+        <div className='bg-muted/30 px-6 py-2 border-t flex items-center justify-between text-xs font-medium text-muted-foreground'>
+          <div className="flex items-center gap-2">
+             <Target className="h-3 w-3" />
+             <span>{elo.toFixed(0)}</span>
+          </div>
+          <div className='flex-1 mx-4 max-w-md'>
+            <Progress value={progress} className='h-2' />
+          </div>
+          <div className='flex items-center gap-1'>
+            <span>{nextRankElo}</span>
+            <span className='opacity-60'>({t('Next Rank')})</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* JUMP BACK IN BANNER */}
+      {lastActiveRoom && (
+        <div className='animate-in slide-in-from-top-2 fade-in'>
+          <Card className='bg-primary/5 border-primary/20 hover:border-primary/40 transition-colors'>
+            <CardContent className='p-4 flex items-center justify-between'>
+              <div className='flex items-center gap-3'>
+                <div className='bg-primary/10 p-2 rounded-full text-primary'>
+                  <Play className='h-5 w-5 fill-current' />
+                </div>
+                <div>
+                  <div className='font-semibold'>{t('Continue Playing')}</div>
+                  <div className='text-sm text-muted-foreground'>
+                    {t('Jump back into: {{room}}', { room: lastActiveRoom.name })}
+                  </div>
+                </div>
+              </div>
+              <Button size='sm' asChild>
+                <Link href={`/rooms/${lastActiveRoom.id}`}>
+                  {t('Open Room')} <ArrowRight className='ml-2 h-4 w-4' />
+                </Link>
+              </Button>
+            </CardContent>
           </Card>
         </div>
-      </div>
+      )}
 
-      {/* SECONDARY ROW: Tables & Feeds */}
+      {/* MAIN CONTENT GRID */}
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
-        {/* Leaderboard (Left 2/3) */}
+        
+        {/* LEFT COL: Leaderboard */}
         <div className='lg:col-span-2 space-y-6'>
-          <PlayersTable sport={sport} />
+
+          <Card className='shadow-lg border-none overflow-hidden'>
+            <PlayersTable sport={sport} />
+          </Card>
         </div>
 
-        {/* Live Feed (Right 1/3) */}
+        {/* RIGHT COL: Live Feed */}
         <div className='space-y-6'>
           <LiveFeed />
+          
+          <div className='pt-4 border-t flex flex-wrap justify-center gap-6 text-xs text-muted-foreground opacity-50 hover:opacity-100 transition-opacity'>
+             <Link href="/privacy" className='hover:text-primary transition-colors'>{t('Privacy Policy')}</Link>
+             <Link href="/terms" className='hover:text-primary transition-colors'>{t('Terms of Service')}</Link>
+          </div>
         </div>
       </div>
 
-      {/* Onboarding (Only if 0 matches) */}
+      {/* ONBOARDING (Empty State) */}
       {matchesPlayed === 0 && (
-        <div className='fixed bottom-6 right-6 max-w-sm z-50 animate-in slide-in-from-right-10 fade-in duration-700'>
+        // Расположен слева, чтобы не перекрывать AI Assistant (если он есть)
+        <div className='fixed bottom-6 left-6 max-w-sm z-50 animate-in slide-in-from-left-10 fade-in duration-700'>
           <Card className='bg-emerald-50 dark:bg-emerald-900/90 border-emerald-200 dark:border-emerald-800 shadow-2xl'>
             <CardHeader className='pb-2 p-4'>
               <CardTitle className='text-sm text-emerald-800 dark:text-emerald-100 flex items-center gap-2'>
