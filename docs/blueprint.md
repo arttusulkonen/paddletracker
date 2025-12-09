@@ -145,14 +145,16 @@ src/
 │   ├── AuthContext.tsx      # User profile, auth state, & role checks
 │   └── SportContext.tsx     # Active sport switcher & DB config
 ├── lib/
-│   ├── elo.ts               # Client-side ELO calculation (Mode & Provisional logic)
+│   ├── elo.ts               # Client-side wrapper for Cloud Function call
 │   ├── season.ts            # Season statistics & sorting logic (Mode-aware)
 │   ├── firebase.ts          # Firebase Client SDK initialization
 │   └── types.ts             # TS Interfaces (User, Room, Match, Community, GhostUser)
 functions/
 ├── src/
-│   ├── index.ts             # Cloud Functions (AI Match processing)
+│   ├── index.ts             # Cloud Functions (recordMatch, aiSaveMatch)
 │   ├── config.ts            # Collection names configuration
+│   ├── lib/
+│   │   └── eloMath.ts       # Shared ELO math logic (K-factor, Delta)
 │   └── ...
 ```
 
@@ -162,7 +164,8 @@ functions/
 
 ### The Dual-Layer Formula
 
-Every match triggers two independent calculations in `src/lib/elo.ts`.
+**Calculation Location:** Server-side (Cloud Functions).
+The client sends raw match data, and the server calculates both Global and Room ratings using `functions/src/lib/eloMath.ts`.
 
 #### 1\. Global ELO (Always Professional)
 
@@ -215,7 +218,7 @@ users/{uid}
   "claimedBy": "string (Real User UID)", // Link to the new real user
   "communityIds": ["string (CommunityID)"], // Membership references
 
-  // Statistics
+  // Statistics (New Structure)
   "rooms": ["string (RoomID)"],
   "sports": {
     "pingpong": {
@@ -223,8 +226,17 @@ users/{uid}
       "wins": "number",
       "losses": "number",
       "eloHistory": [{ "ts": "ISO", "elo": 1200 }]
+    },
+    "tennis": {
+      "globalElo": "number",
+      "wins": "number",
+      "losses": "number",
+      "aces": "number",
+      "doubleFaults": "number",
+      "winners": "number",
+      "eloHistory": [...]
     }
-    // ... tennis, badminton
+    // ... badminton
   }
 }
 ```
@@ -242,6 +254,7 @@ communities/{communityId}
   "ownerId": "string (Coach UID)",
   "admins": ["string (Coach UIDs)"],
   "members": ["string (Player/Ghost UIDs)"],
+  "roomIds": ["string (RoomID)"], // Auto-linked rooms
   "createdAt": "string (ISO)",
   "avatarURL": "string | null"
 }
@@ -268,9 +281,14 @@ rooms-pingpong/{roomId}
       "globalElo": "number (Snapshot for display)",
       "wins": "number (In this room)",
       "losses": "number (In this room)",
-      "role": "string"
+      "role": "string",
+      "totalMatches": "number", // Cached stats
+      "longestWinStreak": "number"
     }
   ],
+  "rankHistories": {
+     "USER_UID": [{ "ts": "ISO", "rating": 1200, "place": 1 }]
+  },
   "seasonHistory": [...]
 }
 ```
@@ -286,10 +304,13 @@ matches-pingpong/{matchId}
   "roomId": "string",
   "players": ["uid1", "uid2"],
   "winner": "string",
+  "isRanked": "boolean",
+  "tsIso": "string (ISO)",
 
   "player1": {
     "name": "string",
     "scores": "number", // or sets for tennis
+    "side": "left | right",
 
     // GLOBAL TRACKING
     "oldRating": "number",
@@ -299,7 +320,12 @@ matches-pingpong/{matchId}
     // ROOM TRACKING (Used for Standings)
     "roomOldRating": "number",
     "roomNewRating": "number",
-    "roomAddedPoints": "number"
+    "roomAddedPoints": "number",
+
+    // Tennis Stats (Optional)
+    "aces": "number",
+    "doubleFaults": "number",
+    "winners": "number"
   },
   // ... player2
 }
@@ -326,20 +352,19 @@ matches-pingpong/{matchId}
 2.  **Populate:** Coach adds new Ghost Players directly into the Community or assigns existing ones.
 3.  **View:** Coach can view the roster and jump to individual player profiles.
 
-### C. Match Entry (Client-Side)
+### C. Match Entry (Server-Side)
 
-**File:** `src/lib/elo.ts`
+**File:** `functions/src/index.ts` (Function: `recordMatch`)
 
-1.  **Load Data:** Fetch Room config and User Profiles.
-2.  **Calculate Global:** Standard formula (K=32).
-3.  **Calculate Room:**
-    - Check `room.mode`.
-    - **If Pro:** Check `player.matchesPlayed` in this room.
-      - If \< 10: Use `room.kFactor * 2` (Calibration).
-      - Else: Use `room.kFactor`.
-    - **If Office:** Apply 0.8 loss multiplier.
-    - **If Arcade:** Delta = 0.
-4.  **Save:** Atomic write to `matches` collection + update `room.members` + update `users` stats.
+1.  **Client:** Collects scores and calls `recordMatch` Cloud Function.
+2.  **Server:** - Validates user auth and permissions.
+    - Fetches Room config and User profiles.
+    - Calculates Global ELO change (always K=32).
+    - Calculates Room ELO change (based on Room Mode & K-Factor).
+3.  **Batch Write:** Atomically updates:
+    - `matches` collection (new doc).
+    - `rooms` collection (updates `members` array stats).
+    - `users` collection (updates global stats & history).
 
 ### D. Season Finalization
 
@@ -356,4 +381,4 @@ matches-pingpong/{matchId}
 ### E. AI Assistant
 
 **File:** `functions/src/index.ts`
-The server-side AI handler `aiSaveMatch` implements the **exact same logic** as the client-side `elo.ts`. It fetches the room configuration, determines the mode/K-factor, and applies the appropriate math before writing to the database.
+The server-side AI handler `aiSaveMatch` implements the **exact same logic** as `recordMatch`. It parses natural language input into structured match data and then applies the standard ELO math logic.
