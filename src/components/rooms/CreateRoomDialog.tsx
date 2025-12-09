@@ -32,10 +32,6 @@ import {
 	Slider,
 	Switch,
 	Textarea,
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
@@ -61,20 +57,16 @@ import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import {
 	BookOpen,
 	Briefcase,
-	Calculator,
 	Gamepad2,
 	Globe,
 	ImageIcon,
 	Info,
 	Medal,
 	PlusCircle,
-	Scale,
 	Search,
 	Swords,
 	Trophy,
-	Users,
 	Warehouse,
-	X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -82,6 +74,19 @@ import { useTranslation } from 'react-i18next';
 
 interface CreateRoomDialogProps {
   onSuccess?: () => void;
+}
+
+// Тип для создаваемого участника (чтобы убрать any)
+interface NewMember {
+  userId: string;
+  name: string;
+  email: string;
+  rating: number;
+  globalElo: number;
+  wins: number;
+  losses: number;
+  date: string;
+  role: 'admin' | 'editor';
 }
 
 const NAME_MAX = 60;
@@ -116,7 +121,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const [useGlobalElo, setUseGlobalElo] = useState(false);
 
   // Players State
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
@@ -128,14 +132,13 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
-  const [uploadPct, setUploadPct] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Effects for loading friends/players ---
   useEffect(() => {
-    if (!user || !isOpen) return;
-    const unsub = onSnapshot(doc(db, 'users', user.uid), async (snap) => {
+    if (!user || !isOpen || !db) return;
+    const unsub = onSnapshot(doc(db!, 'users', user.uid), async (snap) => {
       if (!snap.exists()) return setFriends([]);
       const ids: string[] = snap.data().friends ?? [];
       const loaded = await Promise.all(
@@ -153,9 +156,9 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   }, [user, isOpen]);
 
   useEffect(() => {
-    if (!user || !isOpen) return;
+    if (!user || !isOpen || !db) return;
     const qRooms = query(
-      collection(db, config.collections.rooms),
+      collection(db!, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid)
     );
     const unsub = onSnapshot(qRooms, async (snap) => {
@@ -184,11 +187,11 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
 
   // --- Load Communities (Only if Coach/Admin) ---
   useEffect(() => {
-    if (!user || !isOpen) return;
+    if (!user || !isOpen || !db) return;
     const fetchComms = async () => {
       try {
         const q = query(
-          collection(db, 'communities'),
+          collection(db!, 'communities'),
           where('admins', 'array-contains', user.uid)
         );
         const snap = await getDocs(q);
@@ -285,7 +288,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     setAvatarBlob(blob);
     const url = URL.createObjectURL(blob);
     setAvatarPreview(url);
-    setUploadPct(0);
   };
 
   const resetForm = () => {
@@ -296,10 +298,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     setRoomMode('office');
     setKFactor(32);
     setUseGlobalElo(false);
-    setShowAdvanced(false);
     setSelectedFriends([]);
     setSearch('');
-    setUploadPct(0);
     setAvatarSrc(null);
     setAvatarBlob(null);
     setAvatarPreview(null);
@@ -321,17 +321,14 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   };
 
   const uploadAvatar = async (): Promise<string> => {
-    if (!avatarBlob) return '';
+    if (!avatarBlob || !storage) return '';
     const path = `room-avatars/${sport}/${Date.now()}.jpg`;
-    const storageRef = ref(storage, path);
+    const storageRef = ref(storage!, path);
     const task = uploadBytesResumable(storageRef, avatarBlob);
     return await new Promise<string>((resolve, reject) => {
       task.on(
         'state_changed',
-        (snap) =>
-          setUploadPct(
-            Math.round((snap.bytesTransferred / snap.totalBytes) * 100)
-          ),
+        null, // No progress tracking needed
         (err) => reject(err),
         async () => resolve(await getDownloadURL(task.snapshot.ref))
       );
@@ -339,7 +336,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   };
 
   const handleCreateRoom = async () => {
-    if (!validate()) return;
+    if (!validate() || !db) return;
     setIsCreatingRoom(true);
     try {
       let avatarURL = '';
@@ -356,12 +353,12 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
 
       // 1. Сбор участников
       const finalMemberIds = new Set([user!.uid, ...selectedFriends]);
-      const communityMembersToAdd: any[] = [];
+      const communityMembersToAdd: NewMember[] = [];
 
       // Логика для сообществ (только если выбрано)
       if (selectedCommunityId !== 'none') {
         const commDoc = await getDoc(
-          doc(db, 'communities', selectedCommunityId)
+          doc(db!, 'communities', selectedCommunityId)
         );
         if (commDoc.exists()) {
           const commData = commDoc.data() as Community;
@@ -375,7 +372,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
               if (chunk.length === 0) continue;
 
               const q = query(
-                collection(db, 'users'),
+                collection(db!, 'users'),
                 where('uid', 'in', chunk)
               );
               const snaps = await getDocs(q);
@@ -425,10 +422,10 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
             role: 'editor' as const,
           };
         })
-        .filter(Boolean);
+        .filter((m): m is NewMember => !!m);
 
       const myGlobalElo = userProfile?.sports?.[sport]?.globalElo ?? 1000;
-      const initialMembers = [
+      const initialMembers: NewMember[] = [
         {
           userId: user!.uid,
           name: meName,
@@ -438,7 +435,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
           wins: 0,
           losses: 0,
           date: now,
-          role: 'admin' as const,
+          role: 'admin',
         },
         ...communityMembersToAdd,
         ...friendMembers,
@@ -448,7 +445,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       const adminIds = withSuperAdmins(user!.uid, superAdmins);
       const memberIdsArr = Array.from(finalMemberIds);
 
-      const docRef = await addDoc(collection(db, config.collections.rooms), {
+      const docRef = await addDoc(collection(db!, config.collections.rooms), {
         name: roomName.trim(),
         description: roomDescription.trim(),
         avatarURL,
@@ -470,18 +467,16 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
           selectedCommunityId !== 'none' ? selectedCommunityId : null,
       });
 
-      const batch = writeBatch(db);
+      const batch = writeBatch(db!);
 
       // Обновляем список комнат у пользователей
       memberIdsArr.forEach((uid) => {
-        batch.update(doc(db, 'users', uid), { rooms: arrayUnion(docRef.id) });
+        batch.update(doc(db!, 'users', uid), { rooms: arrayUnion(docRef.id) });
       });
 
       // Обновляем сообщество (если выбрано)
       if (selectedCommunityId !== 'none') {
-        // Проверяем существование поля roomIds, если нет - создаем (хотя update требует существования документа)
-        // Лучше использовать arrayUnion, он безопасен
-        batch.update(doc(db, 'communities', selectedCommunityId), {
+        batch.update(doc(db!, 'communities', selectedCommunityId), {
           roomIds: arrayUnion(docRef.id),
         });
       }
@@ -505,7 +500,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       });
     } finally {
       setIsCreatingRoom(false);
-      setUploadPct(0);
     }
   };
 
@@ -623,10 +617,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                       if (v === 'arcade') setKFactor(0);
                       else if (v === 'office') {
                         setKFactor(32);
-                        setShowAdvanced(false);
                       } else {
                         setKFactor(32);
-                        setShowAdvanced(true);
                       }
                     }}
                     className='grid grid-cols-1 sm:grid-cols-3 gap-4'

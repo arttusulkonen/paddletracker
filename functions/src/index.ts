@@ -9,6 +9,7 @@ import {
 } from 'firebase-functions/v2/https';
 import { genkit, z } from 'genkit';
 import { SPORT_COLLECTIONS } from './config';
+import { calculateDelta as calcDeltaImport, getDynamicK, RoomMode } from './lib/eloMath';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -771,3 +772,291 @@ export const permanentlyDeleteUser = onCall(
     }
   }
 );
+
+export const recordMatch = onCall(async (request) => {
+  // 1. Проверка авторизации
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be logged in');
+  }
+
+  const { roomId, player1Id, player2Id, matches, sport } = request.data;
+
+  // 2. Валидация входных данных
+  if (
+    !roomId ||
+    !player1Id ||
+    !player2Id ||
+    !matches ||
+    !Array.isArray(matches) ||
+    matches.length === 0
+  ) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Missing required fields or matches array is empty'
+    );
+  }
+
+  // 3. Загрузка данных
+  const roomRef = db.collection(`rooms-${sport}`).doc(roomId);
+  const p1Ref = db.collection('users').doc(player1Id);
+  const p2Ref = db.collection('users').doc(player2Id);
+
+  const [roomSnap, p1Snap, p2Snap] = await Promise.all([
+    roomRef.get(),
+    p1Ref.get(),
+    p2Ref.get(),
+  ]);
+
+  if (!roomSnap.exists) throw new HttpsError('not-found', 'Room not found');
+  if (!p1Snap.exists || !p2Snap.exists)
+    throw new HttpsError('not-found', 'One or both players not found');
+
+  const roomData = roomSnap.data() || {};
+  const p1Data = p1Snap.data() || {};
+  const p2Data = p2Snap.data() || {};
+
+  // Проверка участия (опционально, но рекомендуется)
+  const callerUid = request.auth.uid;
+  if (!roomData.memberIds?.includes(callerUid)) {
+    // Можно разрешить админам, но для начала строго:
+    // throw new HttpsError('permission-denied', 'You must be a member of the room');
+  }
+
+  // 4. Подготовка участников (из массива members комнаты)
+  const members = roomData.members || [];
+  const m1Index = members.findIndex((m: any) => m.userId === player1Id);
+  const m2Index = members.findIndex((m: any) => m.userId === player2Id);
+
+  if (m1Index === -1 || m2Index === -1) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Players are not in the room members list'
+    );
+  }
+
+  const member1 = members[m1Index];
+  const member2 = members[m2Index];
+
+  // Инициализация переменных для цикла
+  let currentG1 = p1Data.sports?.[sport]?.globalElo ?? 1000;
+  let currentG2 = p2Data.sports?.[sport]?.globalElo ?? 1000;
+
+  // Берем рейтинги из member объекта
+  let currentRoom1 = member1.rating ?? 1000;
+  let currentRoom2 = member2.rating ?? 1000;
+
+  // Счетчики для статистики
+  let totalWinsP1 = 0;
+  let totalWinsP2 = 0;
+
+  // Статистика тенниса
+  const tennisStatsP1 = { aces: 0, doubleFaults: 0, winners: 0 };
+  const tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
+
+  const mode: RoomMode = roomData.mode || 'office';
+  const baseK = typeof roomData.kFactor === 'number' ? roomData.kFactor : 32;
+  const isRankedRoom = roomData.isRanked !== false;
+
+  const batch = db.batch();
+  const startDate = new Date();
+
+  // 5. Обработка каждого матча/сета в массиве
+  for (let i = 0; i < matches.length; i++) {
+    const game = matches[i];
+    const score1 = Number(game.score1);
+    const score2 = Number(game.score2);
+
+    // Подсчет количества сыгранных матчей для Dynamic K
+    // (Текущее кол-во в базе + уже сыгранные в этом цикле)
+    const p1MatchesPlayed = (member1.wins ?? 0) + (member1.losses ?? 0) + i;
+    const p2MatchesPlayed = (member2.wins ?? 0) + (member2.losses ?? 0) + i;
+
+    // Сохраняем старые рейтинги для записи в историю матча
+    const oldG1 = currentG1;
+    const oldG2 = currentG2;
+    const oldRoom1 = currentRoom1;
+    const oldRoom2 = currentRoom2;
+
+    let d1_Global = 0;
+    let d2_Global = 0;
+    let d1_Room = 0;
+    let d2_Room = 0;
+
+    // --- GLOBAL ---
+    if (isRankedRoom) {
+      d1_Global = calcDeltaImport(
+        oldG1,
+        oldG2,
+        score1,
+        score2,
+        true,
+        'professional',
+        32
+      );
+      d2_Global = calcDeltaImport(
+        oldG2,
+        oldG1,
+        score2,
+        score1,
+        true,
+        'professional',
+        32
+      );
+
+      currentG1 += d1_Global;
+      currentG2 += d2_Global;
+    }
+
+    // --- ROOM ---
+    const k1 = getDynamicK(baseK, p1MatchesPlayed, mode);
+    const k2 = getDynamicK(baseK, p2MatchesPlayed, mode);
+
+    d1_Room = calcDeltaImport(
+      oldRoom1,
+      oldRoom2,
+      score1,
+      score2,
+      false,
+      mode,
+      k1
+    );
+    d2_Room = calcDeltaImport(
+      oldRoom2,
+      oldRoom1,
+      score2,
+      score1,
+      false,
+      mode,
+      k2
+    );
+
+    currentRoom1 += d1_Room;
+    currentRoom2 += d2_Room;
+
+    // Статистика побед
+    if (score1 > score2) totalWinsP1++;
+    else totalWinsP2++;
+
+    // Подготовка данных для матча
+    let player1Extra: any = {};
+    let player2Extra: any = {};
+
+    if (sport === 'tennis') {
+      const p1Aces = Number(game.aces1) || 0;
+      const p1Df = Number(game.doubleFaults1) || 0;
+      const p1Win = Number(game.winners1) || 0;
+
+      const p2Aces = Number(game.aces2) || 0;
+      const p2Df = Number(game.doubleFaults2) || 0;
+      const p2Win = Number(game.winners2) || 0;
+
+      player1Extra = { aces: p1Aces, doubleFaults: p1Df, winners: p1Win };
+      player2Extra = { aces: p2Aces, doubleFaults: p2Df, winners: p2Win };
+
+      tennisStatsP1.aces += p1Aces;
+      tennisStatsP1.doubleFaults += p1Df;
+      tennisStatsP1.winners += p1Win;
+      tennisStatsP2.aces += p2Aces;
+      tennisStatsP2.doubleFaults += p2Df;
+      tennisStatsP2.winners += p2Win;
+    } else {
+      player1Extra.side = game.side1 || 'left';
+      player2Extra.side = game.side2 || 'right';
+    }
+
+    // Создание документа матча
+    const matchDate = new Date(startDate.getTime() + i * 1000); // +1 сек для порядка
+    const matchRef = db.collection(`matches-${sport}`).doc();
+
+    batch.set(matchRef, {
+      roomId,
+      player1Id,
+      player2Id,
+      players: [player1Id, player2Id],
+      isRanked: isRankedRoom,
+      createdAt: getFinnishDate(matchDate),
+      timestamp: getFinnishDate(matchDate),
+      tsIso: matchDate.toISOString(),
+      winner: score1 > score2 ? p1Data.name || 'P1' : p2Data.name || 'P2',
+      player1: {
+        name: p1Data.name || p1Data.displayName || 'Unknown',
+        scores: score1,
+        oldRating: oldG1,
+        newRating: currentG1,
+        addedPoints: d1_Global,
+        roomOldRating: oldRoom1,
+        roomNewRating: currentRoom1,
+        roomAddedPoints: d1_Room,
+        ...player1Extra,
+      },
+      player2: {
+        name: p2Data.name || p2Data.displayName || 'Unknown',
+        scores: score2,
+        oldRating: oldG2,
+        newRating: currentG2,
+        addedPoints: d2_Global,
+        roomOldRating: oldRoom2,
+        roomNewRating: currentRoom2,
+        roomAddedPoints: d2_Room,
+        ...player2Extra,
+      },
+    });
+  }
+
+  // 6. Обновление Room Members (локальные рейтинги и статы)
+  // Обновляем данные в объектах массива (они ссылочные)
+  member1.rating = currentRoom1;
+  member1.globalElo = currentG1;
+  member1.wins = (member1.wins || 0) + totalWinsP1;
+  member1.losses = (member1.losses || 0) + totalWinsP2;
+
+  member2.rating = currentRoom2;
+  member2.globalElo = currentG2;
+  member2.wins = (member2.wins || 0) + totalWinsP2;
+  member2.losses = (member2.losses || 0) + totalWinsP1;
+
+  batch.update(roomRef, { members: members });
+
+  // 7. Обновление User Profiles (Глобальные статы)
+  const updateUserStats = (
+    ref: any,
+    newGlobalElo: number,
+    winsToAdd: number,
+    lossesToAdd: number,
+    tennisStats: any
+  ) => {
+    const updateData: any = {
+      [`sports.${sport}.wins`]: admin.firestore.FieldValue.increment(winsToAdd),
+      [`sports.${sport}.losses`]:
+        admin.firestore.FieldValue.increment(lossesToAdd),
+    };
+
+    if (isRankedRoom) {
+      updateData[`sports.${sport}.globalElo`] = newGlobalElo;
+      updateData[`sports.${sport}.eloHistory`] =
+        admin.firestore.FieldValue.arrayUnion({
+          ts: new Date().toISOString(),
+          elo: newGlobalElo,
+        });
+    }
+
+    if (sport === 'tennis') {
+      updateData[`sports.tennis.aces`] = admin.firestore.FieldValue.increment(
+        tennisStats.aces
+      );
+      updateData[`sports.tennis.doubleFaults`] =
+        admin.firestore.FieldValue.increment(tennisStats.doubleFaults);
+      updateData[`sports.tennis.winners`] =
+        admin.firestore.FieldValue.increment(tennisStats.winners);
+    }
+
+    batch.update(ref, updateData);
+  };
+
+  updateUserStats(p1Ref, currentG1, totalWinsP1, totalWinsP2, tennisStatsP1);
+  updateUserStats(p2Ref, currentG2, totalWinsP2, totalWinsP1, tennisStatsP2);
+
+  await batch.commit();
+
+  return { success: true, gamesRecorded: matches.length };
+});

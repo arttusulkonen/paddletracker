@@ -2,47 +2,136 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- ФУНКЦИИ-ПОМОЩНИКИ ---
+    // =========================================================
+    // ФУНКЦИИ-ПОМОЩНИКИ
+    // =========================================================
+
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- КОЛЛЕКЦИЯ USERS ---
-    match /users/{userId} {
-      allow read: if isOwner(userId) 
-                  // Публичные профили видны всем
-                  || resource.data.isPublic == true 
-                  // Призрачные профили видны всем (для инвайтов)
-                  || resource.data.isGhost == true
-                  // Тренер видит своих игроков
-                  || resource.data.managedBy == request.auth.uid
-                  // Друзья видят друг друга (даже если приватный)
-                  || (resource.data.friends is list && request.auth.uid in resource.data.friends);
+    function isSuperAdmin() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/config/app) &&
+        request.auth.uid in get(/databases/$(database)/documents/config/app).data.superAdminIds;
+    }
 
-      // Писать/обновлять может любой авторизованный (для добавления в комнаты/друзья)
+    function isCoachOf(resourceData) {
+      return isSignedIn() && 
+             "managedBy" in resourceData && 
+             resourceData.managedBy == request.auth.uid;
+    }
+
+    function isRoomAdmin(roomData) {
+      return isSignedIn() && (
+        roomData.creator == request.auth.uid || 
+        (roomData.keys().hasAll(['createdBy']) && roomData.createdBy == request.auth.uid) ||
+        (roomData.keys().hasAll(['adminIds']) && request.auth.uid in roomData.adminIds)
+      );
+    }
+
+    // =========================================================
+    // КОЛЛЕКЦИЯ: USERS
+    // =========================================================
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId || 
+        resource.data.isPublic == true ||
+        resource.data.isGhost == true ||
+        resource.data.managedBy == request.auth.uid ||
+        (resource.data.keys().hasAll(['friends']) && request.auth.uid in resource.data.friends) ||
+        isSuperAdmin()
+      );
+
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isOwner(userId) || isSuperAdmin() || isCoachOf(resource.data);
+    }
+
+    // =========================================================
+    // КОЛЛЕКЦИЯ: COMMUNITIES
+    // =========================================================
+    match /communities/{communityId} {
+      allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
 
-    // --- КОЛЛЕКЦИЯ COMMUNITIES ---
-    match /communities/{communityId} {
+    // =========================================================
+    // КОЛЛЕКЦИИ: ROOMS (Явное перечисление)
+    // =========================================================
+    
+    // Ping-Pong Rooms
+    match /rooms-pingpong/{roomId} {
+      allow read: if isSignedIn() || resource.data.isPublic == true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
+    }
+
+    // Tennis Rooms
+    match /rooms-tennis/{roomId} {
+      allow read: if isSignedIn() || resource.data.isPublic == true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
+    }
+
+    // Badminton Rooms
+    match /rooms-badminton/{roomId} {
+      allow read: if isSignedIn() || resource.data.isPublic == true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
+    }
+
+    // =========================================================
+    // КОЛЛЕКЦИИ: MATCHES (Явное перечисление)
+    // =========================================================
+
+    // Ping-Pong Matches
+    match /matches-pingpong/{matchId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+      allow delete: if isSignedIn(); 
+    }
+
+    // Tennis Matches
+    match /matches-tennis/{matchId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+      allow delete: if isSignedIn(); 
+    }
+
+    // Badminton Matches
+    match /matches-badminton/{matchId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+      allow delete: if isSignedIn(); 
+    }
+
+    // =========================================================
+    // КОЛЛЕКЦИЯ: TOURNAMENTS (Явное перечисление)
+    // =========================================================
+    
+    match /tournaments-pingpong/{tournamentId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /tournaments-tennis/{tournamentId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /tournaments-badminton/{tournamentId} {
       allow read, write: if isSignedIn();
     }
 
-    // --- КОЛЛЕКЦИИ КОМНАТ ---
-    match /rooms-pingpong/{roomId} { allow read: if true; allow write: if isSignedIn(); }
-    match /rooms-tennis/{roomId}   { allow read: if true; allow write: if isSignedIn(); }
-    match /rooms-badminton/{roomId}{ allow read: if true; allow write: if isSignedIn(); }
-
-    // --- КОЛЛЕКЦИИ МАТЧЕЙ ---
-    match /matches-pingpong/{matchId} { allow read: if true; allow write: if isSignedIn(); }
-    match /matches-tennis/{matchId}   { allow read: if true; allow write: if isSignedIn(); }
-    match /matches-badminton/{matchId}{ allow read: if true; allow write: if isSignedIn(); }
-
-    // --- СИСТЕМНЫЕ КОНФИГИ ---
+    // =========================================================
+    // СИСТЕМНЫЕ КОНФИГИ
+    // =========================================================
     match /config/{docId} {
       allow read: if true;
       allow write: if false;
