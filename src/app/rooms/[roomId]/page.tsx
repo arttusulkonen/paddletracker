@@ -172,12 +172,11 @@ export default function RoomPage() {
 
       if (idsSet.size === 0) return setCoPlayers([]);
 
-      // FIX: Removed explicit 'uid' property to avoid TS2783 ("specified more than once")
-      // because getUserLite returns UserProfile which already contains 'uid'.
       const loaded = await Promise.all(
         Array.from(idsSet).map(async (uid) => {
           const profile = await getUserLite(uid);
-          return profile;
+          // FIX: Validate that returned profile matches requested uid
+          return profile && profile.uid === uid ? profile : null;
         })
       );
       setCoPlayers(loaded.filter((p): p is UserProfile => !!p));
@@ -211,12 +210,10 @@ export default function RoomPage() {
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
 
-    // FIX: Typed cast instead of 'any'
     const r = room as Room & { adminIds?: string[] };
     const isRoomAdmin =
       Array.isArray(r.adminIds) && r.adminIds.includes(user.uid);
 
-    // Use createdBy as per new schema, fallback to creator if legacy
     const creatorId = r.createdBy || r.creator;
 
     return isGlobalAdmin || isRoomAdmin || creatorId === user.uid;
@@ -755,9 +752,7 @@ export default function RoomPage() {
 
         <RoomHeader
           room={room}
-          // FIX: Explicit boolean cast for strict boolean prop
           isMember={!!isMember}
-          // FIX: Explicit boolean cast for strict boolean prop
           hasPendingRequest={!!hasPendingRequest}
           isCreator={isCreator}
           onJoin={handleRequestToJoin}
@@ -1003,7 +998,6 @@ export default function RoomPage() {
         <StandingsTable
           players={regularPlayers}
           latestSeason={latestSeason}
-          // FIX: Handle undefined string with fallback
           roomCreatorId={room.createdBy || room.creator || ''}
           roomMode={room.mode || 'office'}
         />

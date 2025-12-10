@@ -1,24 +1,25 @@
+// src/components/rooms/MembersList.tsx
 'use client';
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  ScrollArea,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	ScrollArea,
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
 } from '@/components/ui';
 import type { Room } from '@/lib/types';
 import type { User } from 'firebase/auth';
@@ -114,7 +115,11 @@ export function MembersList({
 
         if (b.adjPointsLive !== a.adjPointsLive)
           return b.adjPointsLive - a.adjPointsLive;
-        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+        
+        // FIX: Sort by totalAddedPoints instead of raw rating for consistency
+        if ((b.totalAddedPoints ?? 0) !== (a.totalAddedPoints ?? 0)) 
+          return (b.totalAddedPoints ?? 0) - (a.totalAddedPoints ?? 0);
+          
         if (b.wins !== a.wins) return b.wins - a.wins;
         return b.winRate - a.winRate;
       }
