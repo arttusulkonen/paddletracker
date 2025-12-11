@@ -73,7 +73,7 @@ interface GhostUser {
   isGhost: boolean;
   managedBy: string;
   isClaimed?: boolean;
-  isArchivedGhost?: boolean; // Добавлено поле
+  isArchivedGhost?: boolean;
   claimedBy?: string;
   createdAt: string;
   photoURL?: string;
@@ -103,7 +103,6 @@ export default function ManagePlayersPage() {
     if (!user) return;
     setLoading(true);
     try {
-      // ИЗМЕНЕНИЕ: Убран фильтр isGhost, чтобы видеть и реальных
       const q = query(
         collection(db, 'users'),
         where('managedBy', '==', user.uid),
@@ -115,8 +114,6 @@ export default function ManagePlayersPage() {
         ...d.data(),
       })) as GhostUser[];
 
-      // ИЗМЕНЕНИЕ: Фильтруем архивных призраков, чтобы не показывать дубли
-      // (показываем либо реального юзера, либо активного призрака)
       const validPlayers = allLoaded.filter((p) => !p.isArchivedGhost);
 
       setPlayers(validPlayers);
@@ -196,13 +193,13 @@ export default function ManagePlayersPage() {
 
       await batch.commit();
 
-      // Update local state to avoid full reload
       const newGhost: GhostUser = {
         uid: newUserId,
         name: newGhostName.trim(),
         managedBy: user.uid,
         isGhost: true,
         createdAt: now,
+        communityIds: selectedCommunity ? [selectedCommunity] : [],
       };
       setPlayers((prev) => [newGhost, ...prev]);
 
@@ -407,22 +404,7 @@ export default function ManagePlayersPage() {
                                   className='h-7 w-7 text-muted-foreground hover:text-destructive'
                                 >
                                   <span className='sr-only'>{t('Delete')}</span>
-                                  <svg
-                                    xmlns='http://www.w3.org/2000/svg'
-                                    width='24'
-                                    height='24'
-                                    viewBox='0 0 24 24'
-                                    fill='none'
-                                    stroke='currentColor'
-                                    strokeWidth='2'
-                                    strokeLinecap='round'
-                                    strokeLinejoin='round'
-                                    className='h-4 w-4'
-                                  >
-                                    <path d='M3 6h18' />
-                                    <path d='M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6' />
-                                    <path d='M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2' />
-                                  </svg>
+                                  <Trash2 className='h-4 w-4' />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>

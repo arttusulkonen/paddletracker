@@ -38,17 +38,21 @@ service cloud.firestore {
     // КОЛЛЕКЦИЯ: USERS
     // =========================================================
     match /users/{userId} {
-      allow read: if isSignedIn() && (
-        request.auth.uid == userId || 
-        resource.data.isPublic == true ||
-        resource.data.isGhost == true ||
-        resource.data.managedBy == request.auth.uid ||
-        (resource.data.keys().hasAll(['friends']) && request.auth.uid in resource.data.friends) ||
-        isSuperAdmin()
-      );
+      // ЧТЕНИЕ: Разрешаем всем авторизованным пользователям.
+      // Это необходимо, чтобы видеть списки участников в комнатах и комьюнити, 
+      // даже если у кого-то стоит приватный профиль (приватность можно обрабатывать на клиенте визуально, но данные должны читаться).
+      allow read: if isSignedIn();
 
       allow create: if isSignedIn();
+      
+      // ОБНОВЛЕНИЕ: 
+      // - Владелец (изменение имени, фото)
+      // - Супер-админ
+      // - Любой авторизованный (для обновления массивов rooms/friends/requests при взаимодействии).
+      //   В идеале можно ужесточить, но для работы приглашений и вступлений пока оставляем так.
       allow update: if isSignedIn();
+      
+      // УДАЛЕНИЕ: Строго ограничено
       allow delete: if isOwner(userId) || isSuperAdmin() || isCoachOf(resource.data);
     }
 
@@ -68,6 +72,8 @@ service cloud.firestore {
     match /rooms-pingpong/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
+      // Обновление: разрешаем всем авторизованным (нужно для joinRequests и обновления статистики через Cloud Function, если она пишет от лица юзера, но обычно CF использует Admin SDK и игнорирует правила)
+      // Оставляем isSignedIn для клиентских операций типа "Leave room"
       allow update: if isSignedIn();
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
@@ -92,25 +98,23 @@ service cloud.firestore {
     // КОЛЛЕКЦИИ: MATCHES (Явное перечисление)
     // =========================================================
 
-    // Ping-Pong Matches
+    // Мы перенесли запись матчей в Cloud Functions (recordMatch), 
+    // поэтому клиент больше не должен писать сюда напрямую.
+    // Однако, чтение (read) нужно оставить для отображения истории.
+    
     match /matches-pingpong/{matchId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
-      allow delete: if isSignedIn(); 
+      allow write: if false; // Запись только через сервер (Cloud Functions)
     }
 
-    // Tennis Matches
     match /matches-tennis/{matchId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
-      allow delete: if isSignedIn(); 
+      allow write: if false; // Запись только через сервер (Cloud Functions)
     }
 
-    // Badminton Matches
     match /matches-badminton/{matchId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
-      allow delete: if isSignedIn(); 
+      allow write: if false; // Запись только через сервер (Cloud Functions)
     }
 
     // =========================================================

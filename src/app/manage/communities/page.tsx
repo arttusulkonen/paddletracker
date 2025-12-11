@@ -29,10 +29,10 @@ export default function CommunitiesPage() {
   useEffect(() => {
     if (!user) return;
 
-    // Загружаем сообщества, где я админ (или владелец, т.к. владелец всегда в admins)
+    // ИСПРАВЛЕНО: Ищем по 'members', а не 'admins', чтобы обычные участники тоже видели сообщество
     const q = query(
       collection(db, 'communities'),
-      where('admins', 'array-contains', user.uid)
+      where('members', 'array-contains', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -102,7 +102,6 @@ export default function CommunitiesPage() {
       ) : (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
           {communities.map((community) => (
-            // ДОБАВЛЕН LINK
             <Link
               href={`/manage/communities/${community.id}`}
               key={community.id}

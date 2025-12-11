@@ -8,7 +8,6 @@ import {
 	Card,
 	CardContent,
 	CardDescription,
-	CardFooter,
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
@@ -36,13 +35,10 @@ import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Briefcase, Ghost, Shield, User, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import * as z from 'zod';
-
-let registerSchema: any;
-type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const AVATAR_MAX_MB = 2;
 const AVATAR_MAX_BYTES = AVATAR_MAX_MB * 1024 * 1024;
@@ -65,7 +61,8 @@ export default function RegisterPage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
 
-  registerSchema = z.object({
+  // Schema definition inside component to use 't'
+  const registerSchema = z.object({
     name: z
       .string()
       .trim()
@@ -84,10 +81,13 @@ export default function RegisterPage() {
     }),
     reason: z.string().optional(),
     isPublic: z.boolean().default(true),
-    terms: z.boolean().refine((val) => val === true, {
-      message: t('You must accept the terms and conditions'),
-    }),
+    // Removed 'terms' validation requirement for MVP or make it optional if checkbox not shown
+    // terms: z.boolean().refine((val) => val === true, {
+    //   message: t('You must accept the terms and conditions'),
+    // }),
   });
+
+  type RegisterFormValues = z.infer<typeof registerSchema>;
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -97,7 +97,6 @@ export default function RegisterPage() {
       password: '',
       accountType: 'player',
       reason: '',
-      terms: false,
       isPublic: true,
     },
     mode: 'onTouched',
@@ -105,10 +104,11 @@ export default function RegisterPage() {
 
   useEffect(() => {
     setHasMounted(true);
-    if (claimUid) {
+    if (claimUid && db) {
       const fetchGhost = async () => {
         try {
-          const docRef = doc(db, 'users', claimUid);
+          // FIX: Added '!' to db because it's checked in useEffect dependency but TS needs assurance
+          const docRef = doc(db!, 'users', claimUid);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
             const data = snap.data();
@@ -144,14 +144,12 @@ export default function RegisterPage() {
   const pickAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     if (!f) return;
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
     const fileExtension = f.name
       .substring(f.name.lastIndexOf('.'))
       .toLowerCase();
     const isValidType =
-      allowedMimeTypes.includes(f.type) ||
-      allowedExtensions.includes(fileExtension);
+      ALLOWED_IMAGE_TYPES.includes(f.type) ||
+      ['.jpg', '.jpeg', '.png', '.webp'].includes(fileExtension);
 
     if (!isValidType) {
       toast({ title: t('Unsupported file type'), variant: 'destructive' });
@@ -170,7 +168,7 @@ export default function RegisterPage() {
 
   const uploadAvatar = async (uid: string): Promise<string | null> => {
     if (!avatarBlob || !storage) return null;
-    const storageRef = ref(storage, `avatars/${uid}/${Date.now()}.jpg`);
+    const storageRef = ref(storage!, `avatars/${uid}/${Date.now()}.jpg`);
     const task = uploadBytesResumable(storageRef, avatarBlob);
     return await new Promise<string | null>((resolve, reject) => {
       task.on(
@@ -237,7 +235,11 @@ export default function RegisterPage() {
         outgoingRequests: [],
         achievements: [],
         rooms: [],
-        sports: {},
+        sports: {
+          pingpong: { globalElo: 1000, wins: 0, losses: 0, eloHistory: [] },
+          tennis: { globalElo: 1000, wins: 0, losses: 0, eloHistory: [] },
+          badminton: { globalElo: 1000, wins: 0, losses: 0, eloHistory: [] },
+        },
         roles: roles,
         accountType: data.accountType,
         isPublic: data.isPublic,
@@ -251,7 +253,7 @@ export default function RegisterPage() {
         activeSport: 'pingpong',
       };
 
-      // --- ИСПРАВЛЕНИЕ: Копируем данные призрака ---
+      // Merge Ghost Data
       if (ghostUser) {
         newUserData.globalElo = ghostUser.globalElo ?? 1000;
         newUserData.matchesPlayed = ghostUser.matchesPlayed ?? 0;
@@ -260,12 +262,12 @@ export default function RegisterPage() {
         newUserData.eloHistory = ghostUser.eloHistory ?? [];
         newUserData.friends = ghostUser.friends ?? [];
         newUserData.rooms = ghostUser.rooms ?? [];
-        newUserData.sports = ghostUser.sports ?? {};
+        // Deep merge sports if needed, or just overwrite if ghost has better data
+        if (ghostUser.sports) {
+          newUserData.sports = { ...newUserData.sports, ...ghostUser.sports };
+        }
         newUserData.achievements = ghostUser.achievements ?? [];
-
-        // ВАЖНО: Копируем тренера
         newUserData.managedBy = ghostUser.managedBy;
-
         newUserData.ghostId = ghostUser.uid;
         newUserData.claimedFrom = ghostUser.uid;
 
@@ -286,6 +288,7 @@ export default function RegisterPage() {
       });
       router.replace('/');
     } catch (err: any) {
+      console.error(err);
       let description =
         err?.message || t('Something went wrong. Please try again.');
       if (err?.code === 'auth/email-already-in-use') {
@@ -299,6 +302,15 @@ export default function RegisterPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onInvalid = (errors: any) => {
+    console.error('Form validation errors:', errors);
+    toast({
+      title: t('Validation Error'),
+      description: t('Please check the form fields.'),
+      variant: 'destructive',
+    });
   };
 
   if (!hasMounted) return null;
@@ -342,7 +354,10 @@ export default function RegisterPage() {
             </div>
           )}
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+            <form
+              onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+              className='space-y-6'
+            >
               <FormItem className='flex flex-col items-center'>
                 <label
                   htmlFor='avatar-upload'
@@ -469,6 +484,29 @@ export default function RegisterPage() {
                 />
               </div>
 
+              <FormField
+                control={form.control}
+                name='isPublic'
+                render={({ field }) => (
+                  <FormItem className='flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4'>
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className='space-y-1 leading-none'>
+                      <FormLabel>{t('Make profile public')}</FormLabel>
+                      <FormDescription>
+                        {t(
+                          'Allow other players to find you and see your stats.'
+                        )}
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
               <Button type='submit' className='w-full' disabled={isLoading}>
                 {isLoading
                   ? t('Processing...')
@@ -479,6 +517,11 @@ export default function RegisterPage() {
             </form>
           </Form>
         </CardContent>
+        <div className='p-6 pt-0 text-center text-sm text-muted-foreground'>
+          <Link href='/login' className='hover:underline'>
+            {t('Back to Login')}
+          </Link>
+        </div>
       </Card>
       <ImageCropDialog
         open={cropOpen}

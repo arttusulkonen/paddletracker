@@ -29,6 +29,7 @@ import {
 	TrophyIcon,
 	UserCircle,
 	UsersIcon,
+	Warehouse,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -96,16 +97,6 @@ const MobileNav = ({
             
             {user && (
               <>
-                {/* COACH SECTION */}
-                {isCoach && (
-                  <div className='my-2'>
-                    <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Management')}</div>
-                    <NavLink href='/manage/players' onClick={close}>
-                      <Briefcase className="w-4 h-4 text-primary" /> {t('My Players')}
-                    </NavLink>
-                  </div>
-                )}
-
                 {/* GENERAL SECTION */}
                 <div className='my-2'>
                   <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Play')}</div>
@@ -114,6 +105,18 @@ const MobileNav = ({
                   </NavLink>
                   <NavLink href='/tournaments' onClick={close}>
                     <TrophyIcon className="w-4 h-4" /> {t('Tournaments')}
+                  </NavLink>
+                </div>
+
+                {/* COMMUNITY / MANAGE SECTION (AVAILABLE TO ALL) */}
+                <div className='my-2'>
+                  <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Community')}</div>
+                  <NavLink href='/manage/communities' onClick={close}>
+                    <Warehouse className="w-4 h-4 text-primary" /> {t('Communities')}
+                  </NavLink>
+                  {/* Optional: Show explicit link to players if needed, otherwise accessed via communities tabs */}
+                  <NavLink href='/manage/players' onClick={close}>
+                    <Briefcase className="w-4 h-4" /> {t('My Players')}
                   </NavLink>
                 </div>
 
@@ -328,17 +331,14 @@ export function Navbar() {
                 <DesktopLink href='/rooms' icon={<UsersIcon className="w-4 h-4"/>} label={t('Rooms')} />
                 <DesktopLink href='/tournaments' icon={<TrophyIcon className="w-4 h-4"/>} label={t('Tournaments')} />
                 
-                {/* Separator for specialized roles */}
-                {(isCoach || isGlobalAdmin) && <div className="w-px h-6 bg-border mx-2" />}
+                <div className="w-px h-6 bg-border mx-2" />
 
-                {isCoach && (
-                   <DesktopLink 
-                      href='/manage/players' 
-                      icon={<Briefcase className="w-4 h-4" />} 
-                      label={t('My Players')} 
-                      variant="coach"
-                   />
-                )}
+                {/* Visible to EVERYONE now */}
+                <DesktopLink 
+                    href='/manage/communities' 
+                    icon={<Warehouse className="w-4 h-4" />} 
+                    label={t('Communities')} 
+                />
                 
                 {isGlobalAdmin && (
                    <DesktopLink 
@@ -461,14 +461,13 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   
-                  {isCoach && (
-                     <DropdownMenuItem asChild>
-                      <Link href='/manage/players' className="cursor-pointer">
-                        <Briefcase className='mr-2 h-4 w-4' />
-                        <span>{t('My Players')}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
+                  {/* Communities available for ALL logged in users */}
+                  <DropdownMenuItem asChild>
+                    <Link href='/manage/communities' className="cursor-pointer">
+                      <Warehouse className='mr-2 h-4 w-4' />
+                      <span>{t('Communities')}</span>
+                    </Link>
+                  </DropdownMenuItem>
 
                   {isGlobalAdmin && (
                     <DropdownMenuItem asChild>

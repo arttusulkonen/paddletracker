@@ -2,7 +2,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Briefcase, Users, Warehouse } from 'lucide-react';
+import { Users, Warehouse } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -17,16 +17,16 @@ export default function ManageLayout({
 
   const navLinks = [
     {
-      href: '/manage/players',
-      label: t('My Players'),
-      icon: <Users className='h-4 w-4' />,
-      desc: t('Ghosts & Invites'),
-    },
-    {
       href: '/manage/communities',
       label: t('Communities'),
       icon: <Warehouse className='h-4 w-4' />,
-      desc: t('Groups & Clubs'),
+      desc: t('My Clubs & Groups'),
+    },
+    {
+      href: '/manage/players',
+      label: t('Ghost Players'),
+      icon: <Users className='h-4 w-4' />,
+      desc: t('Managed Profiles'),
     },
     // Можно добавить в будущем:
     // { href: '/manage/coaches', label: t('Coaches'), ... }
@@ -36,10 +36,10 @@ export default function ManageLayout({
     <div className='container mx-auto py-6 max-w-7xl'>
       <div className='flex flex-col mb-8'>
         <h1 className='text-3xl font-bold tracking-tight'>
-          {t('Management Console')}
+          {t('Community Hub')}
         </h1>
         <p className='text-muted-foreground'>
-          {t('Manage your players, groups, and coaching activities.')}
+          {t('Create groups, manage players, and organize your leagues.')}
         </p>
       </div>
 

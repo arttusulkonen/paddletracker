@@ -23,22 +23,36 @@ import {
 	DialogTitle,
 	Input,
 	Label,
-	Switch,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 	Tabs,
 	TabsContent,
 	TabsList,
 	TabsTrigger,
 	Textarea,
 } from '@/components/ui';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
 import type { Room } from '@/lib/types';
-import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import {
+	arrayUnion,
+	collection,
+	deleteDoc,
+	doc,
+	getDocs,
+	query,
+	updateDoc,
+	where,
+} from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Archive, Image as ImageIcon, Trash2, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface RoomSettingsDialogProps {
@@ -50,6 +64,7 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { config, sport } = useSport();
+  const { user } = useAuth();
 
   const [name, setName] = useState(room.name);
   const [description, setDescription] = useState(room.description ?? '');
@@ -66,6 +81,24 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   const [cropOpen, setCropOpen] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string>(
+    room.communityId || 'none'
+  );
+  const [myCommunities, setMyCommunities] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user || !db) return;
+    const fetchComms = async () => {
+      const q = query(
+        collection(db!, 'communities'),
+        where('admins', 'array-contains', user.uid)
+      );
+      const snap = await getDocs(q);
+      setMyCommunities(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    };
+    fetchComms();
+  }, [user]);
 
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
@@ -112,7 +145,7 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   const uploadAvatar = async (): Promise<string> => {
     if (!avatarBlob) return room.avatarURL ?? '';
     const path = `room-avatars/${sport}/${room.id}-${Date.now()}.jpg`;
-    const storageRef = ref(storage, path);
+    const storageRef = ref(storage!, path);
     const task = uploadBytesResumable(storageRef, avatarBlob);
     return await new Promise<string>((resolve, reject) => {
       task.on(
@@ -130,10 +163,26 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // mode удален из обновляемых полей
-      const data: Partial<Room> = { name, description, isPublic };
+      const data: Partial<Room> & { communityId?: string | null } = {
+        name,
+        description,
+        isPublic,
+        communityId:
+          selectedCommunityId === 'none' ? null : selectedCommunityId,
+      };
       if (avatarBlob) data.avatarURL = await uploadAvatar();
-      await updateDoc(doc(db, config.collections.rooms, room.id), data);
+
+      await updateDoc(doc(db!, config.collections.rooms, room.id), data);
+
+      if (
+        selectedCommunityId !== 'none' &&
+        selectedCommunityId !== room.communityId
+      ) {
+        await updateDoc(doc(db!, 'communities', selectedCommunityId), {
+          roomIds: arrayUnion(room.id),
+        });
+      }
+
       toast({ title: t('Settings saved successfully') });
       router.refresh();
     } catch {
@@ -147,7 +196,7 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   const handleArchive = async () => {
     setIsActing(true);
     try {
-      await updateDoc(doc(db, config.collections.rooms, room.id), {
+      await updateDoc(doc(db!, config.collections.rooms, room.id), {
         isArchived: true,
         archivedAt: new Date().toISOString(),
       });
@@ -163,7 +212,7 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   const handleUnarchive = async () => {
     setIsActing(true);
     try {
-      await updateDoc(doc(db, config.collections.rooms, room.id), {
+      await updateDoc(doc(db!, config.collections.rooms, room.id), {
         isArchived: false,
       });
       toast({ title: t('Room unarchived') });
@@ -178,7 +227,7 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
   const handleDelete = async () => {
     setIsActing(true);
     try {
-      await deleteDoc(doc(db, config.collections.rooms, room.id));
+      await deleteDoc(doc(db!, config.collections.rooms, room.id));
       toast({
         title: t('Room deleted'),
         description: t('The room has been permanently removed.'),
@@ -266,6 +315,33 @@ export function RoomSettingsDialog({ room }: RoomSettingsDialogProps) {
                       rows={3}
                       className='resize-none'
                     />
+                  </div>
+
+                  <div className='space-y-2'>
+                    <Label>{t('Community')}</Label>
+                    <Select
+                      value={selectedCommunityId}
+                      onValueChange={setSelectedCommunityId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('Select Community')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='none'>
+                          {t('No Community')}
+                        </SelectItem>
+                        {myCommunities.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className='text-xs text-muted-foreground'>
+                      {t(
+                        'Link this room to a community to display it on the community page.'
+                      )}
+                    </p>
                   </div>
                 </div>
               </div>

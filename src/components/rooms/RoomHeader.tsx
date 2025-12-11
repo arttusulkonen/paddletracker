@@ -14,7 +14,6 @@ import {
 	Avatar,
 	AvatarFallback,
 	AvatarImage,
-	Badge,
 	Button,
 	Card,
 	Dialog,
@@ -120,14 +119,16 @@ export function RoomHeader({
                 <h1 className='text-3xl font-bold tracking-tight text-foreground truncate'>
                   {room.name}
                 </h1>
-                
+
                 {/* Мета-информация (в одну строку) */}
                 <div className='flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-muted-foreground font-medium'>
-                  <div className={`flex items-center gap-1.5 ${theme.iconColor}`}>
+                  <div
+                    className={`flex items-center gap-1.5 ${theme.iconColor}`}
+                  >
                     {theme.icon}
                     <span>{theme.label}</span>
                   </div>
-                  
+
                   <div className='w-1 h-1 rounded-full bg-muted-foreground/30' />
 
                   <div className='flex items-center gap-1.5'>
@@ -180,21 +181,32 @@ export function RoomHeader({
                 {isMember && !isCreator && !room.isArchived && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant='outline' size='sm' className='text-destructive hover:text-destructive'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='text-destructive hover:text-destructive'
+                      >
                         <LogOut className='mr-2 h-4 w-4' />
                         {t('Leave')}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>{t('Leave this room?')}</AlertDialogTitle>
+                        <AlertDialogTitle>
+                          {t('Leave this room?')}
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                          {t("You won't be able to record matches here anymore.")}
+                          {t(
+                            "You won't be able to record matches here anymore."
+                          )}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>{t('Stay')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={onLeave} className='bg-destructive text-destructive-foreground hover:bg-destructive/90'>
+                        <AlertDialogAction
+                          onClick={onLeave}
+                          className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                        >
                           {t('Yes, Leave')}
                         </AlertDialogAction>
                       </AlertDialogFooter>

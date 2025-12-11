@@ -19,6 +19,7 @@ export interface Community {
   ownerId: string; // Главный тренер/создатель
   admins: string[]; // Список ID тренеров, которые управляют
   members: string[]; // Список ID игроков (призраков и реальных)
+	roomIds?: string[];
   createdAt: string;
   avatarURL?: string | null;
 }
