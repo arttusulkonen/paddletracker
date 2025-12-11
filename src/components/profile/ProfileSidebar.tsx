@@ -1,18 +1,18 @@
-// src/components/profile/ProfileSidebar.tsx
 'use client';
 
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui';
 import type { UserProfile } from '@/lib/types';
-import { Trophy, Users } from 'lucide-react';
+import { Briefcase, Trophy, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CommunitiesList } from './CommunitiesList';
 import { FriendsList } from './FriendsList';
 import { RoomsList } from './RoomsList';
 
@@ -30,19 +30,28 @@ export function ProfileSidebar({
 
   if (!canViewProfile) return null;
 
+  const isCoach =
+    targetProfile.accountType === 'coach' ||
+    targetProfile.roles?.includes('coach');
+
   return (
     <div className='space-y-6'>
-      {/* Friends Section */}
+      {/* Friends / Players Section */}
       <Card>
         <CardHeader className='pb-3'>
           <CardTitle className='text-lg flex items-center gap-2'>
-            <Users className='h-5 w-5 text-primary' />
-            {t('Friends')}
+            {isCoach ? (
+              <Briefcase className='h-5 w-5 text-primary' />
+            ) : (
+              <Users className='h-5 w-5 text-primary' />
+            )}
+            {isCoach ? t('Managed Players') : t('Friends')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <FriendsList targetProfile={targetProfile} />
-          {targetProfile.friends && targetProfile.friends.length > 6 && (
+          {/* Show View All link logic remains similar or can be adapted */}
+          {!isCoach && targetProfile.friends && targetProfile.friends.length > 6 && (
             <Link
               href={`/profile/${targetProfile.uid}/friends`}
               className='mt-4 block'
@@ -54,6 +63,11 @@ export function ProfileSidebar({
           )}
         </CardContent>
       </Card>
+
+      {/* Communities (Only for coaches) */}
+      {isCoach && (
+         <CommunitiesList targetUid={targetProfile.uid} />
+      )}
 
       {/* Rooms Section */}
       <Card>

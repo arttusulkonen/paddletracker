@@ -2,36 +2,36 @@
 'use client';
 
 import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  ScrollArea,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+	Button,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+	ScrollArea,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { Info, ShieldCheck } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// Типы для мини-истории матчей (W/L)
 type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
 interface StandingsTableProps {
   players: any[];
   latestSeason: any;
   roomCreatorId: string;
+  roomMode?: 'professional' | 'arcade' | 'office';
 }
 
 type ViewMode = 'regular' | 'liveFinal' | 'final';
@@ -40,25 +40,22 @@ export function StandingsTable({
   players,
   latestSeason,
   roomCreatorId,
+  roomMode = 'office',
 }: StandingsTableProps) {
   const { t } = useTranslation();
   const { sport } = useSport();
 
-  // Если сезон завершен, по умолчанию показываем Final, иначе Regular
   const [viewMode, setViewMode] = useState<ViewMode>(
     latestSeason ? 'final' : 'regular'
   );
 
-  // Конфигурация сортировки для Regular таблицы
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     dir: 'asc' | 'desc';
   }>({ key: 'rating', dir: 'desc' });
 
-  // Сортировка "на лету" для Regular
   const sortedPlayers = useMemo(() => {
     return [...players].sort((a: any, b: any) => {
-      // Игроки без рейтинга (мало матчей) всегда внизу
       if (a.ratingVisible !== b.ratingVisible) return a.ratingVisible ? -1 : 1;
 
       const { key, dir } = sortConfig;
@@ -70,7 +67,6 @@ export function StandingsTable({
       if (key === 'name') {
         return factor * a.name.localeCompare(b.name);
       }
-      // Для чисел
       return factor * ((a[key] ?? 0) - (b[key] ?? 0));
     });
   }, [players, sortConfig]);
@@ -80,6 +76,35 @@ export function StandingsTable({
       key,
       dir: prev.key === key && prev.dir === 'desc' ? 'asc' : 'desc',
     }));
+  };
+
+  const getDescription = () => {
+    if (viewMode === 'liveFinal') {
+      if (roomMode === 'professional')
+        return t(
+          'Projected Season Winner. Based on highest Rating (Strict ELO).'
+        );
+      if (roomMode === 'arcade')
+        return t('Projected Season Winner. Based on Total Wins.');
+      return t(
+        'Projected Season Winner. Calculated using "Adjusted Points" which rewards high activity.'
+      );
+    }
+
+    if (viewMode === 'final')
+      return t('Official results of the last finalized season.');
+
+    if (roomMode === 'arcade')
+      return t(
+        'Arcade Standings: Just for fun! These stats do not affect global rank.'
+      );
+    if (roomMode === 'professional')
+      return t(
+        'Professional Standings: Serious business. Strict ELO rules apply.'
+      );
+    return t(
+      'Office Standings: Casual competitive. Losses are slightly forgiven.'
+    );
   };
 
   return (
@@ -115,15 +140,7 @@ export function StandingsTable({
           </div>
         </div>
 
-        <CardDescription>
-          {viewMode === 'regular'
-            ? t('Live season standings based on Room Rating.')
-            : viewMode === 'liveFinal'
-            ? t(
-                'Projected final standings calculated right now (Rating × Activity).'
-              )
-            : t('Official results of the last finalized season.')}
-        </CardDescription>
+        <CardDescription>{getDescription()}</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -138,18 +155,27 @@ export function StandingsTable({
         )}
 
         {viewMode === 'liveFinal' && (
-          <LiveFinalStandings players={players} sport={sport} t={t} />
+          <LiveFinalStandings
+            players={players}
+            sport={sport}
+            t={t}
+            roomMode={roomMode}
+          />
         )}
 
         {viewMode === 'final' && (
-          <FinalStandings season={latestSeason} sport={sport} t={t} />
+          <FinalStandings
+            season={latestSeason}
+            sport={sport}
+            t={t}
+            roomMode={roomMode}
+          />
         )}
       </CardContent>
     </Card>
   );
 }
 
-// --- REGULAR VIEW ---
 function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   const headers = useMemo(() => {
     const common = [
@@ -168,7 +194,6 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
       },
     ];
 
-    // Специфичные колонки для PingPong/Badminton
     const standardSpecific = [
       {
         key: 'deltaRoom',
@@ -227,7 +252,6 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
       },
     ];
 
-    // Специфичные колонки для Tennis
     const tennisSpecific = [
       {
         key: 'totalMatches',
@@ -433,16 +457,25 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   );
 }
 
-// --- LIVE FINAL VIEW (PREVIEW) ---
-function LiveFinalStandings({ players, sport, t }: any) {
+function LiveFinalStandings({ players, sport, t, roomMode }: any) {
   const rows = useMemo(() => {
     const base = (players ?? []).map((p: any) => {
       const matchesPlayed = Number(p.totalMatches ?? p.wins + p.losses ?? 0);
       const roomRating = Number(p.rating ?? 1000);
-      // Total Added Points = Текущий рейтинг - 1000 (базовый)
-      // В season.ts используется сумма addedPoints из матчей, что математически равно rating - 1000,
-      // если мы стартовали с 1000.
-      const totalAddedPoints = roomRating - 1000;
+
+      // FIXED: Strictly handle players with 0 matches.
+      let totalAddedPoints = 0;
+
+      if (matchesPlayed === 0) {
+        // If no matches played, net points MUST be 0, regardless of seeding
+        totalAddedPoints = 0;
+      } else if (typeof p.deltaRoom === 'number') {
+        // Use calculated delta if available
+        totalAddedPoints = p.deltaRoom;
+      } else {
+        // Fallback for Office mode where start is usually 1000
+        totalAddedPoints = roomRating - 1000;
+      }
 
       return {
         userId: p.userId,
@@ -458,7 +491,6 @@ function LiveFinalStandings({ players, sport, t }: any) {
       };
     });
 
-    // Расчет среднего количества матчей (только среди тех, кто играл)
     const activePlayers = base.filter((p: any) => p.matchesPlayed > 0);
     const totalMatchesAll = activePlayers.reduce(
       (sum: number, r: any) => sum + r.matchesPlayed,
@@ -467,7 +499,6 @@ function LiveFinalStandings({ players, sport, t }: any) {
     const avgM =
       activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
 
-    // Формула корректировки (ТОЧНО КАК В season.ts)
     const adjFactor = (ratio: number) => {
       if (!isFinite(ratio) || ratio <= 0) return 0;
       return Math.sqrt(ratio);
@@ -475,28 +506,33 @@ function LiveFinalStandings({ players, sport, t }: any) {
 
     const withAdj = base.map((r: any) => ({
       ...r,
-      // Основная формула: (Rating - 1000) * sqrt(Matches / Avg)
       adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM),
     }));
 
-    // Сортировка (ТОЧНО КАК В season.ts)
+    // Sorting logic matching season.ts
     withAdj.sort((a: any, b: any) => {
-      // Сначала те, кто играл
-      const aZero = a.matchesPlayed === 0;
-      const bZero = b.matchesPlayed === 0;
-      if (aZero !== bZero) return aZero ? 1 : -1;
+      const aPlayed = a.matchesPlayed > 0;
+      const bPlayed = b.matchesPlayed > 0;
+      if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
 
-      // 1. Adjusted Points
-      if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
-      // 2. Total Points (Rating diff)
-      if (b.totalAddedPoints !== a.totalAddedPoints)
-        return b.totalAddedPoints - a.totalAddedPoints;
-      // 3. Win Rate
-      return b.winRate - a.winRate;
+      if (roomMode === 'professional') {
+        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        return b.wins - a.wins;
+      } else if (roomMode === 'arcade') {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        return b.matchesPlayed - a.matchesPlayed;
+      } else {
+        // Office (default)
+        if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
+        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+        return b.winRate - a.winRate;
+      }
     });
 
     return withAdj.map((r: any, i: number) => ({ ...r, place: i + 1 }));
-  }, [players]);
+  }, [players, roomMode]);
 
   const headers = [
     { key: 'place', label: 'Rank' },
@@ -505,8 +541,9 @@ function LiveFinalStandings({ players, sport, t }: any) {
     { key: 'wins', label: 'W' },
     { key: 'losses', label: 'L' },
     { key: 'roomRating', label: 'Rating' },
-    { key: 'totalAddedPoints', label: 'Net Pts' }, // Чистые очки (Rating - 1000)
-    { key: 'adjPoints', label: 'Adj Pts' }, // Скорректированные
+    { key: 'totalAddedPoints', label: 'Net Pts' },
+    // Show Adj Pts only for Office mode
+    ...(roomMode === 'office' ? [{ key: 'adjPoints', label: 'Adj Pts' }] : []),
   ];
 
   return (
@@ -541,36 +578,89 @@ function LiveFinalStandings({ players, sport, t }: any) {
               <TableCell className='text-center text-red-600'>
                 {r.losses}
               </TableCell>
-              <TableCell className='text-center'>
+              <TableCell
+                className={`text-center ${
+                  roomMode === 'professional' ? 'font-bold text-lg' : ''
+                }`}
+              >
                 {Math.round(r.roomRating)}
               </TableCell>
               <TableCell className='text-center text-muted-foreground'>
                 {r.totalAddedPoints > 0 ? '+' : ''}
                 {Math.round(r.totalAddedPoints)}
               </TableCell>
-              <TableCell className='text-center font-bold text-lg text-primary'>
-                {r.matchesPlayed > 0 ? r.adjPoints.toFixed(1) : '—'}
-              </TableCell>
+
+              {roomMode === 'office' && (
+                <TableCell className='text-center font-bold text-lg text-primary'>
+                  {r.matchesPlayed > 0 ? r.adjPoints.toFixed(1) : '—'}
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
       </Table>
 
-      <div className='mt-4 p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground border'>
-        <p className='font-semibold mb-1'>{t('How Adjusted Points work:')}</p>
-        <p>{t('Adj Points = Net Points × √(Games / Average Games).')}</p>
-        <p className='mt-1'>
-          {t(
-            'This formula rewards active players. If you have positive points but play very few games, your score is reduced. If you play more than average, your score is boosted.'
-          )}
-        </p>
+      <div className='mt-4 p-4 bg-primary/5 rounded-lg border border-primary/10'>
+        <h4 className='font-bold text-sm mb-2 flex items-center gap-2'>
+          🏆 {t('How the Season Winner is decided')}
+        </h4>
+
+        {roomMode === 'professional' ? (
+          <ul className='list-disc pl-5 space-y-1 text-xs text-muted-foreground'>
+            <li>
+              <strong>{t('Main Criteria')}:</strong> {t('Highest Room Rating')}.
+            </li>
+            <li>
+              <strong>{t('Tie-breakers')}:</strong> {t('Win Rate')} &rarr;{' '}
+              {t('Total Wins')}.
+            </li>
+            <li>
+              <strong>{t('Why?')}:</strong>{' '}
+              {t(
+                'Standard competitive rules. The highest ELO takes the crown.'
+              )}
+            </li>
+          </ul>
+        ) : roomMode === 'arcade' ? (
+          <ul className='list-disc pl-5 space-y-1 text-xs text-muted-foreground'>
+            <li>
+              <strong>{t('Main Criteria')}:</strong> {t('Most Wins')}.
+            </li>
+            <li>
+              <strong>{t('Tie-breakers')}:</strong> {t('Win Rate')} &rarr;{' '}
+              {t('Total Games')}.
+            </li>
+            <li>
+              <strong>{t('Why?')}:</strong>{' '}
+              {t(
+                'Arcade mode is about playing a lot and winning a lot. Rating is secondary.'
+              )}
+            </li>
+          </ul>
+        ) : (
+          <ul className='list-disc pl-5 space-y-1 text-xs text-muted-foreground'>
+            <li>
+              <strong>{t('Main Criteria')}:</strong>{' '}
+              {t('Adjusted Points (Adj Pts)')}.
+            </li>
+            <li>
+              <strong>{t('Formula')}:</strong>{' '}
+              <code>(Rating - 1000) × √(Games / Average)</code>
+            </li>
+            <li>
+              <strong>{t('Why?')}:</strong>{' '}
+              {t(
+                'This system rewards both skill AND activity. A player with a lower rating who plays a lot can beat a player with a higher rating who rarely plays.'
+              )}
+            </li>
+          </ul>
+        )}
       </div>
     </div>
   );
 }
 
-// --- FINAL STANDINGS (HISTORY) ---
-function FinalStandings({ season, sport, t }: any) {
+function FinalStandings({ season, sport, t, roomMode }: any) {
   const data = useMemo(
     () => (Array.isArray(season?.summary) ? season.summary : []),
     [season]
@@ -595,7 +685,9 @@ function FinalStandings({ season, sport, t }: any) {
             <TableHead className='text-center'>{t('W')}</TableHead>
             <TableHead className='text-center'>{t('L')}</TableHead>
             <TableHead className='text-center'>{t('Rating')}</TableHead>
-            <TableHead className='text-center'>{t('Adj Pts')}</TableHead>
+            {roomMode === 'office' && (
+              <TableHead className='text-center'>{t('Adj Pts')}</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -627,12 +719,20 @@ function FinalStandings({ season, sport, t }: any) {
               <TableCell className='text-center text-red-600'>
                 {r.losses}
               </TableCell>
-              <TableCell className='text-center text-muted-foreground'>
+              <TableCell
+                className={`text-center ${
+                  roomMode === 'professional'
+                    ? 'font-bold text-lg text-primary'
+                    : 'text-muted-foreground'
+                }`}
+              >
                 {Math.round(r.roomRating)}
               </TableCell>
-              <TableCell className='text-center font-bold text-primary text-lg'>
-                {r.adjPoints?.toFixed(1)}
-              </TableCell>
+              {roomMode === 'office' && (
+                <TableCell className='text-center font-bold text-primary text-lg'>
+                  {r.adjPoints?.toFixed(1)}
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

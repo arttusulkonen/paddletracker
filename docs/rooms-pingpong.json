@@ -1,64 +1,61 @@
 {
-	"id": "string (RoomID)",
-	"createdAt": "string (Format: DD.MM.YYYY HH.mm.ss)",
-	"creator": "string (UID)",
-	"creatorName": "string",
-	"name": "string",
-	"description": "string",
-	"avatarURL": "string | null",
-	// Настройки
-	"isPublic": "boolean",
-	"isRanked": "boolean",
-	"isArchived": "boolean",
-	// Списки доступа
-	"adminIds": [
-		"string (UID)"
-	],
-	"memberIds": [
-		"string (UID)"
-	],
-	// Участники с локальной статистикой (внутри комнаты)
-	"members": [
-		{
-			"userId": "string (UID)",
-			"name": "string",
-			"email": "string",
-			"role": "string ('admin' | 'editor' | 'member')",
-			"photoURL": "string | null",
-			"date": "string (Join date)",
-			// Статистика внутри комнаты
-			"rating": "number (Room ELO)",
-			"wins": "number",
-			"losses": "number",
-			// Глобальный рейтинг (снэпшот или ссылка)
-			"globalElo": "number"
-		}
-	],
-	// История сезонов (если используется сезонность)
-	"seasonHistory": [
-		{
-			"type": "seasonFinish",
-			"dateFinished": "string",
-			"roomId": "string",
-			"roomName": "string",
-			"sport": "string",
-			"summary": [
-				{
-					"userId": "string",
-					"name": "string",
-					"place": "number",
-					"wins": "number",
-					"losses": "number",
-					"winRate": "number",
-					"matchesPlayed": "number",
-					"longestWinStreak": "number",
-					"startGlobalElo": "number",
-					"endGlobalElo": "number",
-					"totalAddedPoints": "number",
-					"adjPoints": "number",
-					"roomRating": "number"
-				}
-			]
-		}
-	]
+  "id": "string (RoomID)",
+  "createdAt": "string (Format: DD.MM.YYYY HH.mm.ss)",
+  "creator": "string (UID)",
+  "creatorName": "string",
+  "name": "string",
+  "mode": "arcade | professional | office",
+  "description": "string",
+  "avatarURL": "string | null",
+  // Настройки
+  "isPublic": "boolean",
+  "isRanked": "boolean",
+  "isArchived": "boolean",
+  // Списки доступа
+  "adminIds": ["string (UID)"],
+  "memberIds": ["string (UID)"],
+  // Участники с локальной статистикой (внутри комнаты)
+  "members": [
+    {
+      "userId": "string (UID)",
+      "name": "string",
+      "email": "string",
+      "role": "string ('admin' | 'editor' | 'member')",
+      "photoURL": "string | null",
+      "date": "string (Join date)",
+      // Статистика внутри комнаты
+      "rating": "number (Room ELO)",
+      "wins": "number",
+      "losses": "number",
+      // Глобальный рейтинг (снэпшот или ссылка)
+      "globalElo": "number"
+    }
+  ],
+  // История сезонов (если используется сезонность)
+  "seasonHistory": [
+    {
+      "type": "seasonFinish",
+      "dateFinished": "string",
+      "roomId": "string",
+      "roomName": "string",
+      "sport": "string",
+      "summary": [
+        {
+          "userId": "string",
+          "name": "string",
+          "place": "number",
+          "wins": "number",
+          "losses": "number",
+          "winRate": "number",
+          "matchesPlayed": "number",
+          "longestWinStreak": "number",
+          "startGlobalElo": "number",
+          "endGlobalElo": "number",
+          "totalAddedPoints": "number",
+          "adjPoints": "number",
+          "roomRating": "number"
+        }
+      ]
+    }
+  ]
 }

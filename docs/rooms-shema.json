@@ -1,0 +1,94 @@
+{
+  "_id": "string (RoomID)",
+  "name": "string",
+  "description": "string",
+  "sport": "string ('pingpong' | 'badminton' | 'tennis')",
+  "mode": "string ('office' | 'professional' | 'arcade')",
+  "avatarURL": "string (URL)",
+
+  // Creation Info
+  "createdAt": "string (Format: DD.MM.YYYY HH.mm.ss)",
+  "roomCreated": "string (Legacy format: DD.MM.YYYY)",
+  "creator": "string (UID)",
+  "creatorName": "string",
+
+  // Flags
+  "isPublic": "boolean",
+  "isRanked": "boolean",
+  "isArchived": "boolean",
+  "archivedAt": "string (ISO 8601, Optional)",
+
+  // Settings
+  "kFactor": "number (Default 32)",
+
+  // User Lists
+  "adminIds": ["string (UID)"],
+  "memberIds": ["string (UID)"],
+  "joinRequests": ["string (UID)"],
+
+  // Embedded Member Data (Snapshot)
+  "members": [
+    {
+      "userId": "string (UID)",
+      "name": "string",
+      "email": "string",
+      "photoURL": "string | null",
+      "role": "string ('admin' | 'editor')",
+      "date": "string (Join date)",
+
+      // Room Stats
+      "rating": "number (Room Elo)",
+      "wins": "number",
+      "losses": "number",
+      "totalMatches": "number (Optional)",
+      "longestWinStreak": "number (Optional)",
+      "currentStreak": "number (Optional)",
+      "totalAddedPoints": "number (Optional)",
+
+      // Global Snapshot
+      "globalElo": "number",
+      "maxRating": "number (Optional)",
+      "prevPlace": "number (Optional)"
+    }
+  ],
+
+  // History of seasons
+  "seasonHistory": [
+    {
+      "type": "string ('seasonFinish')",
+      "dateFinished": "string",
+      "roomId": "string",
+      "roomName": "string",
+      "sport": "string",
+      "mode": "string",
+      "summary": [
+        {
+          "userId": "string",
+          "name": "string",
+          "place": "number",
+          "matchesPlayed": "number",
+          "wins": "number",
+          "losses": "number",
+          "winRate": "number",
+          "totalAddedPoints": "number",
+          "longestWinStreak": "number",
+          "roomRating": "number",
+          "adjPoints": "number",
+          "startGlobalElo": "number",
+          "endGlobalElo": "number"
+        }
+      ]
+    }
+  ],
+
+  // Rank History Chart Data (Optional)
+  "rankHistories": {
+    "UID_KEY": [
+      {
+        "ts": "string (ISO)",
+        "place": "number",
+        "rating": "number"
+      }
+    ]
+  }
+}

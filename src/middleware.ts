@@ -1,4 +1,3 @@
-// src/middleware.ts
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
@@ -9,7 +8,6 @@ export function middleware(req: NextRequest) {
 
   // ─────────────────────────────────────────────────────────────
   // 1. DOMAIN REDIRECT (SEO & Rebranding)
-  // Перенаправляем со старых технических доменов на основной
   // ─────────────────────────────────────────────────────────────
   const oldDomains = [
     'tabletennis-f4c23.web.app',
@@ -25,18 +23,21 @@ export function middleware(req: NextRequest) {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 2. MOBILE REDIRECT LOGIC (Ваш старый код)
+  // 2. MOBILE REDIRECT LOGIC
   // ─────────────────────────────────────────────────────────────
+  
+  // ЗАЩИТА ОТ ЗАЦИКЛИВАНИЯ: Если мы уже в мобильной версии, ничего не делаем
+  if (pathname.startsWith('/mobile')) {
+    return NextResponse.next();
+  }
+
   const ua = req.headers.get('user-agent') || '';
   const isMobile =
     /Mobi|Android|iPhone|iPad|iPod|Windows Phone|webOS|BlackBerry|Opera Mini|IEMobile/i.test(
       ua
     );
 
-  // Если это не мобильный телефон — ничего не делаем
   if (!isMobile) return NextResponse.next();
-
-  // Логика перенаправления мобильных путей
 
   // Главная: root → /mobile
   if (pathname === '/') {
@@ -67,7 +68,6 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Важно: matcher должен охватывать весь сайт, чтобы редирект домена работал везде
   matcher: [
     '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|manifest.webmanifest|icons|brand|img).*)',
   ],

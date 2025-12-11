@@ -1,33 +1,34 @@
 // src/lib/utils/profileUtils.ts
 import type { Match, UserProfile } from '@/lib/types';
 import {
-  ArrowLeftRight,
-  Crosshair,
-  Flame,
-  HeartCrack,
-  LineChart,
-  Rocket,
-  Skull,
-  TrendingDown,
-  TrendingUp,
-  Trophy,
+	ArrowLeftRight,
+	Crosshair,
+	Flame,
+	HeartCrack,
+	LineChart,
+	Rocket,
+	Skull,
+	TrendingDown,
+	TrendingUp,
+	Trophy,
 } from 'lucide-react';
 import { parseFlexDate } from './date';
 
-export const getRank = (elo: number, t: (key: string) => string) =>
+// UPDATED: Now returns the key string, not the translated string
+export const getRank = (elo: number) =>
   elo < 1001
-    ? t('Ping-Pong Padawan')
+    ? 'Ping-Pong Padawan'
     : elo < 1100
-    ? t('Table-Tennis Trainee')
+    ? 'Table-Tennis Trainee'
     : elo < 1200
-    ? t('Racket Rookie')
+    ? 'Racket Rookie'
     : elo < 1400
-    ? t('Paddle Prodigy')
+    ? 'Paddle Prodigy'
     : elo < 1800
-    ? t('Spin Sensei')
+    ? 'Spin Sensei'
     : elo < 2000
-    ? t('Smash Samurai')
-    : t('Ping-Pong Paladin');
+    ? 'Smash Samurai'
+    : 'Ping-Pong Paladin';
 
 export const medalMap: Record<string, string> = {
   'Ping-Pong Padawan': '/img/ping-pong-padawan.png',
@@ -142,7 +143,7 @@ export function computeSideStats(list: Match[], uid: string) {
 export function groupByMonth(list: Match[], uid: string) {
   const map = new Map<string, { start: number; end: number }>();
 
-  // Сортировка по возрастанию даты
+  // Sort ascending by date
   const sorted = [...list].sort((a, b) => {
     return (
       parseFlexDate(a.tsIso ?? a.timestamp).getTime() -
@@ -194,8 +195,6 @@ export function opponentStats(list: Match[], uid: string) {
 }
 
 const pct = (v: number) => `${v.toFixed(0)}%`;
-
-// Вспомогательная функция для жирного текста, чтобы не писать каждый раз
 const bold = (v: string | number) => `<b>${v}</b>`;
 
 export function buildInsights(
@@ -255,7 +254,6 @@ export function buildInsights(
         color: 'text-blue-600',
         bg: 'bg-blue-100 dark:bg-blue-900/20',
         title: t('Chasing Greatness'),
-        // Теперь ключи перевода чистые, а HTML теги добавляются только вокруг значений
         description: t(
           'Peak: {{max}}. Current: {{curr}}. You need {{diff}} pts to break your record.',
           {
@@ -300,7 +298,6 @@ export function buildInsights(
       }
     }
 
-    // Собираем строку из двух частей перевода, чтобы не тащить HTML структуру в ключи
     const mainTextKey = isPositive
       ? 'Gained {{points}} ELO this month.'
       : 'Net change {{points}} ELO this month.';

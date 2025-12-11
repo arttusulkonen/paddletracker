@@ -1,9 +1,10 @@
-// src/components/profile/FriendsList.tsx
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui';
+import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import type { UserProfile } from '@/lib/types';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,26 +20,50 @@ export function FriendsList({ targetProfile }: FriendsListProps) {
   const [friends, setFriends] = useState<(UserProfile & { uid: string })[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Check if target is a coach
+  const isCoach =
+    targetProfile.accountType === 'coach' ||
+    targetProfile.roles?.includes('coach');
+
   useEffect(() => {
-    const fetchFriends = async () => {
+    const fetchData = async () => {
       setLoading(true);
-      if (targetProfile.friends && targetProfile.friends.length > 0) {
-        const friendData = await Friends.getMultipleUsersLite(
-          targetProfile.friends
-        );
-        const sortedFriends = friendData.sort((a, b) =>
-          (a.name || a.displayName || '').localeCompare(
-            b.name || b.displayName || ''
-          )
-        );
-        setFriends(sortedFriends);
-      } else {
-        setFriends([]);
+      try {
+        if (isCoach) {
+          // FETCH PLAYERS MANAGED BY COACH
+          const q = query(
+            collection(db, 'users'),
+            where('managedBy', '==', targetProfile.uid)
+          );
+          const snap = await getDocs(q);
+          const players = snap.docs.map(
+            (d) => ({ uid: d.id, ...d.data() } as UserProfile)
+          );
+          setFriends(players);
+        } else {
+          // FETCH FRIENDS
+          if (targetProfile.friends && targetProfile.friends.length > 0) {
+            const friendData = await Friends.getMultipleUsersLite(
+              targetProfile.friends
+            );
+            const sortedFriends = friendData.sort((a, b) =>
+              (a.name || a.displayName || '').localeCompare(
+                b.name || b.displayName || ''
+              )
+            );
+            setFriends(sortedFriends);
+          } else {
+            setFriends([]);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-    fetchFriends();
-  }, [targetProfile.friends]);
+    fetchData();
+  }, [targetProfile.friends, targetProfile.uid, isCoach]);
 
   if (loading) {
     return (
@@ -55,7 +80,7 @@ export function FriendsList({ targetProfile }: FriendsListProps) {
   if (friends.length === 0) {
     return (
       <div className='text-sm text-muted-foreground text-center py-4'>
-        {t('No friends added yet.')}
+        {isCoach ? t('No players added yet.') : t('No friends added yet.')}
       </div>
     );
   }

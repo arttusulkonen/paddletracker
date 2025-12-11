@@ -36,10 +36,29 @@ export function TennisRowInput({
   const handleStatChange = (field: keyof TennisSetData, value: string) => {
     onChange({ ...data, [field]: value });
   };
+  
+  const score1 = parseInt(data.score1);
+  const score2 = parseInt(data.score2);
+
+  const p1Winner = !isNaN(score1) && !isNaN(score2) && score1 > score2;
+  const p2Winner = !isNaN(score1) && !isNaN(score2) && score2 > score1;
+  
+  // Default neutral styling (no conditional background for the whole block)
+  const baseClassName = 'flex flex-col gap-4 relative p-4 border rounded-lg bg-muted/50 pt-12';
+
+  const winnerClass = 'bg-green-100 dark:bg-green-900 border-green-400';
+  const neutralClass = 'bg-background';
+
+  const input1ClassName = `text-center text-base font-bold ${
+    p1Winner ? winnerClass : neutralClass
+  }`;
+  const input2ClassName = `text-center text-base font-bold ${
+    p2Winner ? winnerClass : neutralClass
+  }`;
 
   return (
-    <div className='flex flex-col gap-4 mb-2 relative p-4 border rounded-lg bg-muted/50'>
-      <div className='flex justify-between items-center'>
+    <div className={baseClassName}>
+      <div className='flex justify-between items-center absolute top-0 left-0 right-0 p-3 border-b border-inherit rounded-t-lg'>
         <Label className='font-bold text-lg'>
           {t('Set')} {setIndex + 1}
         </Label>
@@ -47,10 +66,10 @@ export function TennisRowInput({
           <Button
             variant='ghost'
             size='icon'
-            className='h-8 w-8'
+            className='h-8 w-8 text-muted-foreground hover:text-destructive'
             onClick={onRemove}
           >
-            <Trash2 className='h-4 w-4 text-destructive' />
+            <Trash2 className='h-4 w-4' />
           </Button>
         )}
       </div>
@@ -63,7 +82,7 @@ export function TennisRowInput({
             placeholder='6'
             value={data.score1}
             onChange={(e) => handleStatChange('score1', e.target.value)}
-            className='text-center text-base font-bold'
+            className={input1ClassName}
           />
         </div>
         <div className='space-y-1'>
@@ -73,13 +92,12 @@ export function TennisRowInput({
             placeholder='4'
             value={data.score2}
             onChange={(e) => handleStatChange('score2', e.target.value)}
-            className='text-center text-base font-bold'
+            className={input2ClassName}
           />
         </div>
       </div>
 
       <div className='grid grid-cols-2 gap-x-4 gap-y-2 text-sm'>
-        {/* Aces */}
         <StatInput
           label={t('Aces')}
           value={data.aces1}
@@ -91,7 +109,6 @@ export function TennisRowInput({
           onChange={(val) => handleStatChange('aces2', val)}
         />
 
-        {/* Double Faults */}
         <StatInput
           label={t('Double Faults')}
           value={data.doubleFaults1}
@@ -103,7 +120,6 @@ export function TennisRowInput({
           onChange={(val) => handleStatChange('doubleFaults2', val)}
         />
 
-        {/* Winners */}
         <StatInput
           label={t('Winners')}
           value={data.winners1}
@@ -119,7 +135,6 @@ export function TennisRowInput({
   );
 }
 
-// Вспомогательный компонент для полей ввода статистики
 const StatInput = ({
   label,
   value,

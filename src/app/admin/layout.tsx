@@ -1,3 +1,4 @@
+// src/app/admin/layout.tsx
 'use client';
 
 import { Shield, Users } from 'lucide-react';

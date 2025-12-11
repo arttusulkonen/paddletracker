@@ -1,4 +1,3 @@
-// src/lib/season.ts
 import type { Sport, SportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import { getFinnishFormattedDate } from '@/lib/utils';
@@ -15,12 +14,11 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import type { RoomMode } from './types';
 
-// Хелпер для конвертации даты из разных форматов
 const toDate = (v: string | Timestamp): Date => {
   if (v instanceof Timestamp) return v.toDate();
   if (typeof v === 'string') {
-    // Попытка парсинга финского формата "DD.MM.YYYY HH.mm.ss"
     if (v.includes('.')) {
       const parts = v.split(' ');
       const dateParts = parts[0].split('.');
@@ -62,17 +60,13 @@ export interface SeasonRow {
   losses: number;
   winRate: number;
   totalAddedPoints: number;
-  adjPoints: number; // Скорректированные очки с учетом активности
+  adjPoints: number;
   longestWinStreak: number;
   roomRating: number;
   startGlobalElo?: number;
   endGlobalElo?: number;
 }
 
-// Фактор корректировки: поощряет тех, кто играет больше среднего
-// Если сыграл меньше среднего -> коэффициент < 1 (штраф)
-// Если сыграл больше среднего -> коэффициент > 1 (бонус)
-// Используем корень, чтобы сгладить влияние гринда
 const adjFactor = (ratio: number): number => {
   if (!isFinite(ratio) || ratio <= 0) return 0;
   return Math.sqrt(ratio);
@@ -80,10 +74,15 @@ const adjFactor = (ratio: number): number => {
 
 async function collectStats(
   roomId: string,
-  matchesCollectionName: string
+  matchesCollectionName: string,
+  mode: RoomMode
 ): Promise<SeasonRow[]> {
   const snap = await getDocs(
-    query(collection(db, matchesCollectionName), where('roomId', '==', roomId))
+    query(
+      collection(db, matchesCollectionName),
+      where('roomId', '==', roomId),
+      orderBy('tsIso', 'asc')
+    )
   );
 
   if (snap.empty) return [];
@@ -92,7 +91,6 @@ async function collectStats(
 
   snap.forEach((d) => {
     const m = d.data() as RawMatch;
-    // Пропускаем отмененные или некорректные матчи
     if (!m.player1Id || !m.player2Id) return;
 
     [
@@ -114,28 +112,20 @@ async function collectStats(
       }
       const rec = map[id];
 
-      // Определение победителя по имени (legacy) или ID (лучше)
-      // В идеале в базе должен быть winnerId, но используем name как фоллбэк
       const isWinner = m.winner === info.name;
 
       isWinner ? rec.wins++ : rec.losses++;
       rec.totalAddedPoints += info.roomAddedPoints ?? info.addedPoints ?? 0;
 
-      // Сохраняем дату для расчета стриков
       const matchDate = m.tsIso ? new Date(m.tsIso) : toDate(m.timestamp);
       rec.matches.push({ w: isWinner, ts: matchDate });
 
-      // Обновляем текущий рейтинг (берем из последнего матча)
-      // Так как порядок перебора не гарантирован, это приблизительно
-      // Для точности лучше сортировать матчи перед обработкой, но для MVP сойдет
       rec.roomRating = pickRoomRating(info);
     });
   });
 
-  // Превращаем map в массив и считаем базовую статистику
   const rows: Omit<SeasonRow, 'place' | 'adjPoints'>[] = Object.values(map).map(
     (s) => {
-      // Сортируем матчи игрока по времени для корректного подсчета стриков
       const ordered = [...s.matches].sort(
         (a, b) => a.ts.getTime() - b.ts.getTime()
       );
@@ -167,39 +157,39 @@ async function collectStats(
     }
   );
 
-  // Расчет среднего количества матчей для нормализации
   const totalMatchesAll = rows.reduce((sum, r) => sum + r.matchesPlayed, 0);
   const avgM = rows.length > 0 ? totalMatchesAll / rows.length : 1;
 
-  // Финальный расчет очков и сортировка
   const finalRows: SeasonRow[] = rows.map((r) => {
-    // Если очков < 0, то аджастмент работает наоборот (уменьшает минус),
-    // поэтому для отрицательных очков логика может быть другой,
-    // но для простоты оставим умножение.
-    // Важно: если человек в минусе, и сыграл МНОГО игр, он уйдет в еще больший минус.
-    // Это справедливо: "нагриндил поражения".
     const adjPoints = r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM);
 
     return {
       ...r,
-      place: 0, // Заполним после сортировки
+      place: 0,
       adjPoints,
     };
   });
 
   finalRows.sort((a, b) => {
-    // 1. Скорректированные очки (главный критерий)
-    if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
-    // 2. Чистые очки
-    if (b.totalAddedPoints !== a.totalAddedPoints)
-      return b.totalAddedPoints - a.totalAddedPoints;
-    // 3. Винрейт
-    if (b.winRate !== a.winRate) return b.winRate - a.winRate;
-    // 4. Количество побед
-    return b.wins - a.wins;
+    const aPlayed = a.matchesPlayed > 0;
+    const bPlayed = b.matchesPlayed > 0;
+    if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
+
+    if (mode === 'professional') {
+      if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      return b.wins - a.wins;
+    } else if (mode === 'arcade') {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      return b.matchesPlayed - a.matchesPlayed;
+    } else {
+      if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
+      if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+      return b.winRate - a.winRate;
+    }
   });
 
-  // Присваиваем места
   finalRows.forEach((r, i) => (r.place = i + 1));
 
   return finalRows;
@@ -235,16 +225,15 @@ export async function finalizeSeason(
   config: SportConfig['collections'],
   sport: Sport
 ): Promise<void> {
-  // 1. Сбор статистики
-  const summary = await collectStats(roomId, config.matches);
-  if (!summary.length) return; // Нельзя завершить пустой сезон
-
   const roomRef = doc(db, config.rooms, roomId);
   const roomSnap = await getDoc(roomRef);
   if (!roomSnap.exists()) return;
   const roomData = roomSnap.data() as any;
+  const mode = roomData.mode || 'office';
 
-  // 2. Обогащение данными о глобальном ELO (из снэпшотов, переданных с клиента)
+  const summary = await collectStats(roomId, config.matches, mode);
+  if (!summary.length) return;
+
   const enrichedSummary: SeasonRow[] = summary.map((r) => ({
     ...r,
     startGlobalElo: snapshots[r.userId]?.start ?? 1000,
@@ -256,7 +245,6 @@ export async function finalizeSeason(
     config.matches
   );
 
-  // 3. Формирование записи истории
   const entry = {
     dateFinished,
     roomId,
@@ -264,17 +252,9 @@ export async function finalizeSeason(
     summary: enrichedSummary,
     sport,
     type: 'seasonFinish',
+    mode,
   };
 
-  // 4. Обновление данных участников в комнате (сброс/фиксация)
-  // Обычно при завершении сезона мы хотим сохранить текущий рейтинг как стартовый для следующего,
-  // или сбросить его. В текущей логике мы просто обновляем wins/losses в массиве members,
-  // чтобы они соответствовали итогам сезона.
-  // Если нужно СБРОСИТЬ wins/losses в ноль для нового сезона, это нужно делать здесь.
-  // В ВАШЕМ СЛУЧАЕ: Вы обновляете members данными из summary.
-  // Если matches коллекция не чистится, то это просто "чекпоинт".
-  // Если вы хотите "начать с чистого листа", вам нужно будет фильтровать матчи по дате старта сезона.
-  // Пока оставляем как есть (snapshot текущего состояния).
   const updatedMembers = (roomData.members ?? []).map((m: any) => {
     const row = enrichedSummary.find((r) => r.userId === m.userId);
     return row
@@ -282,13 +262,11 @@ export async function finalizeSeason(
       : m;
   });
 
-  // 5. Атомарное обновление комнаты
   await updateDoc(roomRef, {
     seasonHistory: arrayUnion(entry),
     members: updatedMembers,
   });
 
-  // 6. Раздача ачивок пользователям
   for (const r of enrichedSummary) {
     const achievement = {
       type: 'seasonFinish',
@@ -309,9 +287,9 @@ export async function finalizeSeason(
       roomRating: r.roomRating,
       startGlobalElo: r.startGlobalElo,
       endGlobalElo: r.endGlobalElo,
+      mode,
     };
 
-    // Пишем каждому юзеру
     await updateDoc(doc(db, 'users', r.userId), {
       achievements: arrayUnion(achievement),
     });

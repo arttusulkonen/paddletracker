@@ -2,33 +2,37 @@
 
 import ImageCropDialog from '@/components/ImageCropDialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Checkbox,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  Label,
-  ScrollArea,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea,
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	Input,
+	Label,
+	ScrollArea,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+	Switch,
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+	Textarea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
@@ -40,12 +44,12 @@ import { updateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
-  deleteObject,
-  getDownloadURL,
-  ref,
-  uploadBytesResumable,
+	deleteObject,
+	getDownloadURL,
+	ref,
+	uploadBytesResumable,
 } from 'firebase/storage';
-import { Image as ImageIcon, Trash2, UserX } from 'lucide-react';
+import { Image as ImageIcon, Trash2, UserPlus, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -106,15 +110,22 @@ export function ProfileSettingsDialog({
       .substring(f.name.lastIndexOf('.'))
       .toLowerCase();
 
-    const isValidType =
-      allowedMimeTypes.includes(f.type) ||
-      allowedExtensions.includes(fileExtension);
-    const isValidSize = f.size <= 2 * 1024 * 1024;
-
-    if (!isValidType || !isValidSize) {
+    if (
+      !allowedMimeTypes.includes(f.type) &&
+      !allowedExtensions.includes(fileExtension)
+    ) {
       toast({
         title: t('Invalid image'),
         description: t('Use PNG/JPEG/WEBP up to 2MB.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (f.size > 2 * 1024 * 1024) {
+      toast({
+        title: t('File too large'),
+        description: t('Max size is 2MB.'),
         variant: 'destructive',
       });
       return;
@@ -231,172 +242,235 @@ export function ProfileSettingsDialog({
 
   return (
     <>
-      <DialogContent className='max-w-3xl'>
-        <DialogHeader>
+      <DialogContent className='sm:max-w-xl max-h-[85vh] overflow-hidden flex flex-col p-0 gap-0'>
+        <DialogHeader className='p-6 pb-4'>
           <DialogTitle>{t('Profile Settings')}</DialogTitle>
         </DialogHeader>
-        <div className='py-4 grid grid-cols-1 md:grid-cols-2 gap-8'>
-          <div className='space-y-4'>
-            <div className='space-y-2'>
-              <Label>{t('Profile Picture')}</Label>
-              <div className='flex items-center gap-4'>
-                <Avatar className='h-20 w-20'>
-                  <AvatarImage src={avatarPreview ?? undefined} />
-                  <AvatarFallback>{(name || 'U').charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className='flex items-center gap-2'>
-                  <Button
-                    variant='outline'
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {t('Change Image')}
-                  </Button>
-                  {!!(avatarPreview || profile.photoURL) && (
-                    <Button
-                      variant='destructive'
-                      onClick={() => {
-                        setAvatarBlob(null);
-                        setAvatarSrc(null);
-                        setAvatarPreview(null);
-                        setMarkRemove(true);
-                        setUploadPct(0);
-                      }}
-                    >
-                      <Trash2 className='h-4 w-4 mr-2' />
-                      {t('Remove')}
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <Input
-                type='file'
-                ref={fileInputRef}
-                className='hidden'
-                accept='image/png,image/jpeg,image/webp'
-                onChange={pick}
-              />
-              {uploadPct > 0 && (
-                <div className='text-xs text-muted-foreground'>
-                  {uploadPct}%
-                </div>
-              )}
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='name'>{t('Display Name')}</Label>
-              <Input
-                id='name'
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='bio'>{t('About Me')}</Label>
-              <Textarea
-                id='bio'
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='default-sport'>{t('Default Sport')}</Label>
-              <Select
-                value={activeSport}
-                onValueChange={(v) => setActiveSport(v as Sport)}
-              >
-                <SelectTrigger id='default-sport'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(sportConfig) as Sport[]).map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {sportConfig[k].name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className='flex items-center space-x-2 pt-2'>
-              <Checkbox
-                id='isPublic'
-                checked={isPublic}
-                onCheckedChange={(v) => setIsPublic(!!v)}
-              />
-              <Label htmlFor='isPublic'>{t('Public Profile')}</Label>
-            </div>
+
+        <Tabs defaultValue='general' className='flex-1 overflow-hidden flex flex-col'>
+          <div className='px-6'>
+            <TabsList className='grid w-full grid-cols-3'>
+              <TabsTrigger value='general'>{t('General')}</TabsTrigger>
+              <TabsTrigger value='friends'>
+                {t('Friends')}
+                {friends.length > 0 && <span className="ml-2 text-xs opacity-70">({friends.length})</span>}
+              </TabsTrigger>
+              <TabsTrigger value='danger'>{t('Danger')}</TabsTrigger>
+            </TabsList>
           </div>
-          <div className='space-y-6'>
-            <div>
-              <h3 className='font-semibold mb-2'>{t('Friends')}</h3>
-              <ScrollArea className='h-48 border rounded-md p-2'>
-                {friends.length > 0 ? (
-                  friends.map((f) => (
-                    <div
-                      key={f.uid}
-                      className='flex items-center justify-between p-1 hover:bg-muted rounded'
+
+          <div className='flex-1 overflow-y-auto p-6'>
+            <TabsContent value='general' className='space-y-6 mt-0'>
+              <div className='flex items-start gap-6'>
+                <div className='flex flex-col items-center gap-3'>
+                  <Avatar className='h-24 w-24 border-2 border-border shadow-sm'>
+                    <AvatarImage src={avatarPreview ?? undefined} className='object-cover' />
+                    <AvatarFallback className='text-2xl'>
+                      {(name || 'U').charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className='flex flex-col gap-2 w-full'>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => fileInputRef.current?.click()}
+                      className='w-full'
                     >
-                      <span>{f.name}</span>
+                      {t('Change')}
+                    </Button>
+                    {!!(avatarPreview || profile.photoURL) && (
                       <Button
+                        size='sm'
                         variant='ghost'
-                        size='icon'
-                        className='h-7 w-7'
-                        onClick={async () => {
-                          await Friends.unfriend(profile.uid, f.uid);
-                          setFriends((current) =>
-                            current.filter((fr) => fr.uid !== f.uid)
-                          );
-                          toast({ title: t('Friend removed') });
+                        className='text-destructive hover:text-destructive h-auto py-1 px-2'
+                        onClick={() => {
+                          setAvatarBlob(null);
+                          setAvatarSrc(null);
+                          setAvatarPreview(null);
+                          setMarkRemove(true);
+                          setUploadPct(0);
                         }}
                       >
-                        <UserX className='h-4 w-4 text-destructive' />
+                        {t('Remove')}
                       </Button>
+                    )}
+                  </div>
+                  
+                  <input
+                    type='file'
+                    ref={fileInputRef}
+                    className='hidden'
+                    accept='image/png,image/jpeg,image/webp'
+                    onChange={pick}
+                  />
+                  {uploadPct > 0 && (
+                    <span className='text-[10px] text-muted-foreground'>
+                      {uploadPct}%
+                    </span>
+                  )}
+                </div>
+
+                <div className='flex-1 space-y-4'>
+                  <div className='space-y-2'>
+                    <Label htmlFor='name'>{t('Display Name')}</Label>
+                    <Input
+                      id='name'
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                  <div className='space-y-2'>
+                    <Label htmlFor='bio'>{t('About Me')}</Label>
+                    <Textarea
+                      id='bio'
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      placeholder={t('Tell us about yourself...')}
+                      rows={3}
+                      className='resize-none'
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className='space-y-4 pt-2'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                   <div className='space-y-2'>
+                    <Label htmlFor='default-sport'>{t('Default Sport')}</Label>
+                    <Select
+                      value={activeSport}
+                      onValueChange={(v) => setActiveSport(v as Sport)}
+                    >
+                      <SelectTrigger id='default-sport'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(sportConfig) as Sport[]).map((k) => (
+                          <SelectItem key={k} value={k}>
+                            {sportConfig[k].name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className='flex items-center justify-between space-x-2 border rounded-lg p-4 bg-muted/20'>
+                  <div className='space-y-0.5'>
+                    <Label htmlFor='isPublic' className='text-base'>
+                      {t('Public Profile')}
+                    </Label>
+                    <p className='text-sm text-muted-foreground'>
+                      {t('Allow others to find and view your profile.')}
+                    </p>
+                  </div>
+                  <Switch
+                    id='isPublic'
+                    checked={isPublic}
+                    onCheckedChange={setIsPublic}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value='friends' className='space-y-4 mt-0 h-full flex flex-col'>
+               <div className='flex items-center justify-between mb-2'>
+                  <h3 className='font-medium'>{t('Your Friends')}</h3>
+                  <span className='text-sm text-muted-foreground'>{friends.length} {t('total')}</span>
+               </div>
+               
+               <ScrollArea className='flex-1 -mx-2 px-2'>
+                <div className='space-y-2'>
+                  {friends.length > 0 ? (
+                    friends.map((f) => (
+                      <div
+                        key={f.uid}
+                        className='flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors'
+                      >
+                        <div className='flex items-center gap-3'>
+                          <Avatar className='h-8 w-8'>
+                            <AvatarImage src={f.photoURL} />
+                            <AvatarFallback>{f.name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <span className='font-medium text-sm'>{f.name}</span>
+                        </div>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          className='text-muted-foreground hover:text-destructive'
+                          onClick={async () => {
+                            await Friends.unfriend(profile.uid, f.uid);
+                            setFriends((current) =>
+                              current.filter((fr) => fr.uid !== f.uid)
+                            );
+                            toast({ title: t('Friend removed') });
+                          }}
+                        >
+                          <UserX className='h-4 w-4 mr-2' />
+                          {t('Unfriend')}
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className='flex flex-col items-center justify-center py-12 text-center text-muted-foreground'>
+                      <UserPlus className='h-12 w-12 opacity-20 mb-3' />
+                      <p>{t('No friends yet.')}</p>
+                      <p className='text-xs mt-1'>{t('Search for players to add them.')}</p>
                     </div>
-                  ))
-                ) : (
-                  <p className='text-sm text-muted-foreground p-2'>
-                    {t('No friends yet.')}
-                  </p>
-                )}
+                  )}
+                </div>
               </ScrollArea>
-            </div>
-            <div className='space-y-2 p-4 border border-destructive/50 rounded-md'>
-              <h4 className='font-medium text-destructive'>
-                {t('Danger Zone')}
-              </h4>
-              <p className='text-sm text-muted-foreground'>
-                {t(
-                  'This action cannot be undone. All your personal data will be removed.'
-                )}
-              </p>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant='destructive' className='w-full'>
-                    {t('Delete Account')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t('Are you absolutely sure?')}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t(
-                        'This will permanently delete your account and remove all personal information. Your match history will be anonymized.'
-                      )}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleAccountDelete}>
-                      {t('Yes, Delete My Account')}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+            </TabsContent>
+
+            <TabsContent value='danger' className='space-y-4 mt-0'>
+              <div className='border border-destructive/20 rounded-lg p-4 bg-destructive/5 space-y-4'>
+                <div className='flex items-start gap-4'>
+                  <div className='p-2 bg-destructive/10 rounded-full text-destructive shrink-0'>
+                    <Trash2 className='h-5 w-5' />
+                  </div>
+                  <div className='space-y-1'>
+                    <h4 className='font-medium text-destructive'>{t('Delete Account')}</h4>
+                    <p className='text-sm text-muted-foreground leading-relaxed'>
+                      {t('This action is irreversible. It will permanently delete your account, remove your personal data, and anonymize your match history across all rooms.')}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className='pt-2 flex justify-end'>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant='destructive'>
+                        {t('Delete My Account')}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {t('Are you absolutely sure?')}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t(
+                            'This will permanently delete your account. You will not be able to recover your data.'
+                          )}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleAccountDelete} className='bg-destructive text-destructive-foreground hover:bg-destructive/90'>
+                          {t('Yes, Delete Everything')}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </TabsContent>
           </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleSave} disabled={isSaving}>
+        </Tabs>
+
+        <DialogFooter className='p-6 pt-0'>
+          <Button onClick={handleSave} disabled={isSaving} className='w-full sm:w-auto'>
             {isSaving ? t('Saving...') : t('Save Changes')}
           </Button>
         </DialogFooter>

@@ -1,99 +1,99 @@
 {
-	"uid": "string (Primary Key)",
-	"email": "string",
-	"displayName": "string",
-	"name": "string",
-	"photoURL": "string | null",
-	"bio": "string",
-	"createdAt": "string (Custom format: DD.MM.YYYY HH.mm.ss or ISO)",
-	"approved": "boolean",
-	"approvedAt": "string (ISO)",
-	"approvedBy": "string (UID)",
-	"isPublic": "boolean",
-	"isDeleted": "boolean",
-	"activeSport": "string ('pingpong' | 'tennis' | 'badminton')",
-	"maxRating": "number",
-	"matchesPlayed": "number",
-	"wins": "number",
-	"losses": "number",
-	"globalElo": "number",
-	"friends": [
-		"string (UID)"
-	],
-	"incomingRequests": [
-		"string (UID)"
-	],
-	"outgoingRequests": [
-		"string (UID)"
-	],
-	"rooms": [
-		"string (RoomID)"
-	],
-	"tournaments": [
-		"string (TournamentID)"
-	],
-	"achievements": [
-		{
-			"type": "string",
-			"sport": "string",
-			"dateFinished": "string",
-			"place": "number",
-			"wins": "number",
-			"losses": "number",
-			"winRate": "number",
-			"roomId": "string",
-			"roomName": "string",
-			"roomRating": "number",
-			"startGlobalElo": "number",
-			"endGlobalElo": "number",
-			"totalAddedPoints": "number",
-			"adjPoints": "number",
-			"longestWinStreak": "number",
-			"userId": "string"
-		}
-	],
-	"eloHistory": [
-		{
-			"date": "string",
-			"elo": "number"
-		}
-	],
-	"sports": {
-		"pingpong": {
-			"globalElo": "number",
-			"wins": "number",
-			"losses": "number",
-			"eloHistory": [
-				{
-					"ts": "string (ISO)",
-					"elo": "number"
-				}
-			]
-		},
-		"tennis": {
-			"globalElo": "number",
-			"wins": "number",
-			"losses": "number",
-			"aces": "number",
-			"doubleFaults": "number",
-			"winners": "number",
-			"eloHistory": [
-				{
-					"ts": "string (ISO)",
-					"elo": "number"
-				}
-			]
-		},
-		"badminton": {
-			"globalElo": "number",
-			"wins": "number",
-			"losses": "number",
-			"eloHistory": [
-				{
-					"ts": "string (ISO)",
-					"elo": "number"
-				}
-			]
-		}
-	}
+  "_id": "string (UID)",
+  "uid": "string (UID)",
+  "email": "string",
+  "displayName": "string",
+  "name": "string",
+  "bio": "string",
+  "photoURL": "string | null",
+  "createdAt": "string (DD.MM.YYYY HH.mm.ss)",
+
+  // Flags & Permissions
+  "isPublic": "boolean",
+  "isDeleted": "boolean",
+  "approved": "boolean",
+  "approvedBy": "string (UID)",
+  "approvedAt": "string (ISO)",
+  "approvalReason": "string (Optional)",
+  "activeSport": "string",
+
+  // Relationships
+  "friends": ["string (UID)"],
+  "incomingRequests": ["string (UID)"],
+  "outgoingRequests": ["string (UID)"],
+  "rooms": ["string (RoomID)"],
+
+  // --- LEGACY / ROOT STATS (Used for fallback) ---
+  "globalElo": "number",
+  "maxRating": "number",
+  "matchesPlayed": "number",
+  "wins": "number",
+  "losses": "number",
+  "eloHistory": [
+    {
+      "date": "string (ISO or custom)",
+      "elo": "number"
+    }
+  ],
+
+  // --- NEW STRUCTURE (Per Sport) ---
+  "sports": {
+    "pingpong": {
+      "globalElo": "number",
+      "wins": "number",
+      "losses": "number",
+      "eloHistory": [
+        {
+          "date": "string (ISO, Optional)",
+          "ts": "string (ISO, Optional)",
+          "elo": "number"
+        }
+      ]
+    },
+    "badminton": {
+      "globalElo": "number",
+      "wins": "number",
+      "losses": "number",
+      "eloHistory": [
+        {
+          "date": "string",
+          "ts": "string",
+          "elo": "number"
+        }
+      ]
+    },
+    "tennis": {
+      "globalElo": "number",
+      "wins": "number",
+      "losses": "number",
+      "aces": "number",
+      "doubleFaults": "number",
+      "winners": "number",
+      "eloHistory": []
+    }
+  },
+
+  // Achievements
+  "achievements": [
+    {
+      "type": "string ('seasonFinish')",
+      "sport": "string",
+      "roomId": "string",
+      "roomName": "string",
+      "dateFinished": "string",
+      "userId": "string",
+      "name": "string",
+      "place": "number",
+      "matchesPlayed": "number",
+      "wins": "number",
+      "losses": "number",
+      "winRate": "number",
+      "totalAddedPoints": "number",
+      "adjPoints": "number",
+      "longestWinStreak": "number",
+      "roomRating": "number",
+      "startGlobalElo": "number",
+      "endGlobalElo": "number"
+    }
+  ]
 }

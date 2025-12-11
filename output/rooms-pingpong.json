@@ -1,0 +1,2290 @@
+{
+  "meta": {
+    "collection": "rooms-pingpong",
+    "totalDocs": 9,
+    "exportedAt": "2025-12-09T11:13:37.267Z",
+    "variationsCount": 5
+  },
+  "latest": {
+    "_note": "LATEST DOCUMENT (Date: 2025-12-02T13:05:03.000Z)",
+    "_id": "Tr6Tf7oXBr8pGWxuspUD",
+    "name": "Talvi 2025",
+    "description": "",
+    "avatarURL": "https://firebasestorage.googleapis.com/v0/b/tabletennis-f4c23.firebasestorage.app/o/room-avatars%2Fpingpong%2F1764680701309.jpg?alt=media&token=44f8f1d1-aeee-4850-8950-9a680afce98d",
+    "creator": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+    "creatorName": "Arttu",
+    "createdAt": "02.12.2025 15.05.03",
+    "isPublic": false,
+    "isRanked": true,
+    "mode": "office",
+    "kFactor": 32,
+    "memberIds": [
+      "NoYtP49TLoUHOiNEcknW63cw2mw2",
+      "fg3vq77SLzQwl930a3cRKZqUZEm1",
+      "aULkyufbaLOdfyU1rrc7wFQbtF02",
+      "emy5n4URBVUTVLfC72cwiJpOvrF2",
+      "TboklILVRzZihfvEhB1CMRdPCkH2",
+      "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3"
+    ],
+    "adminIds": [
+      "NoYtP49TLoUHOiNEcknW63cw2mw2"
+    ],
+    "isArchived": false,
+    "seasonHistory": [],
+    "joinRequests": [],
+    "members": [
+      {
+        "email": "arttu.sulkonen@icloud.com",
+        "name": "Arttu",
+        "date": "02.12.2025 15.05.03",
+        "role": "admin",
+        "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+        "rating": 1027,
+        "losses": 0,
+        "wins": 0,
+        "globalElo": 1205
+      },
+      {
+        "losses": 0,
+        "wins": 0,
+        "date": "02.12.2025 15.05.03",
+        "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1",
+        "email": "avvt98@gmail.com",
+        "globalElo": 1262,
+        "rating": 1000,
+        "role": "editor",
+        "name": "Anton"
+      },
+      {
+        "date": "02.12.2025 15.05.03",
+        "role": "editor",
+        "globalElo": 1153,
+        "email": "jukka@redandblue.fi",
+        "wins": 0,
+        "name": "Jukka",
+        "rating": 1000,
+        "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "losses": 0
+      },
+      {
+        "name": "Moon",
+        "globalElo": 1118,
+        "losses": 0,
+        "date": "02.12.2025 15.05.03",
+        "role": "editor",
+        "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+        "wins": 0,
+        "rating": 977,
+        "email": "jungsoo.moon@redandblue.fi"
+      },
+      {
+        "email": "paavo@redandblue.fi",
+        "name": "Paavo",
+        "losses": 0,
+        "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "role": "editor",
+        "rating": 1000,
+        "globalElo": 1234,
+        "date": "02.12.2025 15.05.03",
+        "wins": 0
+      },
+      {
+        "role": "editor",
+        "date": "02.12.2025 15.05.03",
+        "rating": 1044,
+        "wins": 0,
+        "globalElo": 1063,
+        "name": "Viti",
+        "email": "teemu.vitikainen@redandblue.fi",
+        "losses": 0,
+        "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3"
+      }
+    ]
+  },
+  "allStructureVariations": [
+    {
+      "_note": "Structure Variant (Keys: _id|adminIds|avatarURL|createdAt|creator|creatorName|description|isArchived|isPublic|isRanked|joinRequests|kFactor|memberIds|members|mode|name|seasonHistory)",
+      "_id": "Tr6Tf7oXBr8pGWxuspUD",
+      "name": "Talvi 2025",
+      "description": "",
+      "avatarURL": "https://firebasestorage.googleapis.com/v0/b/tabletennis-f4c23.firebasestorage.app/o/room-avatars%2Fpingpong%2F1764680701309.jpg?alt=media&token=44f8f1d1-aeee-4850-8950-9a680afce98d",
+      "creator": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+      "creatorName": "Arttu",
+      "createdAt": "02.12.2025 15.05.03",
+      "isPublic": false,
+      "isRanked": true,
+      "mode": "office",
+      "kFactor": 32,
+      "memberIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2",
+        "fg3vq77SLzQwl930a3cRKZqUZEm1",
+        "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "emy5n4URBVUTVLfC72cwiJpOvrF2",
+        "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3"
+      ],
+      "adminIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ],
+      "isArchived": false,
+      "seasonHistory": [],
+      "joinRequests": [],
+      "members": [
+        {
+          "email": "arttu.sulkonen@icloud.com",
+          "name": "Arttu",
+          "date": "02.12.2025 15.05.03",
+          "role": "admin",
+          "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+          "rating": 1027,
+          "losses": 0,
+          "wins": 0,
+          "globalElo": 1205
+        },
+        {
+          "losses": 0,
+          "wins": 0,
+          "date": "02.12.2025 15.05.03",
+          "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1",
+          "email": "avvt98@gmail.com",
+          "globalElo": 1262,
+          "rating": 1000,
+          "role": "editor",
+          "name": "Anton"
+        },
+        {
+          "date": "02.12.2025 15.05.03",
+          "role": "editor",
+          "globalElo": 1153,
+          "email": "jukka@redandblue.fi",
+          "wins": 0,
+          "name": "Jukka",
+          "rating": 1000,
+          "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+          "losses": 0
+        },
+        {
+          "name": "Moon",
+          "globalElo": 1118,
+          "losses": 0,
+          "date": "02.12.2025 15.05.03",
+          "role": "editor",
+          "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+          "wins": 0,
+          "rating": 977,
+          "email": "jungsoo.moon@redandblue.fi"
+        },
+        {
+          "email": "paavo@redandblue.fi",
+          "name": "Paavo",
+          "losses": 0,
+          "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+          "role": "editor",
+          "rating": 1000,
+          "globalElo": 1234,
+          "date": "02.12.2025 15.05.03",
+          "wins": 0
+        },
+        {
+          "role": "editor",
+          "date": "02.12.2025 15.05.03",
+          "rating": 1044,
+          "wins": 0,
+          "globalElo": 1063,
+          "name": "Viti",
+          "email": "teemu.vitikainen@redandblue.fi",
+          "losses": 0,
+          "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3"
+        }
+      ]
+    },
+    {
+      "_note": "Structure Variant (Keys: _id|adminIds|archivedAt|avatarURL|createdAt|creator|creatorName|description|isArchived|isPublic|isRanked|joinRequests|memberIds|members|name)",
+      "_id": "8eNm5NbcqoOE0jzMVQPx",
+      "name": "private test",
+      "description": "",
+      "avatarURL": "",
+      "creator": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+      "creatorName": "Arttu",
+      "createdAt": "18.11.2025 20.56.50",
+      "isPublic": false,
+      "isRanked": true,
+      "adminIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ],
+      "joinRequests": [],
+      "archivedAt": "2025-11-18T19:57:55.197Z",
+      "isArchived": false,
+      "memberIds": [
+        "rpBNhbq2dyeBZ5QIds780GWDyC13",
+        "3zTiyY0YjvZw2PcyWSyPHuPQnoI3",
+        "VUA1rFiFwyfRZJ1wtwnows7xEts2",
+        "Ho1B4wZYdxYWWaz6vYCShAwLMfB3",
+        "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+        "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+        "1QqY3Y4p03Paa2NZfbrTtwi2fIs2"
+      ],
+      "members": [
+        {
+          "userId": "rpBNhbq2dyeBZ5QIds780GWDyC13",
+          "name": "susa",
+          "email": "kseniia@redandblue.fi",
+          "rating": 991,
+          "wins": 2,
+          "losses": 3,
+          "date": "18.11.2025 20.56.50",
+          "role": "editor",
+          "globalElo": 863
+        },
+        {
+          "userId": "3zTiyY0YjvZw2PcyWSyPHuPQnoI3",
+          "name": "petteri",
+          "email": "petteri@redandblue.fi",
+          "rating": 1000,
+          "wins": 0,
+          "losses": 0,
+          "date": "18.11.2025 20.56.50",
+          "role": "editor",
+          "globalElo": 1000
+        },
+        {
+          "userId": "ff0fwiiLyufN0TxjmNZtewGo0643",
+          "name": "Deleted User",
+          "email": "deleted-ff0fwiiLyufN0TxjmNZtewGo0643@deleted.com",
+          "rating": 1000,
+          "wins": 0,
+          "losses": 0,
+          "date": "18.11.2025 20.56.50",
+          "role": "editor",
+          "displayName": "Deleted User",
+          "photoURL": null,
+          "globalElo": 1000
+        },
+        {
+          "userId": "VUA1rFiFwyfRZJ1wtwnows7xEts2",
+          "name": "AINO",
+          "email": "aino@redandblue.fi",
+          "rating": 1000,
+          "wins": 0,
+          "losses": 0,
+          "date": "18.11.2025 20.56.50",
+          "role": "editor",
+          "globalElo": 906
+        },
+        {
+          "userId": "Ho1B4wZYdxYWWaz6vYCShAwLMfB3",
+          "name": "PetriS",
+          "email": "petri.siltala@redandblue.fi",
+          "rating": 1024,
+          "wins": 3,
+          "losses": 2,
+          "date": "2025-11-18T18:57:36.332Z",
+          "role": "editor",
+          "globalElo": 926
+        },
+        {
+          "userId": "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+          "name": "Jones",
+          "email": "joona.makinen@redandblue.fi",
+          "rating": 1004,
+          "wins": 1,
+          "losses": 1,
+          "date": "2025-11-18T19:45:51.988Z",
+          "role": "editor",
+          "globalElo": 794
+        },
+        {
+          "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+          "name": "Joona Mellin",
+          "email": "joona@redandblue.fi",
+          "rating": 1000,
+          "wins": 0,
+          "losses": 0,
+          "date": "2025-11-18T19:45:51.988Z",
+          "role": "editor",
+          "globalElo": 765
+        },
+        {
+          "userId": "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+          "name": "Meri",
+          "email": "meri.nyman@redandblue.fi",
+          "rating": 1002,
+          "wins": 1,
+          "losses": 1,
+          "date": "2025-11-18T19:45:51.988Z",
+          "role": "editor",
+          "globalElo": 904
+        }
+      ]
+    },
+    {
+      "_note": "Structure Variant (Keys: _id|adminIds|avatarURL|createdAt|creator|creatorName|description|isArchived|isPublic|isRanked|memberIds|members|name|seasonHistory)",
+      "_id": "U0KwJF77f02wx8CQ98HQ",
+      "description": "",
+      "avatarURL": "https://firebasestorage.googleapis.com/v0/b/tabletennis-f4c23.firebasestorage.app/o/room-avatars%2Fpingpong%2F1759311818821_lokakuu.jpg?alt=media&token=9708a3ab-8684-4024-86d8-8832a9c93b32",
+      "adminIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ],
+      "isArchived": false,
+      "isPublic": false,
+      "createdAt": "01.10.2025 12.43.41",
+      "memberIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2",
+        "fg3vq77SLzQwl930a3cRKZqUZEm1",
+        "l4epOv22PUbWwhGav0fKyZb4YDj1",
+        "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+        "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+        "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "emy5n4URBVUTVLfC72cwiJpOvrF2",
+        "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3"
+      ],
+      "creator": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+      "isRanked": true,
+      "creatorName": "Arttu",
+      "name": "Syksy (Lokakuu-Marraskuu) 2025",
+      "members": [
+        {
+          "wins": 82,
+          "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+          "email": "arttu.sulkonen@icloud.com",
+          "name": "Arttu",
+          "role": "admin",
+          "globalElo": 1234,
+          "rating": 1246,
+          "date": "01.10.2025 12.43.41",
+          "losses": 56
+        },
+        {
+          "role": "editor",
+          "rating": 1141,
+          "date": "01.10.2025 12.43.41",
+          "wins": 19,
+          "email": "avvt98@gmail.com",
+          "losses": 13,
+          "globalElo": 1262,
+          "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1",
+          "name": "Anton"
+        },
+        {
+          "losses": 0,
+          "userId": "l4epOv22PUbWwhGav0fKyZb4YDj1",
+          "name": "Janne",
+          "role": "editor",
+          "email": "janne.rattya@redandblue.fi",
+          "date": "01.10.2025 12.43.41",
+          "wins": 0,
+          "rating": 1000,
+          "globalElo": 1000
+        },
+        {
+          "date": "01.10.2025 12.43.41",
+          "name": "Jones",
+          "losses": 0,
+          "role": "editor",
+          "email": "joona.makinen@redandblue.fi",
+          "wins": 0,
+          "userId": "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+          "rating": 1000,
+          "globalElo": 794
+        },
+        {
+          "role": "editor",
+          "date": "01.10.2025 12.43.41",
+          "globalElo": 765,
+          "email": "joona@redandblue.fi",
+          "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+          "losses": 5,
+          "rating": 966,
+          "name": "Joona Mellin",
+          "wins": 0
+        },
+        {
+          "role": "editor",
+          "wins": 49,
+          "email": "jukka@redandblue.fi",
+          "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+          "globalElo": 1153,
+          "name": "Jukka",
+          "date": "01.10.2025 12.43.41",
+          "rating": 1131,
+          "losses": 43
+        },
+        {
+          "wins": 46,
+          "losses": 73,
+          "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+          "globalElo": 1152,
+          "email": "jungsoo.moon@redandblue.fi",
+          "role": "editor",
+          "rating": 1153,
+          "name": "Moon",
+          "date": "01.10.2025 12.43.41"
+        },
+        {
+          "rating": 1238,
+          "role": "editor",
+          "wins": 78,
+          "email": "paavo@redandblue.fi",
+          "losses": 69,
+          "globalElo": 1198,
+          "date": "01.10.2025 12.43.41",
+          "name": "Paavo",
+          "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+        },
+        {
+          "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+          "losses": 26,
+          "email": "teemu.vitikainen@redandblue.fi",
+          "globalElo": 1000,
+          "name": "Viti",
+          "rating": 997,
+          "date": "01.10.2025 12.43.41",
+          "wins": 11,
+          "role": "editor"
+        }
+      ],
+      "seasonHistory": [
+        {
+          "dateFinished": "04.12.2025 19.28.19",
+          "roomId": "U0KwJF77f02wx8CQ98HQ",
+          "roomName": "Syksy (Lokakuu-Marraskuu) 2025",
+          "summary": [
+            {
+              "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+              "name": "Arttu",
+              "matchesPlayed": 138,
+              "wins": 82,
+              "losses": 56,
+              "winRate": 59.42028985507246,
+              "totalAddedPoints": 246,
+              "longestWinStreak": 9,
+              "roomRating": 1246,
+              "place": 1,
+              "adjPoints": 320.24786453127535,
+              "startGlobalElo": 1241,
+              "endGlobalElo": 1234
+            },
+            {
+              "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "name": "Paavo",
+              "matchesPlayed": 147,
+              "wins": 78,
+              "losses": 69,
+              "winRate": 53.06122448979592,
+              "totalAddedPoints": 238,
+              "longestWinStreak": 8,
+              "roomRating": 1238,
+              "place": 2,
+              "adjPoints": 319.7769946631394,
+              "startGlobalElo": 1126,
+              "endGlobalElo": 1198
+            },
+            {
+              "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+              "name": "Moon",
+              "matchesPlayed": 119,
+              "wins": 46,
+              "losses": 73,
+              "winRate": 38.655462184873954,
+              "totalAddedPoints": 153,
+              "longestWinStreak": 4,
+              "roomRating": 1153,
+              "place": 3,
+              "adjPoints": 184.9594407886283,
+              "startGlobalElo": 1093,
+              "endGlobalElo": 1152
+            },
+            {
+              "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "name": "Jukka",
+              "matchesPlayed": 92,
+              "wins": 49,
+              "losses": 43,
+              "winRate": 53.2608695652174,
+              "totalAddedPoints": 131,
+              "longestWinStreak": 5,
+              "roomRating": 1131,
+              "place": 4,
+              "adjPoints": 139.2440996891632,
+              "startGlobalElo": 1270,
+              "endGlobalElo": 1153
+            },
+            {
+              "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1",
+              "name": "Anton",
+              "matchesPlayed": 32,
+              "wins": 19,
+              "losses": 13,
+              "winRate": 59.375,
+              "totalAddedPoints": 141,
+              "longestWinStreak": 5,
+              "roomRating": 1141,
+              "place": 5,
+              "adjPoints": 88.39052104454593,
+              "startGlobalElo": 1307,
+              "endGlobalElo": 1262
+            },
+            {
+              "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+              "name": "Viti",
+              "matchesPlayed": 37,
+              "wins": 11,
+              "losses": 26,
+              "winRate": 29.72972972972973,
+              "totalAddedPoints": -3,
+              "longestWinStreak": 2,
+              "roomRating": 997,
+              "place": 6,
+              "adjPoints": -2.022244714224895,
+              "startGlobalElo": 949,
+              "endGlobalElo": 1000
+            },
+            {
+              "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+              "name": "Joona Mellin",
+              "matchesPlayed": 5,
+              "wins": 0,
+              "losses": 5,
+              "winRate": 0,
+              "totalAddedPoints": -34,
+              "longestWinStreak": 0,
+              "roomRating": 966,
+              "place": 7,
+              "adjPoints": -8.425108672316984,
+              "startGlobalElo": 778,
+              "endGlobalElo": 765
+            }
+          ],
+          "sport": "pingpong",
+          "type": "seasonFinish",
+          "mode": "office"
+        }
+      ]
+    },
+    {
+      "_note": "Structure Variant (Keys: _id|adminIds|avatarURL|createdAt|creator|creatorName|description|isArchived|isPublic|isRanked|memberIds|members|name|rankHistories|seasonHistory|sport)",
+      "_id": "iS2q1soBUATEmNSqLmIo",
+      "name": "Kesä 2025",
+      "creator": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+      "creatorName": "Arttu",
+      "createdAt": "03.06.2025 16.12.10",
+      "rankHistories": {
+        "TboklILVRzZihfvEhB1CMRdPCkH2": [
+          {
+            "ts": "2025-06-06T15:21:19.049Z",
+            "place": 1,
+            "rating": 1006
+          },
+          {
+            "ts": "2025-06-10T12:43:40.907Z",
+            "place": 2,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-10T13:41:36.755Z",
+            "place": 3,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-10T14:33:11.924Z",
+            "place": 2,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-17T11:58:22.865Z",
+            "place": 1,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-17T14:00:50.212Z",
+            "place": 2,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-17T14:01:30.819Z",
+            "place": 1,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-17T14:20:43.198Z",
+            "place": 2,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-26T11:46:36.829Z",
+            "place": 2,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-26T13:32:16.567Z",
+            "place": 2,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-07-17T11:02:12.540Z",
+            "place": 2,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-07-18T12:06:15.222Z",
+            "place": 1,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-07-18T12:27:17.957Z",
+            "place": 2,
+            "rating": 1032
+          }
+        ],
+        "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 11,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 10,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:23:07.360Z",
+            "place": 10,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:45.775Z",
+            "place": 10,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 10,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T12:43:40.907Z",
+            "place": 1,
+            "rating": 1046
+          },
+          {
+            "ts": "2025-06-17T11:58:22.865Z",
+            "place": 2,
+            "rating": 1031
+          },
+          {
+            "ts": "2025-06-17T14:00:50.212Z",
+            "place": 1,
+            "rating": 1037
+          },
+          {
+            "ts": "2025-06-17T14:01:30.819Z",
+            "place": 3,
+            "rating": 1022
+          },
+          {
+            "ts": "2025-06-17T14:20:41.198Z",
+            "place": 3,
+            "rating": 1022
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 11,
+            "rating": 983
+          },
+          {
+            "ts": "2025-06-26T11:46:36.829Z",
+            "place": 3,
+            "rating": 1027
+          },
+          {
+            "ts": "2025-06-26T13:32:16.567Z",
+            "place": 3,
+            "rating": 1027
+          },
+          {
+            "ts": "2025-07-17T11:02:12.540Z",
+            "place": 3,
+            "rating": 1027
+          },
+          {
+            "ts": "2025-07-18T12:06:15.222Z",
+            "place": 2,
+            "rating": 1027
+          },
+          {
+            "ts": "2025-07-18T12:27:17.957Z",
+            "place": 3,
+            "rating": 1027
+          }
+        ],
+        "emy5n4URBVUTVLfC72cwiJpOvrF2": [
+          {
+            "ts": "2025-06-06T15:21:19.049Z",
+            "place": 12,
+            "rating": 994
+          },
+          {
+            "ts": "2025-06-10T13:42:02.696Z",
+            "place": 11,
+            "rating": 983
+          },
+          {
+            "ts": "2025-06-10T14:11:19.683Z",
+            "place": 9,
+            "rating": 996
+          },
+          {
+            "ts": "2025-06-10T14:33:11.924Z",
+            "place": 3,
+            "rating": 1020
+          },
+          {
+            "ts": "2025-06-17T14:01:30.819Z",
+            "place": 2,
+            "rating": 1023
+          },
+          {
+            "ts": "2025-06-17T14:20:40.198Z",
+            "place": 4,
+            "rating": 1018
+          },
+          {
+            "ts": "2025-06-17T15:09:49.291Z",
+            "place": 9,
+            "rating": 996
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 9,
+            "rating": 996
+          },
+          {
+            "ts": "2025-07-17T11:02:12.540Z",
+            "place": 4,
+            "rating": 1015
+          },
+          {
+            "ts": "2025-07-17T13:18:54.683Z",
+            "place": 9,
+            "rating": 992
+          },
+          {
+            "ts": "2025-07-17T13:59:53.638Z",
+            "place": 10,
+            "rating": 988
+          },
+          {
+            "ts": "2025-07-18T09:01:09.804Z",
+            "place": 9,
+            "rating": 997
+          },
+          {
+            "ts": "2025-07-18T11:48:07.716Z",
+            "place": 4,
+            "rating": 1004
+          },
+          {
+            "ts": "2025-07-18T12:06:15.222Z",
+            "place": 3,
+            "rating": 1022
+          },
+          {
+            "ts": "2025-07-18T12:27:17.957Z",
+            "place": 1,
+            "rating": 1043
+          }
+        ],
+        "fg3vq77SLzQwl930a3cRKZqUZEm1": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 3,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:42.775Z",
+            "place": 3,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:43:23.467Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T12:43:39.907Z",
+            "place": 11,
+            "rating": 979
+          },
+          {
+            "ts": "2025-06-10T13:42:02.696Z",
+            "place": 12,
+            "rating": 954
+          },
+          {
+            "ts": "2025-06-26T11:46:36.829Z",
+            "place": 12,
+            "rating": 954
+          },
+          {
+            "ts": "2025-06-26T13:32:16.567Z",
+            "place": 12,
+            "rating": 954
+          },
+          {
+            "ts": "2025-07-17T11:02:10.540Z",
+            "place": 11,
+            "rating": 954
+          },
+          {
+            "ts": "2025-07-17T13:34:17.151Z",
+            "place": 12,
+            "rating": 954
+          },
+          {
+            "ts": "2025-07-18T11:48:08.716Z",
+            "place": 11,
+            "rating": 954
+          },
+          {
+            "ts": "2025-07-18T12:06:15.222Z",
+            "place": 12,
+            "rating": 954
+          },
+          {
+            "ts": "2025-07-18T13:42:37.655Z",
+            "place": 11,
+            "rating": 954
+          }
+        ],
+        "aULkyufbaLOdfyU1rrc7wFQbtF02": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 2,
+            "rating": 1001
+          },
+          {
+            "ts": "2025-06-06T15:23:07.360Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:45.775Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:43:23.467Z",
+            "place": 2,
+            "rating": 1005
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 2,
+            "rating": 1004
+          },
+          {
+            "ts": "2025-06-10T12:43:40.907Z",
+            "place": 3,
+            "rating": 1024
+          },
+          {
+            "ts": "2025-06-10T13:41:36.755Z",
+            "place": 2,
+            "rating": 1032
+          },
+          {
+            "ts": "2025-06-10T13:42:03.696Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:00:24.780Z",
+            "place": 3,
+            "rating": 1003
+          },
+          {
+            "ts": "2025-06-10T14:11:17.683Z",
+            "place": 3,
+            "rating": 1009
+          },
+          {
+            "ts": "2025-06-10T14:33:11.924Z",
+            "place": 4,
+            "rating": 1004
+          },
+          {
+            "ts": "2025-06-17T14:01:30.819Z",
+            "place": 4,
+            "rating": 1016
+          },
+          {
+            "ts": "2025-06-17T14:20:43.198Z",
+            "place": 1,
+            "rating": 1035
+          },
+          {
+            "ts": "2025-07-18T12:06:16.222Z",
+            "place": 9,
+            "rating": 991
+          },
+          {
+            "ts": "2025-07-18T12:27:17.957Z",
+            "place": 11,
+            "rating": 970
+          },
+          {
+            "ts": "2025-07-18T13:42:36.655Z",
+            "place": 10,
+            "rating": 977
+          },
+          {
+            "ts": "2025-07-18T13:56:13.127Z",
+            "place": 12,
+            "rating": 951
+          }
+        ],
+        "NoYtP49TLoUHOiNEcknW63cw2mw2": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 2,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 3,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:42.775Z",
+            "place": 2,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:43:23.467Z",
+            "place": 3,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 3,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T12:43:38.907Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:41:37.755Z",
+            "place": 10,
+            "rating": 985
+          },
+          {
+            "ts": "2025-06-10T13:42:02.696Z",
+            "place": 3,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:00:24.780Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:11:18.683Z",
+            "place": 11,
+            "rating": 969
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 3,
+            "rating": 1002
+          },
+          {
+            "ts": "2025-06-26T11:46:36.829Z",
+            "place": 11,
+            "rating": 958
+          },
+          {
+            "ts": "2025-06-26T13:32:16.567Z",
+            "place": 11,
+            "rating": 958
+          },
+          {
+            "ts": "2025-07-17T11:02:10.540Z",
+            "place": 12,
+            "rating": 939
+          },
+          {
+            "ts": "2025-07-17T13:34:17.151Z",
+            "place": 11,
+            "rating": 973
+          },
+          {
+            "ts": "2025-07-18T11:48:08.716Z",
+            "place": 12,
+            "rating": 937
+          },
+          {
+            "ts": "2025-07-18T12:06:15.222Z",
+            "place": 11,
+            "rating": 960
+          },
+          {
+            "ts": "2025-07-18T12:27:17.957Z",
+            "place": 10,
+            "rating": 986
+          },
+          {
+            "ts": "2025-07-18T13:42:37.655Z",
+            "place": 12,
+            "rating": 952
+          },
+          {
+            "ts": "2025-07-18T13:56:13.127Z",
+            "place": 10,
+            "rating": 963
+          }
+        ],
+        "SaHn1MifFFPG0Jbsr3rXP2IE1KL2": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 10,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:23:07.360Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:45.775Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:41:36.755Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:42:03.696Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:11:19.683Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:33:11.924Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T14:01:29.819Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T15:09:49.291Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-26T11:46:33.829Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T11:02:10.540Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T13:18:54.683Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T09:01:09.804Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T11:48:07.716Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T12:06:16.222Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-21T12:50:02.641Z",
+            "place": 9,
+            "rating": 1000
+          }
+        ],
+        "EN6TtxbbXGNm59NsE3jFjMaukpq1": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:42.775Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:43:23.467Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:41:36.755Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:42:02.696Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:00:24.780Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:11:19.683Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:33:11.924Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T14:01:29.819Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T15:09:48.291Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-26T11:46:33.829Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T11:02:10.540Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T13:18:54.683Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T09:01:09.804Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T11:48:07.716Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T12:06:16.222Z",
+            "place": 4,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-21T12:50:02.641Z",
+            "place": 5,
+            "rating": 1000
+          }
+        ],
+        "Aa0JmwOGncZGAGdjGxXLQ34hxIv2": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 11,
+            "rating": 999
+          },
+          {
+            "ts": "2025-06-06T15:23:07.360Z",
+            "place": 11,
+            "rating": 996
+          },
+          {
+            "ts": "2025-06-06T15:24:44.775Z",
+            "place": 11,
+            "rating": 990
+          },
+          {
+            "ts": "2025-06-09T15:00:24.709Z",
+            "place": 11,
+            "rating": 990
+          },
+          {
+            "ts": "2025-06-10T12:43:39.907Z",
+            "place": 10,
+            "rating": 990
+          },
+          {
+            "ts": "2025-06-10T13:41:37.755Z",
+            "place": 9,
+            "rating": 990
+          },
+          {
+            "ts": "2025-06-10T14:11:18.683Z",
+            "place": 10,
+            "rating": 990
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 10,
+            "rating": 988
+          },
+          {
+            "ts": "2025-06-26T11:46:33.829Z",
+            "place": 10,
+            "rating": 988
+          },
+          {
+            "ts": "2025-07-17T13:59:53.638Z",
+            "place": 9,
+            "rating": 988
+          },
+          {
+            "ts": "2025-07-18T09:01:08.804Z",
+            "place": 10,
+            "rating": 988
+          },
+          {
+            "ts": "2025-07-18T11:48:07.716Z",
+            "place": 10,
+            "rating": 988
+          },
+          {
+            "ts": "2025-07-18T12:27:17.957Z",
+            "place": 9,
+            "rating": 988
+          },
+          {
+            "ts": "2025-07-21T12:50:02.641Z",
+            "place": 4,
+            "rating": 1017
+          }
+        ],
+        "1QqY3Y4p03Paa2NZfbrTtwi2fIs2": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:23:07.360Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:45.775Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:41:36.755Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:42:03.696Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:11:19.683Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:33:11.924Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T14:01:29.819Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T15:09:48.291Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-26T11:46:33.829Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T11:02:10.540Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T13:18:54.683Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T09:01:09.804Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T11:48:07.716Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T12:06:16.222Z",
+            "place": 5,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-21T12:50:02.641Z",
+            "place": 6,
+            "rating": 1000
+          }
+        ],
+        "u47gManVVuaRui2r9d5I9LPtMyp2": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:23:07.360Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:45.775Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:41:36.755Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:42:03.696Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:11:19.683Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:33:11.924Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T14:01:29.819Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T15:09:49.291Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-26T11:46:33.829Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T11:02:10.540Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T13:18:54.683Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T09:01:09.804Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T11:48:07.716Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T12:06:16.222Z",
+            "place": 6,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-21T12:50:02.641Z",
+            "place": 7,
+            "rating": 1000
+          }
+        ],
+        "Ho1B4wZYdxYWWaz6vYCShAwLMfB3": [
+          {
+            "ts": "2025-06-06T15:21:16.049Z",
+            "place": 9,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:22:08.228Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:23:07.360Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-06T15:24:45.775Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-09T15:00:26.709Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:41:36.755Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T13:42:03.696Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:11:19.683Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-10T14:33:11.924Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T14:01:29.819Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-17T15:09:49.291Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-18T13:19:40.329Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-06-26T11:46:33.829Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T11:02:10.540Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-17T13:18:54.683Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T09:01:09.804Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T11:48:07.716Z",
+            "place": 8,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-18T12:06:16.222Z",
+            "place": 7,
+            "rating": 1000
+          },
+          {
+            "ts": "2025-07-21T12:50:02.641Z",
+            "place": 8,
+            "rating": 1000
+          }
+        ]
+      },
+      "sport": "pingpong",
+      "description": "",
+      "isRanked": true,
+      "isArchived": false,
+      "isPublic": false,
+      "avatarURL": "https://firebasestorage.googleapis.com/v0/b/tabletennis-f4c23.firebasestorage.app/o/room-avatars%2Fpingpong%2F1753697322435_IMG_1743.jpeg?alt=media&token=5e72acec-6ee5-49ac-8544-9c5d4aa857c1",
+      "adminIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ],
+      "memberIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2",
+        "fg3vq77SLzQwl930a3cRKZqUZEm1",
+        "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+        "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+        "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+        "emy5n4URBVUTVLfC72cwiJpOvrF2",
+        "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+        "l4epOv22PUbWwhGav0fKyZb4YDj1"
+      ],
+      "members": [
+        {
+          "longestWinStreak": 7,
+          "date": "03.06.2025 16.12.10",
+          "globalElo": 1218,
+          "totalAddedPoints": -37,
+          "currentStreak": 0,
+          "losses": 62,
+          "email": "arttu.sulkonen@icloud.com",
+          "photoURL": "https://firebasestorage.googleapis.com/v0/b/tabletennis-f4c23.firebasestorage.app/o/avatars%2FNoYtP49TLoUHOiNEcknW63cw2mw2%2F1551511801_1.jpg?alt=media&token=3c375dbd-5cc9-435b-b59a-29b377ebeef9",
+          "maxRating": 1412,
+          "prevPlace": 10,
+          "rating": 1103,
+          "name": "Arttu",
+          "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+          "wins": 48,
+          "totalMatches": 50,
+          "role": "admin"
+        },
+        {
+          "totalAddedPoints": -46,
+          "longestWinStreak": 1,
+          "date": "03.06.2025 16.12.10",
+          "currentStreak": 0,
+          "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1",
+          "globalElo": 1218,
+          "rating": 1048,
+          "maxRating": 1476,
+          "prevPlace": 11,
+          "name": "Anton",
+          "email": "avvt98@gmail.com",
+          "wins": 5,
+          "totalMatches": 3,
+          "losses": 3,
+          "role": "editor"
+        },
+        {
+          "wins": 0,
+          "date": "03.06.2025 16.12.10",
+          "maxRating": 997,
+          "email": "joona.makinen@redandblue.fi",
+          "userId": "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+          "losses": 0,
+          "role": "editor",
+          "prevPlace": 5,
+          "rating": 1000,
+          "globalElo": 794,
+          "name": "Jones"
+        },
+        {
+          "prevPlace": 4,
+          "date": "03.06.2025 16.12.10",
+          "role": "editor",
+          "currentStreak": 0,
+          "maxRating": 980,
+          "name": "Joona Mellin",
+          "email": "joona@redandblue.fi",
+          "wins": 4,
+          "rating": 901,
+          "globalElo": 765,
+          "longestWinStreak": 1,
+          "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+          "totalMatches": 14,
+          "totalAddedPoints": 6,
+          "losses": 38
+        },
+        {
+          "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+          "currentStreak": 6,
+          "photoURL": null,
+          "role": "editor",
+          "rating": 1244,
+          "losses": 31,
+          "totalMatches": 78,
+          "longestWinStreak": 16,
+          "maxRating": 1488,
+          "date": "03.06.2025 16.12.10",
+          "wins": 113,
+          "name": "Jukka",
+          "email": "jukka@redandblue.fi",
+          "prevPlace": 12,
+          "globalElo": 1153,
+          "totalAddedPoints": -127
+        },
+        {
+          "role": "editor",
+          "losses": 0,
+          "wins": 0,
+          "prevPlace": 6,
+          "email": "meri.nyman@redandblue.fi",
+          "name": "Meri",
+          "maxRating": 990,
+          "date": "03.06.2025 16.12.10",
+          "globalElo": 904,
+          "userId": "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+          "rating": 1000
+        },
+        {
+          "role": "editor",
+          "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+          "wins": 37,
+          "rating": 980,
+          "currentStreak": 3,
+          "longestWinStreak": 3,
+          "losses": 55,
+          "maxRating": 1217,
+          "totalMatches": 66,
+          "date": "03.06.2025 16.12.10",
+          "prevPlace": 1,
+          "globalElo": 1171,
+          "name": "Moon",
+          "email": "jungsoo.moon@redandblue.fi",
+          "totalAddedPoints": 145
+        },
+        {
+          "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+          "prevPlace": 2,
+          "globalElo": 1239,
+          "wins": 42,
+          "photoURL": "https://firebasestorage.googleapis.com/v0/b/tabletennis-f4c23.firebasestorage.app/o/avatars%2FTboklILVRzZihfvEhB1CMRdPCkH2%2F1753789131099_20250705_182849-1000.jpg?alt=media&token=de56819e-c32a-48fd-8589-d38a536721f9",
+          "role": "editor",
+          "rating": 1140,
+          "currentStreak": 0,
+          "totalMatches": 13,
+          "totalAddedPoints": 32,
+          "longestWinStreak": 6,
+          "losses": 40,
+          "email": "paavo@redandblue.fi",
+          "maxRating": 1306,
+          "name": "Paavo",
+          "date": "03.06.2025 16.12.10"
+        },
+        {
+          "email": "teemu.vitikainen@redandblue.fi",
+          "role": "editor",
+          "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+          "maxRating": 1083,
+          "longestWinStreak": 2,
+          "totalMatches": 32,
+          "losses": 35,
+          "prevPlace": 3,
+          "rating": 948,
+          "currentStreak": 0,
+          "globalElo": 1000,
+          "totalAddedPoints": 27,
+          "wins": 15,
+          "date": "03.06.2025 16.12.10",
+          "name": "Viti"
+        },
+        {
+          "name": "Janne",
+          "losses": 0,
+          "rating": 1000,
+          "email": "janne.rattya@redandblue.fi",
+          "date": "2025-08-15T16:46:42.244Z",
+          "userId": "l4epOv22PUbWwhGav0fKyZb4YDj1",
+          "wins": 0,
+          "role": "editor",
+          "globalElo": 1000
+        }
+      ],
+      "seasonHistory": [
+        {
+          "dateFinished": "30.11.2025 12.48.46",
+          "roomId": "iS2q1soBUATEmNSqLmIo",
+          "roomName": "Kesä 2025",
+          "summary": [
+            {
+              "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "name": "Jukka",
+              "matchesPlayed": 144,
+              "wins": 113,
+              "losses": 31,
+              "winRate": 78.47222222222221,
+              "totalAddedPoints": 293,
+              "longestWinStreak": 16,
+              "roomRating": 1244,
+              "place": 1,
+              "adjPoints": 404.8376779087459,
+              "startGlobalElo": 1387,
+              "endGlobalElo": 1278
+            },
+            {
+              "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+              "name": "Arttu",
+              "matchesPlayed": 110,
+              "wins": 48,
+              "losses": 62,
+              "winRate": 43.63636363636363,
+              "totalAddedPoints": 157,
+              "longestWinStreak": 7,
+              "roomRating": 1103,
+              "place": 2,
+              "adjPoints": 189.59551242931184,
+              "startGlobalElo": 1214,
+              "endGlobalElo": 1155
+            },
+            {
+              "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+              "name": "Moon",
+              "matchesPlayed": 92,
+              "wins": 37,
+              "losses": 55,
+              "winRate": 40.21739130434783,
+              "totalAddedPoints": 153,
+              "longestWinStreak": 9,
+              "roomRating": 980,
+              "place": 3,
+              "adjPoints": 168.97303442749782,
+              "startGlobalElo": 1104,
+              "endGlobalElo": 1193
+            },
+            {
+              "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "name": "Paavo",
+              "matchesPlayed": 82,
+              "wins": 42,
+              "losses": 40,
+              "winRate": 51.21951219512195,
+              "totalAddedPoints": 117,
+              "longestWinStreak": 8,
+              "roomRating": 1140,
+              "place": 4,
+              "adjPoints": 121.99017285309203,
+              "startGlobalElo": 1099,
+              "endGlobalElo": 1094
+            },
+            {
+              "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1",
+              "name": "Anton",
+              "matchesPlayed": 8,
+              "wins": 5,
+              "losses": 3,
+              "winRate": 62.5,
+              "totalAddedPoints": 69,
+              "longestWinStreak": 4,
+              "roomRating": 1048,
+              "place": 5,
+              "adjPoints": 22.471193681123072,
+              "startGlobalElo": 1231,
+              "endGlobalElo": 1222
+            },
+            {
+              "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+              "name": "Viti",
+              "matchesPlayed": 50,
+              "wins": 15,
+              "losses": 35,
+              "winRate": 30,
+              "totalAddedPoints": -7,
+              "longestWinStreak": 3,
+              "roomRating": 948,
+              "place": 6,
+              "adjPoints": -5.699215788690633,
+              "startGlobalElo": 968,
+              "endGlobalElo": 1038
+            },
+            {
+              "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+              "name": "Joona Mellin",
+              "matchesPlayed": 42,
+              "wins": 4,
+              "losses": 38,
+              "winRate": 9.523809523809524,
+              "totalAddedPoints": -105,
+              "longestWinStreak": 1,
+              "roomRating": 901,
+              "place": 7,
+              "adjPoints": -78.35126326068682,
+              "startGlobalElo": 761,
+              "endGlobalElo": 784
+            }
+          ],
+          "sport": "pingpong",
+          "type": "seasonFinish"
+        }
+      ]
+    },
+    {
+      "_note": "Structure Variant (Keys: _id|adminIds|avatarURL|creator|description|isArchived|isPublic|isRanked|matches|memberIds|members|name|players|roomCreated|seasonHistory|sport)",
+      "_id": "pPlqKgPGtTHfZXZHFF02",
+      "players": [],
+      "matches": [],
+      "name": "Kevät 2025",
+      "creator": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+      "roomCreated": "04.03.2025",
+      "sport": "pingpong",
+      "description": "",
+      "avatarURL": "",
+      "isPublic": true,
+      "isRanked": true,
+      "isArchived": false,
+      "adminIds": [
+        "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ],
+      "memberIds": [
+        "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "fg3vq77SLzQwl930a3cRKZqUZEm1",
+        "NoYtP49TLoUHOiNEcknW63cw2mw2",
+        "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+        "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+        "emy5n4URBVUTVLfC72cwiJpOvrF2",
+        "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+        "Ho1B4wZYdxYWWaz6vYCShAwLMfB3",
+        "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+        "u47gManVVuaRui2r9d5I9LPtMyp2",
+        "uivJ1hWZrDOSFUow86VRb6iy55J2"
+      ],
+      "members": [
+        {
+          "date": "14.05.2025 16.09.20",
+          "role": "admin",
+          "rating": 1530,
+          "wins": 306,
+          "name": "Jukka",
+          "email": "jukka@redandblue.fi",
+          "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+          "globalElo": 1153,
+          "losses": 55
+        },
+        {
+          "email": "avvt98@gmail.com",
+          "rating": 1108,
+          "wins": 25,
+          "role": "editor",
+          "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1",
+          "name": "Anton",
+          "globalElo": 1218,
+          "date": "25.04.2025 15.50.41",
+          "losses": 15
+        },
+        {
+          "globalElo": 1218,
+          "role": "editor",
+          "losses": 99,
+          "wins": 117,
+          "date": "13.05.2025 17.51.09",
+          "name": "Arttu",
+          "rating": 1279,
+          "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+          "email": "arttu.sulkonen@icloud.com"
+        },
+        {
+          "email": "joona.makinen@redandblue.fi",
+          "role": "editor",
+          "rating": 981,
+          "losses": 2,
+          "name": "Jones",
+          "globalElo": 794,
+          "wins": 0,
+          "userId": "EN6TtxbbXGNm59NsE3jFjMaukpq1"
+        },
+        {
+          "role": "editor",
+          "rating": 815,
+          "losses": 124,
+          "globalElo": 765,
+          "wins": 12,
+          "date": "14.05.2025 17.42.27",
+          "email": "joona@redandblue.fi",
+          "name": "Joona Mellin",
+          "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+        },
+        {
+          "rating": 1095,
+          "date": "14.05.2025 17.32.14",
+          "role": "editor",
+          "globalElo": 1171,
+          "wins": 113,
+          "name": "Moon",
+          "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+          "email": "jungsoo.moon@redandblue.fi",
+          "losses": 237
+        },
+        {
+          "date": "14.05.2025 17.42.27",
+          "globalElo": 1239,
+          "email": "paavo@redandblue.fi",
+          "name": "Paavo",
+          "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+          "wins": 174,
+          "losses": 132,
+          "role": "editor",
+          "rating": 1201
+        },
+        {
+          "role": "editor",
+          "wins": 28,
+          "globalElo": 1000,
+          "date": "14.05.2025 16.26.35",
+          "email": "teemu.vitikainen@redandblue.fi",
+          "rating": 962,
+          "losses": 81,
+          "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+          "name": "Viti"
+        },
+        {
+          "email": "petri.siltala@redandblue.fi",
+          "wins": 0,
+          "rating": 957,
+          "date": "14.03.2025 16.32.46",
+          "losses": 7,
+          "role": "editor",
+          "globalElo": 926,
+          "name": "PetriS",
+          "userId": "Ho1B4wZYdxYWWaz6vYCShAwLMfB3"
+        },
+        {
+          "email": "meri.nyman@redandblue.fi",
+          "wins": 0,
+          "name": "Meri",
+          "date": "14.05.2025 16.52.52",
+          "role": "editor",
+          "rating": 937,
+          "losses": 10,
+          "globalElo": 904,
+          "userId": "1QqY3Y4p03Paa2NZfbrTtwi2fIs2"
+        },
+        {
+          "email": "osmo@redandblue.fi",
+          "rating": 985,
+          "date": "27.03.2025 15.34.41",
+          "role": "editor",
+          "wins": 0,
+          "name": "Osmo",
+          "losses": 4,
+          "globalElo": 1061,
+          "userId": "u47gManVVuaRui2r9d5I9LPtMyp2"
+        },
+        {
+          "name": "samuli.lindberg@redandblue.fi",
+          "rating": 956,
+          "globalElo": 878,
+          "role": "editor",
+          "date": "23.05.2025 17.06.01",
+          "email": "samuli.lindberg@redandblue.fi",
+          "wins": 3,
+          "losses": 12,
+          "userId": "uivJ1hWZrDOSFUow86VRb6iy55J2"
+        }
+      ],
+      "seasonHistory": [
+        {
+          "dateFinished": "30.11.2025 12.48.32",
+          "roomId": "pPlqKgPGtTHfZXZHFF02",
+          "roomName": "Kevät 2025",
+          "summary": [
+            {
+              "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "name": "Jukka",
+              "matchesPlayed": 361,
+              "wins": 306,
+              "losses": 55,
+              "winRate": 84.7645429362881,
+              "totalAddedPoints": 566,
+              "longestWinStreak": 39,
+              "roomRating": 1530,
+              "place": 1,
+              "adjPoints": 944.3997399907529,
+              "startGlobalElo": 1244,
+              "endGlobalElo": 1387
+            },
+            {
+              "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+              "name": "Arttu",
+              "matchesPlayed": 216,
+              "wins": 117,
+              "losses": 99,
+              "winRate": 54.166666666666664,
+              "totalAddedPoints": 422,
+              "longestWinStreak": 10,
+              "roomRating": 1279,
+              "place": 2,
+              "adjPoints": 544.6595880346239,
+              "startGlobalElo": 1070,
+              "endGlobalElo": 1214
+            },
+            {
+              "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+              "name": "Moon",
+              "matchesPlayed": 350,
+              "wins": 113,
+              "losses": 237,
+              "winRate": 32.285714285714285,
+              "totalAddedPoints": 328,
+              "longestWinStreak": 5,
+              "roomRating": 1095,
+              "place": 3,
+              "adjPoints": 538.8820189375317,
+              "startGlobalElo": 980,
+              "endGlobalElo": 1104
+            },
+            {
+              "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "name": "Paavo",
+              "matchesPlayed": 306,
+              "wins": 174,
+              "losses": 132,
+              "winRate": 56.86274509803921,
+              "totalAddedPoints": 286,
+              "longestWinStreak": 22,
+              "roomRating": 1201,
+              "place": 4,
+              "adjPoints": 439.3519649441175,
+              "startGlobalElo": 1204,
+              "endGlobalElo": 1099
+            },
+            {
+              "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1",
+              "name": "Anton",
+              "matchesPlayed": 40,
+              "wins": 25,
+              "losses": 15,
+              "winRate": 62.5,
+              "totalAddedPoints": 256,
+              "longestWinStreak": 7,
+              "roomRating": 1108,
+              "place": 5,
+              "adjPoints": 142.1856565390823,
+              "startGlobalElo": 1319,
+              "endGlobalElo": 1231
+            },
+            {
+              "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+              "name": "Viti",
+              "matchesPlayed": 109,
+              "wins": 28,
+              "losses": 81,
+              "winRate": 25.688073394495415,
+              "totalAddedPoints": 89,
+              "longestWinStreak": 3,
+              "roomRating": 962,
+              "place": 6,
+              "adjPoints": 81.59979774661159,
+              "startGlobalElo": 831,
+              "endGlobalElo": 968
+            },
+            {
+              "userId": "u47gManVVuaRui2r9d5I9LPtMyp2",
+              "name": "Osmo",
+              "matchesPlayed": 4,
+              "wins": 0,
+              "losses": 4,
+              "winRate": 0,
+              "totalAddedPoints": -15,
+              "longestWinStreak": 0,
+              "roomRating": 985,
+              "place": 7,
+              "adjPoints": -2.634553859003402,
+              "startGlobalElo": 1083,
+              "endGlobalElo": 1061
+            },
+            {
+              "userId": "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+              "name": "Jones",
+              "matchesPlayed": 2,
+              "wins": 0,
+              "losses": 2,
+              "winRate": 0,
+              "totalAddedPoints": -37,
+              "longestWinStreak": 0,
+              "roomRating": 981,
+              "place": 8,
+              "adjPoints": -4.595180217786149,
+              "startGlobalElo": 825,
+              "endGlobalElo": 781
+            },
+            {
+              "userId": "Ho1B4wZYdxYWWaz6vYCShAwLMfB3",
+              "name": "PetriS",
+              "matchesPlayed": 7,
+              "wins": 0,
+              "losses": 7,
+              "winRate": 0,
+              "totalAddedPoints": -48,
+              "longestWinStreak": 0,
+              "roomRating": 957,
+              "place": 9,
+              "adjPoints": -11.152598922445645,
+              "startGlobalElo": 965,
+              "endGlobalElo": 916
+            },
+            {
+              "userId": "uivJ1hWZrDOSFUow86VRb6iy55J2",
+              "name": "samuli.lindberg@redandblue.fi",
+              "matchesPlayed": 15,
+              "wins": 3,
+              "losses": 12,
+              "winRate": 20,
+              "totalAddedPoints": -48,
+              "longestWinStreak": 3,
+              "roomRating": 956,
+              "place": 10,
+              "adjPoints": -16.325733152970656,
+              "startGlobalElo": 1000,
+              "endGlobalElo": 878
+            },
+            {
+              "userId": "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+              "name": "Meri",
+              "matchesPlayed": 10,
+              "wins": 0,
+              "losses": 10,
+              "winRate": 0,
+              "totalAddedPoints": -67,
+              "longestWinStreak": 0,
+              "roomRating": 937,
+              "place": 11,
+              "adjPoints": -18.60632614866897,
+              "startGlobalElo": 1000,
+              "endGlobalElo": 917
+            },
+            {
+              "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+              "name": "Joona Mellin",
+              "matchesPlayed": 136,
+              "wins": 12,
+              "losses": 124,
+              "winRate": 8.823529411764707,
+              "totalAddedPoints": -101,
+              "longestWinStreak": 6,
+              "roomRating": 815,
+              "place": 12,
+              "adjPoints": -103.43717589593443,
+              "startGlobalElo": 796,
+              "endGlobalElo": 761
+            }
+          ],
+          "sport": "pingpong",
+          "type": "seasonFinish"
+        }
+      ]
+    }
+  ]
+}

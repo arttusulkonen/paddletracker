@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "collection": "matches-badminton",
+    "totalDocs": 6,
+    "exportedAt": "2025-12-09T11:13:35.928Z",
+    "variationsCount": 1
+  },
+  "latest": {
+    "_note": "LATEST DOCUMENT (Date: 2025-08-22T14:37:34.000Z)",
+    "_id": "4KcfVARlOe2BzWVSbaEi",
+    "roomId": "8JFKBWX5cxYoWtqMXNwP",
+    "createdAt": "22.08.2025 17.37.34",
+    "timestamp": "22.08.2025 17.37.34",
+    "tsIso": "2025-08-22T14:37:34.347Z",
+    "isRanked": true,
+    "player1Id": "TboklILVRzZihfvEhB1CMRdPCkH2",
+    "player2Id": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+    "players": [
+      "TboklILVRzZihfvEhB1CMRdPCkH2",
+      "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3"
+    ],
+    "player1": {
+      "name": "Paavo",
+      "scores": 13,
+      "oldRating": 1017,
+      "newRating": 1000,
+      "addedPoints": -17,
+      "roomOldRating": 1017,
+      "roomNewRating": 1000,
+      "roomAddedPoints": -17,
+      "side": "left"
+    },
+    "player2": {
+      "name": "Viti",
+      "scores": 21,
+      "oldRating": 1000,
+      "newRating": 1017,
+      "addedPoints": 17,
+      "roomOldRating": 1000,
+      "roomNewRating": 1017,
+      "roomAddedPoints": 17,
+      "side": "right"
+    },
+    "winner": "Viti"
+  },
+  "allStructureVariations": [
+    {
+      "_note": "Structure Variant (Keys: _id|createdAt|isRanked|player1|player1Id|player2|player2Id|players|roomId|timestamp|tsIso|winner)",
+      "_id": "4KcfVARlOe2BzWVSbaEi",
+      "roomId": "8JFKBWX5cxYoWtqMXNwP",
+      "createdAt": "22.08.2025 17.37.34",
+      "timestamp": "22.08.2025 17.37.34",
+      "tsIso": "2025-08-22T14:37:34.347Z",
+      "isRanked": true,
+      "player1Id": "TboklILVRzZihfvEhB1CMRdPCkH2",
+      "player2Id": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+      "players": [
+        "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3"
+      ],
+      "player1": {
+        "name": "Paavo",
+        "scores": 13,
+        "oldRating": 1017,
+        "newRating": 1000,
+        "addedPoints": -17,
+        "roomOldRating": 1017,
+        "roomNewRating": 1000,
+        "roomAddedPoints": -17,
+        "side": "left"
+      },
+      "player2": {
+        "name": "Viti",
+        "scores": 21,
+        "oldRating": 1000,
+        "newRating": 1017,
+        "addedPoints": 17,
+        "roomOldRating": 1000,
+        "roomNewRating": 1017,
+        "roomAddedPoints": 17,
+        "side": "right"
+      },
+      "winner": "Viti"
+    }
+  ]
+}

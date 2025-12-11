@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "collection": "matches-tennis",
+    "totalDocs": 11,
+    "exportedAt": "2025-12-09T11:13:36.897Z",
+    "variationsCount": 1
+  },
+  "latest": {
+    "_note": "LATEST DOCUMENT (Date: 2025-07-29T12:10:31.000Z)",
+    "_id": "xxUNSkAKYVIPSrvpktou",
+    "roomId": "dK09PRq7IEnd8sE5ffPm",
+    "createdAt": "29.07.2025 15.10.31",
+    "timestamp": "29.07.2025 15.10.31",
+    "tsIso": "2025-07-29T12:10:31.594Z",
+    "isRanked": true,
+    "player1Id": "MYjQu3t0dNPKys041E64sDLgV2t1",
+    "player2Id": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+    "players": [
+      "MYjQu3t0dNPKys041E64sDLgV2t1",
+      "rHsilFmpVOYukCqYEhMlBVVe2dd2"
+    ],
+    "winner": "Deleted User",
+    "player1": {
+      "scores": 6,
+      "oldRating": 1052,
+      "newRating": 1065,
+      "addedPoints": 13,
+      "roomOldRating": 1052,
+      "roomNewRating": 1065,
+      "roomAddedPoints": 13,
+      "aces": 0,
+      "doubleFaults": 0,
+      "winners": 0,
+      "name": "Deleted User"
+    },
+    "player2": {
+      "scores": 4,
+      "oldRating": 990,
+      "newRating": 977,
+      "addedPoints": -13,
+      "roomOldRating": 990,
+      "roomNewRating": 977,
+      "roomAddedPoints": -13,
+      "aces": 0,
+      "doubleFaults": 0,
+      "winners": 0,
+      "name": "Deleted User"
+    }
+  },
+  "allStructureVariations": [
+    {
+      "_note": "Structure Variant (Keys: _id|createdAt|isRanked|player1|player1Id|player2|player2Id|players|roomId|timestamp|tsIso|winner)",
+      "_id": "xxUNSkAKYVIPSrvpktou",
+      "roomId": "dK09PRq7IEnd8sE5ffPm",
+      "createdAt": "29.07.2025 15.10.31",
+      "timestamp": "29.07.2025 15.10.31",
+      "tsIso": "2025-07-29T12:10:31.594Z",
+      "isRanked": true,
+      "player1Id": "MYjQu3t0dNPKys041E64sDLgV2t1",
+      "player2Id": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+      "players": [
+        "MYjQu3t0dNPKys041E64sDLgV2t1",
+        "rHsilFmpVOYukCqYEhMlBVVe2dd2"
+      ],
+      "winner": "Deleted User",
+      "player1": {
+        "scores": 6,
+        "oldRating": 1052,
+        "newRating": 1065,
+        "addedPoints": 13,
+        "roomOldRating": 1052,
+        "roomNewRating": 1065,
+        "roomAddedPoints": 13,
+        "aces": 0,
+        "doubleFaults": 0,
+        "winners": 0,
+        "name": "Deleted User"
+      },
+      "player2": {
+        "scores": 4,
+        "oldRating": 990,
+        "newRating": 977,
+        "addedPoints": -13,
+        "roomOldRating": 990,
+        "roomNewRating": 977,
+        "roomAddedPoints": -13,
+        "aces": 0,
+        "doubleFaults": 0,
+        "winners": 0,
+        "name": "Deleted User"
+      }
+    }
+  ]
+}

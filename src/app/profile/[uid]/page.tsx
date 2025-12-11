@@ -1,4 +1,3 @@
-// src/app/profile/[uid]/page.tsx
 'use client';
 
 import { NewPlayerCard } from '@/components/profile/NewPlayerCard';
@@ -7,15 +6,7 @@ import { ProfileContent } from '@/components/profile/ProfileContent';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { CreateRoomDialog } from '@/components/rooms/CreateRoomDialog';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui';
+import { Button, Card, CardContent } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -24,23 +15,23 @@ import * as Friends from '@/lib/friends';
 import type { Match, UserProfile } from '@/lib/types';
 import { parseFlexDate } from '@/lib/utils/date';
 import {
-  buildInsights,
-  computeSideStats,
-  computeStats,
-  computeTennisStats,
-  groupByMonth,
-  medalMap,
-  opponentStats,
+	buildInsights,
+	computeSideStats,
+	computeStats,
+	computeTennisStats,
+	groupByMonth,
+	medalMap,
+	opponentStats,
 } from '@/lib/utils/profileUtils';
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	query,
+	where,
 } from 'firebase/firestore';
-import { Lock, Rocket } from 'lucide-react'; // Добавлены иконки
+import { Lock, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -122,13 +113,14 @@ export default function ProfileUidPage() {
     );
   }, [targetProfile]);
 
+  // ОБНОВЛЕНО: Тренер всегда видит профиль своего игрока
   const canView =
     isGlobalAdmin ||
     isSelf ||
     (targetProfile?.isPublic ?? true) ||
-    friendStatus === 'friends';
+    friendStatus === 'friends' ||
+    targetProfile?.managedBy === user?.uid;
 
-  // Гарантируем, что viewedSport всегда проставится
   useEffect(() => {
     if (!targetProfile) return;
     const fromCtx = selectedSport as Sport | undefined;
@@ -179,7 +171,9 @@ export default function ProfileUidPage() {
         ? (Object.keys(profileData.sports) as Sport[])
         : [];
 
-      const canFetchAll = isGlobalAdmin || isSelf;
+      // ОБНОВЛЕНО: Тренер может грузить матчи своего игрока
+      const isManager = profileData.managedBy === user?.uid;
+      const canFetchAll = isGlobalAdmin || isSelf || isManager;
 
       const accessibleRooms = canFetchAll
         ? null
@@ -265,9 +259,12 @@ export default function ProfileUidPage() {
         setFriendStatus('outgoing');
       else if (viewerProfile.incomingRequests?.includes(targetUid))
         setFriendStatus('incoming');
+      // ОБНОВЛЕНО: Если я тренер этого игрока, считаем что мы "друзья" (доступ есть)
+      else if (targetProfile?.managedBy === user.uid)
+        setFriendStatus('friends');
       else setFriendStatus('none');
     }
-  }, [user, viewerProfile, targetUid, isSelf]);
+  }, [user, viewerProfile, targetUid, isSelf, targetProfile]);
 
   const handleFriendAction = async (
     action: 'add' | 'cancel' | 'accept' | 'remove'
@@ -346,7 +343,6 @@ export default function ProfileUidPage() {
         : computeSideStats(rankedMatches, targetProfile.uid);
     const monthlyData = groupByMonth(rankedMatches, targetProfile.uid);
 
-    // Исправленный вызов buildInsights: передаем все аргументы в правильном порядке
     const insights = buildInsights(
       rankedMatches,
       targetProfile.uid,
@@ -502,14 +498,8 @@ export default function ProfileUidPage() {
       <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
         <div className='lg:col-span-8 xl:col-span-9 space-y-6'>
           {playedSports.length === 0 ? (
-            <NewPlayerCard
-              isSelf={!!isSelf}
-              playerName={
-                targetProfile.displayName ??
-                targetProfile.name ??
-                t('Unknown Player')
-              }
-            />
+            // ОБНОВЛЕНО: Используем правильную карточку с profile
+            <NewPlayerCard isSelf={!!isSelf} profile={targetProfile} />
           ) : (
             <>
               <OverallStatsCard profile={targetProfile} />
@@ -569,7 +559,6 @@ export default function ProfileUidPage() {
           )}
         </div>
         <div className='lg:col-span-4 xl:col-span-3'>
-          {/* Private Profile Message for Sidebar */}
           {!canView && (
             <Card>
               <CardContent className='py-8 flex flex-col items-center text-center text-muted-foreground'>

@@ -1,32 +1,25 @@
+// src/components/mobile/record-blocks/MobileTennisRecordBlock.tsx
 'use client';
 
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Input,
-  Label,
+	TennisRowInput,
+	TennisSetData,
+} from '@/components/record-blocks/TennisRecordBlock';
+import {
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	Label,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { processAndSaveMatches } from '@/lib/elo';
 import type { Room } from '@/lib/types';
-import { Plus, Sword, Trash2 } from 'lucide-react';
+import { Plus, Sword } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-export type TennisSetData = {
-  score1: string;
-  score2: string;
-  aces1?: string;
-  aces2?: string;
-  doubleFaults1?: string;
-  doubleFaults2?: string;
-  winners1?: string;
-  winners2?: string;
-};
 
 export function MobileTennisRecordBlock({
   members,
@@ -175,92 +168,17 @@ export function MobileTennisRecordBlock({
           </div>
         </div>
 
-        {/* Сеты */}
+        {/* Сеты с использованием общего компонента TennisRowInput */}
         <div className='space-y-3'>
           {sets.map((set, i) => (
-            <div
+            <TennisRowInput
               key={i}
-              className='flex flex-col gap-3 p-4 border rounded-lg bg-muted/50 relative'
-            >
-              <div className='flex items-center justify-between'>
-                <Label className='font-bold'>
-                  {t('Set')} {i + 1}
-                </Label>
-                {sets.length > 1 && (
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    className='h-8 w-8'
-                    onClick={() => removeSet(i)}
-                  >
-                    <Trash2 className='h-4 w-4 text-destructive' />
-                  </Button>
-                )}
-              </div>
-
-              <div className='grid grid-cols-2 gap-3'>
-                <div>
-                  <Label>{t('P1 Games')}</Label>
-                  <Input
-                    type='number'
-                    inputMode='numeric'
-                    placeholder='6'
-                    value={set.score1}
-                    onChange={(e) =>
-                      setRow(i, { ...set, score1: e.target.value })
-                    }
-                    className='text-center font-semibold'
-                  />
-                </div>
-                <div>
-                  <Label>{t('P2 Games')}</Label>
-                  <Input
-                    type='number'
-                    inputMode='numeric'
-                    placeholder='4'
-                    value={set.score2}
-                    onChange={(e) =>
-                      setRow(i, { ...set, score2: e.target.value })
-                    }
-                    className='text-center font-semibold'
-                  />
-                </div>
-              </div>
-
-              {/* Доп.статы — компактные поля по две колонки */}
-              <div className='grid grid-cols-2 gap-x-4 gap-y-2 text-sm'>
-                <StatInput
-                  label={t('Aces')}
-                  value={set.aces1}
-                  onChange={(v) => setRow(i, { ...set, aces1: v })}
-                />
-                <StatInput
-                  label={t('Aces')}
-                  value={set.aces2}
-                  onChange={(v) => setRow(i, { ...set, aces2: v })}
-                />
-                <StatInput
-                  label={t('Double Faults')}
-                  value={set.doubleFaults1}
-                  onChange={(v) => setRow(i, { ...set, doubleFaults1: v })}
-                />
-                <StatInput
-                  label={t('Double Faults')}
-                  value={set.doubleFaults2}
-                  onChange={(v) => setRow(i, { ...set, doubleFaults2: v })}
-                />
-                <StatInput
-                  label={t('Winners')}
-                  value={set.winners1}
-                  onChange={(v) => setRow(i, { ...set, winners1: v })}
-                />
-                <StatInput
-                  label={t('Winners')}
-                  value={set.winners2}
-                  onChange={(v) => setRow(i, { ...set, winners2: v })}
-                />
-              </div>
-            </div>
+              setIndex={i} // Используем setIndex, а не matchIndex для тенниса
+              data={set}
+              onChange={(d) => setRow(i, d)}
+              onRemove={() => removeSet(i)}
+              removable={sets.length > 1}
+            />
           ))}
         </div>
 
@@ -275,29 +193,5 @@ export function MobileTennisRecordBlock({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function StatInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value?: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className='flex items-center justify-between'>
-      <Label className='text-muted-foreground'>{label}</Label>
-      <Input
-        type='number'
-        inputMode='numeric'
-        placeholder='0'
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        className='h-9 w-20 text-center'
-      />
-    </div>
   );
 }

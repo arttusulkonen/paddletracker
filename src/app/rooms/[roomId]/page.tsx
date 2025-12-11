@@ -8,21 +8,21 @@ import { RecentMatches } from '@/components/rooms/RecentMatches';
 import { RoomHeader } from '@/components/rooms/RoomHeader';
 import { StandingsTable } from '@/components/rooms/StandingsTable';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Card,
-  CardContent,
-  Checkbox,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  Label,
-  ScrollArea,
-  Separator,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Card,
+	CardContent,
+	Checkbox,
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	Label,
+	ScrollArea,
+	Separator,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
@@ -31,28 +31,33 @@ import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import { getUserLite } from '@/lib/friends';
 import { finalizeSeason } from '@/lib/season';
-import type { Match, Room, UserProfile } from '@/lib/types';
+import type {
+	Match,
+	Room,
+	Member as RoomMember,
+	Season,
+	UserProfile,
+} from '@/lib/types';
 import { parseFlexDate } from '@/lib/utils/date';
 import {
-  arrayRemove,
-  arrayUnion,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  updateDoc,
-  where,
-  writeBatch,
+	arrayRemove,
+	arrayUnion,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	onSnapshot,
+	orderBy,
+	query,
+	updateDoc,
+	where,
+	writeBatch,
 } from 'firebase/firestore';
 import { ArrowLeft } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// --- Helpers ---
 const calcWinPct = (w: number, l: number) => {
   const t = w + l;
   return t ? ((w / t) * 100).toFixed(1) : '0.0';
@@ -78,12 +83,11 @@ export default function RoomPage() {
 
   const [room, setRoom] = useState<Room | null>(null);
   const [rawMatches, setRawMatches] = useState<Match[]>([]);
-  const [members, setMembers] = useState<Room['members']>([]);
+  const [members, setMembers] = useState<RoomMember[]>([]);
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [latestSeason, setLatestSeason] = useState<any | null>(null);
+  const [latestSeason, setLatestSeason] = useState<Season | null>(null);
 
-  // Снэпшоты рейтингов для season finish
   const [seasonStarts, setSeasonStarts] = useState<Record<string, number>>({});
   const [seasonRoomStarts, setSeasonRoomStarts] = useState<
     Record<string, number>
@@ -91,7 +95,6 @@ export default function RoomPage() {
 
   const [hasMounted, setHasMounted] = useState(false);
 
-  // Состояние инвайтов
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
@@ -102,7 +105,6 @@ export default function RoomPage() {
     [room?.memberIds]
   );
 
-  // Очистка выбранных друзей, если они уже в комнате
   useEffect(() => {
     if (!room) return;
     setSelectedFriends((prev) => prev.filter((id) => !memberIdsSet.has(id)));
@@ -110,11 +112,10 @@ export default function RoomPage() {
 
   useEffect(() => setHasMounted(true), []);
 
-  // 1. Подписка на комнату
   useEffect(() => {
     if (!user || !db) return;
     const unsubRoom = onSnapshot(
-      doc(db, config.collections.rooms, roomId),
+      doc(db!, config.collections.rooms, roomId),
       (snap) => {
         if (!snap.exists()) {
           router.push('/rooms');
@@ -134,24 +135,25 @@ export default function RoomPage() {
         }
 
         setRoom(roomData);
-        setLatestSeason(roomData.seasonHistory?.slice().reverse()[0] ?? null);
+        const history = roomData.seasonHistory as unknown as
+          | Season[]
+          | undefined;
+        setLatestSeason(history?.slice().reverse()[0] ?? null);
       }
     );
     return () => unsubRoom();
   }, [user, roomId, config.collections.rooms, router, isGlobalAdmin]);
 
-  // Редирект если нет доступа
   useEffect(() => {
     if (!accessDenied) return;
     const tId = setTimeout(() => router.replace('/rooms'), 2000);
     return () => clearTimeout(tId);
   }, [accessDenied, router]);
 
-  // 2. Загрузка ко-игроков (для инвайтов)
   useEffect(() => {
-    if (!user || accessDenied) return;
+    if (!user || accessDenied || !db) return;
     const roomsQ = query(
-      collection(db, config.collections.rooms),
+      collection(db!, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid)
     );
     const unsub = onSnapshot(roomsQ, async (snap) => {
@@ -171,17 +173,17 @@ export default function RoomPage() {
       if (idsSet.size === 0) return setCoPlayers([]);
 
       const loaded = await Promise.all(
-        Array.from(idsSet).map(async (uid) => ({
-          uid,
-          ...(await getUserLite(uid)),
-        }))
+        Array.from(idsSet).map(async (uid) => {
+          const profile = await getUserLite(uid);
+          // FIX: Validate that returned profile matches requested uid
+          return profile && profile.uid === uid ? profile : null;
+        })
       );
-      setCoPlayers(loaded.filter(Boolean) as UserProfile[]);
+      setCoPlayers(loaded.filter((p): p is UserProfile => !!p));
     });
     return () => unsub();
   }, [user, config.collections.rooms, room?.memberIds, accessDenied]);
 
-  // Подготовка списков для UI инвайтов
   const friendsAll = useMemo(
     () =>
       friends
@@ -205,19 +207,22 @@ export default function RoomPage() {
       );
   }, [coPlayers, friends, memberIdsSet]);
 
-  // Права управления
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
+
+    const r = room as Room & { adminIds?: string[] };
     const isRoomAdmin =
-      Array.isArray(room.adminIds) && room.adminIds.includes(user.uid);
-    return isGlobalAdmin || isRoomAdmin || room.creator === user.uid;
+      Array.isArray(r.adminIds) && r.adminIds.includes(user.uid);
+
+    const creatorId = r.createdBy || r.creator;
+
+    return isGlobalAdmin || isRoomAdmin || creatorId === user.uid;
   }, [room, user, isGlobalAdmin]);
 
-  // 3. Подписка на матчи
   useEffect(() => {
     if (!user || !db || accessDenied) return;
     const q = query(
-      collection(db, config.collections.matches),
+      collection(db!, config.collections.matches),
       where('roomId', '==', roomId)
     );
     const unsub = onSnapshot(q, (snap) => {
@@ -229,7 +234,6 @@ export default function RoomPage() {
     return () => unsub();
   }, [user, roomId, config.collections.matches, accessDenied]);
 
-  // 4. Загрузка друзей
   useEffect(() => {
     const fetchFriends = async () => {
       if (userProfile?.friends && userProfile.friends.length > 0) {
@@ -244,11 +248,9 @@ export default function RoomPage() {
     fetchFriends();
   }, [userProfile]);
 
-  // 5. Синхронизация (Matches + Members profiles)
   useEffect(() => {
     if (!room) return;
 
-    // Если матчей нет, просто показываем мемберов из комнаты
     if (rawMatches.length === 0 && room?.members) {
       setMembers(room.members);
       setRecentMatches([]);
@@ -257,7 +259,8 @@ export default function RoomPage() {
     }
 
     const syncData = async () => {
-      // Собираем стартовые рейтинги (первый матч игрока)
+      if (!db) return;
+
       const starts: Record<string, number> = {};
       const roomStarts: Record<string, number> = {};
 
@@ -281,20 +284,24 @@ export default function RoomPage() {
         return;
       }
 
-      // Подгружаем свежие профили (имя, фото)
       const memberIds = initialMembers.map((m) => m.userId);
-      // Загружаем батчами по 10 (опционально, здесь упрощено)
+
       const userDocsSnaps = await Promise.all(
-        memberIds.map((id) => getDoc(doc(db, 'users', id)))
+        memberIds.map(async (id) => {
+          try {
+            return await getDoc(doc(db!, 'users', id));
+          } catch {
+            return null;
+          }
+        })
       );
 
       const freshProfiles = new Map<string, UserProfile>();
       userDocsSnaps.forEach((userSnap) => {
-        if (userSnap.exists())
+        if (userSnap && userSnap.exists())
           freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
       });
 
-      // Обновляем members данными из profiles
       const syncedMembers = initialMembers
         .filter((member) => !freshProfiles.get(member.userId)?.isDeleted)
         .map((member) => {
@@ -304,14 +311,13 @@ export default function RoomPage() {
                 ...member,
                 name: p.name ?? p.displayName ?? member.name,
                 photoURL: p.photoURL,
-                globalElo: p.sports?.[sport]?.globalElo, // Актуальный глобальный рейтинг
+                globalElo: p.sports?.[sport]?.globalElo,
                 rank: p.rank,
               }
             : member;
         });
       setMembers(syncedMembers);
 
-      // Обновляем имена в матчах (на случай если юзер сменил имя)
       const syncedMatches = rawMatches.map((match) => {
         const p1Profile = freshProfiles.get(match.player1Id);
         const p2Profile = freshProfiles.get(match.player2Id);
@@ -323,9 +329,11 @@ export default function RoomPage() {
         };
 
         if (p1Profile)
-          newMatch.player1.name = p1Profile.name ?? p1Profile.displayName;
+          newMatch.player1.name =
+            p1Profile.name ?? p1Profile.displayName ?? 'Unknown';
         if (p2Profile)
-          newMatch.player2.name = p2Profile.name ?? p2Profile.displayName;
+          newMatch.player2.name =
+            p2Profile.name ?? p2Profile.displayName ?? 'Unknown';
 
         const winnerId =
           match.player1.scores > match.player2.scores
@@ -334,12 +342,12 @@ export default function RoomPage() {
         const winnerProfile = freshProfiles.get(winnerId);
 
         if (winnerProfile)
-          newMatch.winner = winnerProfile.name ?? winnerProfile.displayName;
+          newMatch.winner =
+            winnerProfile.name ?? winnerProfile.displayName ?? 'Unknown';
 
         return newMatch;
       });
 
-      // Recent matches: последние первыми
       setRecentMatches(syncedMatches.slice().reverse());
       setIsLoading(false);
     };
@@ -347,9 +355,8 @@ export default function RoomPage() {
     syncData();
   }, [room, rawMatches, sport]);
 
-  // --- Логика расчета формы (последние 5) ---
   const last5Form = useCallback(
-    (m: any): MiniMatch[] =>
+    (m: RoomMember): MiniMatch[] =>
       recentMatches
         .filter((x) => x.player1Id === m.userId || x.player2Id === m.userId)
         .slice(0, 5)
@@ -370,9 +377,8 @@ export default function RoomPage() {
     [recentMatches]
   );
 
-  // --- Агрегация статистики для таблицы Regular ---
   const regularPlayers = useMemo(() => {
-    const baseMembers = room?.members ?? [];
+    const baseMembers = members.length > 0 ? members : room?.members ?? [];
     const matchStats: Record<string, { wins: number; losses: number }> = {};
     const latestRoomRatings: Record<string, number> = {};
 
@@ -382,15 +388,17 @@ export default function RoomPage() {
 
       [m.player1Id, m.player2Id].forEach((id) => {
         if (!matchStats[id]) matchStats[id] = { wins: 0, losses: 0 };
-        id === winnerId ? matchStats[id].wins++ : matchStats[id].losses++;
+        if (id === winnerId) {
+          matchStats[id].wins++;
+        } else {
+          matchStats[id].losses++;
+        }
 
-        // Берем последнее известное RoomElo из матча
         latestRoomRatings[m.player1Id] = m.player1.roomNewRating;
         latestRoomRatings[m.player2Id] = m.player2.roomNewRating;
       });
     });
 
-    // Tennis specific stats
     const tennisStats: Record<
       string,
       { aces: number; doubleFaults: number; winners: number }
@@ -414,14 +422,12 @@ export default function RoomPage() {
       });
     }
 
-    return baseMembers.map((m: any) => {
+    return baseMembers.map((m: RoomMember) => {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
-      // Если есть матчи, берем рейтинг из последнего. Иначе из профиля в комнате.
       const currentRating = latestRoomRatings[m.userId] ?? m.rating ?? 1000;
       const total = wins + losses;
 
-      // Calc streak
       let max = 0,
         cur = 0;
       rawMatches.forEach((match) => {
@@ -439,12 +445,12 @@ export default function RoomPage() {
         ...m,
         ...tennisStats[m.userId],
         rating: currentRating,
-        ratingVisible: total >= 1, // Показываем рейтинг даже после 1 игры
+        ratingVisible: total >= 1,
         wins,
         losses,
         totalMatches: total,
         winPct: calcWinPct(wins, losses),
-        deltaRoom: currentRating - (seasonRoomStarts[m.userId] ?? 1000), // Считаем от 1000 или старта сезона
+        deltaRoom: currentRating - (seasonRoomStarts[m.userId] ?? 1000),
         globalDelta:
           (m.globalElo ?? 1000) -
           (seasonStarts[m.userId] ?? m.globalElo ?? 1000),
@@ -458,6 +464,7 @@ export default function RoomPage() {
     });
   }, [
     room?.members,
+    members,
     rawMatches,
     seasonStarts,
     seasonRoomStarts,
@@ -465,11 +472,11 @@ export default function RoomPage() {
     last5Form,
   ]);
 
-  // --- Finish Season Handlers ---
   const getSeasonEloSnapshots = useCallback(
     async (roomId: string): Promise<StartEndElo> => {
+      if (!db) throw new Error('DB not initialized');
       const qs = query(
-        collection(db, config.collections.matches),
+        collection(db!, config.collections.matches),
         where('roomId', '==', roomId),
         orderBy('tsIso', 'asc')
       );
@@ -523,28 +530,27 @@ export default function RoomPage() {
     }
   }, [roomId, getSeasonEloSnapshots, config.collections, sport, toast, t]);
 
-  // --- Join/Leave Handlers ---
   const handleRequestToJoin = useCallback(async () => {
-    if (!user || !room) return;
-    await updateDoc(doc(db, config.collections.rooms, roomId), {
+    if (!user || !room || !db) return;
+    await updateDoc(doc(db!, config.collections.rooms, roomId), {
       joinRequests: arrayUnion(user.uid),
     });
     toast({ title: t('Request Sent') });
   }, [user, room, roomId, config.collections.rooms, toast, t]);
 
   const handleCancelRequestToJoin = useCallback(async () => {
-    if (!user || !room) return;
-    await updateDoc(doc(db, config.collections.rooms, roomId), {
+    if (!user || !room || !db) return;
+    await updateDoc(doc(db!, config.collections.rooms, roomId), {
       joinRequests: arrayRemove(user.uid),
     });
     toast({ title: t('Request Canceled') });
   }, [user, room, roomId, config.collections.rooms, toast, t]);
 
   const handleLeaveRoom = useCallback(async () => {
-    if (!user || !room) return;
+    if (!user || !room || !db) return;
     const memberToRemove = room.members.find((m) => m.userId === user.uid);
     if (memberToRemove) {
-      await updateDoc(doc(db, config.collections.rooms, roomId), {
+      await updateDoc(doc(db!, config.collections.rooms, roomId), {
         members: arrayRemove(memberToRemove),
         memberIds: arrayRemove(user.uid),
       });
@@ -553,9 +559,8 @@ export default function RoomPage() {
     }
   }, [user, room, roomId, config.collections.rooms, router, toast, t]);
 
-  // --- Invite Handlers ---
   const handleInviteFriends = async () => {
-    if (!user || !room || selectedFriends.length === 0) {
+    if (!user || !room || !db || selectedFriends.length === 0) {
       toast({ title: t('Select friends to invite'), variant: 'destructive' });
       return;
     }
@@ -596,8 +601,8 @@ export default function RoomPage() {
         }))
       );
 
-      const batch = writeBatch(db);
-      const roomRef = doc(db, config.collections.rooms, roomId);
+      const batch = writeBatch(db!);
+      const roomRef = doc(db!, config.collections.rooms, roomId);
 
       const newMembers = profiles.map(({ uid, profile }) => ({
         userId: uid,
@@ -611,7 +616,7 @@ export default function RoomPage() {
       }));
 
       profiles.forEach(({ uid }) => {
-        const userRef = doc(db, 'users', uid);
+        const userRef = doc(db!, 'users', uid);
         batch.update(userRef, { rooms: arrayUnion(roomId) });
       });
 
@@ -639,9 +644,8 @@ export default function RoomPage() {
     }
   };
 
-  // --- Remove Player ---
   const handleRemovePlayer = async (userIdToRemove: string) => {
-    if (!room || !user) return;
+    if (!room || !user || !db) return;
 
     const memberToRemove = room.members.find(
       (m) => m.userId === userIdToRemove
@@ -655,9 +659,10 @@ export default function RoomPage() {
     }
 
     try {
-      const isStillCreator = room.creator === user.uid;
+      const isStillCreator = room.createdBy === user.uid;
+      const r = room as Room & { adminIds?: string[] };
       const isRoomAdmin =
-        Array.isArray(room.adminIds) && room.adminIds.includes(user.uid);
+        Array.isArray(r.adminIds) && r.adminIds.includes(user.uid);
       const canManage = isGlobalAdmin || isStillCreator || isRoomAdmin;
 
       if (!canManage) {
@@ -669,14 +674,14 @@ export default function RoomPage() {
         return;
       }
 
-      const batch = writeBatch(db);
-      const roomRef = doc(db, config.collections.rooms, roomId);
+      const batch = writeBatch(db!);
+      const roomRef = doc(db!, config.collections.rooms, roomId);
       batch.update(roomRef, {
         members: arrayRemove(memberToRemove),
         memberIds: arrayRemove(userIdToRemove),
       });
 
-      const userRef = doc(db, 'users', userIdToRemove);
+      const userRef = doc(db!, 'users', userIdToRemove);
       batch.update(userRef, { rooms: arrayRemove(roomId) });
 
       await batch.commit();
@@ -696,15 +701,15 @@ export default function RoomPage() {
     () => room?.members.some((m) => m.userId === user?.uid),
     [user, room]
   );
-  const isCreator = useMemo(() => room?.creator === user?.uid, [user, room]);
+
+  const isCreator = useMemo(() => room?.createdBy === user?.uid, [user, room]);
+
   const hasPendingRequest = useMemo(
     () => room?.joinRequests?.includes(user?.uid ?? ''),
     [user, room]
   );
 
   const showInviteSection = isMember && !latestSeason && !room?.isArchived;
-
-  // --- RENDER ---
 
   if (accessDenied) {
     return (
@@ -747,15 +752,14 @@ export default function RoomPage() {
 
         <RoomHeader
           room={room}
-          isMember={isMember}
-          hasPendingRequest={hasPendingRequest}
+          isMember={!!isMember}
+          hasPendingRequest={!!hasPendingRequest}
           isCreator={isCreator}
           onJoin={handleRequestToJoin}
           onCancelJoin={handleCancelRequestToJoin}
           onLeave={handleLeaveRoom}
         />
 
-        {/* contextual hints */}
         <div className='space-y-3 mb-6'>
           {room.isArchived && (
             <Card>
@@ -766,6 +770,47 @@ export default function RoomPage() {
               </CardContent>
             </Card>
           )}
+
+          {room.mode === 'arcade' && (
+            <Card className='border-purple-200 bg-purple-50 dark:bg-purple-900/20'>
+              <CardContent className='text-sm text-purple-900 dark:text-purple-100 p-4 flex gap-2'>
+                <span>👾</span>
+                <span>
+                  <strong>{t('Arcade Mode Active:')}</strong>{' '}
+                  {t(
+                    'Matches in this room do NOT affect your Global ELO. Play for fun and experiment!'
+                  )}
+                </span>
+              </CardContent>
+            </Card>
+          )}
+          {room.mode === 'office' && (
+            <Card className='border-slate-200 bg-slate-50 dark:bg-slate-900/20'>
+              <CardContent className='text-sm text-slate-700 dark:text-slate-300 p-4 flex gap-2'>
+                <span>💼</span>
+                <span>
+                  <strong>{t('Office Mode Active:')}</strong>{' '}
+                  {t(
+                    'Losses are penalized less (inflated ELO) to keep office morale high. Global ELO is still affected.'
+                  )}
+                </span>
+              </CardContent>
+            </Card>
+          )}
+          {room.mode === 'professional' && (
+            <Card className='border-amber-200 bg-amber-50 dark:bg-amber-900/20'>
+              <CardContent className='text-sm text-amber-800 dark:text-amber-200 p-4 flex gap-2'>
+                <span>🏆</span>
+                <span>
+                  <strong>{t('Professional Mode Active:')}</strong>{' '}
+                  {t(
+                    'Standard ELO rules apply. Every match counts towards your Global Ranking.'
+                  )}
+                </span>
+              </CardContent>
+            </Card>
+          )}
+
           {!room.isArchived && latestSeason && (
             <Card>
               <CardContent className='text-sm text-muted-foreground p-4'>
@@ -953,7 +998,8 @@ export default function RoomPage() {
         <StandingsTable
           players={regularPlayers}
           latestSeason={latestSeason}
-          roomCreatorId={room.creator}
+          roomCreatorId={room.createdBy || room.creator || ''}
+          roomMode={room.mode || 'office'}
         />
 
         <RecentMatches matches={recentMatches} />

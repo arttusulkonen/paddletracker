@@ -1,3 +1,4 @@
+// src/components/AiAssistant.tsx
 'use client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -7,28 +8,28 @@ import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { app, db } from '@/lib/firebase';
 import {
-  collection,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
+	collection,
+	getDocs,
+	limit,
+	orderBy,
+	query,
+	where,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
-  Bot,
-  Check,
-  Loader2,
-  Minus,
-  RefreshCw,
-  Send,
-  Trash2,
-  Trophy,
-  X,
+	AlertTriangle,
+	ArrowDown,
+	ArrowRight,
+	ArrowUp,
+	Bot,
+	Check,
+	Loader2,
+	Minus,
+	RefreshCw,
+	Send,
+	Trash2,
+	Trophy,
+	X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -71,10 +72,9 @@ type Message = {
 type PlayerOption = { uid: string; name: string; email?: string };
 type RoomOption = { id: string; name: string };
 
-// --- КОМПОНЕНТ РЕЗУЛЬТАТОВ (ОБНОВЛЕННЫЙ) ---
 const MatchResultSummary = ({ data, t }: { data: MatchResultData; t: any }) => {
   return (
-    <div className='mt-2 w-full bg-white dark:bg-slate-950 rounded-lg border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2'>
+    <div className='mt-2 w-full max-w-xl bg-white dark:bg-slate-950 rounded-lg border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2'>
       <div className='bg-muted/50 p-2 border-b flex items-center gap-2'>
         <Trophy className='h-4 w-4 text-yellow-500' />
         <span className='text-xs font-bold uppercase text-muted-foreground'>
@@ -156,7 +156,6 @@ export function AiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const cardRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -190,23 +189,24 @@ export function AiAssistant() {
   ];
 
   useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener('open-ai-assistant', handleOpen);
+    return () => window.removeEventListener('open-ai-assistant', handleOpen);
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsOpen(false);
     };
-    const handleClickOutside = (event: MouseEvent) => {
-      if (cardRef.current && cardRef.current.contains(event.target as Node))
-        return;
-      const target = event.target as Element;
-      if (target.closest('#ai-assistant-trigger')) return;
-      setIsOpen(false);
-    };
     if (isOpen) {
+      document.body.style.overflow = 'hidden';
       document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.body.style.overflow = '';
     }
     return () => {
+      document.body.style.overflow = '';
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
 
@@ -221,46 +221,51 @@ export function AiAssistant() {
             where('isArchived', '!=', true)
           );
           const roomsSnap = await getDocs(qRooms);
+
           const activeRooms: RoomOption[] = [];
-          const relevantUserIds = new Set<string>();
-          if (userProfile.friends)
-            userProfile.friends.forEach((fid: string) =>
-              relevantUserIds.add(fid)
-            );
-          relevantUserIds.add(user.uid);
+          const playerMap = new Map<string, PlayerOption>();
+
+          // Добавляем текущего пользователя
+          playerMap.set(user.uid, {
+            uid: user.uid,
+            name: userProfile.name || userProfile.displayName || 'Me',
+            email: user.email || '',
+          });
+
           roomsSnap.docs.forEach((doc) => {
             const data = doc.data();
             const history = data.seasonHistory || [];
             const isSeasonFinished =
               history.length > 0 &&
               history[history.length - 1].type === 'seasonFinish';
+
             if (!isSeasonFinished) {
               activeRooms.push({
                 id: doc.id,
                 name: data.name || 'Unnamed Room',
               });
-              if (data.memberIds)
-                data.memberIds.forEach((mid: string) =>
-                  relevantUserIds.add(mid)
-                );
+
+              // Извлекаем игроков из members комнаты, чтобы избежать запроса к users (block by rules)
+              if (Array.isArray(data.members)) {
+                data.members.forEach((m: any) => {
+                  if (m.userId && m.name) {
+                    playerMap.set(m.userId, {
+                      uid: m.userId,
+                      name: m.name,
+                      email: m.email || '',
+                    });
+                  }
+                });
+              }
             }
           });
+
           setRoomsList(activeRooms);
-          if (playersList.length === 0) {
-            const allUsersSnap = await getDocs(query(collection(db, 'users')));
-            const filteredPlayers = allUsersSnap.docs
-              .filter((doc) => relevantUserIds.has(doc.id))
-              .map((doc) => {
-                const d = doc.data();
-                return {
-                  uid: doc.id,
-                  name: d.name || d.displayName || 'Unknown',
-                  email: d.email || '',
-                };
-              })
-              .sort((a, b) => a.name.localeCompare(b.name));
-            setPlayersList(filteredPlayers);
-          }
+          setPlayersList(
+            Array.from(playerMap.values()).sort((a, b) =>
+              a.name.localeCompare(b.name)
+            )
+          );
         } catch (e) {
           console.error('Failed to load data', e);
         }
@@ -385,7 +390,7 @@ export function AiAssistant() {
     try {
       const saveFunc = httpsCallable(functions, 'aiSaveMatch');
       const result = await saveFunc({ matches: drafts, roomId });
-      const responseData = result.data as { updates?: PlayerUpdate[] };
+      const responseData = result.data as MatchResultData;
 
       setMessages((prev) =>
         prev.map((m) => {
@@ -394,23 +399,19 @@ export function AiAssistant() {
               ...m,
               drafts: undefined,
               text: t('✅ Matches saved!'),
-              results: responseData.updates
-                ? { updates: responseData.updates }
-                : undefined,
+              results: { updates: responseData.updates },
             };
           }
           return m;
         })
       );
 
-      if (!responseData.updates) {
-        toast({
-          title: t('Saved'),
-          description: t('{{count}} matches recorded.', {
-            count: drafts.length,
-          }),
-        });
-      }
+      toast({
+        title: t('Saved'),
+        description: t('{{count}} matches recorded.', {
+          count: drafts.length,
+        }),
+      });
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -445,106 +446,130 @@ export function AiAssistant() {
       </Button>
 
       {isOpen && (
-        <Card
-          ref={cardRef}
-          className='fixed bottom-24 right-6 w-[90vw] max-w-[400px] h-[600px] flex flex-col shadow-2xl z-50 animate-in slide-in-from-bottom-10 fade-in bg-background border-2 border-border'
-        >
-          <div className='p-4 border-b bg-primary text-primary-foreground rounded-t-lg flex items-center gap-2'>
-            <Bot size={20} />
-            <span className='font-semibold'>AI Referee ({t(sport)})</span>
-          </div>
-
-          <div
-            ref={scrollRef}
-            className='flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900'
-          >
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${
-                  msg.role === 'user' ? 'items-end' : 'items-start'
-                }`}
+        <div className='fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200'>
+          <Card className='w-full h-[100dvh] md:h-[85vh] md:max-w-[800px] flex flex-col shadow-2xl bg-background rounded-none md:rounded-xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200'>
+            <div className='p-4 border-b bg-primary text-primary-foreground flex items-center gap-3 shrink-0'>
+              <div className='bg-primary-foreground/20 p-2 rounded-full'>
+                <Bot size={20} />
+              </div>
+              <div>
+                <h3 className='font-bold text-sm md:text-base leading-none'>
+                  AI Referee ({t(sport)})
+                </h3>
+                <p className='text-[10px] md:text-xs opacity-80 mt-1'>
+                  {t('Powered by Gemini 2.0')}
+                </p>
+              </div>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='h-8 w-8 ml-auto text-primary-foreground hover:bg-primary/80 rounded-full'
+                onClick={() => setIsOpen(false)}
               >
+                <X className='h-5 w-5' />
+              </Button>
+            </div>
+
+            <div
+              ref={scrollRef}
+              className='flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900/50'
+            >
+              {messages.map((msg) => (
                 <div
-                  className={`max-w-[90%] p-3 rounded-lg text-sm ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-white dark:bg-slate-800 border shadow-sm whitespace-pre-line'
+                  key={msg.id}
+                  className={`flex flex-col ${
+                    msg.role === 'user' ? 'items-end' : 'items-start'
                   }`}
                 >
                   <div
-                    dangerouslySetInnerHTML={{
-                      __html: msg.text
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\n/g, '<br/>'),
-                    }}
-                  />
+                    className={`max-w-[85%] md:max-w-[75%] p-3.5 rounded-2xl text-sm shadow-sm ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-br-none'
+                        : 'bg-white dark:bg-slate-800 border rounded-bl-none'
+                    }`}
+                  >
+                    {msg.text && (
+                      <div
+                        className='whitespace-pre-line leading-relaxed'
+                        dangerouslySetInnerHTML={{
+                          __html: msg.text
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\n/g, '<br/>'),
+                        }}
+                      />
+                    )}
+
+                    {msg.drafts && (
+                      <div className='mt-3'>
+                        <DraftsForm
+                          initialDrafts={msg.drafts}
+                          players={playersList}
+                          rooms={roomsList}
+                          config={config}
+                          onSave={(finalDrafts, rid) =>
+                            handleSaveAll(finalDrafts, rid, msg.id)
+                          }
+                          onCancel={() => handleCancel(msg.id)}
+                          loading={isProcessing}
+                        />
+                      </div>
+                    )}
+                    {msg.results && (
+                      <MatchResultSummary data={msg.results} t={t} />
+                    )}
+                  </div>
                 </div>
-                {msg.drafts && (
-                  <DraftsForm
-                    initialDrafts={msg.drafts}
-                    players={playersList}
-                    rooms={roomsList}
-                    config={config}
-                    onSave={(finalDrafts, rid) =>
-                      handleSaveAll(finalDrafts, rid, msg.id)
-                    }
-                    onCancel={() => handleCancel(msg.id)}
-                    loading={isProcessing}
-                  />
-                )}
-                {msg.results && <MatchResultSummary data={msg.results} t={t} />}
-              </div>
-            ))}
-            {isProcessing && (
-              <Loader2
-                className='animate-spin text-muted-foreground mx-auto'
-                size={20}
-              />
-            )}
-          </div>
-
-          <div className='flex flex-col border-t bg-background'>
-            <div className='flex gap-2 overflow-x-auto p-2 no-scrollbar border-b'>
-              {suggestionChips.map((chip) => (
-                <Button
-                  key={chip.label}
-                  variant='secondary'
-                  size='sm'
-                  className='whitespace-nowrap text-xs h-7'
-                  onClick={chip.action}
-                  disabled={isProcessing}
-                >
-                  {chip.label}
-                </Button>
               ))}
+              {isProcessing && (
+                <div className='flex items-center gap-2 text-muted-foreground text-xs ml-4'>
+                  <Loader2 className='animate-spin h-3 w-3' />
+                  {t('Thinking...')}
+                </div>
+              )}
             </div>
 
-            <div className='p-3 flex gap-2'>
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                placeholder={t('Enter match result or ask stats...')}
-                className='flex-1 min-h-[44px] max-h-[120px] p-2 text-sm border rounded-md bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring'
-                autoFocus
-              />
-              <Button
-                size='icon'
-                onClick={() => sendMessage()}
-                disabled={isProcessing}
-                className='h-11 w-11 self-end'
-              >
-                <Send size={18} />
-              </Button>
+            <div className='flex flex-col border-t bg-background shrink-0'>
+              <div className='flex gap-2 overflow-x-auto p-2 no-scrollbar border-b bg-muted/20'>
+                {suggestionChips.map((chip) => (
+                  <Button
+                    key={chip.label}
+                    variant='secondary'
+                    size='sm'
+                    className='whitespace-nowrap text-xs h-7 rounded-full px-3'
+                    onClick={chip.action}
+                    disabled={isProcessing}
+                  >
+                    {chip.label}
+                  </Button>
+                ))}
+              </div>
+
+              <div className='p-4 flex gap-3 items-end'>
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder={t('Enter match result or ask stats...')}
+                  className='flex-1 min-h-[48px] max-h-[120px] p-3 text-sm border rounded-xl bg-muted/30 focus:bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all'
+                  autoFocus
+                />
+                <Button
+                  size='icon'
+                  onClick={() => sendMessage()}
+                  disabled={isProcessing || !input.trim()}
+                  className='h-12 w-12 rounded-xl shrink-0 transition-all active:scale-95'
+                >
+                  <Send size={20} />
+                </Button>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       )}
     </>
   );
@@ -659,31 +684,33 @@ function DraftsForm({
   };
 
   return (
-    <div className='mt-2 w-full space-y-4 bg-white dark:bg-slate-950 p-3 rounded-lg border shadow-sm'>
-      <div className='space-y-1'>
-        <label className='text-xs font-bold text-muted-foreground uppercase tracking-wider'>
-          {t('Room')}
-        </label>
-        {rooms.length > 0 ? (
-          <select
-            className='w-full h-9 text-sm border rounded bg-background px-2'
-            value={selectedRoom}
-            onChange={(e) => setSelectedRoom(e.target.value)}
-          >
-            <option value='' disabled>
-              {t('Select a room...')}
-            </option>
-            {rooms.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
+    <div className='w-full space-y-4 text-foreground max-w-xl'>
+      <div className='bg-muted/30 p-3 rounded-lg border border-dashed'>
+        <div className='space-y-1'>
+          <label className='text-xs font-bold text-muted-foreground uppercase tracking-wider'>
+            {t('Room')}
+          </label>
+          {rooms.length > 0 ? (
+            <select
+              className='w-full h-9 text-sm border rounded bg-background px-2'
+              value={selectedRoom}
+              onChange={(e) => setSelectedRoom(e.target.value)}
+            >
+              <option value='' disabled>
+                {t('Select a room...')}
               </option>
-            ))}
-          </select>
-        ) : (
-          <div className='text-xs text-amber-600'>
-            {t('No active rooms found.')}
-          </div>
-        )}
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className='text-xs text-amber-600'>
+              {t('No active rooms found.')}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className='space-y-3'>
@@ -691,10 +718,36 @@ function DraftsForm({
           const warning = getScoreWarning(draft.score1, draft.score2, t);
           const newMatchup = isNewMatchup(i);
 
+          const score1 = +draft.score1;
+          const score2 = +draft.score2;
+          const p1Wins = score1 > score2;
+          const p2Wins = score2 > score1;
+
+          let cardClass =
+            'relative p-4 border rounded-lg bg-background shadow-sm transition-all group hover:border-primary/40';
+
+          if (warning) {
+            cardClass =
+              'relative p-4 border rounded-lg bg-amber-50 dark:bg-amber-950/20 border-amber-500/50 group';
+          }
+
+          let input1Class =
+            'h-12 w-20 text-center font-mono text-2xl font-bold bg-muted/20 border-transparent focus:border-primary';
+          let input2Class =
+            'h-12 w-20 text-center font-mono text-2xl font-bold bg-muted/20 border-transparent focus:border-primary';
+
+          if (p1Wins) {
+            input1Class =
+              'h-12 w-20 text-center font-mono text-2xl font-bold bg-green-100 dark:bg-green-900 border border-green-400 text-green-900 dark:text-green-100';
+          } else if (p2Wins) {
+            input2Class =
+              'h-12 w-20 text-center font-mono text-2xl font-bold bg-green-100 dark:bg-green-900 border border-green-400 text-green-900 dark:text-green-100';
+          }
+
           return (
             <div key={i}>
               {newMatchup && i > 0 && (
-                <div className='flex items-center gap-2 my-4'>
+                <div className='flex items-center gap-2 my-4 opacity-70'>
                   <div className='h-px bg-border flex-1'></div>
                   <span className='text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1'>
                     <RefreshCw size={10} /> {t('New Matchup')}
@@ -703,23 +756,22 @@ function DraftsForm({
                 </div>
               )}
 
-              <div
-                className={`bg-accent/10 border rounded-md p-3 relative group transition-colors ${
-                  warning
-                    ? 'border-amber-500/50 bg-amber-50 dark:bg-amber-950/20'
-                    : 'hover:border-primary/50'
-                }`}
-              >
+              <div className={cardClass}>
+                <div className='absolute top-0 left-0 right-0 flex justify-center'>
+                  <span className='bg-muted px-2 py-0.5 rounded-b text-[10px] uppercase font-bold text-muted-foreground tracking-widest border-b border-x border-border/20'>
+                    {t('Game')} {i + 1}
+                  </span>
+                </div>
                 <button
                   onClick={() => removeDraft(i)}
-                  className='absolute top-1 right-1 text-muted-foreground hover:text-destructive p-1 opacity-0 group-hover:opacity-100 transition-opacity'
+                  className='absolute top-2 right-2 text-muted-foreground hover:text-destructive p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10'
                 >
                   <Trash2 size={16} />
                 </button>
-                <div className='flex flex-col gap-3'>
+                <div className='flex flex-col gap-3 pt-3'>
                   <div className='grid grid-cols-[1fr_auto_1fr] gap-2 items-center'>
                     <div className='flex flex-col'>
-                      <span className='text-[10px] text-muted-foreground mb-0.5 ml-1'>
+                      <span className='text-[10px] text-muted-foreground mb-0.5 ml-1 uppercase font-semibold'>
                         {t('Player 1')}
                       </span>
                       <PlayerSelect
@@ -732,7 +784,7 @@ function DraftsForm({
                       VS
                     </span>
                     <div className='flex flex-col'>
-                      <span className='text-[10px] text-muted-foreground mb-0.5 ml-1'>
+                      <span className='text-[10px] text-muted-foreground mb-0.5 ml-1 uppercase font-semibold'>
                         {t('Player 2')}
                       </span>
                       <PlayerSelect
@@ -746,7 +798,7 @@ function DraftsForm({
                     <div className='flex justify-center gap-3 items-center'>
                       <Input
                         type='number'
-                        className='h-12 w-20 text-center font-mono text-2xl font-bold'
+                        className={input1Class}
                         value={draft.score1}
                         onChange={(e) =>
                           updateDraft(i, 'score1', +e.target.value)
@@ -757,7 +809,7 @@ function DraftsForm({
                       </span>
                       <Input
                         type='number'
-                        className='h-12 w-20 text-center font-mono text-2xl font-bold'
+                        className={input2Class}
                         value={draft.score2}
                         onChange={(e) =>
                           updateDraft(i, 'score2', +e.target.value)
@@ -778,24 +830,24 @@ function DraftsForm({
       </div>
 
       {drafts.length > 0 && (
-        <div className='flex gap-2 mt-2'>
+        <div className='flex gap-2 mt-2 pt-2 border-t border-dashed'>
           <Button
             variant='outline'
-            className='flex-1 h-10 text-sm'
+            className='flex-1'
             onClick={onCancel}
             disabled={loading}
           >
             {t('Cancel')}
           </Button>
           <Button
-            className='flex-[2] h-10 text-base'
+            className='flex-[2]'
             onClick={() => onSave(drafts, selectedRoom)}
             disabled={loading || !selectedRoom}
           >
             {loading ? (
-              <Loader2 className='animate-spin mr-2 h-5 w-5' />
+              <Loader2 className='animate-spin mr-2 h-4 w-4' />
             ) : (
-              <Check className='mr-2 h-5 w-5' />
+              <Check className='mr-2 h-4 w-4' />
             )}{' '}
             {t('Confirm All')}
           </Button>
@@ -823,8 +875,8 @@ function PlayerSelect({
   return (
     <div className='w-full'>
       <select
-        className={`w-full h-9 text-sm border rounded bg-background px-2 truncate font-medium ${
-          hasDuplicates ? 'border-amber-500' : ''
+        className={`w-full h-9 text-sm border rounded-md bg-background px-2 truncate font-medium focus:ring-1 ${
+          hasDuplicates ? 'border-amber-500' : 'border-input'
         }`}
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -1,17 +1,17 @@
-// src/components/mobile/records/MobileBadmintonRecordBlock.tsx
+// src/components/mobile/record-blocks/MobileBadmintonRecordBlock.tsx
 'use client';
 
 import {
-  BadmintonMatchData,
-  BadmintonRowInput,
+	BadmintonMatchData,
+	BadmintonRowInput,
 } from '@/components/record-blocks/BadmintonRecordBlock';
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Label,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	Label,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -189,6 +189,7 @@ export function MobileBadmintonRecordBlock({
           {rows.map((row, i) => (
             <BadmintonRowInput
               key={i}
+              matchIndex={i} // Added matchIndex
               data={row}
               onChange={(d) => setRow(i, d)}
               onRemove={() => removeRow(i)}
