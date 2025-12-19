@@ -5,46 +5,40 @@ import ImageCropDialog from '@/components/ImageCropDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db, storage } from '@/lib/firebase';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  createUserWithEmailAndPassword,
-  signOut,
-  updateProfile,
-} from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
-import { AlertCircle, CheckCircle2, Shield, UserPlus } from 'lucide-react';
+import { Briefcase, Ghost, Shield, User, UserPlus } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import * as z from 'zod';
-
-let registerSchema: any;
-type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const AVATAR_MAX_MB = 2;
 const AVATAR_MAX_BYTES = AVATAR_MAX_MB * 1024 * 1024;
@@ -56,13 +50,19 @@ export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [hasMounted, setHasMounted] = useState(false);
+  const searchParams = useSearchParams();
+
+  const claimUid = searchParams?.get('claim');
+  const [ghostUser, setGhostUser] = useState<any>(null);
+  const [isClaimLoading, setIsClaimLoading] = useState(!!claimUid);
 
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
   const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
 
-  registerSchema = z.object({
+  // Schema definition inside component to use 't'
+  const registerSchema = z.object({
     name: z
       .string()
       .trim()
@@ -76,15 +76,18 @@ export default function RegisterPage() {
     password: z
       .string()
       .min(6, { message: t('Password must be at least 6 characters') }),
-    reason: z
-      .string()
-      .trim()
-      .min(10, { message: t('Please provide at least 10 characters') }),
-    isPublic: z.boolean().default(true),
-    terms: z.boolean().refine((val) => val === true, {
-      message: t('You must accept the terms and conditions'),
+    accountType: z.enum(['player', 'coach'], {
+      required_error: t('Please select an account type'),
     }),
+    reason: z.string().optional(),
+    isPublic: z.boolean().default(true),
+    // Removed 'terms' validation requirement for MVP or make it optional if checkbox not shown
+    // terms: z.boolean().refine((val) => val === true, {
+    //   message: t('You must accept the terms and conditions'),
+    // }),
   });
+
+  type RegisterFormValues = z.infer<typeof registerSchema>;
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -92,53 +95,64 @@ export default function RegisterPage() {
       name: '',
       email: '',
       password: '',
+      accountType: 'player',
       reason: '',
-      terms: false,
       isPublic: true,
     },
     mode: 'onTouched',
   });
 
-  useEffect(() => setHasMounted(true), []);
-
-  const policyBullets = useMemo(
-    () => [
-      t('This app is currently in closed beta.'),
-      t('New accounts require manual admin approval before sign-in.'),
-      t('Describe briefly how you plan to use the app to speed up approval.'),
-    ],
-    [t]
-  );
+  useEffect(() => {
+    setHasMounted(true);
+    if (claimUid && db) {
+      const fetchGhost = async () => {
+        try {
+          // FIX: Added '!' to db because it's checked in useEffect dependency but TS needs assurance
+          const docRef = doc(db!, 'users', claimUid);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.isClaimed) {
+              toast({
+                title: t('Profile already claimed'),
+                description: t('This invitation link has already been used.'),
+                variant: 'destructive',
+              });
+              setGhostUser(null);
+            } else {
+              setGhostUser({ uid: snap.id, ...data });
+              form.setValue('name', data.name || data.displayName || '');
+              form.setValue('accountType', 'player');
+            }
+          } else {
+            toast({
+              title: t('Invalid invitation'),
+              description: t('Player profile not found.'),
+              variant: 'destructive',
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setIsClaimLoading(false);
+        }
+      };
+      fetchGhost();
+    }
+  }, [claimUid, form, t, toast]);
 
   const pickAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     if (!f) return;
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
     const fileExtension = f.name
       .substring(f.name.lastIndexOf('.'))
       .toLowerCase();
-
     const isValidType =
-      allowedMimeTypes.includes(f.type) ||
-      allowedExtensions.includes(fileExtension);
+      ALLOWED_IMAGE_TYPES.includes(f.type) ||
+      ['.jpg', '.jpeg', '.png', '.webp'].includes(fileExtension);
 
     if (!isValidType) {
-      toast({
-        title: t('Unsupported file type'),
-        description: t('Please upload a JPG, PNG, or WEBP image.'),
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (f.size > AVATAR_MAX_BYTES) {
-      toast({
-        title: t('File is too large'),
-        description: t('Please select an image smaller than {{mb}}MB.', {
-          mb: AVATAR_MAX_MB.toString(),
-        }),
-        variant: 'destructive',
-      });
+      toast({ title: t('Unsupported file type'), variant: 'destructive' });
       return;
     }
     const src = URL.createObjectURL(f);
@@ -154,7 +168,7 @@ export default function RegisterPage() {
 
   const uploadAvatar = async (uid: string): Promise<string | null> => {
     if (!avatarBlob || !storage) return null;
-    const storageRef = ref(storage, `avatars/${uid}/${Date.now()}.jpg`);
+    const storageRef = ref(storage!, `avatars/${uid}/${Date.now()}.jpg`);
     const task = uploadBytesResumable(storageRef, avatarBlob);
     return await new Promise<string | null>((resolve, reject) => {
       task.on(
@@ -175,71 +189,110 @@ export default function RegisterPage() {
         ...raw,
         name: raw.name.trim(),
         email: raw.email.trim().toLowerCase(),
-        reason: raw.reason.trim(),
+        reason: raw.reason?.trim() || '',
       };
+
       const cred = await createUserWithEmailAndPassword(
         auth,
         data.email,
         data.password
       );
       const u = cred.user;
+
       let photoURL: string | null = null;
       if (avatarBlob) {
         try {
           photoURL = await uploadAvatar(u.uid);
         } catch {}
+      } else if (ghostUser?.photoURL) {
+        photoURL = ghostUser.photoURL;
       }
+
       try {
         await updateProfile(u, {
           displayName: data.name,
           photoURL: photoURL ?? undefined,
         });
       } catch {}
-      const userRef = doc(db, 'users', u.uid);
-      await setDoc(userRef, {
+
+      const roles = [data.accountType];
+      const newUserRef = doc(db, 'users', u.uid);
+
+      const newUserData: any = {
         uid: u.uid,
         email: u.email,
         displayName: data.name,
         name: data.name,
+        createdAt: getFinnishFormattedDate(),
         globalElo: 1000,
-        maxRating: 1000,
         matchesPlayed: 0,
         wins: 0,
         losses: 0,
-        createdAt: getFinnishFormattedDate(),
+        maxRating: 1000,
         eloHistory: [],
         friends: [],
         incomingRequests: [],
         outgoingRequests: [],
         achievements: [],
         rooms: [],
+        sports: {
+          pingpong: { globalElo: 1000, wins: 0, losses: 0, eloHistory: [] },
+          tennis: { globalElo: 1000, wins: 0, losses: 0, eloHistory: [] },
+          badminton: { globalElo: 1000, wins: 0, losses: 0, eloHistory: [] },
+        },
+        roles: roles,
+        accountType: data.accountType,
         isPublic: data.isPublic,
         bio: '',
         photoURL: photoURL,
         isDeleted: false,
-        approved: false,
+        approved: true,
         approvalReason: data.reason,
-        approvedAt: null,
-        approvedBy: null,
+        approvedAt: new Date().toISOString(),
+        approvedBy: 'system',
         activeSport: 'pingpong',
-      });
-      try {
-        await signOut(auth);
-      } catch {}
+      };
+
+      // Merge Ghost Data
+      if (ghostUser) {
+        newUserData.globalElo = ghostUser.globalElo ?? 1000;
+        newUserData.matchesPlayed = ghostUser.matchesPlayed ?? 0;
+        newUserData.wins = ghostUser.wins ?? 0;
+        newUserData.losses = ghostUser.losses ?? 0;
+        newUserData.eloHistory = ghostUser.eloHistory ?? [];
+        newUserData.friends = ghostUser.friends ?? [];
+        newUserData.rooms = ghostUser.rooms ?? [];
+        // Deep merge sports if needed, or just overwrite if ghost has better data
+        if (ghostUser.sports) {
+          newUserData.sports = { ...newUserData.sports, ...ghostUser.sports };
+        }
+        newUserData.achievements = ghostUser.achievements ?? [];
+        newUserData.managedBy = ghostUser.managedBy;
+        newUserData.ghostId = ghostUser.uid;
+        newUserData.claimedFrom = ghostUser.uid;
+
+        await updateDoc(doc(db, 'users', ghostUser.uid), {
+          isClaimed: true,
+          claimedBy: u.uid,
+          claimedAt: new Date().toISOString(),
+          isGhost: false,
+          isArchivedGhost: true,
+        });
+      }
+
+      await setDoc(newUserRef, newUserData);
+
       toast({
-        title: t('Registration submitted'),
-        description: t(
-          'Your account is pending admin approval. You will be able to sign in after approval.'
-        ),
+        title: t('Welcome!'),
+        description: t('Your account has been created successfully.'),
       });
-      router.replace('/login?pending=1');
+      router.replace('/');
     } catch (err: any) {
+      console.error(err);
       let description =
         err?.message || t('Something went wrong. Please try again.');
       if (err?.code === 'auth/email-already-in-use') {
-        description = t(
-          'That email is already in use. If you registered earlier, your account may still be waiting for approval or you can reset your password.'
-        );
+        description = t('That email is already in use.');
       }
       toast({
         title: t('Registration Error'),
@@ -251,94 +304,158 @@ export default function RegisterPage() {
     }
   };
 
+  const onInvalid = (errors: any) => {
+    console.error('Form validation errors:', errors);
+    toast({
+      title: t('Validation Error'),
+      description: t('Please check the form fields.'),
+      variant: 'destructive',
+    });
+  };
+
   if (!hasMounted) return null;
 
   return (
-    <>
-      <div className='flex items-center justify-center min-h-[calc(100vh-10rem)] py-12'>
-        <Card className='w-full max-w-md shadow-xl'>
-          <CardHeader className='text-center'>
-            <CardTitle className='text-3xl font-bold flex items-center justify-center gap-2'>
-              <UserPlus className='h-8 w-8 text-primary' />{' '}
-              {t('Create Account')}
-            </CardTitle>
-            <CardDescription>
-              {t(
-                'Registration requires admin approval. Please tell why you want access. You will be able to sign in after approval.'
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='space-y-6'>
-            <div className='rounded-md border p-3 text-sm'>
-              <div className='flex items-start gap-2'>
-                <Shield className='h-4 w-4 mt-0.5 text-primary' />
-                <div className='text-left space-y-1'>
-                  <p className='font-medium'>{t('Before you register')}</p>
-                  <ul className='list-disc pl-4 space-y-1 text-muted-foreground'>
-                    {policyBullets.map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
-                  <div className='flex items-center gap-2 text-xs text-muted-foreground pt-1'>
-                    <CheckCircle2 className='h-4 w-4' />
-                    <span>
-                      {t('Admin approval policy is in effect for this app.')}
-                    </span>
-                  </div>
+    <div className='flex items-center justify-center min-h-[calc(100vh-10rem)] py-12'>
+      <Card className='w-full max-w-md shadow-xl border-t-4 border-t-primary'>
+        <CardHeader className='text-center pb-2'>
+          <CardTitle className='text-3xl font-bold flex items-center justify-center gap-2'>
+            {ghostUser ? (
+              <>
+                <Ghost className='h-8 w-8 text-primary' />
+                {t('Claim Profile')}
+              </>
+            ) : (
+              <>
+                <UserPlus className='h-8 w-8 text-primary' />
+                {t('Create Account')}
+              </>
+            )}
+          </CardTitle>
+          <CardDescription>
+            {ghostUser
+              ? t('You are activating an invited player profile.')
+              : t('Join Smashlog to track your matches and stats.')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-6'>
+          {ghostUser && (
+            <div className='bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-center gap-4'>
+              <Avatar className='h-12 w-12 border-2 border-primary'>
+                <AvatarImage src={ghostUser.photoURL} />
+                <AvatarFallback>{ghostUser.name?.[0]}</AvatarFallback>
+              </Avatar>
+              <div>
+                <div className='text-xs text-muted-foreground uppercase font-bold tracking-wider'>
+                  {t('Claiming')}
                 </div>
+                <div className='font-bold text-lg'>{ghostUser.name}</div>
               </div>
             </div>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className='space-y-6'
-              >
-                <FormItem className='flex flex-col items-center'>
-                  <FormLabel>{t('Profile Picture (Optional)')}</FormLabel>
-                  <label htmlFor='avatar-upload' className='cursor-pointer'>
-                    <Avatar className='h-24 w-24'>
-                      <AvatarImage src={avatarPreview ?? undefined} />
-                      <AvatarFallback>
+          )}
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+              className='space-y-6'
+            >
+              <FormItem className='flex flex-col items-center'>
+                <label
+                  htmlFor='avatar-upload'
+                  className='cursor-pointer group relative'
+                >
+                  <Avatar className='h-24 w-24 group-hover:opacity-80 transition-opacity'>
+                    <AvatarImage src={avatarPreview ?? undefined} />
+                    <AvatarFallback>
+                      {ghostUser ? (
+                        ghostUser.name?.[0]
+                      ) : (
                         <UserPlus className='h-10 w-10' />
-                      </AvatarFallback>
-                    </Avatar>
-                  </label>
-                  <FormControl>
-                    <Input
-                      id='avatar-upload'
-                      type='file'
-                      className='hidden'
-                      accept={ALLOWED_IMAGE_TYPES.join(',')}
-                      onChange={pickAvatar}
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormDescription className='text-xs text-muted-foreground'>
-                    {t('Max {{mb}}MB. JPG, PNG, or WEBP.', {
-                      mb: AVATAR_MAX_MB.toString(),
-                    })}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 rounded-full text-white text-xs font-medium transition-opacity'>
+                    {t('Change')}
+                  </div>
+                </label>
+                <FormControl>
+                  <input
+                    id='avatar-upload'
+                    type='file'
+                    className='hidden'
+                    accept={ALLOWED_IMAGE_TYPES.join(',')}
+                    onChange={pickAvatar}
+                    disabled={isLoading}
+                  />
+                </FormControl>
+              </FormItem>
+
+              {!ghostUser && (
                 <FormField
                   control={form.control}
-                  name='name'
+                  name='accountType'
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('Display Name')}</FormLabel>
+                    <FormItem className='space-y-3'>
+                      <FormLabel>{t('I am a...')}</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          placeholder={t('Your Name')}
-                          autoComplete='name'
-                          disabled={isLoading}
-                          maxLength={30}
-                        />
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className='grid grid-cols-2 gap-4'
+                        >
+                          <div>
+                            <RadioGroupItem
+                              value='player'
+                              id='role-player'
+                              className='peer sr-only'
+                            />
+                            <Label
+                              htmlFor='role-player'
+                              className='flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-primary cursor-pointer h-full'
+                            >
+                              <User className='mb-2 h-6 w-6' />
+                              <div className='text-center font-semibold'>
+                                {t('Player')}
+                              </div>
+                            </Label>
+                          </div>
+                          <div>
+                            <RadioGroupItem
+                              value='coach'
+                              id='role-coach'
+                              className='peer sr-only'
+                            />
+                            <Label
+                              htmlFor='role-coach'
+                              className='flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-primary cursor-pointer h-full'
+                            >
+                              <Briefcase className='mb-2 h-6 w-6' />
+                              <div className='text-center font-semibold'>
+                                {t('Coach / Organizer')}
+                              </div>
+                            </Label>
+                          </div>
+                        </RadioGroup>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              )}
+
+              <FormField
+                control={form.control}
+                name='name'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Display Name')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder={t('Your Name')} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className='grid grid-cols-1 gap-4'>
                 <FormField
                   control={form.control}
                   name='email'
@@ -346,14 +463,7 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>{t('Email')}</FormLabel>
                       <FormControl>
-                        <Input
-                          type='email'
-                          {...field}
-                          placeholder={t('you@example.com')}
-                          autoComplete='email'
-                          inputMode='email'
-                          disabled={isLoading}
-                        />
+                        <Input type='email' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -366,122 +476,53 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>{t('Password')}</FormLabel>
                       <FormControl>
-                        <Input
-                          type='password'
-                          {...field}
-                          placeholder='••••••••'
-                          autoComplete='new-password'
-                          disabled={isLoading}
-                        />
+                        <Input type='password' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name='reason'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('Why do you want access?')}</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder={t(
-                            'Tell us briefly who you are and why you need access. The project is currently in closed beta testing. But if you have specific plans for using it, please let us know.'
-                          )}
-                          rows={4}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='isPublic'
-                  render={({ field }) => (
-                    <FormItem className='flex flex-row items-start space-x-3 space-y-0'>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <div className='space-y-1 leading-none'>
-                        <FormLabel>{t('Public Profile')}</FormLabel>
-                        <FormDescription>
-                          {t(
-                            'Your profile and stats will be visible to other players.'
-                          )}
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='terms'
-                  render={({ field }) => (
-                    <FormItem className='flex flex-row items-start space-x-3 space-y-0'>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <div className='space-y-1 leading-none'>
-                        <FormLabel>
-                          {t('I agree to the')}{' '}
-                          <Link
-                            href='/terms'
-                            className='text-primary hover:underline'
-                            target='_blank'
-                          >
-                            {t('Terms of Service')}
-                          </Link>{' '}
-                          {t('and')}{' '}
-                          <Link
-                            href='/privacy'
-                            className='text-primary hover:underline'
-                            target='_blank'
-                          >
-                            {t('Privacy Policy')}
-                          </Link>
-                          .
-                        </FormLabel>
-                        <FormMessage />
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <Button type='submit' className='w-full' disabled={isLoading}>
-                  {isLoading ? t('Registering...') : t('Register')}
-                </Button>
-                <div className='flex items-start gap-2 text-xs text-muted-foreground'>
-                  <AlertCircle className='h-4 w-4' />
-                  <span>
-                    {t(
-                      'After submitting, you will be signed out until an admin approves your account.'
-                    )}
-                  </span>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-          <CardFooter className='flex flex-col items-center space-y-2'>
-            <p className='text-sm text-muted-foreground'>
-              {t('Already have an account?')}{' '}
-              <Button variant='link' asChild className='p-0 h-auto'>
-                <Link href='/login'>{t('Log in here')}</Link>
+              </div>
+
+              <FormField
+                control={form.control}
+                name='isPublic'
+                render={({ field }) => (
+                  <FormItem className='flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4'>
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className='space-y-1 leading-none'>
+                      <FormLabel>{t('Make profile public')}</FormLabel>
+                      <FormDescription>
+                        {t(
+                          'Allow other players to find you and see your stats.'
+                        )}
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              <Button type='submit' className='w-full' disabled={isLoading}>
+                {isLoading
+                  ? t('Processing...')
+                  : ghostUser
+                  ? t('Activate Profile')
+                  : t('Register')}
               </Button>
-            </p>
-          </CardFooter>
-        </Card>
-      </div>
+            </form>
+          </Form>
+        </CardContent>
+        <div className='p-6 pt-0 text-center text-sm text-muted-foreground'>
+          <Link href='/login' className='hover:underline'>
+            {t('Back to Login')}
+          </Link>
+        </div>
+      </Card>
       <ImageCropDialog
         open={cropOpen}
         onOpenChange={setCropOpen}
@@ -490,6 +531,6 @@ export default function RegisterPage() {
         onCropped={onCropped}
         title={t('Adjust image')}
       />
-    </>
+    </div>
   );
 }

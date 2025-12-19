@@ -1,21 +1,22 @@
+// src/app/login/page.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui/card';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +24,7 @@ import { auth, db } from '@/lib/firebase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { AlertCircle, CheckCircle2, LogIn } from 'lucide-react';
+import { AlertCircle, LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -41,7 +42,6 @@ export default function LoginPage() {
   const { toast } = useToast();
   const qp = useSearchParams();
   const next = qp?.get('next') || '/';
-  const pending = qp?.get('pending');
 
   loginSchema = z.object({
     email: z.string().email({ message: t('Invalid email address') }),
@@ -56,28 +56,13 @@ export default function LoginPage() {
     mode: 'onTouched',
   });
 
-  useEffect(() => {
-    if (pending) {
-      toast({
-        title: t('Account pending approval'),
-        description: t(
-          'Your registration is awaiting admin approval. You will be able to sign in after approval.'
-        ),
-      });
-    }
-  }, [pending, toast, t]);
-
+  // Обновленные пункты, без упоминания блокировки
   const policyBullets = useMemo(
     () => [
-      t('⚠️ This project is currently in beta testing.'),
+      t('⚡ Welcome to the open beta of Smashlog.'),
+      t('✅ You can register and start tracking matches immediately.'),
       t(
-        '✅ Registration is limited — new accounts must be approved by an administrator.'
-      ),
-      t(
-        '⏳ Approval may take some time. You cannot log in until your account is approved.'
-      ),
-      t(
-        '💡 If you see “email already in use”, it may mean your registration is still pending approval.'
+        '🔒 Your data is secure and visible according to your privacy settings.'
       ),
     ],
     [t]
@@ -92,29 +77,9 @@ export default function LoginPage() {
         data.password
       );
 
-      // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
-
       const snap = await getDoc(doc(db, 'users', cred.user.uid));
       const userData = snap.exists() ? (snap.data() as any) : null;
 
-      // Блокируем вход, ТОЛЬКО если поле 'approved' существует и равно 'false'.
-      // Если поле 'approved' равно 'true' или 'undefined' (отсутствует), вход разрешен.
-      const isPending = userData && userData.approved === false;
-
-      if (isPending) {
-        await signOut(auth);
-        router.replace('/login?pending=1');
-        toast({
-          title: t('Account not approved yet'),
-          description: t(
-            'Your account exists but is waiting for admin approval.'
-          ),
-          variant: 'destructive',
-        });
-        return; // Останавливаем выполнение
-      }
-
-      // Дополнительная проверка: если аутентификация прошла, а документа нет
       if (!userData) {
         await signOut(auth);
         console.error(
@@ -128,14 +93,11 @@ export default function LoginPage() {
           ),
           variant: 'destructive',
         });
-        return; // Останавливаем выполнение
+        return;
       }
 
-      // Вход успешен (для approved: true и approved: undefined)
       toast({ title: t('Login Successful'), description: t('Welcome back!') });
       router.push(next);
-
-      // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
     } catch (error: any) {
       let errorMessage = t('An unexpected error occurred. Please try again.');
       if (
@@ -181,7 +143,7 @@ export default function LoginPage() {
             <div className='flex items-start gap-2'>
               <AlertCircle className='h-4 w-4 mt-0.5 text-primary' />
               <div className='text-left space-y-1'>
-                <p className='font-medium'>{t('Important information')}</p>
+                <p className='font-medium'>{t('Information')}</p>
                 <ul className='list-disc pl-4 space-y-1 text-muted-foreground'>
                   {policyBullets.map((b, i) => (
                     <li key={i}>{b}</li>
@@ -254,15 +216,6 @@ export default function LoginPage() {
               <Link href='/forgot-password'>{t('Forgot your password?')}</Link>
             </Button>
           </p>
-
-          <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-            <CheckCircle2 className='h-4 w-4' />
-            <span>
-              {t(
-                'This project is in beta. Admin approval is required for all new accounts.'
-              )}
-            </span>
-          </div>
         </CardFooter>
       </Card>
     </div>

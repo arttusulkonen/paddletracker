@@ -1,4 +1,3 @@
-// src/components/mobile/MobileMembersList.tsx
 'use client';
 
 import {
@@ -134,20 +133,26 @@ export function MobileMembersList({
         latestRoomRatings[p2] = Number(m.player2.roomNewRating);
     });
 
-    const rawTotals = arr.map((p: any) => {
+    const activePlayers = arr.filter((p: any) => {
       const ms = matchStats[p.userId];
-      const wins = ms?.wins ?? Number(p.wins ?? 0);
-      const losses = ms?.losses ?? Number(p.losses ?? 0);
-      return wins + losses;
+      const w = ms?.wins ?? Number(p.wins ?? 0);
+      const l = ms?.losses ?? Number(p.losses ?? 0);
+      return w + l > 0;
     });
-    const avgM =
-      rawTotals.reduce((s, v) => s + (v || 0), 0) / (rawTotals.length || 1) ||
-      0.000001;
 
-    const adj = (deltaRoom: number, totalMatches: number) => {
-      const ratio = totalMatches / avgM;
-      const factor = !isFinite(ratio) || ratio <= 0 ? 0 : Math.sqrt(ratio);
-      return deltaRoom * factor;
+    const totalMatchesAll = activePlayers.reduce((sum, p) => {
+      const ms = matchStats[p.userId];
+      const w = ms?.wins ?? Number(p.wins ?? 0);
+      const l = ms?.losses ?? Number(p.losses ?? 0);
+      return sum + w + l;
+    }, 0);
+
+    const avgM =
+      activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
+
+    const adjFactor = (ratio: number) => {
+      if (!isFinite(ratio) || ratio <= 0) return 0;
+      return Math.sqrt(ratio);
     };
 
     return arr.map((p: any) => {
@@ -172,24 +177,21 @@ export function MobileMembersList({
       const winPct =
         totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : '0.0';
 
-      const deltaRoom =
-        Number.isFinite(p.deltaRoom) && p.deltaRoom !== null
-          ? Number(p.deltaRoom)
-          : rating - 1000;
+      const totalAddedPoints = rating - 1000;
 
       return {
         ...p,
         name: prof?.name ?? prof?.displayName ?? p.name ?? '—',
         photoURL: prof?.photoURL ?? p.photoURL,
         rating,
-        ratingVisible: totalMatches >= 5,
+        ratingVisible: totalMatches >= 1,
         globalEloNum,
         wins,
         losses,
         totalMatches,
-        winPct,
-        deltaRoom,
-        adjPointsLive: adj(deltaRoom, totalMatches),
+        winPct: Number(winPct),
+        totalAddedPoints,
+        adjPointsLive: totalAddedPoints * adjFactor(totalMatches / avgM),
       };
     });
   }, [members, matches, profiles, sport]);
@@ -199,14 +201,19 @@ export function MobileMembersList({
       return [...computed].sort((a, b) => {
         if (a.ratingVisible !== b.ratingVisible)
           return a.ratingVisible ? -1 : 1;
-        return (b.rating ?? 0) - (a.rating ?? 0);
+        if (b.rating !== a.rating) return (b.rating ?? 0) - (a.rating ?? 0);
+        return (b.totalMatches ?? 0) - (a.totalMatches ?? 0);
       });
     }
     return [...computed].sort((a, b) => {
       const aZero = (a.totalMatches ?? 0) === 0;
       const bZero = (b.totalMatches ?? 0) === 0;
       if (aZero !== bZero) return aZero ? 1 : -1;
-      return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
+
+      if (b.adjPointsLive !== a.adjPointsLive)
+        return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
+      if (b.rating !== a.rating) return (b.rating ?? 0) - (a.rating ?? 0);
+      return (b.winPct ?? 0) - (a.winPct ?? 0);
     });
   }, [computed, viewMode]);
 
@@ -231,7 +238,7 @@ export function MobileMembersList({
               onClick={() => setViewMode('liveFinal')}
               className={
                 viewMode === 'liveFinal'
-                  ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                  ? 'bg-green-100 text-green-700 hover:bg-green-100 border-green-200'
                   : ''
               }
             >
@@ -248,7 +255,7 @@ export function MobileMembersList({
           <div className='text-center py-6'>{t('Loading…')}</div>
         ) : (
           <ScrollArea className='border rounded-md p-2 bg-background max-h-[60vh] overflow-auto'>
-            {sorted.map((p: any) => {
+            {sorted.map((p: any, index: number) => {
               const rightValue =
                 viewMode === 'regular'
                   ? p.ratingVisible && typeof p.rating === 'number'
@@ -256,14 +263,24 @@ export function MobileMembersList({
                     : '—'
                   : (p.totalMatches ?? 0) === 0
                   ? '—'
-                  : `${(p.adjPointsLive ?? 0).toFixed(2)} ${t('adj')}`;
+                  : `${(p.adjPointsLive ?? 0).toFixed(1)} ${t('adj')}`;
               const rank = getRank(p.globalEloNum ?? 1000, t);
+
               return (
                 <div
                   key={p.userId}
                   className='flex items-center justify-between p-2 hover:bg-muted/50 rounded-md transition-colors'
                 >
                   <div className='flex items-center gap-3 min-w-0'>
+                    {viewMode === 'liveFinal' && (
+                      <div
+                        className={`w-4 text-center font-mono text-xs font-bold ${
+                          index < 3 ? 'text-amber-500' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {index + 1}
+                      </div>
+                    )}
                     <Avatar className='h-10 w-10'>
                       <AvatarImage src={p.photoURL || undefined} />
                       <AvatarFallback>
@@ -271,29 +288,24 @@ export function MobileMembersList({
                       </AvatarFallback>
                     </Avatar>
                     <div className='min-w-0'>
-                      <div className='font-medium leading-none truncate'>
+                      <div className='font-medium leading-none truncate flex items-center gap-2'>
                         {p.name}
-                        {viewMode === 'liveFinal' && (
-                          <span className='ml-2 text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded'>
-                            LIVE
-                          </span>
-                        )}
                       </div>
-                      <p className='text-xs text-muted-foreground truncate'>
+                      <p className='text-xs text-muted-foreground truncate mt-1'>
                         {t('MP')} {p.totalMatches ?? 0} · {t('W%')} {p.winPct}%
                         · {t('ELO')} {(p.globalEloNum ?? 0).toFixed(0)}
                         {viewMode === 'liveFinal' && (
                           <>
                             {' '}
                             · Δ{' '}
-                            {Number(p.deltaRoom ?? 0) >= 0
-                              ? `+${Math.round(p.deltaRoom)}`
-                              : Math.round(p.deltaRoom)}
+                            {Number(p.totalAddedPoints ?? 0) >= 0
+                              ? `+${Math.round(p.totalAddedPoints)}`
+                              : Math.round(p.totalAddedPoints)}
                           </>
                         )}
                       </p>
                       <p className='text-[10px] text-muted-foreground truncate'>
-                        {t('Rank')} {rank}
+                        {rank}
                       </p>
                     </div>
                   </div>
@@ -303,13 +315,6 @@ export function MobileMembersList({
                         ? 'text-green-700'
                         : 'text-primary'
                     }`}
-                    title={
-                      viewMode === 'liveFinal'
-                        ? t(
-                            'Adjusted Pts = RoomΔ × √(Games / AvgGames). Live preview of season-final metric.'
-                          )
-                        : t('Room Rating within this room (starts at 1000).')
-                    }
                   >
                     {rightValue}
                   </span>

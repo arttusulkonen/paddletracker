@@ -1,3 +1,4 @@
+// src/app/tournaments/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -9,7 +10,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
   Checkbox,
@@ -63,7 +63,6 @@ import {
   SearchIcon,
   Trophy,
   Users,
-  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -71,6 +70,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const PLAYER_COUNTS = [4, 6, 8, 12] as const;
+
+// Безопасная генерация UUID для любых сред (включая HTTP LAN)
+function generateUUID() {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return crypto.randomUUID();
+  }
+  // Fallback для небезопасных контекстов
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0,
+      v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 export default function TournamentRoomsPage() {
   const { t } = useTranslation();
@@ -123,7 +138,7 @@ export default function TournamentRoomsPage() {
       qSub,
       (snap) => {
         const arr = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-        // Фильтрация по спорту (для обратной совместимости, если sport не указан - считаем pingpong)
+        // Фильтрация по спорту (для обратной совместимости)
         const arrBySport = arr.filter(
           (t: any) => t.sport === sport || (!t.sport && sport === 'pingpong')
         );
@@ -171,7 +186,7 @@ export default function TournamentRoomsPage() {
   useEffect(() => {
     if (!user || !tournamentsEnabled) return;
 
-    // Используем только комнаты ТЕКУЩЕГО спорта (pingpong)
+    // Используем только комнаты ТЕКУЩЕГО спорта
     const qRooms = query(
       collection(db, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid)
@@ -200,8 +215,6 @@ export default function TournamentRoomsPage() {
       // Добавляем загруженных (проверяя на удаление)
       loadedMissing.forEach((p) => {
         if (p && !p.isDeleted) {
-          // Если не друг - проверяем публичность, если нужно, но для со-игроков обычно разрешено
-          // Здесь фильтруем только isDeleted
           map.set(p.uid, p as UserProfile);
         }
       });
@@ -222,7 +235,6 @@ export default function TournamentRoomsPage() {
     const inFriends = friends.sort(byName);
 
     // Остальные (уже отфильтрованы по isDeleted и не друзья)
-    // Дополнительно можно проверить isPublic, если хотите строже
     const notFriends = coPlayers
       .filter((p) => !friendSet.has(p.uid))
       .sort(byName);
@@ -264,7 +276,7 @@ export default function TournamentRoomsPage() {
     for (let i = 0; i < arr.length; i++)
       for (let j = i + 1; j < arr.length; j++)
         res.push({
-          matchId: crypto.randomUUID(),
+          matchId: generateUUID(), // FIX: Используем безопасную функцию
           name: `${arr[i].name} vs ${arr[j].name}`,
           player1: arr[i],
           player2: arr[j],

@@ -1,17 +1,17 @@
-// src/components/mobile/record-blocks/PingPongMobileRecordBlock.tsx
+// src/components/mobile/record-blocks/MobilePingPongRecordBlock.tsx
 'use client';
 
 import {
-  PingPongMatchData,
-  PingPongRowInput,
+	PingPongMatchData,
+	PingPongRowInput,
 } from '@/components/record-blocks/PingPongRecordBlock';
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Label,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	Label,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -192,6 +192,7 @@ export function MobilePingPongRecordBlock({
           {rows.map((row, i) => (
             <PingPongRowInput
               key={i}
+              matchIndex={i} // Added matchIndex
               data={row}
               onChange={(d) => setRow(i, d)}
               onRemove={() => removeRow(i)}

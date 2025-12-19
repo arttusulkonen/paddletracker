@@ -1,0 +1,1067 @@
+{
+  "meta": {
+    "collection": "tournament-rooms",
+    "totalDocs": 6,
+    "exportedAt": "2025-12-09T11:13:37.590Z",
+    "variationsCount": 2
+  },
+  "latest": {
+    "_note": "LATEST DOCUMENT (Date: 2025-09-04T21:00:00.000Z)",
+    "_id": "8SJRdEauz8kzrp5B7dx5",
+    "name": "the first tournament ever ever",
+    "creator": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+    "createdAt": "9.5.2025",
+    "participants": [
+      {
+        "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+        "name": "Joona Mellin",
+        "email": "joona@redandblue.fi",
+        "rating": 690
+      },
+      {
+        "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "name": "Paavo",
+        "email": "paavo@redandblue.fi",
+        "rating": 1080
+      },
+      {
+        "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "name": "Jukka",
+        "email": "jukka@redandblue.fi",
+        "rating": 1355
+      },
+      {
+        "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+        "name": "Moon",
+        "email": "jungsoo.moon@redandblue.fi",
+        "rating": 1121
+      }
+    ],
+    "bracket": {
+      "finalStats": [
+        {
+          "place": 1,
+          "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+          "name": "Jukka",
+          "wins": 5,
+          "losses": 0,
+          "pf": 55,
+          "pa": 21
+        },
+        {
+          "place": 2,
+          "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+          "name": "Paavo",
+          "wins": 3,
+          "losses": 2,
+          "pf": 41,
+          "pa": 37
+        },
+        {
+          "place": 3,
+          "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+          "name": "Moon",
+          "wins": 1,
+          "losses": 4,
+          "pf": 40,
+          "pa": 49
+        },
+        {
+          "place": 4,
+          "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+          "name": "Joona Mellin",
+          "wins": 1,
+          "losses": 4,
+          "pf": 25,
+          "pa": 54
+        }
+      ],
+      "stage": "completed",
+      "currentRound": 2,
+      "champion": {
+        "name": "Jukka",
+        "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+      },
+      "rounds": [
+        {
+          "type": "roundRobin",
+          "matches": [
+            {
+              "matchStatus": "finished",
+              "scorePlayer2": 6,
+              "player1": {
+                "name": "Jukka",
+                "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+              },
+              "name": "Jukka vs Moon",
+              "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "scorePlayer1": 11,
+              "matchId": "fafaaea6-33e8-4d35-9c75-63086b2dcfa7",
+              "player2": {
+                "name": "Moon",
+                "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2"
+              }
+            },
+            {
+              "player2": {
+                "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                "name": "Jukka"
+              },
+              "scorePlayer2": 11,
+              "name": "Paavo vs Jukka",
+              "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "scorePlayer1": 5,
+              "player1": {
+                "name": "Paavo",
+                "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+              },
+              "matchStatus": "finished",
+              "matchId": "b760c1a2-34a6-4007-a692-065c7547d8b9"
+            },
+            {
+              "matchStatus": "finished",
+              "player2": {
+                "name": "Moon",
+                "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2"
+              },
+              "player1": {
+                "name": "Paavo",
+                "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+              },
+              "scorePlayer1": 11,
+              "name": "Paavo vs Moon",
+              "scorePlayer2": 9,
+              "winner": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "matchId": "c08c47d6-d944-477b-bccc-c52d040ea839"
+            },
+            {
+              "player1": {
+                "name": "Joona Mellin",
+                "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+              },
+              "winner": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "name": "Joona Mellin vs Paavo",
+              "player2": {
+                "name": "Paavo",
+                "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+              },
+              "matchId": "eac7c49d-7916-4209-9739-7deef0c1053b",
+              "scorePlayer1": 4,
+              "scorePlayer2": 11,
+              "matchStatus": "finished"
+            },
+            {
+              "matchStatus": "finished",
+              "name": "Joona Mellin vs Moon",
+              "scorePlayer2": 10,
+              "matchId": "14928027-4593-49e2-8a6f-c3b7e62cb8bc",
+              "winner": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+              "scorePlayer1": 12,
+              "player1": {
+                "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+                "name": "Joona Mellin"
+              },
+              "player2": {
+                "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                "name": "Moon"
+              }
+            },
+            {
+              "player1": {
+                "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+                "name": "Joona Mellin"
+              },
+              "matchStatus": "finished",
+              "scorePlayer1": 3,
+              "scorePlayer2": 11,
+              "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "matchId": "7c40a976-0424-48a8-bad8-26672a8447a1",
+              "player2": {
+                "name": "Jukka",
+                "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+              },
+              "name": "Joona Mellin vs Jukka"
+            }
+          ],
+          "participants": [
+            {
+              "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+              "name": "Joona Mellin"
+            },
+            {
+              "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "name": "Paavo"
+            },
+            {
+              "name": "Jukka",
+              "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+            },
+            {
+              "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+              "name": "Moon"
+            }
+          ],
+          "roundIndex": 0,
+          "status": "finished",
+          "label": "Round-Robin"
+        },
+        {
+          "type": "knockoutSemis",
+          "status": "finished",
+          "label": "Semi-finals",
+          "participants": [
+            {
+              "pf": 33,
+              "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "pa": 14,
+              "losses": 0,
+              "wins": 3,
+              "name": "Jukka"
+            },
+            {
+              "wins": 2,
+              "losses": 1,
+              "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "name": "Paavo",
+              "pf": 27,
+              "pa": 24
+            },
+            {
+              "pf": 19,
+              "pa": 32,
+              "name": "Joona Mellin",
+              "losses": 2,
+              "wins": 1,
+              "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+            },
+            {
+              "pf": 25,
+              "losses": 3,
+              "name": "Moon",
+              "wins": 0,
+              "pa": 34,
+              "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2"
+            }
+          ],
+          "roundIndex": 1,
+          "matches": [
+            {
+              "matchStatus": "finished",
+              "scorePlayer2": 4,
+              "player1": {
+                "name": "Jukka",
+                "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+              },
+              "matchId": "7d889c50-1604-4e13-a836-7839ac9a273f",
+              "player2": {
+                "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                "name": "Moon"
+              },
+              "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "name": "",
+              "scorePlayer1": 11
+            },
+            {
+              "name": "",
+              "matchId": "f03b2a73-f23a-4763-9110-db37a133cb23",
+              "winner": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "scorePlayer2": 2,
+              "player1": {
+                "name": "Paavo",
+                "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+              },
+              "scorePlayer1": 11,
+              "matchStatus": "finished",
+              "player2": {
+                "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+                "name": "Joona Mellin"
+              }
+            }
+          ]
+        },
+        {
+          "label": "Finals",
+          "roundIndex": 2,
+          "matches": [
+            {
+              "player1": {
+                "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                "name": "Moon"
+              },
+              "name": "3rd Place",
+              "scorePlayer1": 11,
+              "player2": {
+                "name": "Joona Mellin",
+                "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+              },
+              "matchId": "3614b793-2459-4378-8943-261fedd10df8",
+              "matchStatus": "finished",
+              "winner": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+              "scorePlayer2": 4
+            },
+            {
+              "scorePlayer1": 11,
+              "matchId": "f74d583c-93cb-4e02-9f79-db670b54a505",
+              "name": "Grand Final",
+              "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "scorePlayer2": 3,
+              "player2": {
+                "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+                "name": "Paavo"
+              },
+              "player1": {
+                "name": "Jukka",
+                "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+              },
+              "matchStatus": "finished"
+            }
+          ],
+          "type": "knockoutFinal",
+          "participants": [
+            {
+              "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+              "name": "Jukka"
+            },
+            {
+              "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+              "name": "Paavo"
+            },
+            {
+              "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+              "name": "Moon"
+            },
+            {
+              "name": "Joona Mellin",
+              "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+            }
+          ],
+          "status": "finished"
+        }
+      ]
+    }
+  },
+  "allStructureVariations": [
+    {
+      "_note": "Structure Variant (Keys: _id|bracket|createdAt|creator|name|participants)",
+      "_id": "8SJRdEauz8kzrp5B7dx5",
+      "name": "the first tournament ever ever",
+      "creator": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+      "createdAt": "9.5.2025",
+      "participants": [
+        {
+          "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+          "name": "Joona Mellin",
+          "email": "joona@redandblue.fi",
+          "rating": 690
+        },
+        {
+          "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+          "name": "Paavo",
+          "email": "paavo@redandblue.fi",
+          "rating": 1080
+        },
+        {
+          "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+          "name": "Jukka",
+          "email": "jukka@redandblue.fi",
+          "rating": 1355
+        },
+        {
+          "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+          "name": "Moon",
+          "email": "jungsoo.moon@redandblue.fi",
+          "rating": 1121
+        }
+      ],
+      "bracket": {
+        "finalStats": [
+          {
+            "place": 1,
+            "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+            "name": "Jukka",
+            "wins": 5,
+            "losses": 0,
+            "pf": 55,
+            "pa": 21
+          },
+          {
+            "place": 2,
+            "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+            "name": "Paavo",
+            "wins": 3,
+            "losses": 2,
+            "pf": 41,
+            "pa": 37
+          },
+          {
+            "place": 3,
+            "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+            "name": "Moon",
+            "wins": 1,
+            "losses": 4,
+            "pf": 40,
+            "pa": 49
+          },
+          {
+            "place": 4,
+            "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+            "name": "Joona Mellin",
+            "wins": 1,
+            "losses": 4,
+            "pf": 25,
+            "pa": 54
+          }
+        ],
+        "stage": "completed",
+        "currentRound": 2,
+        "champion": {
+          "name": "Jukka",
+          "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+        },
+        "rounds": [
+          {
+            "type": "roundRobin",
+            "matches": [
+              {
+                "matchStatus": "finished",
+                "scorePlayer2": 6,
+                "player1": {
+                  "name": "Jukka",
+                  "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+                },
+                "name": "Jukka vs Moon",
+                "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                "scorePlayer1": 11,
+                "matchId": "fafaaea6-33e8-4d35-9c75-63086b2dcfa7",
+                "player2": {
+                  "name": "Moon",
+                  "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2"
+                }
+              },
+              {
+                "player2": {
+                  "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                  "name": "Jukka"
+                },
+                "scorePlayer2": 11,
+                "name": "Paavo vs Jukka",
+                "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                "scorePlayer1": 5,
+                "player1": {
+                  "name": "Paavo",
+                  "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+                },
+                "matchStatus": "finished",
+                "matchId": "b760c1a2-34a6-4007-a692-065c7547d8b9"
+              },
+              {
+                "matchStatus": "finished",
+                "player2": {
+                  "name": "Moon",
+                  "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2"
+                },
+                "player1": {
+                  "name": "Paavo",
+                  "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+                },
+                "scorePlayer1": 11,
+                "name": "Paavo vs Moon",
+                "scorePlayer2": 9,
+                "winner": "TboklILVRzZihfvEhB1CMRdPCkH2",
+                "matchId": "c08c47d6-d944-477b-bccc-c52d040ea839"
+              },
+              {
+                "player1": {
+                  "name": "Joona Mellin",
+                  "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+                },
+                "winner": "TboklILVRzZihfvEhB1CMRdPCkH2",
+                "name": "Joona Mellin vs Paavo",
+                "player2": {
+                  "name": "Paavo",
+                  "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+                },
+                "matchId": "eac7c49d-7916-4209-9739-7deef0c1053b",
+                "scorePlayer1": 4,
+                "scorePlayer2": 11,
+                "matchStatus": "finished"
+              },
+              {
+                "matchStatus": "finished",
+                "name": "Joona Mellin vs Moon",
+                "scorePlayer2": 10,
+                "matchId": "14928027-4593-49e2-8a6f-c3b7e62cb8bc",
+                "winner": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+                "scorePlayer1": 12,
+                "player1": {
+                  "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+                  "name": "Joona Mellin"
+                },
+                "player2": {
+                  "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                  "name": "Moon"
+                }
+              },
+              {
+                "player1": {
+                  "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+                  "name": "Joona Mellin"
+                },
+                "matchStatus": "finished",
+                "scorePlayer1": 3,
+                "scorePlayer2": 11,
+                "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                "matchId": "7c40a976-0424-48a8-bad8-26672a8447a1",
+                "player2": {
+                  "name": "Jukka",
+                  "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+                },
+                "name": "Joona Mellin vs Jukka"
+              }
+            ],
+            "participants": [
+              {
+                "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+                "name": "Joona Mellin"
+              },
+              {
+                "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+                "name": "Paavo"
+              },
+              {
+                "name": "Jukka",
+                "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+              },
+              {
+                "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                "name": "Moon"
+              }
+            ],
+            "roundIndex": 0,
+            "status": "finished",
+            "label": "Round-Robin"
+          },
+          {
+            "type": "knockoutSemis",
+            "status": "finished",
+            "label": "Semi-finals",
+            "participants": [
+              {
+                "pf": 33,
+                "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                "pa": 14,
+                "losses": 0,
+                "wins": 3,
+                "name": "Jukka"
+              },
+              {
+                "wins": 2,
+                "losses": 1,
+                "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+                "name": "Paavo",
+                "pf": 27,
+                "pa": 24
+              },
+              {
+                "pf": 19,
+                "pa": 32,
+                "name": "Joona Mellin",
+                "losses": 2,
+                "wins": 1,
+                "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+              },
+              {
+                "pf": 25,
+                "losses": 3,
+                "name": "Moon",
+                "wins": 0,
+                "pa": 34,
+                "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2"
+              }
+            ],
+            "roundIndex": 1,
+            "matches": [
+              {
+                "matchStatus": "finished",
+                "scorePlayer2": 4,
+                "player1": {
+                  "name": "Jukka",
+                  "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+                },
+                "matchId": "7d889c50-1604-4e13-a836-7839ac9a273f",
+                "player2": {
+                  "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                  "name": "Moon"
+                },
+                "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                "name": "",
+                "scorePlayer1": 11
+              },
+              {
+                "name": "",
+                "matchId": "f03b2a73-f23a-4763-9110-db37a133cb23",
+                "winner": "TboklILVRzZihfvEhB1CMRdPCkH2",
+                "scorePlayer2": 2,
+                "player1": {
+                  "name": "Paavo",
+                  "userId": "TboklILVRzZihfvEhB1CMRdPCkH2"
+                },
+                "scorePlayer1": 11,
+                "matchStatus": "finished",
+                "player2": {
+                  "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2",
+                  "name": "Joona Mellin"
+                }
+              }
+            ]
+          },
+          {
+            "label": "Finals",
+            "roundIndex": 2,
+            "matches": [
+              {
+                "player1": {
+                  "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                  "name": "Moon"
+                },
+                "name": "3rd Place",
+                "scorePlayer1": 11,
+                "player2": {
+                  "name": "Joona Mellin",
+                  "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+                },
+                "matchId": "3614b793-2459-4378-8943-261fedd10df8",
+                "matchStatus": "finished",
+                "winner": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                "scorePlayer2": 4
+              },
+              {
+                "scorePlayer1": 11,
+                "matchId": "f74d583c-93cb-4e02-9f79-db670b54a505",
+                "name": "Grand Final",
+                "winner": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                "scorePlayer2": 3,
+                "player2": {
+                  "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+                  "name": "Paavo"
+                },
+                "player1": {
+                  "name": "Jukka",
+                  "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02"
+                },
+                "matchStatus": "finished"
+              }
+            ],
+            "type": "knockoutFinal",
+            "participants": [
+              {
+                "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+                "name": "Jukka"
+              },
+              {
+                "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+                "name": "Paavo"
+              },
+              {
+                "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+                "name": "Moon"
+              },
+              {
+                "name": "Joona Mellin",
+                "userId": "Aa0JmwOGncZGAGdjGxXLQ34hxIv2"
+              }
+            ],
+            "status": "finished"
+          }
+        ]
+      }
+    },
+    {
+      "_note": "Structure Variant (Keys: _id|bracket|champion|createdAt|creator|isFinished|name|participants)",
+      "_id": "56KzkQsIsdvHqXXEfpfq",
+      "name": "4",
+      "createdAt": "18.05.2025 11.18.43",
+      "creator": "MYjQu3t0dNPKys041E64sDLgV2t1",
+      "participants": [
+        {
+          "userId": "34ga410whbMHfsaBz41skYrlpPG3",
+          "name": "drapemid",
+          "seed": 1
+        },
+        {
+          "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+          "name": "drapefar",
+          "seed": 2
+        },
+        {
+          "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+          "name": "ickfollowing",
+          "seed": 3
+        },
+        {
+          "userId": "aSF5bsauEQTWdrbXCgyngerbO582",
+          "name": "loftilycowbell",
+          "seed": 4
+        }
+      ],
+      "isFinished": false,
+      "bracket": {
+        "rounds": [
+          {
+            "type": "roundRobin",
+            "roundIndex": 0,
+            "participants": [
+              {
+                "seed": 1,
+                "userId": "34ga410whbMHfsaBz41skYrlpPG3",
+                "name": "drapemid"
+              },
+              {
+                "name": "drapefar",
+                "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+                "seed": 2
+              },
+              {
+                "seed": 3,
+                "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                "name": "ickfollowing"
+              },
+              {
+                "seed": 4,
+                "name": "loftilycowbell",
+                "userId": "aSF5bsauEQTWdrbXCgyngerbO582"
+              }
+            ],
+            "label": "Round-Robin",
+            "matches": [
+              {
+                "scorePlayer1": 11,
+                "matchStatus": "finished",
+                "scorePlayer2": 2,
+                "name": "drapemid vs drapefar",
+                "player2": {
+                  "name": "drapefar",
+                  "seed": 2,
+                  "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2"
+                },
+                "player1": {
+                  "name": "drapemid",
+                  "userId": "34ga410whbMHfsaBz41skYrlpPG3",
+                  "seed": 1
+                },
+                "matchId": "c8b44f67-8d56-4054-abe3-3f29392368e5",
+                "winner": "34ga410whbMHfsaBz41skYrlpPG3"
+              },
+              {
+                "name": "drapemid vs ickfollowing",
+                "player2": {
+                  "seed": 3,
+                  "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                  "name": "ickfollowing"
+                },
+                "scorePlayer2": 11,
+                "winner": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                "matchStatus": "finished",
+                "matchId": "e90d9aaa-7e50-43c5-b2e0-ce589e83e958",
+                "player1": {
+                  "seed": 1,
+                  "name": "drapemid",
+                  "userId": "34ga410whbMHfsaBz41skYrlpPG3"
+                },
+                "scorePlayer1": 4
+              },
+              {
+                "player2": {
+                  "userId": "aSF5bsauEQTWdrbXCgyngerbO582",
+                  "seed": 4,
+                  "name": "loftilycowbell"
+                },
+                "scorePlayer1": 11,
+                "matchId": "75043cc8-6466-4262-98af-5b8b13b7389e",
+                "name": "drapemid vs loftilycowbell",
+                "scorePlayer2": 2,
+                "matchStatus": "finished",
+                "winner": "34ga410whbMHfsaBz41skYrlpPG3",
+                "player1": {
+                  "userId": "34ga410whbMHfsaBz41skYrlpPG3",
+                  "name": "drapemid",
+                  "seed": 1
+                }
+              },
+              {
+                "winner": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                "player1": {
+                  "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+                  "name": "drapefar",
+                  "seed": 2
+                },
+                "scorePlayer2": 11,
+                "matchId": "f9d04326-82ac-4f89-8fcb-b090712dcd0a",
+                "matchStatus": "finished",
+                "scorePlayer1": 4,
+                "player2": {
+                  "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                  "name": "ickfollowing",
+                  "seed": 3
+                },
+                "name": "drapefar vs ickfollowing"
+              },
+              {
+                "player2": {
+                  "seed": 4,
+                  "name": "loftilycowbell",
+                  "userId": "aSF5bsauEQTWdrbXCgyngerbO582"
+                },
+                "player1": {
+                  "seed": 2,
+                  "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+                  "name": "drapefar"
+                },
+                "scorePlayer1": 4,
+                "matchId": "3aff671d-5a1c-4189-826d-d47f835451be",
+                "winner": "aSF5bsauEQTWdrbXCgyngerbO582",
+                "scorePlayer2": 11,
+                "matchStatus": "finished",
+                "name": "drapefar vs loftilycowbell"
+              },
+              {
+                "scorePlayer1": 11,
+                "matchStatus": "finished",
+                "name": "ickfollowing vs loftilycowbell",
+                "player2": {
+                  "name": "loftilycowbell",
+                  "seed": 4,
+                  "userId": "aSF5bsauEQTWdrbXCgyngerbO582"
+                },
+                "winner": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                "player1": {
+                  "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                  "name": "ickfollowing",
+                  "seed": 3
+                },
+                "scorePlayer2": 2,
+                "matchId": "99e5adcd-f69a-46a5-a409-5ed1788713e2"
+              }
+            ],
+            "status": "finished"
+          },
+          {
+            "roundIndex": 1,
+            "matches": [
+              {
+                "matchId": "1-0",
+                "matchStatus": "finished",
+                "player1": {
+                  "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                  "name": "ickfollowing",
+                  "wins": 3,
+                  "losses": 0,
+                  "pf": 33,
+                  "pa": 10,
+                  "place": 1
+                },
+                "player2": {
+                  "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+                  "name": "drapefar",
+                  "wins": 0,
+                  "losses": 3,
+                  "pf": 10,
+                  "pa": 33,
+                  "place": 4
+                },
+                "scorePlayer1": 11,
+                "scorePlayer2": 2,
+                "winner": "MYjQu3t0dNPKys041E64sDLgV2t1"
+              },
+              {
+                "matchId": "1-1",
+                "matchStatus": "finished",
+                "player1": {
+                  "userId": "34ga410whbMHfsaBz41skYrlpPG3",
+                  "name": "drapemid",
+                  "wins": 2,
+                  "losses": 1,
+                  "pf": 26,
+                  "pa": 15,
+                  "place": 2
+                },
+                "player2": {
+                  "userId": "aSF5bsauEQTWdrbXCgyngerbO582",
+                  "name": "loftilycowbell",
+                  "wins": 1,
+                  "losses": 2,
+                  "pf": 15,
+                  "pa": 26,
+                  "place": 3
+                },
+                "scorePlayer1": 11,
+                "scorePlayer2": 4,
+                "winner": "34ga410whbMHfsaBz41skYrlpPG3"
+              }
+            ],
+            "label": "Semi-finals",
+            "status": "finished",
+            "type": "knockoutSemis"
+          },
+          {
+            "matches": [
+              {
+                "matchId": "2-0",
+                "matchStatus": "finished",
+                "player1": {
+                  "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+                  "name": "drapefar",
+                  "wins": 0,
+                  "losses": 3,
+                  "pf": 10,
+                  "pa": 33,
+                  "place": 4
+                },
+                "player2": {
+                  "userId": "aSF5bsauEQTWdrbXCgyngerbO582",
+                  "name": "loftilycowbell",
+                  "wins": 1,
+                  "losses": 2,
+                  "pf": 15,
+                  "pa": 26,
+                  "place": 3
+                },
+                "scorePlayer1": 4,
+                "scorePlayer2": 11,
+                "winner": "aSF5bsauEQTWdrbXCgyngerbO582"
+              }
+            ],
+            "type": "knockoutBronze",
+            "label": "3rd-place",
+            "roundIndex": 2,
+            "status": "finished"
+          },
+          {
+            "matches": [
+              {
+                "matchId": "2-0",
+                "matchStatus": "finished",
+                "player1": {
+                  "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+                  "name": "drapefar",
+                  "wins": 0,
+                  "losses": 3,
+                  "pf": 10,
+                  "pa": 33,
+                  "place": 4
+                },
+                "player2": {
+                  "userId": "aSF5bsauEQTWdrbXCgyngerbO582",
+                  "name": "loftilycowbell",
+                  "wins": 1,
+                  "losses": 2,
+                  "pf": 15,
+                  "pa": 26,
+                  "place": 3
+                },
+                "scorePlayer1": 4,
+                "scorePlayer2": 11,
+                "winner": "aSF5bsauEQTWdrbXCgyngerbO582"
+              }
+            ],
+            "type": "knockoutBronze",
+            "label": "3rd-place",
+            "roundIndex": 2,
+            "status": "finished"
+          },
+          {
+            "roundIndex": 3,
+            "type": "knockoutFinal",
+            "label": "Finals",
+            "status": "finished",
+            "matches": [
+              {
+                "matchId": "3-0",
+                "matchStatus": "finished",
+                "player1": {
+                  "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+                  "name": "ickfollowing",
+                  "wins": 3,
+                  "losses": 0,
+                  "pf": 33,
+                  "pa": 10,
+                  "place": 1
+                },
+                "player2": {
+                  "userId": "34ga410whbMHfsaBz41skYrlpPG3",
+                  "name": "drapemid",
+                  "wins": 2,
+                  "losses": 1,
+                  "pf": 26,
+                  "pa": 15,
+                  "place": 2
+                },
+                "scorePlayer1": 11,
+                "scorePlayer2": 2,
+                "winner": "MYjQu3t0dNPKys041E64sDLgV2t1"
+              }
+            ]
+          }
+        ],
+        "currentRound": 3,
+        "stage": "completed",
+        "finalStats": [
+          {
+            "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+            "name": "ickfollowing",
+            "wins": 5,
+            "losses": 0,
+            "pf": 55,
+            "pa": 14,
+            "place": 1
+          },
+          {
+            "userId": "34ga410whbMHfsaBz41skYrlpPG3",
+            "name": "drapemid",
+            "wins": 3,
+            "losses": 2,
+            "pf": 39,
+            "pa": 30,
+            "place": 2
+          },
+          {
+            "userId": "aSF5bsauEQTWdrbXCgyngerbO582",
+            "name": "loftilycowbell",
+            "wins": 3,
+            "losses": 3,
+            "pf": 41,
+            "pa": 45,
+            "place": 3
+          },
+          {
+            "userId": "rHsilFmpVOYukCqYEhMlBVVe2dd2",
+            "name": "drapefar",
+            "wins": 0,
+            "losses": 6,
+            "pf": 20,
+            "pa": 66,
+            "place": 4
+          }
+        ],
+        "champion": {
+          "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+          "name": "ickfollowing",
+          "wins": 5,
+          "losses": 0,
+          "pf": 55,
+          "pa": 14,
+          "place": 1
+        }
+      },
+      "champion": {
+        "userId": "MYjQu3t0dNPKys041E64sDLgV2t1",
+        "name": "ickfollowing",
+        "wins": 5,
+        "losses": 0,
+        "pf": 55,
+        "pa": 14,
+        "place": 1
+      }
+    }
+  ]
+}

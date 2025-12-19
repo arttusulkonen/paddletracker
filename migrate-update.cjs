@@ -1,4 +1,3 @@
-// migrate-update.cjs
 'use strict';
 
 const admin = require('firebase-admin');
@@ -14,9 +13,19 @@ const BATCH_LIMIT = 450;
 const START_ELO = 1000;
 const K = 32;
 
-function calcElo(ratingA, ratingB, aWins) {
-  const expA = 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
-  return Math.round(ratingA + K * (aWins - expA));
+function calcDelta(ratingA, ratingB, scoreA, scoreB, isGlobal) {
+  const result = scoreA > scoreB ? 1 : 0;
+  const expected = 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
+
+  let delta = Math.round(K * (result - expected));
+
+  if (!isGlobal) {
+    if (delta < 0) {
+      const inflationFactor = 0.8;
+      delta = Math.round(delta * inflationFactor);
+    }
+  }
+  return delta;
 }
 
 function parseFinnish(str) {
@@ -34,17 +43,14 @@ function parseFinnish(str) {
 
 function parseAnyDate(x) {
   if (x == null) return null;
-
   if (typeof x === 'number') {
     const ms = x > 1e12 ? x : x * 1000;
     const d = new Date(ms);
     return isNaN(+d) ? null : d;
   }
-
   if (typeof x === 'string') {
     const d1 = new Date(x);
     if (!isNaN(+d1)) return d1;
-
     const d2 = parseFinnish(x);
     if (d2) return d2;
   }
@@ -54,13 +60,10 @@ function parseAnyDate(x) {
 function getMatchDate(m) {
   const byTsIso = parseAnyDate(m.tsIso);
   if (byTsIso) return byTsIso;
-
   const byTimestamp = parseAnyDate(m.timestamp);
   if (byTimestamp) return byTimestamp;
-
   const byCreatedAt = parseAnyDate(m.createdAt);
   if (byCreatedAt) return byCreatedAt;
-
   return new Date(0);
 }
 
@@ -98,6 +101,7 @@ class BatchWriter {
       this.batch = this.db.batch();
       this.count = 0;
       this.commits++;
+      process.stdout.write('.');
     }
   }
   update(ref, data) {
@@ -120,6 +124,7 @@ class BatchWriter {
       await this.batch.commit();
       this.count = 0;
       this.commits++;
+      console.log(' Done.');
     }
   }
 }
@@ -172,18 +177,23 @@ async function migrateSport(sport) {
   const wlTotals = new Map();
   const tennisTotals = new Map();
 
-  const roomRatings = new Map();
-  const roomWL = new Map();
+  const roomRatingsMap = new Map();
+  const roomWLMap = new Map();
+
+  const userNames = new Map();
 
   const matchesWriter = new BatchWriter(db);
 
   for (const m of matches) {
     const roomId = m.roomId;
     const room = rooms.get(roomId) || {};
-    const isRanked = m.isRanked !== false && room.isRanked !== false;
+    const isGlobalRanked = m.isRanked !== false && room.isRanked !== false;
 
     const p1 = String(m.player1Id);
     const p2 = String(m.player2Id);
+
+    if (m.player1?.name) userNames.set(p1, m.player1.name);
+    if (m.player2?.name) userNames.set(p2, m.player2.name);
 
     if (!globalRating.has(p1)) globalRating.set(p1, START_ELO);
     if (!globalRating.has(p2)) globalRating.set(p2, START_ELO);
@@ -191,19 +201,17 @@ async function migrateSport(sport) {
     if (!eloHistory.has(p2)) eloHistory.set(p2, []);
     if (!wlTotals.has(p1)) wlTotals.set(p1, { w: 0, l: 0 });
     if (!wlTotals.has(p2)) wlTotals.set(p2, { w: 0, l: 0 });
-    if (!tennisTotals.has(p1))
-      tennisTotals.set(p1, { aces: 0, df: 0, winners: 0 });
-    if (!tennisTotals.has(p2))
-      tennisTotals.set(p2, { aces: 0, df: 0, winners: 0 });
 
-    if (!roomRatings.has(roomId)) roomRatings.set(roomId, new Map());
-    if (!roomWL.has(roomId)) roomWL.set(roomId, new Map());
-    const rMap = roomRatings.get(roomId);
-    const wlMap = roomWL.get(roomId);
-    if (!rMap.has(p1)) rMap.set(p1, START_ELO);
-    if (!rMap.has(p2)) rMap.set(p2, START_ELO);
-    if (!wlMap.has(p1)) wlMap.set(p1, { w: 0, l: 0 });
-    if (!wlMap.has(p2)) wlMap.set(p2, { w: 0, l: 0 });
+    if (!roomRatingsMap.has(roomId)) roomRatingsMap.set(roomId, new Map());
+    if (!roomWLMap.has(roomId)) roomWLMap.set(roomId, new Map());
+
+    const currentRoomRatings = roomRatingsMap.get(roomId);
+    const currentRoomWL = roomWLMap.get(roomId);
+
+    if (!currentRoomRatings.has(p1)) currentRoomRatings.set(p1, START_ELO);
+    if (!currentRoomRatings.has(p2)) currentRoomRatings.set(p2, START_ELO);
+    if (!currentRoomWL.has(p1)) currentRoomWL.set(p1, { w: 0, l: 0 });
+    if (!currentRoomWL.has(p2)) currentRoomWL.set(p2, { w: 0, l: 0 });
 
     const date = getMatchDate(m);
     const tsIso = date.toISOString();
@@ -211,171 +219,147 @@ async function migrateSport(sport) {
 
     const s1 = Number(m?.player1?.scores ?? m?.score1 ?? 0);
     const s2 = Number(m?.player2?.scores ?? m?.score2 ?? 0);
-    const aWins = s1 > s2 ? 1 : 0;
-    const bWins = 1 - aWins;
 
-    const oldG1 = globalRating.get(p1);
-    const oldG2 = globalRating.get(p2);
-    let newG1 = oldG1;
-    let newG2 = oldG2;
-    let d1 = 0;
-    let d2 = 0;
+    const oldGlobal1 = globalRating.get(p1);
+    const oldGlobal2 = globalRating.get(p2);
+    const oldRoom1 = currentRoomRatings.get(p1);
+    const oldRoom2 = currentRoomRatings.get(p2);
 
-    const oldR1 = rMap.get(p1);
-    const oldR2 = rMap.get(p2);
-    let newR1 = oldR1;
-    let newR2 = oldR2;
-
-    if (isRanked) {
-      newG1 = calcElo(oldG1, oldG2, aWins);
-      newG2 = calcElo(oldG2, oldG1, bWins);
-      d1 = newG1 - oldG1;
-      d2 = newG2 - oldG2;
-
-      newR1 = oldR1 + d1;
-      newR2 = oldR2 + d2;
-
-      globalRating.set(p1, newG1);
-      globalRating.set(p2, newG2);
-
-      eloHistory.get(p1).push({ date: tsIso, elo: newG1 });
-      eloHistory.get(p2).push({ date: tsIso, elo: newG2 });
-    } else {
-      newR1 = calcElo(oldR1, oldR2, aWins);
-      newR2 = calcElo(oldR2, oldR1, bWins);
-      d1 = newR1 - oldR1;
-      d2 = newR2 - oldR2;
+    let d1_Global = 0;
+    let d2_Global = 0;
+    if (isGlobalRanked) {
+      d1_Global = calcDelta(oldGlobal1, oldGlobal2, s1, s2, true);
+      d2_Global = calcDelta(oldGlobal2, oldGlobal1, s2, s1, true);
     }
 
-    rMap.set(p1, newR1);
-    rMap.set(p2, newR2);
+    const d1_Room = calcDelta(oldRoom1, oldRoom2, s1, s2, false);
+    const d2_Room = calcDelta(oldRoom2, oldRoom1, s2, s1, false);
 
-    const wl1 = wlMap.get(p1);
-    const wl2 = wlMap.get(p2);
-    if (aWins) {
-      wl1.w++;
-      wl2.l++;
-    } else {
-      wl1.l++;
-      wl2.w++;
+    const newGlobal1 = oldGlobal1 + d1_Global;
+    const newGlobal2 = oldGlobal2 + d2_Global;
+    const newRoom1 = oldRoom1 + d1_Room;
+    const newRoom2 = oldRoom2 + d2_Room;
+
+    if (isGlobalRanked) {
+      globalRating.set(p1, newGlobal1);
+      globalRating.set(p2, newGlobal2);
+      const histDate = tsIso;
+      eloHistory.get(p1).push({ date: histDate, elo: newGlobal1 });
+      eloHistory.get(p2).push({ date: histDate, elo: newGlobal2 });
     }
 
-    const g1 = wlTotals.get(p1);
-    const g2 = wlTotals.get(p2);
-    if (aWins) {
-      g1.w++;
-      g2.l++;
+    currentRoomRatings.set(p1, newRoom1);
+    currentRoomRatings.set(p2, newRoom2);
+
+    const isP1Win = s1 > s2;
+    if (isP1Win) {
+      wlTotals.get(p1).w++;
+      wlTotals.get(p2).l++;
+      currentRoomWL.get(p1).w++;
+      currentRoomWL.get(p2).l++;
     } else {
-      g1.l++;
-      g2.w++;
+      wlTotals.get(p1).l++;
+      wlTotals.get(p2).w++;
+      currentRoomWL.get(p1).l++;
+      currentRoomWL.get(p2).w++;
     }
 
     if (sport === 'tennis') {
-      const t1 = tennisTotals.get(p1);
-      const t2 = tennisTotals.get(p2);
+      const t1 = tennisTotals.get(p1) || { aces: 0, df: 0, winners: 0 };
+      const t2 = tennisTotals.get(p2) || { aces: 0, df: 0, winners: 0 };
       t1.aces += Number(m?.player1?.aces || 0);
       t1.df += Number(m?.player1?.doubleFaults || 0);
       t1.winners += Number(m?.player1?.winners || 0);
       t2.aces += Number(m?.player2?.aces || 0);
       t2.df += Number(m?.player2?.doubleFaults || 0);
       t2.winners += Number(m?.player2?.winners || 0);
+      tennisTotals.set(p1, t1);
+      tennisTotals.set(p2, t2);
     }
 
     const matchRef = db.collection(`matches-${sport}`).doc(m.id);
 
     const p1Patch = {
       ...(m.player1 || {}),
-      oldRating: oldG1,
-      newRating: newG1,
-      addedPoints: d1,
-      roomOldRating: oldR1,
-      roomNewRating: newR1,
+      oldRating: oldGlobal1,
+      newRating: newGlobal1,
+      addedPoints: d1_Global,
 
-      roomAddedPoints: d1,
+      roomOldRating: oldRoom1,
+      roomNewRating: newRoom1,
+      roomAddedPoints: d1_Room,
     };
+
     const p2Patch = {
       ...(m.player2 || {}),
-      oldRating: oldG2,
-      newRating: newG2,
-      addedPoints: d2,
-      roomOldRating: oldR2,
-      roomNewRating: newR2,
-      roomAddedPoints: d2,
+      oldRating: oldGlobal2,
+      newRating: newGlobal2,
+      addedPoints: d2_Global,
+
+      roomOldRating: oldRoom2,
+      roomNewRating: newRoom2,
+      roomAddedPoints: d2_Room,
     };
 
     const winnerName =
       s1 === s2
         ? m.winner || m?.player1?.name || m?.player2?.name || ''
-        : aWins
+        : isP1Win
         ? m?.player1?.name || m?.player1Name || 'Player 1'
         : m?.player2?.name || m?.player2Name || 'Player 2';
 
     await matchesWriter.update(matchRef, {
       player1: p1Patch,
       player2: p2Patch,
-      isRanked: !!isRanked,
-
+      isRanked: !!isGlobalRanked,
       tsIso: tsIso,
-      timestamp: formatFinnish(date),
-      createdAt: formatFinnish(date),
-
+      timestamp: fin,
+      createdAt: fin,
       winner: winnerName,
     });
   }
 
   await matchesWriter.flush();
-  console.log(`✓ Матчи ${sport}: пересчитаны и сохранены`);
+  console.log(`✓ Матчи ${sport}: пересчитаны с новой логикой.`);
 
   const roomsWriter = new BatchWriter(db);
   for (const [roomId, room] of rooms.entries()) {
-    const rMap = roomRatings.get(roomId) || new Map();
-    const wlMap = roomWL.get(roomId) || new Map();
+    const roomRats = roomRatingsMap.get(roomId) || new Map();
+    const roomWL = roomWLMap.get(roomId) || new Map();
 
     const baseMembers = Array.isArray(room.members) ? room.members : [];
     const newMembers = baseMembers.map((m) => {
       const uid = String(m.userId);
-      const r = rMap.has(uid) ? rMap.get(uid) : START_ELO;
-      const wl = wlMap.get(uid) || { w: 0, l: 0 };
+      const r = roomRats.has(uid) ? roomRats.get(uid) : START_ELO;
+      const wl = roomWL.get(uid) || { w: 0, l: 0 };
+
       return {
         ...m,
         rating: r,
+        globalElo: globalRating.get(uid) || START_ELO,
         wins: wl.w,
         losses: wl.l,
       };
     });
 
-    const memberIds = uniq(
-      newMembers.map((m) => String(m.userId)).filter(Boolean)
-    );
-
     await roomsWriter.update(db.collection(`rooms-${sport}`).doc(roomId), {
       members: newMembers,
-      memberIds,
       seasonHistory: FieldValue.delete(),
     });
   }
   await roomsWriter.flush();
-  console.log(`✓ Комнаты ${sport}: members/seasonHistory обновлены`);
+  console.log(`✓ Комнаты ${sport}: рейтинги участников обновлены.`);
 
   const uids = uniq(
     matches.flatMap((m) => [String(m.player1Id), String(m.player2Id)])
   );
-
   const existingUserIds = await buildExistingUsersSet(uids);
-  const missing = uids.filter((u) => !existingUserIds.has(u));
-  if (missing.length) {
-    console.warn(
-      `[WARN] Пропускаем отсутствующих пользователей (${missing.length}):`,
-      missing.slice(0, 10).join(', '),
-      missing.length > 10 ? '… (ещё есть)' : ''
-    );
-  }
 
   const usersWriter = new BatchWriter(db);
   for (const uid of uids) {
     if (!existingUserIds.has(uid)) continue;
 
-    const lastElo = globalRating.get(uid) ?? START_ELO;
+    const lastGlobal = globalRating.get(uid) ?? START_ELO;
     const hist = (eloHistory.get(uid) || []).map((h) => ({
       date: h.date,
       elo: h.elo,
@@ -383,7 +367,7 @@ async function migrateSport(sport) {
     const wl = wlTotals.get(uid) || { w: 0, l: 0 };
 
     const sportPatch = {
-      [`sports.${sport}.globalElo`]: lastElo,
+      [`sports.${sport}.globalElo`]: lastGlobal,
       [`sports.${sport}.eloHistory`]: hist,
       [`sports.${sport}.wins`]: wl.w,
       [`sports.${sport}.losses`]: wl.l,
@@ -402,27 +386,65 @@ async function migrateSport(sport) {
     });
   }
   await usersWriter.flush();
-  console.log(
-    `✓ Пользователи: обновлены поля sports.${sport} и achievements очищены`
+  console.log(`✓ Пользователи: Global ELO обновлен.`);
+
+  console.log(`\n📊 --- ОТЧЕТ ПО РЕЙТИНГАМ (${sport}) ---`);
+  console.log(`(Сравниваем Global vs Room для ВСЕХ комнат)\n`);
+
+  const sortedRooms = Array.from(roomRatingsMap.entries()).sort(
+    (a, b) => b[1].size - a[1].size
   );
+
+  for (const [roomId, rMap] of sortedRooms) {
+    const roomName = rooms.get(roomId)?.name || roomId;
+    console.log(`🏠 ROOM: ${roomName}`);
+    console.log(`ID: ${roomId}`);
+    console.log(
+      `-------------------------------------------------------------`
+    );
+    console.log(
+      `| Player             | Global (Real) | Room (Inflated) | Diff |`
+    );
+    console.log(
+      `-------------------------------------------------------------`
+    );
+
+    const topPlayers = Array.from(rMap.entries()).sort((a, b) => b[1] - a[1]);
+
+    for (const [uid, roomElo] of topPlayers) {
+      const globElo = globalRating.get(uid) || 1000;
+      const name = (userNames.get(uid) || uid).padEnd(18).slice(0, 18);
+      const diff = roomElo - globElo;
+      const sign = diff > 0 ? '+' : '';
+      console.log(
+        `| ${name} | ${globElo.toString().padEnd(13)} | ${roomElo
+          .toString()
+          .padEnd(15)} | ${sign}${diff} |`
+      );
+    }
+    console.log(
+      `-------------------------------------------------------------\n`
+    );
+  }
 
   console.log(`===== SPORT ${sport}: Готово =====`);
 }
 
 async function main() {
   try {
-    const sports = await listSports();
+    let sports = await listSports();
+    sports = sports.filter((s) => s === 'pingpong');
+
     if (!sports.length) {
-      console.log('Коллекции matches-* не найдены. Нечего мигрировать.');
+      console.log('Коллекции не найдены или нет pingpong.');
       process.exit(0);
     }
-    console.log('Спорты:', sports.join(', '));
-
     for (const sport of sports) {
       await migrateSport(sport);
     }
-
-    console.log('\n🎉 Миграция завершена успешно.');
+    console.log(
+      '\n🎉 Полная миграция с новой логикой (Global/Room) завершена.'
+    );
     process.exit(0);
   } catch (e) {
     console.error('❌ Ошибка миграции:', e);

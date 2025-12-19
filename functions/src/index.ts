@@ -1,24 +1,20 @@
+// functions/src/index.ts
 import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import {
-  CallableRequest,
-  HttpsError,
-  onCall,
+	CallableRequest,
+	HttpsError,
+	onCall,
 } from 'firebase-functions/v2/https';
 import { genkit, z } from 'genkit';
 import { SPORT_COLLECTIONS } from './config';
-import { calculateElo } from './lib/eloMath';
+import { calculateDelta as calcDeltaImport, getDynamicK, RoomMode } from './lib/eloMath';
 
-// Инициализация Firebase
 admin.initializeApp();
 const db = admin.firestore();
 const auth = admin.auth();
 const storage = admin.storage();
-
-// ==========================================
-// 0. HELPERS (SHARED)
-// ==========================================
 
 function levenshtein(a: string, b: string): number {
   const matrix: number[][] = [];
@@ -39,8 +35,7 @@ function levenshtein(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
-function getFinnishDate(): string {
-  const now = new Date();
+function getFinnishDate(dateObj: Date = new Date()): string {
   const options: Intl.DateTimeFormatOptions = {
     timeZone: 'Europe/Helsinki',
     year: 'numeric',
@@ -53,7 +48,7 @@ function getFinnishDate(): string {
   };
 
   const formatter = new Intl.DateTimeFormat('fi-FI', options);
-  const parts = formatter.formatToParts(now);
+  const parts = formatter.formatToParts(dateObj);
   const getPart = (type: string) =>
     parts.find((p) => p.type === type)?.value || '00';
 
@@ -61,6 +56,27 @@ function getFinnishDate(): string {
     'hour'
   )}.${getPart('minute')}.${getPart('second')}`;
 }
+
+const calculateDelta = (
+  rating1: number,
+  rating2: number,
+  score1: number,
+  score2: number,
+  isGlobal: boolean
+) => {
+  const K = 32;
+  const result = score1 > score2 ? 1 : 0;
+  const expected = 1 / (1 + 10 ** ((rating2 - rating1) / 400));
+  let delta = Math.round(K * (result - expected));
+
+  if (!isGlobal) {
+    if (delta < 0) {
+      const inflationFactor = 0.8;
+      delta = Math.round(delta * inflationFactor);
+    }
+  }
+  return delta;
+};
 
 const findUserOrSuggest = async (name: string) => {
   const normalized = (name || '').trim();
@@ -77,7 +93,6 @@ const findUserOrSuggest = async (name: string) => {
 
   const allUsers = await usersRef.get();
   let bestDoc: admin.firestore.QueryDocumentSnapshot | null = null;
-  let bestMatch: string | null = null;
   let minDist = Infinity;
 
   for (const doc of allUsers.docs) {
@@ -94,22 +109,17 @@ const findUserOrSuggest = async (name: string) => {
       const dist = levenshtein(normalizedLower, field);
       if (dist < minDist) {
         minDist = dist;
-        bestMatch = field;
         bestDoc = doc;
       }
     }
   }
 
-  if (minDist <= 2 && bestMatch && bestDoc) {
-    return { doc: bestDoc, suggestion: bestMatch };
+  if (minDist <= 2 && bestDoc) {
+    return { doc: bestDoc };
   }
 
   return { doc: null };
 };
-
-// ==========================================
-// 1. AI SETUP
-// ==========================================
 
 const ai = genkit({
   plugins: [
@@ -117,12 +127,8 @@ const ai = genkit({
       apiKey: process.env.GOOGLE_GENAI_API_KEY || '',
     }),
   ],
-  model: 'googleai/gemini-2.5-flash',
+  model: 'googleai/gemini-2.0-flash',
 });
-
-// ==========================================
-// 2. WEB CHAT FUNCTION
-// ==========================================
 
 export const aiChat = onCall(
   { cors: true },
@@ -132,7 +138,7 @@ export const aiChat = onCall(
     }
 
     const text = request.data?.text;
-    const sport = request.data?.sport || 'pingpong';
+    const sport = 'pingpong';
 
     if (typeof text !== 'string') {
       throw new HttpsError('invalid-argument', 'Missing text');
@@ -203,25 +209,34 @@ export const aiChat = onCall(
   }
 );
 
-// ==========================================
-// 3. SAVE MATCH FUNCTION (PRECISE & ROBUST)
-// ==========================================
-
 export const aiSaveMatch = onCall(
-  { cors: true },
+  {
+    cors: true,
+    timeoutSeconds: 540,
+    memory: '512MiB',
+  },
   async (request: CallableRequest) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
     }
 
     const { matches, roomId } = request.data || {};
+
     if (!Array.isArray(matches) || typeof roomId !== 'string') {
       throw new HttpsError('invalid-argument', 'Missing matches or roomId');
     }
 
+    if (matches.length > 400) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Too many matches at once. Max 400.'
+      );
+    }
+
     const sport = 'pingpong';
-    const collectionName = SPORT_COLLECTIONS.pingpong.matches;
-    const roomsCollection = SPORT_COLLECTIONS.pingpong.rooms;
+    const config = SPORT_COLLECTIONS.pingpong;
+    const collectionName = config.matches;
+    const roomsCollection = config.rooms;
 
     const roomRef = db.collection(roomsCollection).doc(roomId);
     const roomSnap = await roomRef.get();
@@ -231,12 +246,88 @@ export const aiSaveMatch = onCall(
 
     const roomData = roomSnap.data() || {};
     let members: any[] = roomData.members || [];
+
+    const uniqueNames = new Set<string>();
+    matches.forEach((m) => {
+      uniqueNames.add(m.player1Name);
+      uniqueNames.add(m.player2Name);
+    });
+
+    const memberMap = new Map<string, string>();
+    members.forEach((m: any) => {
+      const uid = m.userId;
+      if (m.name) memberMap.set(m.name.toLowerCase(), uid);
+      if (m.displayName) memberMap.set(m.displayName.toLowerCase(), uid);
+    });
+
+    const nameToUidMap = new Map<string, string>();
+
+    for (const name of Array.from(uniqueNames)) {
+      const lower = name.trim().toLowerCase();
+
+      if (memberMap.has(lower)) {
+        nameToUidMap.set(name, memberMap.get(lower)!);
+        continue;
+      }
+
+      const findUser = async (n: string) => {
+        const norm = n.trim();
+        const normLower = norm.toLowerCase();
+        const usersRef = db.collection('users');
+
+        let snap = await usersRef.where('name', '==', norm).limit(1).get();
+        if (!snap.empty) return snap.docs[0];
+        snap = await usersRef.where('displayName', '==', norm).limit(1).get();
+        if (!snap.empty) return snap.docs[0];
+
+        const allUsers = await usersRef.get();
+        let bestDoc: admin.firestore.QueryDocumentSnapshot | null = null;
+        let minDist = Infinity;
+
+        for (const doc of allUsers.docs) {
+          const d = doc.data();
+          const variants = [
+            (d.displayName || '').toString(),
+            (d.name || '').toString(),
+          ]
+            .map((s) => s.toLowerCase())
+            .filter(Boolean);
+
+          if (variants.includes(normLower)) return doc;
+
+          for (const v of variants) {
+            const dist = levenshtein(normLower, v);
+            if (dist < minDist) {
+              minDist = dist;
+              bestDoc = doc;
+            }
+          }
+        }
+        return minDist <= 2 ? bestDoc : null;
+      };
+
+      const foundDoc = await findUser(name);
+      if (foundDoc) {
+        nameToUidMap.set(name, foundDoc.id);
+      }
+    }
+
+    const uniqueUids = Array.from(new Set(nameToUidMap.values()));
+    const userDocsRefs = uniqueUids.map((uid) =>
+      db.collection('users').doc(uid)
+    );
+
+    const userDocs =
+      userDocsRefs.length > 0 ? await db.getAll(...userDocsRefs) : [];
+
+    const userDataMap = new Map<string, any>();
+    userDocs.forEach((d) => {
+      if (d.exists) userDataMap.set(d.id, d.data());
+    });
+
     const batch = db.batch();
-    const usersRef = db.collection('users');
+    const baseDate = new Date();
 
-    // --- 1. ПОДГОТОВКА ДАННЫХ ---
-
-    // Сортируем участников по рейтингу комнаты (для расчета мест)
     const getSortedMembers = (mems: any[]) => {
       return [...mems].sort((a, b) => (b.rating || 1000) - (a.rating || 1000));
     };
@@ -245,99 +336,115 @@ export const aiSaveMatch = onCall(
     const oldRanks = new Map<string, number>();
     oldSorted.forEach((m, index) => oldRanks.set(m.userId, index + 1));
 
-    // Агрегатор обновлений пользователей (In-Memory State)
-    // Используется для отслеживания изменений ELO между матчами в одной пачке
     type UserUpdateState = {
-      startElo: number; // ELO до начала всей серии матчей
-      currentElo: number; // Текущий ELO в процессе расчета
-      winsToAdd: number; // Накопленные победы для записи
-      lossesToAdd: number; // Накопленные поражения для записи
-      name: string; // Имя для отчета
+      startGlobalElo: number;
+      currentGlobalElo: number;
+      startRoomElo: number;
+      currentRoomElo: number;
+      winsToAdd: number;
+      lossesToAdd: number;
+      name: string;
     };
 
     const userUpdates = new Map<string, UserUpdateState>();
 
-    const initUser = (uid: string, data: any, name: string) => {
+    const initUser = (uid: string, nameForReport: string) => {
       if (!userUpdates.has(uid)) {
-        const elo = data.sports?.[sport]?.globalElo ?? 1000;
+        const globalData = userDataMap.get(uid) || {};
+        const roomMember = members.find((m: any) => m.userId === uid);
+
+        const gElo = globalData.sports?.[sport]?.globalElo ?? 1000;
+        const rElo = roomMember?.rating ?? 1000;
+
+        const realName =
+          globalData.name || globalData.displayName || nameForReport;
+
         userUpdates.set(uid, {
-          startElo: elo,
-          currentElo: elo,
+          startGlobalElo: gElo,
+          currentGlobalElo: gElo,
+          startRoomElo: rElo,
+          currentRoomElo: rElo,
           winsToAdd: 0,
           lossesToAdd: 0,
-          name: name,
+          name: realName,
         });
       }
     };
 
     try {
-      // --- 2. ЦИКЛ ОБРАБОТКИ МАТЧЕЙ ---
-      for (const match of matches) {
+      for (let i = 0; i < matches.length; i++) {
+        const match = matches[i];
         const { player1Name, player2Name, score1, score2 } = match;
 
-        // Поиск пользователей
-        const u1 = await findUserOrSuggest(player1Name);
-        const u2 = await findUserOrSuggest(player2Name);
+        const p1Id = nameToUidMap.get(player1Name);
+        const p2Id = nameToUidMap.get(player2Name);
 
-        if (!u1.doc || !u2.doc) {
-          let errorMsg = 'Error:';
-          if (!u1.doc) errorMsg += ` "${player1Name}" not found.`;
-          if (!u2.doc) errorMsg += ` "${player2Name}" not found.`;
-          throw new HttpsError('not-found', errorMsg);
+        if (!p1Id || !p2Id) {
+          continue;
         }
 
-        const p1Id = u1.doc.id;
-        const p2Id = u2.doc.id;
-        const p1Data = u1.doc.data() || {};
-        const p2Data = u2.doc.data() || {};
-
-        const p1RealName = p1Data.name || p1Data.displayName || 'Unknown';
-        const p2RealName = p2Data.name || p2Data.displayName || 'Unknown';
-
-        // Инициализация состояния
-        initUser(p1Id, p1Data, p1RealName);
-        initUser(p2Id, p2Data, p2RealName);
-
-        // Проверка членства в комнате
         const m1Index = members.findIndex((m: any) => m.userId === p1Id);
         const m2Index = members.findIndex((m: any) => m.userId === p2Id);
 
         if (m1Index === -1 || m2Index === -1) {
-          throw new HttpsError('failed-precondition', 'Players not in room');
+          throw new HttpsError(
+            'failed-precondition',
+            `Player ${player1Name} or ${player2Name} not in room`
+          );
         }
 
         const p1Member = members[m1Index];
         const p2Member = members[m2Index];
 
-        // Получаем актуальные рейтинги из агрегатора (возможно, измененные предыдущим матчем)
-        const currentGlobalG1 = userUpdates.get(p1Id)!.currentElo;
-        const currentGlobalG2 = userUpdates.get(p2Id)!.currentElo;
+        initUser(p1Id, player1Name);
+        initUser(p2Id, player2Name);
 
-        // Расчет новых глобальных рейтингов
-        const newGlobalG1 = calculateElo(
-          currentGlobalG1,
-          currentGlobalG2,
-          score1,
-          score2
-        );
-        const newGlobalG2 = calculateElo(
-          currentGlobalG2,
-          currentGlobalG1,
-          score2,
-          score1
-        );
-
-        // Обновляем агрегатор
         const p1State = userUpdates.get(p1Id)!;
         const p2State = userUpdates.get(p2Id)!;
 
-        p1State.currentElo = newGlobalG1;
-        p2State.currentElo = newGlobalG2;
+        const d1_Global = calculateDelta(
+          p1State.currentGlobalElo,
+          p2State.currentGlobalElo,
+          score1,
+          score2,
+          true
+        );
+        const d2_Global = calculateDelta(
+          p2State.currentGlobalElo,
+          p1State.currentGlobalElo,
+          score2,
+          score1,
+          true
+        );
+
+        const d1_Room = calculateDelta(
+          p1State.currentRoomElo,
+          p2State.currentRoomElo,
+          score1,
+          score2,
+          false
+        );
+        const d2_Room = calculateDelta(
+          p2State.currentRoomElo,
+          p1State.currentRoomElo,
+          score2,
+          score1,
+          false
+        );
+
+        const newGlobalG1 = p1State.currentGlobalElo + d1_Global;
+        const newGlobalG2 = p2State.currentGlobalElo + d2_Global;
+        const newRoomR1 = p1State.currentRoomElo + d1_Room;
+        const newRoomR2 = p2State.currentRoomElo + d2_Room;
+
+        p1State.currentGlobalElo = newGlobalG1;
+        p2State.currentGlobalElo = newGlobalG2;
+        p1State.currentRoomElo = newRoomR1;
+        p2State.currentRoomElo = newRoomR2;
 
         if (score1 > score2) {
           p1State.winsToAdd += 1;
           p2State.lossesToAdd += 1;
-          // Обновляем статистику комнаты (в памяти, для сохранения в room doc)
           p1Member.wins = (p1Member.wins || 0) + 1;
           p2Member.losses = (p2Member.losses || 0) + 1;
         } else {
@@ -347,31 +454,16 @@ export const aiSaveMatch = onCall(
           p1Member.losses = (p1Member.losses || 0) + 1;
         }
 
-        // Расчет рейтингов комнаты (Room ELO)
-        const currentRoomR1 = p1Member.rating ?? 1000;
-        const currentRoomR2 = p2Member.rating ?? 1000;
-        const newRoomR1 = calculateElo(
-          currentRoomR1,
-          currentRoomR2,
-          score1,
-          score2
-        );
-        const newRoomR2 = calculateElo(
-          currentRoomR2,
-          currentRoomR1,
-          score2,
-          score1
-        );
-
         p1Member.rating = newRoomR1;
         p2Member.rating = newRoomR2;
         p1Member.globalElo = newGlobalG1;
         p2Member.globalElo = newGlobalG2;
 
-        // Создание документа матча
+        const matchDate = new Date(baseDate.getTime() + i * 10);
+        const tsIso = matchDate.toISOString();
+        const timestamp = getFinnishDate(matchDate);
+
         const matchRef = db.collection(collectionName).doc();
-        const tsIso = new Date().toISOString();
-        const timestamp = getFinnishDate();
 
         batch.set(matchRef, {
           roomId,
@@ -382,41 +474,36 @@ export const aiSaveMatch = onCall(
           timestamp,
           tsIso,
           createdAt: timestamp,
-          winner: score1 > score2 ? p1RealName : p2RealName,
+          winner: score1 > score2 ? p1State.name : p2State.name,
           player1: {
-            name: p1RealName,
+            name: p1State.name,
             scores: score1,
-            oldRating: currentGlobalG1,
+            oldRating: p1State.currentGlobalElo - d1_Global,
             newRating: newGlobalG1,
-            addedPoints: newGlobalG1 - currentGlobalG1,
-            roomOldRating: currentRoomR1,
+            addedPoints: d1_Global,
+            roomOldRating: p1State.currentRoomElo - d1_Room,
             roomNewRating: newRoomR1,
-            roomAddedPoints: newRoomR1 - currentRoomR1,
+            roomAddedPoints: d1_Room,
             side: 'left',
           },
           player2: {
-            name: p2RealName,
+            name: p2State.name,
             scores: score2,
-            oldRating: currentGlobalG2,
+            oldRating: p2State.currentGlobalElo - d2_Global,
             newRating: newGlobalG2,
-            addedPoints: newGlobalG2 - currentGlobalG2,
-            roomOldRating: currentRoomR2,
+            addedPoints: d2_Global,
+            roomOldRating: p2State.currentRoomElo - d2_Room,
             roomNewRating: newRoomR2,
-            roomAddedPoints: newRoomR2 - currentRoomR2,
+            roomAddedPoints: d2_Room,
             side: 'right',
           },
         });
       }
-      // --- КОНЕЦ ЦИКЛА ---
 
-      // --- 3. ПРИМЕНЕНИЕ ИЗМЕНЕНИЙ ---
-
-      // Обновляем пользователей (один раз для каждого)
       userUpdates.forEach((data, uid) => {
         const updates: any = {
-          [`sports.${sport}.globalElo`]: data.currentElo,
+          [`sports.${sport}.globalElo`]: data.currentGlobalElo,
         };
-        // Используем атомарный инкремент для счетчиков, чтобы не потерять победы из других одновременных матчей
         if (data.winsToAdd > 0) {
           updates[`sports.${sport}.wins`] =
             admin.firestore.FieldValue.increment(data.winsToAdd);
@@ -426,46 +513,34 @@ export const aiSaveMatch = onCall(
             admin.firestore.FieldValue.increment(data.lossesToAdd);
         }
 
-        // Добавляем историю ELO (последнюю точку)
         updates[`sports.${sport}.eloHistory`] =
           admin.firestore.FieldValue.arrayUnion({
             ts: new Date().toISOString(),
-            elo: data.currentElo,
+            elo: data.currentGlobalElo,
           });
 
-        batch.update(usersRef.doc(uid), updates);
+        batch.update(db.collection('users').doc(uid), updates);
       });
 
-      // Обновляем комнату
       batch.update(roomRef, { members });
 
       await batch.commit();
 
-      // --- 4. ФОРМИРОВАНИЕ ОТЧЕТА ---
-
       const newSorted = getSortedMembers(members);
       const newRanks = new Map<string, number>();
-      // Карта для быстрого доступа к рейтингу комнаты для ответа
-      const newRoomElos = new Map<string, number>();
-
-      newSorted.forEach((m, index) => {
-        newRanks.set(m.userId, index + 1);
-        newRoomElos.set(m.userId, m.rating || 1000);
-      });
+      newSorted.forEach((m, index) => newRanks.set(m.userId, index + 1));
 
       const updatesList: any[] = [];
-
       userUpdates.forEach((data, uid) => {
         const oldRank = oldRanks.get(uid) || 0;
         const newRank = newRanks.get(uid) || 0;
-        const eloDiff = data.currentElo - data.startElo;
-        const roomElo = newRoomElos.get(uid) || 1000;
+        const eloDiff = data.currentRoomElo - data.startRoomElo;
 
         updatesList.push({
           name: data.name,
           eloDiff: eloDiff,
-          newElo: data.currentElo,
-          roomElo: roomElo, // Добавлено поле для отображения
+          newElo: data.currentGlobalElo,
+          roomElo: data.currentRoomElo,
           oldRank: oldRank,
           newRank: newRank,
         });
@@ -483,10 +558,6 @@ export const aiSaveMatch = onCall(
     }
   }
 );
-
-// ==========================================
-// 4. USER PERMANENT DELETE
-// ==========================================
 
 const collectionsToScan = {
   rooms: ['rooms-pingpong', 'rooms-tennis', 'rooms-badminton'],
@@ -701,3 +772,291 @@ export const permanentlyDeleteUser = onCall(
     }
   }
 );
+
+export const recordMatch = onCall(async (request) => {
+  // 1. Проверка авторизации
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be logged in');
+  }
+
+  const { roomId, player1Id, player2Id, matches, sport } = request.data;
+
+  // 2. Валидация входных данных
+  if (
+    !roomId ||
+    !player1Id ||
+    !player2Id ||
+    !matches ||
+    !Array.isArray(matches) ||
+    matches.length === 0
+  ) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Missing required fields or matches array is empty'
+    );
+  }
+
+  // 3. Загрузка данных
+  const roomRef = db.collection(`rooms-${sport}`).doc(roomId);
+  const p1Ref = db.collection('users').doc(player1Id);
+  const p2Ref = db.collection('users').doc(player2Id);
+
+  const [roomSnap, p1Snap, p2Snap] = await Promise.all([
+    roomRef.get(),
+    p1Ref.get(),
+    p2Ref.get(),
+  ]);
+
+  if (!roomSnap.exists) throw new HttpsError('not-found', 'Room not found');
+  if (!p1Snap.exists || !p2Snap.exists)
+    throw new HttpsError('not-found', 'One or both players not found');
+
+  const roomData = roomSnap.data() || {};
+  const p1Data = p1Snap.data() || {};
+  const p2Data = p2Snap.data() || {};
+
+  // Проверка участия (опционально, но рекомендуется)
+  const callerUid = request.auth.uid;
+  if (!roomData.memberIds?.includes(callerUid)) {
+    // Можно разрешить админам, но для начала строго:
+    // throw new HttpsError('permission-denied', 'You must be a member of the room');
+  }
+
+  // 4. Подготовка участников (из массива members комнаты)
+  const members = roomData.members || [];
+  const m1Index = members.findIndex((m: any) => m.userId === player1Id);
+  const m2Index = members.findIndex((m: any) => m.userId === player2Id);
+
+  if (m1Index === -1 || m2Index === -1) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Players are not in the room members list'
+    );
+  }
+
+  const member1 = members[m1Index];
+  const member2 = members[m2Index];
+
+  // Инициализация переменных для цикла
+  let currentG1 = p1Data.sports?.[sport]?.globalElo ?? 1000;
+  let currentG2 = p2Data.sports?.[sport]?.globalElo ?? 1000;
+
+  // Берем рейтинги из member объекта
+  let currentRoom1 = member1.rating ?? 1000;
+  let currentRoom2 = member2.rating ?? 1000;
+
+  // Счетчики для статистики
+  let totalWinsP1 = 0;
+  let totalWinsP2 = 0;
+
+  // Статистика тенниса
+  const tennisStatsP1 = { aces: 0, doubleFaults: 0, winners: 0 };
+  const tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
+
+  const mode: RoomMode = roomData.mode || 'office';
+  const baseK = typeof roomData.kFactor === 'number' ? roomData.kFactor : 32;
+  const isRankedRoom = roomData.isRanked !== false;
+
+  const batch = db.batch();
+  const startDate = new Date();
+
+  // 5. Обработка каждого матча/сета в массиве
+  for (let i = 0; i < matches.length; i++) {
+    const game = matches[i];
+    const score1 = Number(game.score1);
+    const score2 = Number(game.score2);
+
+    // Подсчет количества сыгранных матчей для Dynamic K
+    // (Текущее кол-во в базе + уже сыгранные в этом цикле)
+    const p1MatchesPlayed = (member1.wins ?? 0) + (member1.losses ?? 0) + i;
+    const p2MatchesPlayed = (member2.wins ?? 0) + (member2.losses ?? 0) + i;
+
+    // Сохраняем старые рейтинги для записи в историю матча
+    const oldG1 = currentG1;
+    const oldG2 = currentG2;
+    const oldRoom1 = currentRoom1;
+    const oldRoom2 = currentRoom2;
+
+    let d1_Global = 0;
+    let d2_Global = 0;
+    let d1_Room = 0;
+    let d2_Room = 0;
+
+    // --- GLOBAL ---
+    if (isRankedRoom) {
+      d1_Global = calcDeltaImport(
+        oldG1,
+        oldG2,
+        score1,
+        score2,
+        true,
+        'professional',
+        32
+      );
+      d2_Global = calcDeltaImport(
+        oldG2,
+        oldG1,
+        score2,
+        score1,
+        true,
+        'professional',
+        32
+      );
+
+      currentG1 += d1_Global;
+      currentG2 += d2_Global;
+    }
+
+    // --- ROOM ---
+    const k1 = getDynamicK(baseK, p1MatchesPlayed, mode);
+    const k2 = getDynamicK(baseK, p2MatchesPlayed, mode);
+
+    d1_Room = calcDeltaImport(
+      oldRoom1,
+      oldRoom2,
+      score1,
+      score2,
+      false,
+      mode,
+      k1
+    );
+    d2_Room = calcDeltaImport(
+      oldRoom2,
+      oldRoom1,
+      score2,
+      score1,
+      false,
+      mode,
+      k2
+    );
+
+    currentRoom1 += d1_Room;
+    currentRoom2 += d2_Room;
+
+    // Статистика побед
+    if (score1 > score2) totalWinsP1++;
+    else totalWinsP2++;
+
+    // Подготовка данных для матча
+    let player1Extra: any = {};
+    let player2Extra: any = {};
+
+    if (sport === 'tennis') {
+      const p1Aces = Number(game.aces1) || 0;
+      const p1Df = Number(game.doubleFaults1) || 0;
+      const p1Win = Number(game.winners1) || 0;
+
+      const p2Aces = Number(game.aces2) || 0;
+      const p2Df = Number(game.doubleFaults2) || 0;
+      const p2Win = Number(game.winners2) || 0;
+
+      player1Extra = { aces: p1Aces, doubleFaults: p1Df, winners: p1Win };
+      player2Extra = { aces: p2Aces, doubleFaults: p2Df, winners: p2Win };
+
+      tennisStatsP1.aces += p1Aces;
+      tennisStatsP1.doubleFaults += p1Df;
+      tennisStatsP1.winners += p1Win;
+      tennisStatsP2.aces += p2Aces;
+      tennisStatsP2.doubleFaults += p2Df;
+      tennisStatsP2.winners += p2Win;
+    } else {
+      player1Extra.side = game.side1 || 'left';
+      player2Extra.side = game.side2 || 'right';
+    }
+
+    // Создание документа матча
+    const matchDate = new Date(startDate.getTime() + i * 1000); // +1 сек для порядка
+    const matchRef = db.collection(`matches-${sport}`).doc();
+
+    batch.set(matchRef, {
+      roomId,
+      player1Id,
+      player2Id,
+      players: [player1Id, player2Id],
+      isRanked: isRankedRoom,
+      createdAt: getFinnishDate(matchDate),
+      timestamp: getFinnishDate(matchDate),
+      tsIso: matchDate.toISOString(),
+      winner: score1 > score2 ? p1Data.name || 'P1' : p2Data.name || 'P2',
+      player1: {
+        name: p1Data.name || p1Data.displayName || 'Unknown',
+        scores: score1,
+        oldRating: oldG1,
+        newRating: currentG1,
+        addedPoints: d1_Global,
+        roomOldRating: oldRoom1,
+        roomNewRating: currentRoom1,
+        roomAddedPoints: d1_Room,
+        ...player1Extra,
+      },
+      player2: {
+        name: p2Data.name || p2Data.displayName || 'Unknown',
+        scores: score2,
+        oldRating: oldG2,
+        newRating: currentG2,
+        addedPoints: d2_Global,
+        roomOldRating: oldRoom2,
+        roomNewRating: currentRoom2,
+        roomAddedPoints: d2_Room,
+        ...player2Extra,
+      },
+    });
+  }
+
+  // 6. Обновление Room Members (локальные рейтинги и статы)
+  // Обновляем данные в объектах массива (они ссылочные)
+  member1.rating = currentRoom1;
+  member1.globalElo = currentG1;
+  member1.wins = (member1.wins || 0) + totalWinsP1;
+  member1.losses = (member1.losses || 0) + totalWinsP2;
+
+  member2.rating = currentRoom2;
+  member2.globalElo = currentG2;
+  member2.wins = (member2.wins || 0) + totalWinsP2;
+  member2.losses = (member2.losses || 0) + totalWinsP1;
+
+  batch.update(roomRef, { members: members });
+
+  // 7. Обновление User Profiles (Глобальные статы)
+  const updateUserStats = (
+    ref: any,
+    newGlobalElo: number,
+    winsToAdd: number,
+    lossesToAdd: number,
+    tennisStats: any
+  ) => {
+    const updateData: any = {
+      [`sports.${sport}.wins`]: admin.firestore.FieldValue.increment(winsToAdd),
+      [`sports.${sport}.losses`]:
+        admin.firestore.FieldValue.increment(lossesToAdd),
+    };
+
+    if (isRankedRoom) {
+      updateData[`sports.${sport}.globalElo`] = newGlobalElo;
+      updateData[`sports.${sport}.eloHistory`] =
+        admin.firestore.FieldValue.arrayUnion({
+          ts: new Date().toISOString(),
+          elo: newGlobalElo,
+        });
+    }
+
+    if (sport === 'tennis') {
+      updateData[`sports.tennis.aces`] = admin.firestore.FieldValue.increment(
+        tennisStats.aces
+      );
+      updateData[`sports.tennis.doubleFaults`] =
+        admin.firestore.FieldValue.increment(tennisStats.doubleFaults);
+      updateData[`sports.tennis.winners`] =
+        admin.firestore.FieldValue.increment(tennisStats.winners);
+    }
+
+    batch.update(ref, updateData);
+  };
+
+  updateUserStats(p1Ref, currentG1, totalWinsP1, totalWinsP2, tennisStatsP1);
+  updateUserStats(p2Ref, currentG2, totalWinsP2, totalWinsP1, tennisStatsP2);
+
+  await batch.commit();
+
+  return { success: true, gamesRecorded: matches.length };
+});

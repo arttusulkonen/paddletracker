@@ -2,24 +2,24 @@
 'use client';
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  ScrollArea,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	ScrollArea,
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
 } from '@/components/ui';
 import type { Room } from '@/lib/types';
 import type { User } from 'firebase/auth';
@@ -59,21 +59,17 @@ export function MembersList({
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<ViewMode>('regular');
 
-  // Единая логика расчета (как в StandingsTable и season.ts)
   const computed = useMemo(() => {
     const arr = Array.isArray(members) ? members : [];
 
-    // 1. Подготовка базовых данных
     const base = arr.map((p: any) => {
       const totalMatches = Number.isFinite(p.totalMatches)
         ? Number(p.totalMatches)
         : Number(p.wins ?? 0) + Number(p.losses ?? 0);
 
       const roomRating = Number(p.rating ?? 1000);
-      // Total Added Points (Net Points) = Rating - 1000
       const totalAddedPoints = roomRating - 1000;
 
-      // Расчет винрейта для сортировки
       const winRate =
         totalMatches > 0 ? (Number(p.wins ?? 0) / totalMatches) * 100 : 0;
 
@@ -86,7 +82,6 @@ export function MembersList({
       };
     });
 
-    // 2. Расчет среднего кол-ва матчей (среди активных)
     const activePlayers = base.filter((p: any) => p.totalMatches > 0);
     const totalMatchesAll = activePlayers.reduce(
       (sum: number, r: any) => sum + r.totalMatches,
@@ -95,7 +90,6 @@ export function MembersList({
     const avgM =
       activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
 
-    // 3. Расчет Adjusted Points
     const adjFactor = (ratio: number) => {
       if (!isFinite(ratio) || ratio <= 0) return 0;
       return Math.sqrt(ratio);
@@ -107,25 +101,26 @@ export function MembersList({
     }));
   }, [members]);
 
-  // Сортировка
   const sortedMembers = useMemo(() => {
     return [...computed].sort((a, b) => {
       if (viewMode === 'regular') {
-        // Regular: Rating -> WinRate -> Wins
         if (a.ratingVisible !== b.ratingVisible)
           return a.ratingVisible ? -1 : 1;
         if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
         return b.totalMatches - a.totalMatches;
       } else {
-        // Live Final: AdjPoints -> TotalPoints -> WinRate
         const aZero = a.totalMatches === 0;
         const bZero = b.totalMatches === 0;
         if (aZero !== bZero) return aZero ? 1 : -1;
 
         if (b.adjPointsLive !== a.adjPointsLive)
           return b.adjPointsLive - a.adjPointsLive;
-        if (b.totalAddedPoints !== a.totalAddedPoints)
-          return b.totalAddedPoints - a.totalAddedPoints;
+        
+        // FIX: Sort by totalAddedPoints instead of raw rating for consistency
+        if ((b.totalAddedPoints ?? 0) !== (a.totalAddedPoints ?? 0)) 
+          return (b.totalAddedPoints ?? 0) - (a.totalAddedPoints ?? 0);
+          
+        if (b.wins !== a.wins) return b.wins - a.wins;
         return b.winRate - a.winRate;
       }
     });
@@ -174,7 +169,6 @@ export function MembersList({
         {sortedMembers.map((p, index) => {
           const rank = getRank(p.globalElo ?? 1000, t);
 
-          // Значение справа (Rating или Adj Points)
           let rightValueNode;
           if (viewMode === 'regular') {
             rightValueNode = p.ratingVisible ? (
@@ -185,7 +179,6 @@ export function MembersList({
               <span className='text-muted-foreground'>—</span>
             );
           } else {
-            // Live Final Mode
             if (p.totalMatches === 0) {
               rightValueNode = <span className='text-muted-foreground'>—</span>;
             } else {
@@ -208,7 +201,6 @@ export function MembersList({
               className='flex items-center justify-between p-2 hover:bg-muted/50 rounded-md transition-colors group relative'
             >
               <div className='flex items-center gap-3 flex-grow min-w-0'>
-                {/* Rank Number (only for Live Final to show projected finish) */}
                 {viewMode === 'liveFinal' && (
                   <div
                     className={`w-5 text-center font-mono text-xs font-bold ${
@@ -269,7 +261,6 @@ export function MembersList({
                       </span>
                     </span>
 
-                    {/* В режиме Live Final показываем чистый прирост (Net Points) */}
                     {viewMode === 'liveFinal' && p.totalMatches > 0 && (
                       <>
                         <span className='opacity-50'>·</span>

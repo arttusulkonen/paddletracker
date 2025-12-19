@@ -1,0 +1,326 @@
+{
+  "meta": {
+    "collection": "rooms-badminton",
+    "totalDocs": 1,
+    "exportedAt": "2025-12-09T11:13:37.070Z",
+    "variationsCount": 1
+  },
+  "latest": {
+    "_note": "LATEST DOCUMENT (Date: 2025-08-19T11:59:12.000Z)",
+    "_id": "8JFKBWX5cxYoWtqMXNwP",
+    "name": "Sukapalo kerho",
+    "description": "",
+    "avatarURL": "",
+    "creator": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+    "creatorName": "Arttu",
+    "createdAt": "19.08.2025 14.59.12",
+    "isPublic": true,
+    "isRanked": true,
+    "adminIds": [
+      "NoYtP49TLoUHOiNEcknW63cw2mw2"
+    ],
+    "isArchived": false,
+    "memberIds": [
+      "NoYtP49TLoUHOiNEcknW63cw2mw2",
+      "fg3vq77SLzQwl930a3cRKZqUZEm1",
+      "l4epOv22PUbWwhGav0fKyZb4YDj1",
+      "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+      "aULkyufbaLOdfyU1rrc7wFQbtF02",
+      "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+      "u47gManVVuaRui2r9d5I9LPtMyp2",
+      "TboklILVRzZihfvEhB1CMRdPCkH2",
+      "uivJ1hWZrDOSFUow86VRb6iy55J2",
+      "SaHn1MifFFPG0Jbsr3rXP2IE1KL2",
+      "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+      "emy5n4URBVUTVLfC72cwiJpOvrF2"
+    ],
+    "members": [
+      {
+        "losses": 1,
+        "rating": 985,
+        "role": "admin",
+        "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+        "wins": 1,
+        "date": "19.08.2025 14.59.12",
+        "email": "arttu.sulkonen@icloud.com",
+        "globalElo": 985,
+        "name": "Arttu"
+      },
+      {
+        "wins": 0,
+        "role": "editor",
+        "email": "avvt98@gmail.com",
+        "losses": 0,
+        "name": "Anton",
+        "date": "19.08.2025 14.59.12",
+        "rating": 1000,
+        "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1"
+      },
+      {
+        "wins": 1,
+        "role": "editor",
+        "name": "Janne",
+        "date": "19.08.2025 14.59.12",
+        "rating": 999,
+        "email": "janne.rattya@redandblue.fi",
+        "losses": 1,
+        "globalElo": 999,
+        "userId": "l4epOv22PUbWwhGav0fKyZb4YDj1"
+      },
+      {
+        "losses": 0,
+        "role": "editor",
+        "name": "Jones",
+        "email": "joona.makinen@redandblue.fi",
+        "wins": 0,
+        "rating": 1000,
+        "userId": "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+        "date": "19.08.2025 14.59.12"
+      },
+      {
+        "rating": 1016,
+        "date": "19.08.2025 14.59.12",
+        "wins": 1,
+        "email": "jukka@redandblue.fi",
+        "name": "Jukka",
+        "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "role": "editor",
+        "globalElo": 1016,
+        "losses": 0
+      },
+      {
+        "rating": 1000,
+        "wins": 0,
+        "email": "meri.nyman@redandblue.fi",
+        "role": "editor",
+        "date": "19.08.2025 14.59.12",
+        "userId": "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+        "losses": 0,
+        "name": "Meri"
+      },
+      {
+        "name": "Osmo",
+        "losses": 0,
+        "wins": 0,
+        "email": "osmo@redandblue.fi",
+        "date": "19.08.2025 14.59.12",
+        "rating": 1000,
+        "userId": "u47gManVVuaRui2r9d5I9LPtMyp2",
+        "role": "editor"
+      },
+      {
+        "wins": 1,
+        "losses": 1,
+        "rating": 1000,
+        "role": "editor",
+        "globalElo": 1000,
+        "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "date": "19.08.2025 14.59.12",
+        "email": "paavo@redandblue.fi",
+        "name": "Paavo"
+      },
+      {
+        "rating": 1000,
+        "role": "editor",
+        "name": "samuli",
+        "losses": 0,
+        "wins": 0,
+        "date": "19.08.2025 14.59.12",
+        "userId": "uivJ1hWZrDOSFUow86VRb6iy55J2",
+        "email": "samuli.lindberg@redandblue.fi"
+      },
+      {
+        "rating": 1000,
+        "wins": 0,
+        "date": "19.08.2025 14.59.12",
+        "name": "Timo",
+        "role": "editor",
+        "email": "timo.harju@redandblue.fi",
+        "losses": 0,
+        "userId": "SaHn1MifFFPG0Jbsr3rXP2IE1KL2"
+      },
+      {
+        "date": "19.08.2025 14.59.12",
+        "losses": 0,
+        "rating": 1017,
+        "role": "editor",
+        "email": "teemu.vitikainen@redandblue.fi",
+        "wins": 0,
+        "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+        "name": "Viti",
+        "globalElo": 1017
+      },
+      {
+        "losses": 1,
+        "rating": 983,
+        "globalElo": 983,
+        "role": "editor",
+        "name": "Moon",
+        "email": "jungsoo.moon@redandblue.fi",
+        "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+        "wins": 0,
+        "date": "2025-08-19T12:02:32.615Z"
+      }
+    ]
+  },
+  "allStructureVariations": [
+    {
+      "_note": "Structure Variant (Keys: _id|adminIds|avatarURL|createdAt|creator|creatorName|description|isArchived|isPublic|isRanked|memberIds|members|name)",
+      "_id": "8JFKBWX5cxYoWtqMXNwP",
+      "name": "Sukapalo kerho",
+      "description": "",
+      "avatarURL": "",
+      "creator": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+      "creatorName": "Arttu",
+      "createdAt": "19.08.2025 14.59.12",
+      "isPublic": true,
+      "isRanked": true,
+      "adminIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2"
+      ],
+      "isArchived": false,
+      "memberIds": [
+        "NoYtP49TLoUHOiNEcknW63cw2mw2",
+        "fg3vq77SLzQwl930a3cRKZqUZEm1",
+        "l4epOv22PUbWwhGav0fKyZb4YDj1",
+        "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+        "aULkyufbaLOdfyU1rrc7wFQbtF02",
+        "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+        "u47gManVVuaRui2r9d5I9LPtMyp2",
+        "TboklILVRzZihfvEhB1CMRdPCkH2",
+        "uivJ1hWZrDOSFUow86VRb6iy55J2",
+        "SaHn1MifFFPG0Jbsr3rXP2IE1KL2",
+        "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+        "emy5n4URBVUTVLfC72cwiJpOvrF2"
+      ],
+      "members": [
+        {
+          "losses": 1,
+          "rating": 985,
+          "role": "admin",
+          "userId": "NoYtP49TLoUHOiNEcknW63cw2mw2",
+          "wins": 1,
+          "date": "19.08.2025 14.59.12",
+          "email": "arttu.sulkonen@icloud.com",
+          "globalElo": 985,
+          "name": "Arttu"
+        },
+        {
+          "wins": 0,
+          "role": "editor",
+          "email": "avvt98@gmail.com",
+          "losses": 0,
+          "name": "Anton",
+          "date": "19.08.2025 14.59.12",
+          "rating": 1000,
+          "userId": "fg3vq77SLzQwl930a3cRKZqUZEm1"
+        },
+        {
+          "wins": 1,
+          "role": "editor",
+          "name": "Janne",
+          "date": "19.08.2025 14.59.12",
+          "rating": 999,
+          "email": "janne.rattya@redandblue.fi",
+          "losses": 1,
+          "globalElo": 999,
+          "userId": "l4epOv22PUbWwhGav0fKyZb4YDj1"
+        },
+        {
+          "losses": 0,
+          "role": "editor",
+          "name": "Jones",
+          "email": "joona.makinen@redandblue.fi",
+          "wins": 0,
+          "rating": 1000,
+          "userId": "EN6TtxbbXGNm59NsE3jFjMaukpq1",
+          "date": "19.08.2025 14.59.12"
+        },
+        {
+          "rating": 1016,
+          "date": "19.08.2025 14.59.12",
+          "wins": 1,
+          "email": "jukka@redandblue.fi",
+          "name": "Jukka",
+          "userId": "aULkyufbaLOdfyU1rrc7wFQbtF02",
+          "role": "editor",
+          "globalElo": 1016,
+          "losses": 0
+        },
+        {
+          "rating": 1000,
+          "wins": 0,
+          "email": "meri.nyman@redandblue.fi",
+          "role": "editor",
+          "date": "19.08.2025 14.59.12",
+          "userId": "1QqY3Y4p03Paa2NZfbrTtwi2fIs2",
+          "losses": 0,
+          "name": "Meri"
+        },
+        {
+          "name": "Osmo",
+          "losses": 0,
+          "wins": 0,
+          "email": "osmo@redandblue.fi",
+          "date": "19.08.2025 14.59.12",
+          "rating": 1000,
+          "userId": "u47gManVVuaRui2r9d5I9LPtMyp2",
+          "role": "editor"
+        },
+        {
+          "wins": 1,
+          "losses": 1,
+          "rating": 1000,
+          "role": "editor",
+          "globalElo": 1000,
+          "userId": "TboklILVRzZihfvEhB1CMRdPCkH2",
+          "date": "19.08.2025 14.59.12",
+          "email": "paavo@redandblue.fi",
+          "name": "Paavo"
+        },
+        {
+          "rating": 1000,
+          "role": "editor",
+          "name": "samuli",
+          "losses": 0,
+          "wins": 0,
+          "date": "19.08.2025 14.59.12",
+          "userId": "uivJ1hWZrDOSFUow86VRb6iy55J2",
+          "email": "samuli.lindberg@redandblue.fi"
+        },
+        {
+          "rating": 1000,
+          "wins": 0,
+          "date": "19.08.2025 14.59.12",
+          "name": "Timo",
+          "role": "editor",
+          "email": "timo.harju@redandblue.fi",
+          "losses": 0,
+          "userId": "SaHn1MifFFPG0Jbsr3rXP2IE1KL2"
+        },
+        {
+          "date": "19.08.2025 14.59.12",
+          "losses": 0,
+          "rating": 1017,
+          "role": "editor",
+          "email": "teemu.vitikainen@redandblue.fi",
+          "wins": 0,
+          "userId": "jJ4qztwdY9Vj5YOqtgn4ZBL25AE3",
+          "name": "Viti",
+          "globalElo": 1017
+        },
+        {
+          "losses": 1,
+          "rating": 983,
+          "globalElo": 983,
+          "role": "editor",
+          "name": "Moon",
+          "email": "jungsoo.moon@redandblue.fi",
+          "userId": "emy5n4URBVUTVLfC72cwiJpOvrF2",
+          "wins": 0,
+          "date": "2025-08-19T12:02:32.615Z"
+        }
+      ]
+    }
+  ]
+}
