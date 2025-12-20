@@ -1,4 +1,3 @@
-// src/components/layout/Navbar.tsx
 'use client';
 import {
 	Avatar,
@@ -16,7 +15,7 @@ import {
 	SheetTrigger,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
+import { useSport } from '@/contexts/SportContext';
 import { cn } from '@/lib/utils';
 import {
 	Bell,
@@ -26,9 +25,7 @@ import {
 	LogIn,
 	Menu,
 	ShieldCheck,
-	TrophyIcon,
 	UserCircle,
-	UsersIcon,
 	Warehouse,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -51,7 +48,6 @@ const MobileNav = ({
   isCoach: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { sport, setSport } = useSport();
   const { i18n } = useTranslation();
 
   const LANGS = [
@@ -85,7 +81,7 @@ const MobileNav = ({
             <div className='font-bold text-lg mb-1'>{t('Menu')}</div>
             {user && (
                <div className='text-xs text-muted-foreground'>
-                  {isCoach ? t('Coach Account') : t('Player Account')}
+                  {isCoach ? t('Organizer Account') : t('Player Account')}
                </div>
             )}
         </div>
@@ -97,24 +93,12 @@ const MobileNav = ({
             
             {user && (
               <>
-                {/* GENERAL SECTION */}
-                <div className='my-2'>
-                  <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Play')}</div>
-                  <NavLink href='/rooms' onClick={close}>
-                    <UsersIcon className="w-4 h-4" /> {t('Rooms')}
-                  </NavLink>
-                  <NavLink href='/tournaments' onClick={close}>
-                    <TrophyIcon className="w-4 h-4" /> {t('Tournaments')}
-                  </NavLink>
-                </div>
-
-                {/* COMMUNITY / MANAGE SECTION (AVAILABLE TO ALL) */}
+                {/* COMMUNITY / MANAGE SECTION */}
                 <div className='my-2'>
                   <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Community')}</div>
                   <NavLink href='/manage/communities' onClick={close}>
                     <Warehouse className="w-4 h-4 text-primary" /> {t('Communities')}
                   </NavLink>
-                  {/* Optional: Show explicit link to players if needed, otherwise accessed via communities tabs */}
                   <NavLink href='/manage/players' onClick={close}>
                     <Briefcase className="w-4 h-4" /> {t('My Players')}
                   </NavLink>
@@ -134,39 +118,6 @@ const MobileNav = ({
         </div>
 
         <div className='p-6 bg-muted/20 border-t space-y-4'>
-            {/* Sport Switcher */}
-            <div>
-              <div className='mb-2 text-xs font-medium text-muted-foreground'>
-                {t('Sport')}
-              </div>
-              <div className='flex items-center gap-2 flex-wrap'>
-                {Object.keys(sportConfig).map((key) => {
-                  const k = key as Sport;
-                  const active = sport === k;
-                  return (
-                    <Button
-                      key={k}
-                      variant={active ? 'default' : 'outline'}
-                      size='sm'
-                      className={cn(
-                        'gap-2 h-8',
-                        active && 'ring-1 ring-offset-1'
-                      )}
-                      onClick={() => {
-                        setSport(k);
-                        close();
-                      }}
-                    >
-                      <span className='inline-flex h-3 w-3 items-center justify-center'>
-                        {sportConfig[k].icon}
-                      </span>
-                      <span className='text-xs'>{sportConfig[k].name}</span>
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* Lang Switcher */}
             <div>
               <div className='mb-2 text-xs font-medium text-muted-foreground'>
@@ -229,7 +180,7 @@ export function Navbar() {
   const { t, i18n } = useTranslation();
   const { user, userProfile, roomRequestCount, loading, logout, isGlobalAdmin } = useAuth();
   const router = useRouter();
-  const { sport, setSport, config } = useSport();
+  const { config } = useSport();
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -244,7 +195,6 @@ export function Navbar() {
   const friendReqCount = userProfile?.incomingRequests?.length ?? 0;
   const totalReqCount = friendReqCount + roomRequestCount;
   
-  // Role checks
   const isCoach = userProfile?.accountType === 'coach' || userProfile?.roles?.includes('coach') || false;
 
   if (!hasMounted) {
@@ -328,12 +278,6 @@ export function Navbar() {
           <nav className='hidden md:flex items-center gap-1'>
             {user && (
               <>
-                <DesktopLink href='/rooms' icon={<UsersIcon className="w-4 h-4"/>} label={t('Rooms')} />
-                <DesktopLink href='/tournaments' icon={<TrophyIcon className="w-4 h-4"/>} label={t('Tournaments')} />
-                
-                <div className="w-px h-6 bg-border mx-2" />
-
-                {/* Visible to EVERYONE now */}
                 <DesktopLink 
                     href='/manage/communities' 
                     icon={<Warehouse className="w-4 h-4" />} 
@@ -355,35 +299,6 @@ export function Navbar() {
 
         {/* Right Actions */}
         <div className='flex items-center gap-1 sm:gap-2'>
-          {/* Sport Selector (Desktop) */}
-          <div className='hidden md:block'>
-            <DropdownMenu>
-              {user && (
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant='ghost'
-                    className='flex items-center gap-2 text-muted-foreground hover:text-foreground'
-                  >
-                    {config.icon}
-                    <span className='text-sm font-medium'>{config.name}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-              )}
-              <DropdownMenuContent align='end'>
-                {Object.keys(sportConfig).map((sportKey) => (
-                  <DropdownMenuItem
-                    key={sportKey}
-                    onClick={() => setSport(sportKey as Sport)}
-                    className='flex items-center gap-2'
-                  >
-                    {sportConfig[sportKey as Sport].icon}
-                    <span>{sportConfig[sportKey as Sport].name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
           {/* Language Selector (Desktop) */}
           <div className='hidden md:block'>
             <DropdownMenu>
@@ -461,7 +376,6 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   
-                  {/* Communities available for ALL logged in users */}
                   <DropdownMenuItem asChild>
                     <Link href='/manage/communities' className="cursor-pointer">
                       <Warehouse className='mr-2 h-4 w-4' />
@@ -502,7 +416,6 @@ export function Navbar() {
   );
 }
 
-// Helper for desktop links
 function DesktopLink({ href, icon, label, variant = 'default' }: { href: string; icon: React.ReactNode; label: string; variant?: 'default' | 'admin' | 'coach' }) {
   const pathname = usePathname();
   const isActive = pathname.startsWith(href);

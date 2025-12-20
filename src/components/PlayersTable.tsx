@@ -1,28 +1,27 @@
-// src/components/PlayersTable.tsx
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui/card';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { sportConfig } from '@/contexts/SportContext';
@@ -31,15 +30,22 @@ import * as Friends from '@/lib/friends';
 import type { Sport, UserProfile } from '@/lib/types';
 import { medalMap } from '@/lib/utils/profileUtils';
 import {
-  collection,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
+	collection,
+	getDocs,
+	limit,
+	orderBy,
+	query,
+	where,
 } from 'firebase/firestore';
-import { BarChartHorizontal, Percent, Shield, Users } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import {
+	BarChartHorizontal,
+	Building2,
+	Percent,
+	Shield,
+	Users,
+} from 'lucide-react';
+import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface PlayersTableProps {
@@ -55,6 +61,8 @@ type PlayerData = {
   losses: number;
   isFriend: boolean;
   isSelf?: boolean;
+  communityName?: string;
+  communityId?: string;
 };
 
 const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
@@ -73,16 +81,19 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           collection(db, 'users'),
           where('isPublic', '==', true),
           orderBy(`sports.${sport}.globalElo`, 'desc'),
-          limit(100)
+          limit(50)
         );
         const querySnapshot = await getDocs(q);
         const friends = new Set(userProfile?.friends || []);
-        const fetchedPlayers: PlayerData[] = [];
+
+        const rawPlayers: PlayerData[] = [];
+
         querySnapshot.forEach((d) => {
           const data = d.data() as UserProfile;
           if (data.isDeleted) return;
           const s = data.sports?.[sport];
-          fetchedPlayers.push({
+
+          rawPlayers.push({
             id: d.id,
             name: data.name || data.displayName || 'Anonymous',
             photoURL: data.photoURL,
@@ -92,7 +103,30 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
             isFriend: friends.has(d.id),
           });
         });
-        setPlayers(fetchedPlayers);
+
+        const communitiesSnap = await getDocs(collection(db, 'communities'));
+        const userToCommunityMap: Record<string, string> = {};
+
+        communitiesSnap.forEach((doc) => {
+          const cData = doc.data();
+          const members = cData.members || [];
+          const cName = cData.name;
+
+          if (Array.isArray(members)) {
+            members.forEach((uid: string) => {
+              if (!userToCommunityMap[uid]) {
+                userToCommunityMap[uid] = cName;
+              }
+            });
+          }
+        });
+
+        const finalPlayers = rawPlayers.map((p) => ({
+          ...p,
+          communityName: userToCommunityMap[p.id],
+        }));
+
+        setPlayers(finalPlayers);
       } catch (error) {
         console.error('Error fetching Global Ranking:', error);
         setPlayers([]);
@@ -117,6 +151,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           friendIds.length > 0
             ? await Friends.getMultipleUsersLite(friendIds)
             : [];
+
         const list: PlayerData[] = [];
         for (const friend of friendProfiles) {
           const s = friend.sports?.[sport] || {
@@ -134,6 +169,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
             isFriend: true,
           });
         }
+
         const selfSport = userProfile.sports?.[sport] || {
           globalElo: 1000,
           wins: 0,
@@ -149,13 +185,15 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           isFriend: false,
           isSelf: true,
         };
+
         const merged = [selfEntry, ...list];
         const dedup = Array.from(
           new Map(merged.map((p) => [p.id, p])).values()
         ).sort((a, b) => b.globalElo - a.globalElo);
+
         setMyCirclesPlayers(dedup);
       } catch (error) {
-        console.error('Error fetching Friends:', error); // <--- И ЗДЕСЬ
+        console.error('Error fetching Friends:', error);
         setMyCirclesPlayers([]);
       } finally {
         setLoadingFriends(false);
@@ -185,31 +223,35 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
   }
 
   return (
-    <Card>
+    <Card className='border-none shadow-md'>
       <CardHeader>
-        <CardTitle>Leaderboard ({sportConfig[sport].name})</CardTitle>
+        <CardTitle>
+          {t('Leaderboard')} ({sportConfig[sport].name})
+        </CardTitle>
         <CardDescription>
           {t(
             'Global and "My Circles" ranking based on ELO in the selected sport.'
           )}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <Tabs defaultValue='circles'>
-          <TabsList className='grid w-full grid-cols-2'>
-            <TabsTrigger value='circles'>
-              <Shield className='mr-2 h-4 w-4' />
-              {t('My Circles')}
-            </TabsTrigger>
-            <TabsTrigger value='global'>
-              <BarChartHorizontal className='mr-2 h-4 w-4' />
-              {t('Global Ranking')}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value='circles'>
+      <CardContent className='p-0 sm:p-6'>
+        <Tabs defaultValue='global' className='w-full'>
+          <div>
+            <TabsList className='grid w-full grid-cols-2 mb-4'>
+              <TabsTrigger value='global'>
+                <BarChartHorizontal className='mr-2 h-4 w-4' />
+                {t('Global')}
+              </TabsTrigger>
+              <TabsTrigger value='circles'>
+                <Shield className='mr-2 h-4 w-4' />
+                {t('My Circles')}
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value='circles' className='m-0'>
             <PlayerList players={myCirclesPlayers} />
           </TabsContent>
-          <TabsContent value='global'>
+          <TabsContent value='global' className='m-0'>
             <PlayerList players={players} />
           </TabsContent>
         </Tabs>
@@ -217,8 +259,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
     </Card>
   );
 };
-
-// --- НАЧАЛО ИЗМЕНЕНИЙ ---
 
 const PlayerList = ({ players }: { players: PlayerData[] }) => {
   const { t } = useTranslation();
@@ -234,8 +274,6 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
     );
   }
 
-  // Обновленная логика ELO на основе вашей функции.
-  // Эта функция возвращает КЛЮЧ для перевода и для medalMap.
   const getRankKey = (elo: number) => {
     if (elo < 1001) return 'Ping-Pong Padawan';
     if (elo < 1100) return 'Table-Tennis Trainee';
@@ -250,85 +288,94 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
     <div className='overflow-x-auto'>
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className='w-[50px]'>#</TableHead>
+          <TableRow className='hover:bg-transparent'>
+            <TableHead className='w-[10px] pl-4 text-center'>#</TableHead>
             <TableHead>{t('Player')}</TableHead>
-            <TableHead>{t('Rank')}</TableHead>
+            <TableHead className='hidden sm:table-cell'>
+              {t('Community')}
+            </TableHead>
             <TableHead className='text-right'>{t('ELO')}</TableHead>
-            <TableHead className='text-right'>{t('W / L')}</TableHead>
-            <TableHead className='text-right'>
+            <TableHead className='text-right hidden sm:table-cell'>
+              {t('W / L')}
+            </TableHead>
+            <TableHead className='text-right pr-4'>
               <div className='flex items-center justify-end gap-1'>
-                <Percent className='h-4 w-4' /> {t('Win Rate')}
+                <Percent className='h-3 w-3' />
               </div>
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {players.map((player, index) => {
-            // Вычисляем доп. данные
             const { globalElo, wins, losses } = player;
             const rankKey = getRankKey(globalElo);
-            const rankLabel = t(rankKey); // Переводим ключ
-            const medalSrc = medalMap[rankKey]; // Получаем медаль по ключу
+            const rankLabel = t(rankKey);
+            const medalSrc = medalMap[rankKey];
             const matches = wins + losses;
             const winRate = matches > 0 ? (wins / matches) * 100 : 0;
 
             return (
-              <TableRow key={player.id}>
-                <TableCell>{index + 1}</TableCell>
+              <TableRow key={player.id} className='group'>
+                <TableCell className='pl-4 text-center text-muted-foreground text-xs'>
+                  {index + 1}
+                </TableCell>
                 <TableCell>
-                  <a
+                  <Link
                     href={`/profile/${player.id}`}
-                    className='flex items-center gap-3 group'
+                    className='flex items-center gap-3'
                   >
-                    <Avatar className='h-9 w-9'>
-                      <AvatarImage src={player.photoURL || undefined} />
-                      <AvatarFallback>{player.name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <span className='font-medium group-hover:underline flex items-center'>
-                      {player.name}
-                      {player.isSelf && (
-                        <span className='ml-2 text-xs rounded px-1.5 py-0.5 bg-primary/10 text-primary'>
-                          {t('You')}
-                        </span>
+                    <div className='relative'>
+                      <Avatar className='h-8 w-8 sm:h-9 sm:w-9 border border-border'>
+                        <AvatarImage src={player.photoURL || undefined} />
+                        <AvatarFallback>{player.name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      {medalSrc && (
+                        <img
+                          src={medalSrc}
+                          alt={rankLabel}
+                          className='absolute -bottom-1 -right-1 h-4 w-4 drop-shadow-sm'
+                          title={rankLabel}
+                        />
                       )}
-                      {player.isFriend && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Users className='inline-block ml-2 h-4 w-4 text-blue-500' />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{t('In your friend list')}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </span>
-                  </a>
+                    </div>
+                    <div className='flex flex-col'>
+                      <span className='font-medium text-sm flex items-center gap-1 group-hover:text-primary transition-colors'>
+                        {player.name}
+                        {player.isSelf && (
+                          <span className='text-[10px] rounded px-1 py-0.5 bg-primary/10 text-primary font-bold'>
+                            {t('YOU')}
+                          </span>
+                        )}
+                      </span>
+                      <span className='text-[10px] text-muted-foreground sm:hidden'>
+                        {player.communityName}
+                      </span>
+                    </div>
+                  </Link>
                 </TableCell>
-                {/* Ячейка для Ранга */}
-                <TableCell>
-                  <div className='flex items-center gap-2'>
-                    {medalSrc && (
-                      <img src={medalSrc} alt={rankLabel} className='h-7 w-7' />
-                    )}
-                    <span className='text-xs text-muted-foreground'>
-                      {rankLabel}
-                    </span>
-                  </div>
+
+                <TableCell className='hidden sm:table-cell'>
+                  {player.communityName ? (
+                    <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                      <Building2 className='h-3 w-3' />
+                      <span>{player.communityName}</span>
+                    </div>
+                  ) : (
+                    <span className='text-muted-foreground/30 text-xs'>-</span>
+                  )}
                 </TableCell>
-                {/* Ячейка ELO */}
-                <TableCell className='text-right font-bold'>
+
+                <TableCell className='text-right font-bold text-sm'>
                   {player.globalElo.toFixed(0)}
                 </TableCell>
-                {/* Ячейка W / L */}
-                <TableCell className='text-right'>
-                  {player.wins} / {player.losses}
+
+                <TableCell className='text-right text-xs text-muted-foreground hidden sm:table-cell'>
+                  <span className='text-green-600'>{player.wins}</span> /{' '}
+                  <span className='text-red-500'>{player.losses}</span>
                 </TableCell>
-                {/* Ячейка для Win Rate */}
-                <TableCell className='text-right text-muted-foreground'>
-                  {winRate.toFixed(1)}%
+
+                <TableCell className='text-right pr-4 text-xs font-medium'>
+                  {winRate.toFixed(0)}%
                 </TableCell>
               </TableRow>
             );
@@ -338,7 +385,5 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
     </div>
   );
 };
-
-// --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
 export default PlayersTable;

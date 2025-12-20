@@ -546,7 +546,7 @@ export default function WrapPage() {
   const handleShare = () => {
     if (!agg) return;
     const text =
-      `My ${year} in PaddleTracker 🏓\n` +
+      `My ${year} in SmashLog 🏓\n` +
       `🏆 ${agg.userStats.wins} Wins\n` +
       `🔥 ${agg.userStats.maxStreak} Max Streak\n` +
       `📈 ELO Change: ${agg.eloStats.eloDiff > 0 ? '+' : ''}${

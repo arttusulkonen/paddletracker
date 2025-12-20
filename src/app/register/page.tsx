@@ -1,4 +1,3 @@
-// src/app/register/page.tsx
 'use client';
 
 import ImageCropDialog from '@/components/ImageCropDialog';
@@ -24,7 +23,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db, storage } from '@/lib/firebase';
 import { getFinnishFormattedDate } from '@/lib/utils';
@@ -32,7 +30,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
-import { Briefcase, Ghost, Shield, User, UserPlus } from 'lucide-react';
+import { Building2, Ghost, User, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -54,7 +52,7 @@ export default function RegisterPage() {
 
   const claimUid = searchParams?.get('claim');
   const [ghostUser, setGhostUser] = useState<any>(null);
-  const [isClaimLoading, setIsClaimLoading] = useState(!!claimUid);
+  const [, setIsClaimLoading] = useState(!!claimUid);
 
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
   const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
@@ -81,10 +79,6 @@ export default function RegisterPage() {
     }),
     reason: z.string().optional(),
     isPublic: z.boolean().default(true),
-    // Removed 'terms' validation requirement for MVP or make it optional if checkbox not shown
-    // terms: z.boolean().refine((val) => val === true, {
-    //   message: t('You must accept the terms and conditions'),
-    // }),
   });
 
   type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -107,8 +101,7 @@ export default function RegisterPage() {
     if (claimUid && db) {
       const fetchGhost = async () => {
         try {
-          // FIX: Added '!' to db because it's checked in useEffect dependency but TS needs assurance
-          const docRef = doc(db!, 'users', claimUid);
+          const docRef = doc(db, 'users', claimUid);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
             const data = snap.data();
@@ -168,7 +161,7 @@ export default function RegisterPage() {
 
   const uploadAvatar = async (uid: string): Promise<string | null> => {
     if (!avatarBlob || !storage) return null;
-    const storageRef = ref(storage!, `avatars/${uid}/${Date.now()}.jpg`);
+    const storageRef = ref(storage, `avatars/${uid}/${Date.now()}.jpg`);
     const task = uploadBytesResumable(storageRef, avatarBlob);
     return await new Promise<string | null>((resolve, reject) => {
       task.on(
@@ -253,7 +246,6 @@ export default function RegisterPage() {
         activeSport: 'pingpong',
       };
 
-      // Merge Ghost Data
       if (ghostUser) {
         newUserData.globalElo = ghostUser.globalElo ?? 1000;
         newUserData.matchesPlayed = ghostUser.matchesPlayed ?? 0;
@@ -262,7 +254,6 @@ export default function RegisterPage() {
         newUserData.eloHistory = ghostUser.eloHistory ?? [];
         newUserData.friends = ghostUser.friends ?? [];
         newUserData.rooms = ghostUser.rooms ?? [];
-        // Deep merge sports if needed, or just overwrite if ghost has better data
         if (ghostUser.sports) {
           newUserData.sports = { ...newUserData.sports, ...ghostUser.sports };
         }
@@ -317,7 +308,7 @@ export default function RegisterPage() {
 
   return (
     <div className='flex items-center justify-center min-h-[calc(100vh-10rem)] py-12'>
-      <Card className='w-full max-w-md shadow-xl border-t-4 border-t-primary'>
+      <Card className='w-full max-w-lg shadow-xl border-t-4 border-t-primary'>
         <CardHeader className='text-center pb-2'>
           <CardTitle className='text-3xl font-bold flex items-center justify-center gap-2'>
             {ghostUser ? (
@@ -395,12 +386,12 @@ export default function RegisterPage() {
                   name='accountType'
                   render={({ field }) => (
                     <FormItem className='space-y-3'>
-                      <FormLabel>{t('I am a...')}</FormLabel>
+                      <FormLabel className='text-base'>{t('I am a...')}</FormLabel>
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
                           defaultValue={field.value}
-                          className='grid grid-cols-2 gap-4'
+                          className='grid grid-cols-1 sm:grid-cols-2 gap-4'
                         >
                           <div>
                             <RadioGroupItem
@@ -410,12 +401,15 @@ export default function RegisterPage() {
                             />
                             <Label
                               htmlFor='role-player'
-                              className='flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-primary cursor-pointer h-full'
+                              className='flex flex-col h-full rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all'
                             >
-                              <User className='mb-2 h-6 w-6' />
-                              <div className='text-center font-semibold'>
-                                {t('Player')}
+                              <div className='flex items-center gap-2 mb-2'>
+                                <User className='h-5 w-5 text-primary' />
+                                <span className='font-bold text-lg'>{t('Player')}</span>
                               </div>
+                              <p className='text-xs text-muted-foreground leading-snug'>
+                                {t('Participate in matches, track your stats, join leagues.')}
+                              </p>
                             </Label>
                           </div>
                           <div>
@@ -426,12 +420,15 @@ export default function RegisterPage() {
                             />
                             <Label
                               htmlFor='role-coach'
-                              className='flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-primary cursor-pointer h-full'
+                              className='flex flex-col h-full rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all'
                             >
-                              <Briefcase className='mb-2 h-6 w-6' />
-                              <div className='text-center font-semibold'>
-                                {t('Coach / Organizer')}
+                              <div className='flex items-center gap-2 mb-2'>
+                                <Building2 className='h-5 w-5 text-primary' />
+                                <span className='font-bold text-lg'>{t('Organizer')}</span>
                               </div>
+                              <p className='text-xs text-muted-foreground leading-snug'>
+                                {t('Create communities, manage tournaments, oversee leagues.')}
+                              </p>
                             </Label>
                           </div>
                         </RadioGroup>
@@ -507,19 +504,19 @@ export default function RegisterPage() {
                 )}
               />
 
-              <Button type='submit' className='w-full' disabled={isLoading}>
+              <Button type='submit' className='w-full font-bold' size="lg" disabled={isLoading}>
                 {isLoading
                   ? t('Processing...')
                   : ghostUser
                   ? t('Activate Profile')
-                  : t('Register')}
+                  : t('Create Account')}
               </Button>
             </form>
           </Form>
         </CardContent>
         <div className='p-6 pt-0 text-center text-sm text-muted-foreground'>
-          <Link href='/login' className='hover:underline'>
-            {t('Back to Login')}
+          <Link href='/login' className='hover:underline hover:text-primary transition-colors'>
+            {t('Already have an account? Login')}
           </Link>
         </div>
       </Card>

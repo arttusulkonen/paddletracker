@@ -168,7 +168,7 @@ export default function ManagePlayersPage() {
         uid: newUserId,
         name: newGhostName.trim(),
         displayName: newGhostName.trim(),
-        email: `ghost_${Date.now()}@paddletracker.local`, // Fake email
+        email: `ghost_${Date.now()}@smashlog.local`, // Fake email
         managedBy: user.uid,
         isGhost: true,
         isClaimed: false,

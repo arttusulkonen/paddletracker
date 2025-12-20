@@ -1,4 +1,3 @@
-// src/components/LiveFeed.tsx
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +17,7 @@ import {
 	startAfter,
 	where,
 } from 'firebase/firestore';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Building2, Loader2, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -46,10 +45,11 @@ type Cursors = Record<Sport, DocumentSnapshot | null>;
 type Queues = Record<Sport, CombinedMatch[]>;
 type AllLoaded = Record<Sport, boolean>;
 
-const MatchItem: React.FC<{ match: CombinedMatch; t: any }> = ({
-  match,
-  t,
-}) => {
+const MatchItem: React.FC<{
+  match: CombinedMatch;
+  t: any;
+  communityName?: string;
+}> = ({ match, t, communityName }) => {
   const config = sportConfig[match.sport];
   const p1Won = match.player1.scores > match.player2.scores;
   const p2Won = match.player2.scores > match.player1.scores;
@@ -60,62 +60,77 @@ const MatchItem: React.FC<{ match: CombinedMatch; t: any }> = ({
     t
   );
 
-  // Fallback IDs if not present in player object directly
   const p1Id = match.player1Id;
   const p2Id = match.player2Id;
 
   return (
     <div
-      className={`flex items-start gap-3 p-3 border-b ${config.theme.border} border-l-4 rounded-r bg-card/50 hover:bg-accent/5 transition-colors`}
+      className={`relative flex flex-col gap-2 p-3 border-b ${config.theme.border} border-l-4 rounded-r bg-card/50 hover:bg-accent/5 transition-colors`}
     >
-      <div className={`mt-1 ${config.theme.primary}`}>
-        {React.cloneElement(config.icon as React.ReactElement, {
-          className: 'h-5 w-5',
-        })}
-      </div>
-      <div className='flex-grow text-sm'>
-        <div className='flex items-center gap-2'>
-          <Link
-            href={`/profile/${p1Id}`}
-            className='flex items-center gap-1.5 group'
-          >
-            <Avatar className='h-5 w-5'>
-              <AvatarImage src={p1.photoURL || undefined} />
-              <AvatarFallback className="text-[10px]">{p1.name?.[0]}</AvatarFallback>
-            </Avatar>
-            <span
-              className={`group-hover:underline ${p1Won ? 'font-bold' : ''}`}
-            >
-              {p1.name}
-            </span>
-          </Link>
-          <span className='text-xs text-muted-foreground'>vs</span>
-          <Link
-            href={`/profile/${p2Id}`}
-            className='flex items-center gap-1.5 group'
-          >
-            <Avatar className='h-5 w-5'>
-              <AvatarImage src={p2.photoURL || undefined} />
-              <AvatarFallback className="text-[10px]">{p2.name?.[0]}</AvatarFallback>
-            </Avatar>
-            <span
-              className={`group-hover:underline ${p2Won ? 'font-bold' : ''}`}
-            >
-              {p2.name}
-            </span>
-          </Link>
+      {/* Community Badge */}
+      {communityName && (
+        <div className='absolute top-2 right-2 flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold bg-muted/80 px-2 py-0.5 rounded-full z-10 max-w-[40%]'>
+          <Building2 className='h-3 w-3 shrink-0' />
+          <span className='truncate'>{communityName}</span>
         </div>
-        <div className='flex items-center justify-between mt-1.5'>
-          <div
-            className={`font-mono text-lg ${
-              p1Won ? 'text-green-600 dark:text-green-400' : 'text-destructive'
-            }`}
-          >
-            <span className={p1Won ? 'font-bold' : ''}>{p1.scores}</span>
-            <span className='text-muted-foreground mx-1'>-</span>
-            <span className={p2Won ? 'font-bold' : ''}>{p2.scores}</span>
+      )}
+
+      <div className='flex items-start gap-3 mt-1 pt-4 sm:pt-1'>
+        <div className={`mt-1 ${config.theme.primary}`}>
+          {React.cloneElement(config.icon as React.ReactElement, {
+            className: 'h-5 w-5',
+          })}
+        </div>
+        <div className='flex-grow text-sm'>
+          <div className='flex items-center gap-2 mt-1'>
+            <Link
+              href={`/profile/${p1Id}`}
+              className='flex items-center gap-1.5 group'
+            >
+              <Avatar className='h-5 w-5'>
+                <AvatarImage src={p1.photoURL || undefined} />
+                <AvatarFallback className='text-[10px]'>
+                  {p1.name?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <span
+                className={`group-hover:underline ${p1Won ? 'font-bold' : ''}`}
+              >
+                {p1.name}
+              </span>
+            </Link>
+            <span className='text-xs text-muted-foreground'>vs</span>
+            <Link
+              href={`/profile/${p2Id}`}
+              className='flex items-center gap-1.5 group'
+            >
+              <Avatar className='h-5 w-5'>
+                <AvatarImage src={p2.photoURL || undefined} />
+                <AvatarFallback className='text-[10px]'>
+                  {p2.name?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <span
+                className={`group-hover:underline ${p2Won ? 'font-bold' : ''}`}
+              >
+                {p2.name}
+              </span>
+            </Link>
           </div>
-          <span className='text-xs text-muted-foreground'>{timeAgo}</span>
+          <div className='flex items-center justify-between mt-2'>
+            <div
+              className={`font-mono text-lg ${
+                p1Won
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-destructive'
+              }`}
+            >
+              <span className={p1Won ? 'font-bold' : ''}>{p1.scores}</span>
+              <span className='text-muted-foreground mx-1'>-</span>
+              <span className={p2Won ? 'font-bold' : ''}>{p2.scores}</span>
+            </div>
+            <span className='text-xs text-muted-foreground'>{timeAgo}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -127,14 +142,14 @@ export const LiveFeed: React.FC = () => {
   const { user, userProfile } = useAuth();
   const { config } = useSport();
 
-  // State for visible room IDs
   const [visibleRoomIds, setVisibleRoomIds] = useState<string[]>([]);
   const [roomsReady, setRoomsReady] = useState(false);
+  const [roomToCommunityMap, setRoomToCommunityMap] = useState<
+    Record<string, string>
+  >({});
 
-  // Visible matches
   const [displayedMatches, setDisplayedMatches] = useState<CombinedMatch[]>([]);
-  
-  // Refs for queue management
+
   const queuesRef = useRef<Queues>({
     pingpong: [],
     tennis: [],
@@ -160,35 +175,70 @@ export const LiveFeed: React.FC = () => {
 
   const sports: Sport[] = ['pingpong', 'tennis', 'badminton'];
 
-  // Load IDs of rooms the user can see (public + their private rooms)
-  const loadVisibleRooms = useCallback(async () => {
-    if (!user || !config) return;
+  const loadVisibleRoomsAndCommunities = useCallback(async () => {
+    if (!user || !config || !db) return;
 
+    // 1. Build Community Map first (Global)
+    const tempMap: Record<string, string> = {};
+    try {
+      const communitiesSnap = await getDocs(collection(db, 'communities'));
+      communitiesSnap.forEach((doc) => {
+        const data = doc.data();
+        const cName = data.name;
+        const rooms = data.roomIds || [];
+        if (Array.isArray(rooms)) {
+          rooms.forEach((rid) => {
+            if (typeof rid === 'string') {
+              tempMap[rid] = cName;
+            }
+          });
+        }
+      });
+    } catch (e) {
+      console.error("Failed to load communities", e);
+    }
+
+    // 2. Identify Visible Rooms
     let allVisibleIds = new Set<string>();
     const roomCollections = sports.map((s) => sportConfig[s].collections.rooms);
 
     for (const collectionName of roomCollections) {
-      // 1. Public rooms
+      // Public Rooms
       const qPublic = query(
         collection(db, collectionName),
         where('isPublic', '==', true)
       );
       const snapPublic = await getDocs(qPublic);
-      snapPublic.docs.forEach((doc) => allVisibleIds.add(doc.id));
+      snapPublic.docs.forEach((doc) => {
+        allVisibleIds.add(doc.id);
+        // Fallback: If room doc has communityName and we missed it from 'communities'
+        const rData = doc.data();
+        if (rData.communityName && !tempMap[doc.id]) {
+            tempMap[doc.id] = rData.communityName;
+        }
+      });
 
-      // 2. Private rooms where user is member
+      // Member Rooms
       const qMember = query(
         collection(db, collectionName),
         where('isPublic', '!=', true),
         where('memberIds', 'array-contains', user.uid)
       );
       const snapMember = await getDocs(qMember);
-      snapMember.docs.forEach((doc) => allVisibleIds.add(doc.id));
+      snapMember.docs.forEach((doc) => {
+        allVisibleIds.add(doc.id);
+        // Fallback
+        const rData = doc.data();
+        if (rData.communityName && !tempMap[doc.id]) {
+            tempMap[doc.id] = rData.communityName;
+        }
+      });
     }
 
+    setRoomToCommunityMap(tempMap);
+
     if (allVisibleIds.size === 0) {
-      // Dummy ID to prevent query error with empty 'in' array
-      setVisibleRoomIds(['NO_VISIBLE_ROOMS']); 
+      setVisibleRoomIds(['NO_VISIBLE_ROOMS']);
     } else {
       setVisibleRoomIds(Array.from(allVisibleIds));
     }
@@ -197,9 +247,9 @@ export const LiveFeed: React.FC = () => {
 
   useEffect(() => {
     if (user && config && !roomsReady) {
-      loadVisibleRooms();
+      loadVisibleRoomsAndCommunities();
     }
-  }, [user, config, roomsReady, loadVisibleRooms]);
+  }, [user, config, roomsReady, loadVisibleRoomsAndCommunities]);
 
   const fetchQueue = useCallback(
     async (
@@ -212,8 +262,6 @@ export const LiveFeed: React.FC = () => {
 
       try {
         const collectionName = sportConfig[sport].collections.matches;
-        // Firestore 'in' limit is 10. For now, slice top 10. 
-        // Ideally needs batching if >10 rooms are relevant.
         const chunkedRoomIds = roomIds.slice(0, 10);
 
         if (chunkedRoomIds.length === 0) {
@@ -243,7 +291,7 @@ export const LiveFeed: React.FC = () => {
           sport: sport,
         }));
         const newCursor = snap.docs[snap.docs.length - 1];
-        
+
         return {
           matches: newMatches,
           cursor: newCursor,
@@ -267,13 +315,16 @@ export const LiveFeed: React.FC = () => {
         setDisplayedMatches([]);
         queuesRef.current = { pingpong: [], tennis: [], badminton: [] };
         cursorsRef.current = { pingpong: null, tennis: null, badminton: null };
-        allLoadedRef.current = { pingpong: false, tennis: false, badminton: false };
+        allLoadedRef.current = {
+          pingpong: false,
+          tennis: false,
+          badminton: false,
+        };
         setFullyLoaded(false);
       } else {
         setLoadingMore(true);
       }
 
-      // Fill empty queues
       const fetches: Promise<any>[] = [];
       for (const sport of sports) {
         if (
@@ -291,14 +342,7 @@ export const LiveFeed: React.FC = () => {
         const results = await Promise.all(fetches);
         for (const result of results) {
           if (!result || result.matches.length === 0) {
-             // If empty result but was expecting data, mark loaded to avoid loops
-             if (result && result.allLoaded) {
-                // Heuristic: check which sport this result might belong to isn't perfect 
-                // without passing sport back, but fetchQueue returns consistent objects
-                // In this simplified version, we rely on the loop order matching or explicit returns
-                // Better approach: fetchQueue should return { sport, ... }
-             }
-             continue;
+            continue;
           }
           anyFetched = true;
           const sport = result.matches[0]?.sport;
@@ -313,14 +357,15 @@ export const LiveFeed: React.FC = () => {
         }
       }
 
-      const remainingInQueues = sports.some((s) => queuesRef.current[s].length > 0);
+      const remainingInQueues = sports.some(
+        (s) => queuesRef.current[s].length > 0
+      );
       const remainingToLoad = sports.some((s) => !allLoadedRef.current[s]);
 
       if (!remainingInQueues && !remainingToLoad && !anyFetched) {
         setFullyLoaded(true);
       }
 
-      // K-Way Merge
       const newBatch: CombinedMatch[] = [];
       for (let i = 0; i < BATCH_SIZE; i++) {
         let bestMatch: CombinedMatch | null = null;
@@ -354,7 +399,7 @@ export const LiveFeed: React.FC = () => {
 
       if (isInitialLoad) setLoading(false);
       else setLoadingMore(false);
-      
+
       isLoadingMoreRef.current = false;
     },
     [fetchQueue, visibleRoomIds, roomsReady]
@@ -369,17 +414,19 @@ export const LiveFeed: React.FC = () => {
 
   const handleRefresh = () => {
     setRoomsReady(false);
-    hasLoadedInitialRef.current = true;
-    loadVisibleRooms().then(() => loadNextBatch(true));
+    hasLoadedInitialRef.current = false;
+    loadVisibleRoomsAndCommunities();
   };
 
   return (
     <Card className='shadow-lg border-none'>
       <CardHeader className='flex flex-row items-center justify-between pb-2'>
         <div>
-          <CardTitle className='text-lg font-bold'>{t('Live Match Feed')}</CardTitle>
+          <CardTitle className='text-lg font-bold'>
+            {t('Global Activity')}
+          </CardTitle>
           <CardDescription>
-            {t('Latest activity from your rooms')}
+            {t('Live updates from public and joined communities')}
           </CardDescription>
         </div>
         <Button
@@ -389,7 +436,11 @@ export const LiveFeed: React.FC = () => {
           disabled={loading || loadingMore}
           aria-label={t('Refresh feed')}
         >
-          <RefreshCw className={`h-4 w-4 ${loading || loadingMore ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            className={`h-4 w-4 ${
+              loading || loadingMore ? 'animate-spin' : ''
+            }`}
+          />
         </Button>
       </CardHeader>
       <CardContent className='space-y-4 pt-2'>
@@ -403,11 +454,18 @@ export const LiveFeed: React.FC = () => {
           </p>
         ) : (
           displayedMatches.map((match) => (
-            <MatchItem key={`${match.sport}-${match.id}`} match={match} t={t} />
+            <MatchItem
+              key={`${match.sport}-${match.id}`}
+              match={match}
+              t={t}
+              communityName={
+                match.roomId ? roomToCommunityMap[match.roomId] : undefined
+              }
+            />
           ))
         )}
       </CardContent>
-      <CardFooter className="flex flex-col gap-4">
+      <CardFooter className='flex flex-col gap-4'>
         {!loading && !fullyLoaded && displayedMatches.length > 0 && (
           <Button
             variant='outline'
@@ -415,7 +473,9 @@ export const LiveFeed: React.FC = () => {
             onClick={() => loadNextBatch(false)}
             disabled={loadingMore}
           >
-            {loadingMore ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+            {loadingMore ? (
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+            ) : null}
             {t('Load More')}
           </Button>
         )}

@@ -549,7 +549,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
 
   return (
     <div className='space-y-6'>
-      {playedSports.length > 1 && (
+      {/* {playedSports.length > 1 && (
         <Card>
           <CardContent className='p-4'>
             <div className='flex items-center gap-4'>
@@ -572,7 +572,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
             </div>
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'>
         <StatCard
