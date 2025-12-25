@@ -1,3 +1,4 @@
+// src/components/PlayersTable.tsx
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -91,8 +92,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           const data = d.data() as UserProfile;
           if (data.isDeleted) return;
           
-          // FIX: Removed exclusion of coaches.
-          
           const s = data.sports?.[sport];
 
           rawPlayers.push({
@@ -106,22 +105,38 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           });
         });
 
-        const communitiesSnap = await getDocs(collection(db, 'communities'));
         const userToCommunityMap: Record<string, string> = {};
+        const playerIds = rawPlayers.map((p) => p.id);
+        const chunkSize = 10;
+        const chunks = [];
 
-        communitiesSnap.forEach((doc) => {
-          const cData = doc.data();
-          const members = cData.members || [];
-          const cName = cData.name;
+        for (let i = 0; i < playerIds.length; i += chunkSize) {
+          chunks.push(playerIds.slice(i, i + chunkSize));
+        }
 
-          if (Array.isArray(members)) {
-            members.forEach((uid: string) => {
-              if (!userToCommunityMap[uid]) {
-                userToCommunityMap[uid] = cName;
+        await Promise.all(
+          chunks.map(async (chunk) => {
+            const communitiesQuery = query(
+              collection(db, 'communities'),
+              where('members', 'array-contains-any', chunk)
+            );
+            const communitiesSnap = await getDocs(communitiesQuery);
+            
+            communitiesSnap.forEach((doc) => {
+              const cData = doc.data();
+              const members = cData.members || [];
+              const cName = cData.name;
+
+              if (Array.isArray(members)) {
+                members.forEach((uid: string) => {
+                  if (playerIds.includes(uid) && !userToCommunityMap[uid]) {
+                    userToCommunityMap[uid] = cName;
+                  }
+                });
               }
             });
-          }
-        });
+          })
+        );
 
         const finalPlayers = rawPlayers.map((p) => ({
           ...p,
@@ -156,7 +171,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
         const list: PlayerData[] = [];
         for (const friend of friendProfiles) {
-          // FIX: Removed exclusion of coaches from friend list too.
           const s = friend.sports?.[sport] || {
             globalElo: 1000,
             wins: 0,
