@@ -50,24 +50,23 @@ export function ProfileSidebar({
         </CardHeader>
         <CardContent>
           <FriendsList targetProfile={targetProfile} />
-          {/* Show View All link logic remains similar or can be adapted */}
-          {!isCoach && targetProfile.friends && targetProfile.friends.length > 6 && (
-            <Link
-              href={`/profile/${targetProfile.uid}/friends`}
-              className='mt-4 block'
-            >
-              <Button variant='ghost' className='w-full text-xs'>
-                {t('View All Friends')}
-              </Button>
-            </Link>
-          )}
+          {!isCoach &&
+            targetProfile.friends &&
+            targetProfile.friends.length > 6 && (
+              <Link
+                href={`/profile/${targetProfile.uid}/friends`}
+                className='mt-4 block'
+              >
+                <Button variant='ghost' className='w-full text-xs'>
+                  {t('View All Friends')}
+                </Button>
+              </Link>
+            )}
         </CardContent>
       </Card>
 
-      {/* Communities (Only for coaches) */}
-      {isCoach && (
-         <CommunitiesList targetUid={targetProfile.uid} />
-      )}
+      {/* Communities (Visible for everyone) */}
+      <CommunitiesList targetUid={targetProfile.uid} />
 
       {/* Rooms Section */}
       <Card>

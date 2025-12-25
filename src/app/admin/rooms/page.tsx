@@ -1,191 +1,345 @@
-// src/app/admin/rooms/page.tsx
 'use client';
 
-import { collection, doc, getDoc, getDocs, query } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-
+import { ProtectedRoute } from '@/components/ProtectedRoutes';
+import { CreateRoomDialog } from '@/components/rooms/CreateRoomDialog';
+import { RoomCard } from '@/components/rooms/RoomCard';
 import {
 	Card,
-	CardContent,
 	CardDescription,
-	CardHeader,
 	CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+	Input,
+	Skeleton,
+} from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
-import { parseFlexDate } from '@/lib/utils/date';
-import { RoomCard, RoomData } from './RoomCard';
+import type { Room } from '@/lib/types';
+import {
+	collection,
+	doc,
+	type DocumentData,
+	getDoc,
+	getDocs,
+	onSnapshot,
+	query,
+	where,
+} from 'firebase/firestore';
+import { Search, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-export default function AdminRoomsPage() {
-  const { isGlobalAdmin, user } = useAuth();
-  const [ready, setReady] = useState(false);
-  const { toast } = useToast();
+// Хелпер для парсинга дат
+const parseRoomDate = (val: unknown): number => {
+  if (!val) return 0;
+  if (
+    typeof val === 'object' &&
+    val !== null &&
+    'toDate' in val &&
+    typeof (val as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return (val as { toDate: () => Date }).toDate().getTime();
+  }
+  if (typeof val === 'number') return val;
+  const str = String(val).trim();
+  if (str.includes('.')) {
+    const parts = str.split(' ');
+    const dateParts = parts[0].split('.');
+    const timeParts = parts[1] ? parts[1].split('.') : ['00', '00', '00'];
+    if (dateParts.length === 3) {
+      const d = new Date(
+        +dateParts[2],
+        +dateParts[1] - 1,
+        +dateParts[0],
+        +(timeParts[0] || 0),
+        +(timeParts[1] || 0),
+        +(timeParts[2] || 0)
+      );
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+  }
+  const iso = Date.parse(str);
+  if (!isNaN(iso)) return iso;
+  return 0;
+};
 
-  const [allRooms, setAllRooms] = useState<RoomData[]>([]);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+// Расширяем тип
+type RoomWithMeta = Room & {
+  isFinished?: boolean;
+  creatorName?: string;
+  _sortTs: number;
+  communityId?: string | null;
+  communityName?: string; // Add field
+};
 
-  const loadRooms = useCallback(async () => {
-    setLoading(true);
-    const roomsFromDB: Omit<RoomData, 'creatorName'>[] = [];
-    const sportCollections = [
-      'pingpong-rooms',
-      'tennis-rooms',
-      'badminton-rooms',
-    ];
+export default function RoomsPage() {
+  const { t } = useTranslation();
+  const { user, userProfile } = useAuth();
+  const { config } = useSport();
 
-    try {
-      for (const collectionName of sportCollections) {
-        const q = query(collection(db, collectionName));
-        const snapshot = await getDocs(q);
-        snapshot.forEach((doc) => {
-          const sport = collectionName.split('-')[0];
-          roomsFromDB.push({ id: doc.id, sport, ...(doc.data() as any) });
-        });
-      }
+  const [allRooms, setAllRooms] = useState<RoomWithMeta[]>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [myMatches, setMyMatches] = useState<Record<string, number>>({});
+  const [roomRating, setRoomRating] = useState<Record<string, number>>({});
+  const [hasMounted, setHasMounted] = useState(false);
 
+  useEffect(() => setHasMounted(true), []);
+
+  // --- 1. Load Rooms & Metadata ---
+  useEffect(() => {
+    if (!user || !db) {
+      setIsLoadingRooms(false);
+      return;
+    }
+    setIsLoadingRooms(true);
+
+    const roomsCollectionName = config.collections.rooms;
+    const roomsMap = new Map<string, DocumentData>();
+
+    const processRooms = async (
+      rawMap: Map<string, DocumentData>
+    ): Promise<RoomWithMeta[]> => {
+      const list = Array.from(rawMap.values());
+
+      // 1. Collect Creator IDs
       const creatorIds = [
-        ...new Set(roomsFromDB.map((r) => r.creator).filter(Boolean)),
+        ...new Set(
+          list
+            .map((r) => r.creator || r.createdBy)
+            .filter((id): id is string => !!id)
+        ),
       ];
       const creatorNameMap: Record<string, string> = {};
 
       if (creatorIds.length > 0) {
-        const creatorDocs = await Promise.all(
-          creatorIds.map((uid) => getDoc(doc(db, 'users', uid)))
+        await Promise.all(
+          creatorIds.map(async (uid) => {
+            if (creatorNameMap[uid]) return;
+            try {
+              const snap = await getDoc(doc(db!, 'users', uid));
+              if (snap.exists()) {
+                const data = snap.data();
+                creatorNameMap[uid] =
+                  data?.name || data?.displayName || t('Unknown');
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          })
         );
-        creatorDocs.forEach((snap) => {
-          if (snap.exists()) {
-            const data = snap.data();
-            creatorNameMap[snap.id] =
-              data?.name || data?.displayName || 'Unknown';
-          }
-        });
       }
 
-      const processedRooms = roomsFromDB.map((room) => ({
-        ...room,
-        creatorName:
-          creatorNameMap[room.creator] || room.creatorName || 'Unknown',
-      }));
+      // 2. Collect Community IDs to fetch names
+      const communityIds = [
+        ...new Set(
+          list.map((r) => r.communityId).filter((id): id is string => !!id)
+        ),
+      ];
+      const communityNameMap: Record<string, string> = {};
 
-      const sortedRooms = processedRooms.sort((a, b) => {
-        try {
-          const dateA = parseFlexDate(a.createdAt).getTime();
-          const dateB = parseFlexDate(b.createdAt).getTime();
-          if (isNaN(dateA) || isNaN(dateB)) return 0;
-          return dateB - dateA;
-        } catch (e) {
-          return 0;
-        }
+      if (communityIds.length > 0) {
+        // Fetch communities in parallel (chunking if needed, but keeping simple for now)
+        // Since getDoc is by ID, we loop. Ideally use 'in' query if possible or cache.
+        await Promise.all(
+          communityIds.map(async (cid) => {
+            if (communityNameMap[cid]) return;
+            try {
+              const snap = await getDoc(doc(db!, 'communities', cid));
+              if (snap.exists()) {
+                communityNameMap[cid] = snap.data().name;
+              }
+            } catch (e) {
+              console.error('Failed to load community name', e);
+            }
+          })
+        );
+      }
+
+      // 3. Process Ratings
+      const ratingMap: Record<string, number> = {};
+      list.forEach((r) => {
+        const members = r.members || [];
+        const me = members.find((m: any) => m.userId === user.uid);
+        ratingMap[r.id] = me?.rating ?? 0;
       });
+      setRoomRating(ratingMap);
 
-      setAllRooms(sortedRooms);
-    } catch (error) {
-      console.error('Failed to load rooms:', error);
-      toast({ title: 'Failed to load rooms', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+      // 4. Map Result
+      return list.map((data) => {
+        const creatorId = data.creator || data.createdBy;
+        return {
+          ...(data as Room),
+          id: data.id,
+          creatorName: creatorNameMap[creatorId] || data.creatorName,
+          isFinished: (data.seasonHistory?.length ?? 0) > 0,
+          _sortTs: parseRoomDate(
+            data.createdAt || data.roomCreated || data.created
+          ),
+          communityId: data.communityId || null,
+          communityName: data.communityId
+            ? communityNameMap[data.communityId]
+            : undefined,
+        };
+      });
+    };
 
-  useEffect(() => {
-    if (user === null) return;
-    if (isGlobalAdmin) {
-      setReady(true);
-    } else if (user) {
-      window.location.href = '/';
-    }
-  }, [isGlobalAdmin, user]);
-
-  useEffect(() => {
-    if (ready) {
-      loadRooms();
-    }
-  }, [ready, loadRooms]);
-
-  const filteredRooms = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return allRooms;
-    return allRooms.filter(
-      (room) =>
-        (room.name || '').toLowerCase().includes(q) ||
-        (room.creatorName || '').toLowerCase().includes(q) ||
-        (room.id || '').toLowerCase().includes(q)
+    // Query: Rooms where I am a member
+    const qMyRooms = query(
+      collection(db!, roomsCollectionName),
+      where('memberIds', 'array-contains', user.uid)
     );
-  }, [allRooms, search]);
 
-  const deleteRoom = async (room: RoomData) => {
-    setDeletingId(room.id);
-    try {
-      const functions = getFunctions();
-      const deleteRoomCallable = httpsCallable(
-        functions,
-        'deleteRoomPermanently'
+    const handleSnapshot = async (snap: { docs: DocumentData[] }) => {
+      snap.docs.forEach((d) => roomsMap.set(d.id, { id: d.id, ...d.data() }));
+      const processed = await processRooms(new Map(roomsMap));
+      processed.sort((a, b) => b._sortTs - a._sortTs);
+      setAllRooms(processed);
+      setIsLoadingRooms(false);
+    };
+
+    const unsubMy = onSnapshot(qMyRooms, handleSnapshot as any);
+    return () => unsubMy();
+  }, [user, t, config.collections.rooms]);
+
+  // --- 2. Load Match Counts ---
+  const loadMyCounts = useCallback(
+    async (roomsToLoad: Room[]) => {
+      if (!user || roomsToLoad.length === 0 || !db) return;
+      const matchesCollectionName = config.collections.matches;
+      const res: Record<string, number> = {};
+
+      await Promise.all(
+        roomsToLoad.map(async (r) => {
+          if (myMatches[r.id] !== undefined) return;
+          const qy = query(
+            collection(db!, matchesCollectionName),
+            where('roomId', '==', r.id),
+            where('players', 'array-contains', user.uid)
+          );
+          const snap = await getDocs(qy);
+          res[r.id] = snap.size;
+        })
       );
-      await deleteRoomCallable({ roomId: room.id, sport: room.sport });
-      toast({ title: 'Room deleted successfully' });
-      await loadRooms();
-    } catch (error: any) {
-      console.error('Failed to delete room:', error);
-      toast({
-        title: 'Failed to delete room',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setDeletingId(null);
-    }
-  };
 
-  if (!ready) {
-    return (
-      <div className='flex justify-center items-center h-screen'>
-        <Loader2 className='h-10 w-10 animate-spin' />
-      </div>
+      if (Object.keys(res).length > 0) {
+        setMyMatches((prev) => ({ ...prev, ...res }));
+      }
+    },
+    [user, config.collections.matches, myMatches]
+  );
+
+  useEffect(() => {
+    if (allRooms.length > 0) {
+      const myMemberRooms = allRooms.filter((r) =>
+        r.memberIds?.includes(user?.uid || '')
+      );
+      loadMyCounts(myMemberRooms);
+    }
+  }, [allRooms, loadMyCounts, user]);
+
+  // --- 3. Filter Rooms ---
+  const filteredRooms = useMemo(() => {
+    const lowerSearch = searchTerm.toLowerCase();
+    return allRooms.filter(
+      (r) =>
+        r.name.toLowerCase().includes(lowerSearch) ||
+        (r.creatorName ?? '').toLowerCase().includes(lowerSearch) ||
+        (r.communityName ?? '').toLowerCase().includes(lowerSearch)
     );
-  }
+  }, [allRooms, searchTerm]);
+
+  const canCreateRoom = userProfile && !userProfile.isGhost;
+
+  if (!hasMounted) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Manage All Rooms</CardTitle>
-        <CardDescription>
-          View and permanently delete any room in the system.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='space-y-4'>
-        <Input
-          placeholder='Search by room name, creator, or ID...'
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {loading ? (
-          <div className='flex justify-center items-center py-10'>
-            <Loader2 className='h-8 w-8 animate-spin' />
+    <ProtectedRoute>
+      <div className='container mx-auto py-8 px-4 min-h-screen flex flex-col'>
+        {/* Header */}
+        <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8'>
+          <div>
+            <h1 className='text-4xl font-extrabold tracking-tight flex items-center gap-3'>
+              <Users className='h-10 w-10 text-primary' />
+              {t('Match Rooms')}
+            </h1>
+            <p className='text-muted-foreground mt-1 text-lg'>
+              {t('Join a club or create your own league.')}
+            </p>
           </div>
-        ) : (
-          <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'>
-            {filteredRooms.map((room) => (
-              <RoomCard
-                key={room.id}
-                room={room}
-                isDeleting={deletingId === room.id}
-                onDelete={deleteRoom}
-              />
-            ))}
+          {canCreateRoom && <CreateRoomDialog />}
+        </div>
+
+        {/* Search */}
+        <div className='relative mb-8'>
+          <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground' />
+          <Input
+            placeholder={t('Search rooms...')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className='pl-10 h-12 text-lg shadow-sm border-muted-foreground/20 focus-visible:ring-primary/30'
+          />
+        </div>
+
+        {/* Unified Grid for ALL users (Coach & Player) */}
+        <div className='space-y-6 flex-1'>
+          {isLoadingRooms ? (
+            <RoomsSkeleton />
+          ) : filteredRooms.length > 0 ? (
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+              {filteredRooms.map((r) => (
+                <RoomCard
+                  key={r.id}
+                  room={r}
+                  myMatches={myMatches[r.id]}
+                  myRating={roomRating[r.id]}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title={t('No rooms found')}
+              description={t("You haven't joined any rooms yet.")}
+            />
+          )}
+        </div>
+      </div>
+    </ProtectedRoute>
+  );
+}
+
+// --- Helpers ---
+function RoomsSkeleton() {
+  return (
+    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+      {[1, 2, 3].map((i) => (
+        <div key={i} className='flex flex-col space-y-3'>
+          <Skeleton className='h-[180px] w-full rounded-xl' />
+          <div className='space-y-2'>
+            <Skeleton className='h-4 w-[250px]' />
+            <Skeleton className='h-4 w-[200px]' />
           </div>
-        )}
-        {!loading && filteredRooms.length === 0 && (
-          <p className='text-center text-muted-foreground py-10'>
-            No rooms found.
-          </p>
-        )}
-      </CardContent>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <Card className='bg-muted/20 border-dashed border-2 flex flex-col items-center justify-center py-16 text-center'>
+      <div className='bg-muted rounded-full p-4 mb-4'>
+        <Search className='h-8 w-8 text-muted-foreground' />
+      </div>
+      <CardTitle className='text-xl mb-2'>{title}</CardTitle>
+      <CardDescription className='max-w-sm mx-auto'>
+        {description}
+      </CardDescription>
     </Card>
   );
 }

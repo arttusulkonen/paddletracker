@@ -1,4 +1,3 @@
-// src/components/rooms/StandingsTable.tsx
 'use client';
 
 import {
@@ -49,13 +48,16 @@ export function StandingsTable({
     latestSeason ? 'final' : 'regular'
   );
 
+  // FIX: activePlayers should include EVERYONE, including the creator.
+  const activePlayers = players;
+
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     dir: 'asc' | 'desc';
   }>({ key: 'rating', dir: 'desc' });
 
   const sortedPlayers = useMemo(() => {
-    return [...players].sort((a: any, b: any) => {
+    return [...activePlayers].sort((a: any, b: any) => {
       if (a.ratingVisible !== b.ratingVisible) return a.ratingVisible ? -1 : 1;
 
       const { key, dir } = sortConfig;
@@ -69,7 +71,7 @@ export function StandingsTable({
       }
       return factor * ((a[key] ?? 0) - (b[key] ?? 0));
     });
-  }, [players, sortConfig]);
+  }, [activePlayers, sortConfig]);
 
   const handleSort = (key: string) => {
     setSortConfig((prev) => ({
@@ -156,7 +158,7 @@ export function StandingsTable({
 
         {viewMode === 'liveFinal' && (
           <LiveFinalStandings
-            players={players}
+            players={activePlayers} 
             sport={sport}
             t={t}
             roomMode={roomMode}
@@ -169,6 +171,7 @@ export function StandingsTable({
             sport={sport}
             t={t}
             roomMode={roomMode}
+            creatorId={roomCreatorId}
           />
         )}
       </CardContent>
@@ -660,9 +663,13 @@ function LiveFinalStandings({ players, sport, t, roomMode }: any) {
   );
 }
 
-function FinalStandings({ season, sport, t, roomMode }: any) {
+function FinalStandings({ season, sport, t, roomMode, creatorId }: any) {
+  // FIX: activePlayers should include EVERYONE, including the creator.
   const data = useMemo(
-    () => (Array.isArray(season?.summary) ? season.summary : []),
+    () => {
+      const summary = Array.isArray(season?.summary) ? season.summary : [];
+      return summary; // No filtering
+    },
     [season]
   );
 

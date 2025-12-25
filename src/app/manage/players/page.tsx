@@ -18,6 +18,7 @@ import {
 	Link as LinkIcon,
 	Loader2,
 	Plus,
+	Trash2,
 	Users,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';

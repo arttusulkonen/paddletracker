@@ -1,3 +1,4 @@
+// src/components/rooms/CreateRoomDialog.tsx
 'use client';
 
 import ImageCropDialog from '@/components/ImageCropDialog';
@@ -46,6 +47,7 @@ import {
 	arrayUnion,
 	collection,
 	doc,
+	documentId,
 	getDoc,
 	getDocs,
 	onSnapshot,
@@ -371,16 +373,22 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
               const chunk = membersArr.slice(i, i + 10);
               if (chunk.length === 0) continue;
 
+              // ИСПРАВЛЕНИЕ: Используем documentId() вместо 'uid'
+              // Это гарантирует, что мы найдем документ по его ключу,
+              // даже если поле uid отсутствует внутри данных.
               const q = query(
                 collection(db!, 'users'),
-                where('uid', 'in', chunk)
+                where(documentId(), 'in', chunk)
               );
+
               const snaps = await getDocs(q);
               snaps.forEach((d) => {
                 const p = d.data() as UserProfile;
-                if (p.uid !== user?.uid) {
+                const currentUid = d.id; // ИСПРАВЛЕНИЕ: Берем ID из документа, а не из данных
+
+                if (currentUid !== user?.uid) {
                   communityMembersToAdd.push({
-                    userId: p.uid,
+                    userId: currentUid,
                     name: p.name || p.displayName || '',
                     email: p.email || '',
                     rating: getStartingRating(

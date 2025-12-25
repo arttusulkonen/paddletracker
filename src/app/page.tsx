@@ -1,5 +1,6 @@
 'use client';
 
+import { ControlPanel } from '@/components/ControlPanel';
 import LiveFeed from '@/components/LiveFeed';
 import PlayersTable from '@/components/PlayersTable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,7 +22,6 @@ import { getRank } from '@/lib/utils/profileUtils';
 import {
 	collection,
 	doc,
-	documentId,
 	getDoc,
 	getDocs,
 	limit,
@@ -31,14 +31,12 @@ import {
 } from 'firebase/firestore';
 import {
 	ArrowRight,
-	Briefcase,
 	Building2,
 	Gamepad2,
 	Ghost,
 	History,
 	Play,
 	Rocket,
-	Search,
 	ShieldCheck,
 	Target,
 	Trophy,
@@ -139,27 +137,29 @@ const Dashboard = () => {
       setLastActiveRoom(null);
       if (!user || !db || !userProfile) return;
 
-      // 1. Fetch Community Name (Primary)
-      // Check communityIds in profile, if missing, check 'communities' collection
       let cName = null;
       if (userProfile.communityIds && userProfile.communityIds.length > 0) {
-         try {
-            const cDoc = await getDoc(doc(db, 'communities', userProfile.communityIds[0]));
-            if (cDoc.exists()) cName = cDoc.data().name;
-         } catch {}
-      } 
-      
-      // Fallback: search where user is member if ID missing in profile
+        try {
+          const cDoc = await getDoc(
+            doc(db, 'communities', userProfile.communityIds[0])
+          );
+          if (cDoc.exists()) cName = cDoc.data().name;
+        } catch {}
+      }
+
       if (!cName) {
-         try {
-            const q = query(collection(db, 'communities'), where('members', 'array-contains', user.uid), limit(1));
-            const snap = await getDocs(q);
-            if (!snap.empty) cName = snap.docs[0].data().name;
-         } catch {}
+        try {
+          const q = query(
+            collection(db, 'communities'),
+            where('members', 'array-contains', user.uid),
+            limit(1)
+          );
+          const snap = await getDocs(q);
+          if (!snap.empty) cName = snap.docs[0].data().name;
+        } catch {}
       }
       setCommunityName(cName);
 
-      // 2. Fetch Last Active Room
       try {
         const matchesQuery = query(
           collection(db, config.collections.matches),
@@ -231,10 +231,10 @@ const Dashboard = () => {
                 {userProfile?.name}
               </h1>
               {communityName && (
-                 <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                    <Building2 className="h-3 w-3" />
-                    {communityName}
-                 </div>
+                <div className='flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1'>
+                  <Building2 className='h-3 w-3' />
+                  {communityName}
+                </div>
               )}
               <div className='flex items-center gap-2 text-muted-foreground font-medium mt-1'>
                 <span>{rankLabel}</span>
@@ -270,35 +270,13 @@ const Dashboard = () => {
           )}
 
           <div className='flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:ml-auto min-w-[200px]'>
-            {isOrganizer ? (
-              <Button
-                size='lg'
-                className='w-full shadow-md gap-2 bg-indigo-600 hover:bg-indigo-700'
-                asChild
-              >
-                <Link href='/manage/communities'>
-                  <Briefcase size={18} /> {t('Manage Communities')}
-                </Link>
-              </Button>
-            ) : isNewPlayer ? (
-              <Button
-                size='lg'
-                className='w-full shadow-md gap-2 animate-pulse'
-                asChild
-              >
-                <Link href='/rooms'>
-                  <Search size={18} /> {t('Find a Room')}
-                </Link>
-              </Button>
-            ) : (
-              <Button
-                size='lg'
-                className='w-full shadow-md gap-2'
-                onClick={handleRecordMatch}
-              >
-                <Rocket size={18} /> {t('Record Match')}
-              </Button>
-            )}
+            <Button
+              size='lg'
+              className='w-full shadow-md gap-2'
+              onClick={handleRecordMatch}
+            >
+              <Rocket size={18} /> {t('Record Match')}
+            </Button>
 
             <div className='flex gap-2'>
               {!isNewPlayer && (
@@ -347,10 +325,13 @@ const Dashboard = () => {
 
         {isNewPlayer && (
           <div className='bg-muted/30 px-6 py-3 border-t text-sm text-center text-muted-foreground'>
-            {t('Welcome! Join a community or room to start your journey.')}
+            {t('Welcome! Use the control panel below to find a community.')}
           </div>
         )}
       </Card>
+
+      {/* NEW Control Panel Component */}
+      <ControlPanel />
 
       {lastActiveRoom && (
         <div className='animate-in slide-in-from-top-2 fade-in'>

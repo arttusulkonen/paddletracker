@@ -225,18 +225,17 @@ function MatchupDraftBlock({
           </Label>
           <div className='space-y-4'>
             {matchup.games.map((row, i) => {
-              // FIX: Remove 'key: i' from rowProps and pass it directly to the component
               const rowProps = {
                 data: row as any,
                 onChange: (d: any) => updateGameRow(i, d),
                 onRemove: () => removeGameRow(i),
-                removable: matchup.games.length > 1, // Only allow removal if there is more than one game/set
+                removable: matchup.games.length > 1, 
               };
               
               if (sport === 'pingpong') {
                 return (
                   <PingPongRowInput
-                    key={i} // Key passed directly
+                    key={i}
                     {...rowProps}
                     data={row as PingPongMatchData}
                     matchIndex={i}
@@ -246,7 +245,7 @@ function MatchupDraftBlock({
               if (sport === 'badminton') {
                 return (
                   <BadmintonRowInput
-                    key={i} // Key passed directly
+                    key={i}
                     {...rowProps}
                     data={row as BadmintonMatchData}
                     matchIndex={i}
@@ -256,7 +255,7 @@ function MatchupDraftBlock({
               if (sport === 'tennis') {
                 return (
                   <TennisRowInput
-                    key={i} // Key passed directly
+                    key={i}
                     {...rowProps}
                     data={row as TennisSetData}
                     setIndex={i}
@@ -299,6 +298,9 @@ export function RecordBlock({
   const { sport, config } = useSport();
   const { toast } = useToast();
 
+  // FIX: Removed filtering. Creator/Coach is a player.
+  const playableMembers = members; 
+
   const createInitialGame = () =>
     sport === 'tennis'
       ? ({ score1: '', score2: '' } as TennisSetData)
@@ -307,7 +309,7 @@ export function RecordBlock({
           | BadmintonMatchData);
 
   const createInitialMatchup = (): MatchupDraft => ({
-    id: Date.now().toString(), // Simple unique ID
+    id: Date.now().toString(), 
     player1Id: '',
     player2Id: '',
     games: [createInitialGame()],
@@ -319,7 +321,6 @@ export function RecordBlock({
   const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
-    // Reset drafts when sport changes
     setMatchupDrafts([createInitialMatchup()]);
   }, [sport]);
 
@@ -338,7 +339,6 @@ export function RecordBlock({
   };
 
   const saveMatches = async () => {
-    // 1. Validate all matchups
     const validDrafts = matchupDrafts.filter(
       (m) =>
         m.player1Id &&
@@ -356,7 +356,6 @@ export function RecordBlock({
       return;
     }
     
-    // Check all games in valid drafts
     let allGamesValid = true;
     let firstInvalidGame: GameData | undefined = undefined;
     
@@ -390,7 +389,6 @@ export function RecordBlock({
     setIsRecording(true);
     let successCount = 0;
     
-    // 2. Process and Save each matchup sequentially
     for (const draft of validDrafts) {
       const success = await processAndSaveMatches(
         roomId,
@@ -446,7 +444,7 @@ export function RecordBlock({
           <MatchupDraftBlock
             key={matchup.id}
             matchup={matchup}
-            members={members}
+            members={playableMembers}
             sport={sport}
             config={config}
             onUpdate={updateMatchup}

@@ -1,4 +1,3 @@
-// src/app/rooms/[roomId]/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -175,7 +174,6 @@ export default function RoomPage() {
       const loaded = await Promise.all(
         Array.from(idsSet).map(async (uid) => {
           const profile = await getUserLite(uid);
-          // FIX: Validate that returned profile matches requested uid
           return profile && profile.uid === uid ? profile : null;
         })
       );
@@ -207,17 +205,29 @@ export default function RoomPage() {
       );
   }, [coPlayers, friends, memberIdsSet]);
 
+  // --- ИСПРАВЛЕННАЯ ЛОГИКА ПРАВ ---
+
+  // 1. Создатель (проверяем оба поля: creator и старое createdBy)
+  const isCreator = useMemo(() => {
+    if (!user || !room) return false;
+    return room.creator === user.uid || room.createdBy === user.uid;
+  }, [user, room]);
+
+  // 2. Управление (Создатель, Админ комнаты, Супер-админ)
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
+    if (isCreator || isGlobalAdmin) return true;
 
+    // Проверка массива adminIds
     const r = room as Room & { adminIds?: string[] };
-    const isRoomAdmin =
-      Array.isArray(r.adminIds) && r.adminIds.includes(user.uid);
+    return Array.isArray(r.adminIds) && r.adminIds.includes(user.uid);
+  }, [room, user, isGlobalAdmin, isCreator]);
 
-    const creatorId = r.createdBy || r.creator;
-
-    return isGlobalAdmin || isRoomAdmin || creatorId === user.uid;
-  }, [room, user, isGlobalAdmin]);
+  // 3. Членство (проверяем массив ID)
+  const isMember = useMemo(
+    () => room?.memberIds?.includes(user?.uid ?? ''),
+    [user, room]
+  );
 
   useEffect(() => {
     if (!user || !db || accessDenied) return;
@@ -251,13 +261,6 @@ export default function RoomPage() {
   useEffect(() => {
     if (!room) return;
 
-    if (rawMatches.length === 0 && room?.members) {
-      setMembers(room.members);
-      setRecentMatches([]);
-      setIsLoading(false);
-      return;
-    }
-
     const syncData = async () => {
       if (!db) return;
 
@@ -276,15 +279,20 @@ export default function RoomPage() {
       setSeasonStarts(starts);
       setSeasonRoomStarts(roomStarts);
 
-      const initialMembers = room.members ?? [];
-      if (initialMembers.length === 0) {
+      // Синхронизация мемберов
+      const memberIds = room.memberIds || [];
+      const existingMembersMap = new Map<string, RoomMember>();
+
+      if (Array.isArray(room.members)) {
+        room.members.forEach((m) => existingMembersMap.set(m.userId, m));
+      }
+
+      if (memberIds.length === 0) {
         setMembers([]);
         setRecentMatches([]);
         setIsLoading(false);
         return;
       }
-
-      const memberIds = initialMembers.map((m) => m.userId);
 
       const userDocsSnaps = await Promise.all(
         memberIds.map(async (id) => {
@@ -302,20 +310,40 @@ export default function RoomPage() {
           freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
       });
 
-      const syncedMembers = initialMembers
-        .filter((member) => !freshProfiles.get(member.userId)?.isDeleted)
-        .map((member) => {
-          const p = freshProfiles.get(member.userId);
-          return p
-            ? {
-                ...member,
-                name: p.name ?? p.displayName ?? member.name,
-                photoURL: p.photoURL,
-                globalElo: p.sports?.[sport]?.globalElo,
-                rank: p.rank,
-              }
-            : member;
+      const syncedMembers: RoomMember[] = memberIds
+        .filter((uid) => !freshProfiles.get(uid)?.isDeleted)
+        .map((uid) => {
+          const profile = freshProfiles.get(uid);
+          const existing = existingMembersMap.get(uid);
+
+          const displayName = profile
+            ? profile.name ?? profile.displayName ?? 'Unknown'
+            : existing?.name ?? 'Unknown';
+
+          if (existing) {
+            return {
+              ...existing,
+              name: displayName,
+              photoURL: profile?.photoURL,
+              globalElo: profile?.sports?.[sport]?.globalElo,
+              rank: profile?.rank,
+            };
+          }
+
+          return {
+            userId: uid,
+            name: displayName,
+            email: profile?.email ?? '',
+            photoURL: profile?.photoURL,
+            rating: 1000,
+            wins: 0,
+            losses: 0,
+            role: 'viewer',
+            date: new Date().toISOString(),
+            globalElo: profile?.sports?.[sport]?.globalElo ?? 1000,
+          };
         });
+
       setMembers(syncedMembers);
 
       const syncedMatches = rawMatches.map((match) => {
@@ -378,7 +406,7 @@ export default function RoomPage() {
   );
 
   const regularPlayers = useMemo(() => {
-    const baseMembers = members.length > 0 ? members : room?.members ?? [];
+    const baseMembers = members;
     const matchStats: Record<string, { wins: number; losses: number }> = {};
     const latestRoomRatings: Record<string, number> = {};
 
@@ -462,15 +490,7 @@ export default function RoomPage() {
         longestWinStreak: max,
       };
     });
-  }, [
-    room?.members,
-    members,
-    rawMatches,
-    seasonStarts,
-    seasonRoomStarts,
-    sport,
-    last5Form,
-  ]);
+  }, [members, rawMatches, seasonStarts, seasonRoomStarts, sport, last5Form]);
 
   const getSeasonEloSnapshots = useCallback(
     async (roomId: string): Promise<StartEndElo> => {
@@ -548,16 +568,14 @@ export default function RoomPage() {
 
   const handleLeaveRoom = useCallback(async () => {
     if (!user || !room || !db) return;
-    const memberToRemove = room.members.find((m) => m.userId === user.uid);
-    if (memberToRemove) {
-      await updateDoc(doc(db!, config.collections.rooms, roomId), {
-        members: arrayRemove(memberToRemove),
-        memberIds: arrayRemove(user.uid),
-      });
-      toast({ title: t("You've left the room") });
-      router.push('/rooms');
-    }
-  }, [user, room, roomId, config.collections.rooms, router, toast, t]);
+    const memberToRemove = members.find((m) => m.userId === user.uid);
+    await updateDoc(doc(db!, config.collections.rooms, roomId), {
+      members: memberToRemove ? arrayRemove(memberToRemove) : undefined,
+      memberIds: arrayRemove(user.uid),
+    });
+    toast({ title: t("You've left the room") });
+    router.push('/rooms');
+  }, [user, room, roomId, config.collections.rooms, router, toast, t, members]);
 
   const handleInviteFriends = async () => {
     if (!user || !room || !db || selectedFriends.length === 0) {
@@ -647,25 +665,10 @@ export default function RoomPage() {
   const handleRemovePlayer = async (userIdToRemove: string) => {
     if (!room || !user || !db) return;
 
-    const memberToRemove = room.members.find(
-      (m) => m.userId === userIdToRemove
-    );
-    if (!memberToRemove) {
-      toast({
-        title: t('Player not found in this room'),
-        variant: 'destructive',
-      });
-      return;
-    }
+    const memberToRemove = members.find((m) => m.userId === userIdToRemove);
 
     try {
-      const isStillCreator = room.createdBy === user.uid;
-      const r = room as Room & { adminIds?: string[] };
-      const isRoomAdmin =
-        Array.isArray(r.adminIds) && r.adminIds.includes(user.uid);
-      const canManage = isGlobalAdmin || isStillCreator || isRoomAdmin;
-
-      if (!canManage) {
+      if (!canManageRoom) {
         toast({
           title: t('Permission Denied'),
           description: t('You do not have rights to remove players.'),
@@ -676,10 +679,15 @@ export default function RoomPage() {
 
       const batch = writeBatch(db!);
       const roomRef = doc(db!, config.collections.rooms, roomId);
-      batch.update(roomRef, {
-        members: arrayRemove(memberToRemove),
+
+      const updates: any = {
         memberIds: arrayRemove(userIdToRemove),
-      });
+      };
+      if (memberToRemove) {
+        updates.members = arrayRemove(memberToRemove);
+      }
+
+      batch.update(roomRef, updates);
 
       const userRef = doc(db!, 'users', userIdToRemove);
       batch.update(userRef, { rooms: arrayRemove(roomId) });
@@ -696,13 +704,6 @@ export default function RoomPage() {
       });
     }
   };
-
-  const isMember = useMemo(
-    () => room?.members.some((m) => m.userId === user?.uid),
-    [user, room]
-  );
-
-  const isCreator = useMemo(() => room?.createdBy === user?.uid, [user, room]);
 
   const hasPendingRequest = useMemo(
     () => room?.joinRequests?.includes(user?.uid ?? ''),
@@ -752,6 +753,7 @@ export default function RoomPage() {
 
         <RoomHeader
           room={room}
+					members={members}
           isMember={!!isMember}
           hasPendingRequest={!!hasPendingRequest}
           isCreator={isCreator}
@@ -981,7 +983,7 @@ export default function RoomPage() {
             {isMember && !latestSeason && !room.isArchived && (
               <div className='md:col-span-2'>
                 <RecordBlock
-                  members={room.members}
+                  members={members}
                   roomId={roomId}
                   room={room}
                   isCreator={isCreator}

@@ -6,6 +6,8 @@ import {
 	AvatarImage,
 	Card,
 	CardContent,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui';
 import { db } from '@/lib/firebase';
 import type { Community } from '@/lib/types';
@@ -30,10 +32,11 @@ export function CommunitiesList({ targetUid }: CommunitiesListProps) {
     const fetchCommunities = async () => {
       setLoading(true);
       try {
-        // Find communities where targetUid is an admin or owner
+        // Query communities where the user is a MEMBER (this covers owners/admins too usually,
+        // assuming owner is added to members array on creation)
         const q = query(
           collection(db, 'communities'),
-          where('admins', 'array-contains', targetUid)
+          where('members', 'array-contains', targetUid)
         );
         const snap = await getDocs(q);
         const comms = snap.docs.map(
@@ -50,7 +53,7 @@ export function CommunitiesList({ targetUid }: CommunitiesListProps) {
   }, [targetUid]);
 
   if (loading) {
-    return <Card className='h-24 animate-pulse bg-muted border-none shadow-none'></Card>;
+    return <Card className='h-32 animate-pulse bg-muted/50' />;
   }
 
   if (communities.length === 0) {
@@ -58,22 +61,26 @@ export function CommunitiesList({ targetUid }: CommunitiesListProps) {
   }
 
   return (
-    <Card className='border-none shadow-none p-0 mt-6'>
-      <div className='flex items-center gap-2 mb-3 px-1'>
-         <Warehouse className="h-4 w-4 text-muted-foreground" />
-         <h4 className='text-sm font-semibold text-muted-foreground'>{t('Communities')}</h4>
-      </div>
-      <CardContent className='p-0'>
+    <Card>
+      <CardHeader className='pb-3'>
+        <CardTitle className='text-lg flex items-center gap-2'>
+          <Warehouse className='h-5 w-5 text-indigo-500' />
+          {t('Communities')}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
         <div className='space-y-3'>
           {communities.slice(0, PREVIEW_COUNT).map((comm) => (
             <Link
               href={`/manage/communities/${comm.id}`}
               key={comm.id}
-              className='flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors'
+              className='flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors border border-transparent hover:border-border'
             >
-              <Avatar className='h-10 w-10'>
+              <Avatar className='h-10 w-10 border'>
                 <AvatarImage src={comm.avatarURL ?? undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary">{comm.name[0]}</AvatarFallback>
+                <AvatarFallback className='bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'>
+                  {comm.name[0]?.toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div>
                 <p className='font-semibold text-sm leading-tight'>
@@ -86,6 +93,13 @@ export function CommunitiesList({ targetUid }: CommunitiesListProps) {
             </Link>
           ))}
         </div>
+        {communities.length > PREVIEW_COUNT && (
+           <div className="mt-4 text-center">
+              <p className="text-xs text-muted-foreground italic">
+                 {t('+ {{count}} more', { count: communities.length - PREVIEW_COUNT })}
+              </p>
+           </div>
+        )}
       </CardContent>
     </Card>
   );

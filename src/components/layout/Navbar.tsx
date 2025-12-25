@@ -22,6 +22,7 @@ import {
 	Briefcase,
 	Globe,
 	HomeIcon,
+	LayoutGrid, // <--- Добавлено
 	LogIn,
 	Menu,
 	ShieldCheck,
@@ -93,20 +94,23 @@ const MobileNav = ({
             
             {user && (
               <>
-                {/* COMMUNITY / MANAGE SECTION */}
-                <div className='my-2'>
-                  <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Community')}</div>
-                  <NavLink href='/manage/communities' onClick={close}>
-                    <Warehouse className="w-4 h-4 text-primary" /> {t('Communities')}
-                  </NavLink>
+                <NavLink href='/rooms' onClick={close}>
+                  <LayoutGrid className="w-4 h-4" /> {t('Match Rooms')}
+                </NavLink>
+
+                <NavLink href='/manage/communities' onClick={close}>
+                  <Warehouse className="w-4 h-4" /> {t('Communities')}
+                </NavLink>
+
+                {isCoach && (
                   <NavLink href='/manage/players' onClick={close}>
                     <Briefcase className="w-4 h-4" /> {t('My Players')}
                   </NavLink>
-                </div>
+                )}
 
                 {/* ADMIN SECTION */}
                 {isSuperAdmin && (
-                  <div className='my-2'>
+                  <div className='my-2 pt-2 border-t'>
                     <div className='text-xs font-semibold text-muted-foreground mb-2 px-2 uppercase tracking-wider'>{t('Admin')}</div>
                     <NavLink href='/admin/users' onClick={close}>
                       <ShieldCheck className="w-4 h-4 text-destructive" /> {t('Admin Panel')}
@@ -274,10 +278,16 @@ export function Navbar() {
             )}
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation (Center Links) */}
           <nav className='hidden md:flex items-center gap-1'>
             {user && (
               <>
+                <DesktopLink 
+                    href='/rooms' 
+                    icon={<LayoutGrid className="w-4 h-4" />} 
+                    label={t('Rooms')} 
+                />
+                
                 <DesktopLink 
                     href='/manage/communities' 
                     icon={<Warehouse className="w-4 h-4" />} 

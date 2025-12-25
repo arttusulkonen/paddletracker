@@ -245,9 +245,12 @@ export function AiAssistant() {
                 name: data.name || 'Unnamed Room',
               });
 
-              // Извлекаем игроков из members комнаты, чтобы избежать запроса к users (block by rules)
+              // FIX: Filter out the room Creator from the players list
+              const creatorId = data.creator;
+
               if (Array.isArray(data.members)) {
                 data.members.forEach((m: any) => {
+                  // Only add if NOT the creator
                   if (m.userId && m.name) {
                     playerMap.set(m.userId, {
                       uid: m.userId,

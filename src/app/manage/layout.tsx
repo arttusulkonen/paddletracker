@@ -1,8 +1,7 @@
-// src/app/manage/layout.tsx
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Users, Warehouse } from 'lucide-react';
+import { Ghost, Users, Warehouse } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -25,11 +24,15 @@ export default function ManageLayout({
     {
       href: '/manage/players',
       label: t('Ghost Players'),
-      icon: <Users className='h-4 w-4' />,
+      icon: <Ghost className='h-4 w-4' />,
       desc: t('Managed Profiles'),
     },
-    // Можно добавить в будущем:
-    // { href: '/manage/coaches', label: t('Coaches'), ... }
+    {
+      href: '/manage/members',
+      label: t('Players'),
+      icon: <Users className='h-4 w-4' />,
+      desc: t('Community Members'),
+    },
   ];
 
   return (

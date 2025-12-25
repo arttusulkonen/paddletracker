@@ -24,11 +24,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { auth, db, storage } from '@/lib/firebase';
+import { app, auth, db, storage } from '@/lib/firebase';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Building2, Ghost, User, UserPlus } from 'lucide-react';
 import Link from 'next/link';
@@ -246,6 +247,8 @@ export default function RegisterPage() {
         activeSport: 'pingpong',
       };
 
+      // Если есть Ghost, копируем его данные в новый объект для надежности (локально)
+      // Реальная миграция связей происходит в Cloud Function ниже
       if (ghostUser) {
         newUserData.globalElo = ghostUser.globalElo ?? 1000;
         newUserData.matchesPlayed = ghostUser.matchesPlayed ?? 0;
@@ -262,6 +265,7 @@ export default function RegisterPage() {
         newUserData.ghostId = ghostUser.uid;
         newUserData.claimedFrom = ghostUser.uid;
 
+        // Помечаем старый документ как заклейменный
         await updateDoc(doc(db, 'users', ghostUser.uid), {
           isClaimed: true,
           claimedBy: u.uid,
@@ -272,6 +276,29 @@ export default function RegisterPage() {
       }
 
       await setDoc(newUserRef, newUserData);
+
+      // --- Trigger Cloud Function Migration ---
+      if (ghostUser) {
+        try {
+          const functions = getFunctions(app, 'us-central1');
+          const claimProfileFunc = httpsCallable(functions, 'claimGhostProfile');
+          
+          await claimProfileFunc({ ghostId: ghostUser.uid });
+          
+          toast({
+            title: t('Profile Merged'),
+            description: t('Your match history has been successfully transferred.'),
+          });
+        } catch (migrationError: any) {
+          console.error("Migration failed:", migrationError);
+          toast({
+            title: t('Warning'),
+            description: t('Account created, but history migration failed. Contact support.'),
+            variant: 'destructive',
+          });
+        }
+      }
+      // ----------------------------------------
 
       toast({
         title: t('Welcome!'),

@@ -91,6 +91,9 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         querySnapshot.forEach((d) => {
           const data = d.data() as UserProfile;
           if (data.isDeleted) return;
+          
+          // FIX: Removed exclusion of coaches.
+          
           const s = data.sports?.[sport];
 
           rawPlayers.push({
@@ -154,6 +157,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
         const list: PlayerData[] = [];
         for (const friend of friendProfiles) {
+          // FIX: Removed exclusion of coaches from friend list too.
           const s = friend.sports?.[sport] || {
             globalElo: 1000,
             wins: 0,

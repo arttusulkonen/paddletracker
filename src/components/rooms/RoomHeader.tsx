@@ -18,12 +18,8 @@ import {
 	Card,
 	Dialog,
 	DialogTrigger,
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
 } from '@/components/ui';
-import type { Room } from '@/lib/types';
+import type { Room, Member as RoomMember } from '@/lib/types';
 import {
 	Briefcase,
 	Gamepad2,
@@ -41,6 +37,7 @@ import { RoomSettingsDialog } from './RoomSettings';
 
 interface RoomHeaderProps {
   room: Room;
+  members?: RoomMember[];
   isMember: boolean;
   hasPendingRequest: boolean;
   isCreator: boolean;
@@ -51,6 +48,7 @@ interface RoomHeaderProps {
 
 export function RoomHeader({
   room,
+  members,
   isMember,
   hasPendingRequest,
   isCreator,
@@ -63,7 +61,7 @@ export function RoomHeader({
   const mode = room.mode || 'office';
   const memberCount = room.memberIds?.length || 0;
 
-  // Настройка темы в зависимости от режима
+  // Настройка темы
   const getTheme = () => {
     switch (mode) {
       case 'professional':
@@ -98,8 +96,7 @@ export function RoomHeader({
   return (
     <Card className={`mb-8 shadow-sm overflow-hidden border ${theme.border}`}>
       <div className={`relative px-6 py-8 md:px-8 ${theme.bg}`}>
-        <div className='flex flex-col md:flex-row gap-6 items-start'>
-          {/* Аватар */}
+        <div className='flex flex-col md:flex-row gap-6 items-center'>
           <div className='flex-shrink-0'>
             <Avatar className='h-24 w-24 border-4 border-background shadow-sm'>
               <AvatarImage
@@ -112,7 +109,6 @@ export function RoomHeader({
             </Avatar>
           </div>
 
-          {/* Информация */}
           <div className='flex-grow space-y-3 min-w-0 w-full'>
             <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
               <div>
@@ -120,7 +116,6 @@ export function RoomHeader({
                   {room.name}
                 </h1>
 
-                {/* Мета-информация (в одну строку) */}
                 <div className='flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-muted-foreground font-medium'>
                   <div
                     className={`flex items-center gap-1.5 ${theme.iconColor}`}
@@ -128,9 +123,7 @@ export function RoomHeader({
                     {theme.icon}
                     <span>{theme.label}</span>
                   </div>
-
                   <div className='w-1 h-1 rounded-full bg-muted-foreground/30' />
-
                   <div className='flex items-center gap-1.5'>
                     {room.isPublic ? (
                       <>
@@ -144,9 +137,7 @@ export function RoomHeader({
                       </>
                     )}
                   </div>
-
                   <div className='w-1 h-1 rounded-full bg-muted-foreground/30' />
-
                   <div className='flex items-center gap-1.5'>
                     <Users className='w-3.5 h-3.5' />
                     <span>{memberCount}</span>
@@ -154,7 +145,6 @@ export function RoomHeader({
                 </div>
               </div>
 
-              {/* Кнопки действий (Desktop: справа, Mobile: снизу) */}
               <div className='flex items-center gap-2 mt-2 md:mt-0 flex-shrink-0'>
                 {!isMember && !room.isArchived && (
                   <>
@@ -214,14 +204,15 @@ export function RoomHeader({
                   </AlertDialog>
                 )}
 
-                {isMember && isCreator && (
+                {/* ИСПРАВЛЕНИЕ: Кнопка настроек показывается, если isCreator (без isMember) */}
+                {isCreator && (
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant='outline' size='icon'>
                         <Settings className='h-4 w-4' />
                       </Button>
                     </DialogTrigger>
-                    <RoomSettingsDialog room={room} />
+                    <RoomSettingsDialog room={room} members={members} />{' '}
                   </Dialog>
                 )}
               </div>
