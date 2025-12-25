@@ -1095,16 +1095,6 @@ export const claimGhostProfile = onCall(async (request) => {
   let operationCount = 0;
   const commitThreshold = 400; // Firebase batch limit is 500
 
-  // Функция для коммита батчей, если их много (упрощено, для больших миграций лучше использовать рекурсию или отдельные функции)
-  const checkBatch = async () => {
-    if (operationCount >= commitThreshold) {
-      await batch.commit();
-      operationCount = 0;
-      // В реальном коде нужно создавать новый батч, но здесь мы предполагаем, что операции уместятся или будет ошибка
-      // Для продакшена лучше использовать runTransaction или рекурсию
-    }
-  };
-
   const sports = ['pingpong', 'tennis', 'badminton'];
 
   try {
