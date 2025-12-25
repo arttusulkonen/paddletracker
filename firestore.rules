@@ -39,19 +39,22 @@ service cloud.firestore {
     // =========================================================
     match /users/{userId} {
       // ЧТЕНИЕ: 
-      // 1. Авторизованные пользователи.
-      // 2. Анонимы, если целевой профиль помечен как Ghost (нужно для страницы клейма).
       allow read: if isSignedIn() || (resource.data.isGhost == true);
 
-      allow create: if isSignedIn();
+      // СОЗДАНИЕ:
+      // Разрешаем создавать документ только с собственным UID.
+      allow create: if isOwner(userId);
       
       // ОБНОВЛЕНИЕ: 
-      // - Владелец (изменение имени, фото)
-      // - Супер-админ
-      // - Любой авторизованный (для обновления массивов rooms/friends/requests при взаимодействии).
-      allow update: if isSignedIn();
+      // 1. Владелец может обновлять свой профиль.
+      // 2. ВАЖНО: Запрещаем владельцу менять поля, связанные с миграцией профиля.
+      //    Эти поля может менять только Cloud Function (через Admin SDK, который игнорирует правила).
+      allow update: if (isOwner(userId) && 
+                       !request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAny(['claimedFrom', 'ghostId', 'managedBy', 'globalElo', 'wins', 'losses'])) 
+                    || isSuperAdmin();
       
-      // УДАЛЕНИЕ: Строго ограничено
+      // УДАЛЕНИЕ:
       allow delete: if isOwner(userId) || isSuperAdmin() || isCoachOf(resource.data);
     }
 
@@ -64,18 +67,15 @@ service cloud.firestore {
     }
 
     // =========================================================
-    // КОЛЛЕКЦИИ: ROOMS (Явное перечисление)
+    // КОЛЛЕКЦИИ: ROOMS
     // =========================================================
-    
-    // Ping-Pong Rooms
     match /rooms-pingpong/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      allow update: if isSignedIn(); 
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
-    // Tennis Rooms
     match /rooms-tennis/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
@@ -83,7 +83,6 @@ service cloud.firestore {
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
-    // Badminton Rooms
     match /rooms-badminton/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
@@ -92,9 +91,8 @@ service cloud.firestore {
     }
 
     // =========================================================
-    // КОЛЛЕКЦИИ: MATCHES (Явное перечисление)
+    // КОЛЛЕКЦИИ: MATCHES
     // =========================================================
-    
     match /matches-pingpong/{matchId} {
       allow read: if isSignedIn();
       allow write: if false; 
@@ -113,7 +111,6 @@ service cloud.firestore {
     // =========================================================
     // КОЛЛЕКЦИЯ: TOURNAMENTS
     // =========================================================
-    
     match /tournaments-pingpong/{tournamentId} {
       allow read, write: if isSignedIn();
     }

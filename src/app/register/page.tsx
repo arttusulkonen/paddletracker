@@ -1,3 +1,4 @@
+// src/app/register/page.tsx
 'use client';
 
 import ImageCropDialog from '@/components/ImageCropDialog';
@@ -28,7 +29,7 @@ import { app, auth, db, storage } from '@/lib/firebase';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Building2, Ghost, User, UserPlus } from 'lucide-react';
@@ -212,6 +213,8 @@ export default function RegisterPage() {
       const roles = [data.accountType];
       const newUserRef = doc(db, 'users', u.uid);
 
+      // Создаем "чистый" профиль
+      // Никаких данных от госта здесь не копируем, это сделает Cloud Function
       const newUserData: any = {
         uid: u.uid,
         email: u.email,
@@ -247,37 +250,11 @@ export default function RegisterPage() {
         activeSport: 'pingpong',
       };
 
-      // Если есть Ghost, копируем его данные в новый объект для надежности (локально)
-      // Реальная миграция связей происходит в Cloud Function ниже
-      if (ghostUser) {
-        newUserData.globalElo = ghostUser.globalElo ?? 1000;
-        newUserData.matchesPlayed = ghostUser.matchesPlayed ?? 0;
-        newUserData.wins = ghostUser.wins ?? 0;
-        newUserData.losses = ghostUser.losses ?? 0;
-        newUserData.eloHistory = ghostUser.eloHistory ?? [];
-        newUserData.friends = ghostUser.friends ?? [];
-        newUserData.rooms = ghostUser.rooms ?? [];
-        if (ghostUser.sports) {
-          newUserData.sports = { ...newUserData.sports, ...ghostUser.sports };
-        }
-        newUserData.achievements = ghostUser.achievements ?? [];
-        newUserData.managedBy = ghostUser.managedBy;
-        newUserData.ghostId = ghostUser.uid;
-        newUserData.claimedFrom = ghostUser.uid;
-
-        // Помечаем старый документ как заклейменный
-        await updateDoc(doc(db, 'users', ghostUser.uid), {
-          isClaimed: true,
-          claimedBy: u.uid,
-          claimedAt: new Date().toISOString(),
-          isGhost: false,
-          isArchivedGhost: true,
-        });
-      }
-
+      // Сохраняем нового юзера
       await setDoc(newUserRef, newUserData);
 
       // --- Trigger Cloud Function Migration ---
+      // Теперь это ЕДИНСТВЕННОЕ место, где происходит слияние профилей
       if (ghostUser) {
         try {
           const functions = getFunctions(app, 'us-central1');
@@ -291,6 +268,8 @@ export default function RegisterPage() {
           });
         } catch (migrationError: any) {
           console.error("Migration failed:", migrationError);
+          // Аккаунт создан, но миграция не прошла. 
+          // Можно добавить логику retry или просто сообщить пользователю.
           toast({
             title: t('Warning'),
             description: t('Account created, but history migration failed. Contact support.'),

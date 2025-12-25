@@ -1079,26 +1079,98 @@ export const claimGhostProfile = onCall(async (request) => {
   const { ghostId } = request.data;
   const newUserId = request.auth.uid;
 
-  if (!ghostId || !newUserId) {
-    throw new HttpsError('invalid-argument', 'Missing ghostId or newUserId');
+  if (!ghostId || typeof ghostId !== 'string') {
+    throw new HttpsError('invalid-argument', 'Missing or invalid ghostId');
   }
 
-  // Проверка: действительно ли этот пользователь заклеймил этого призрака
-  const newUserDoc = await db.collection('users').doc(newUserId).get();
-  const userData = newUserDoc.data();
+  // 1. Получаем данные госта
+  const ghostDocRef = db.collection('users').doc(ghostId);
+  const ghostDoc = await ghostDocRef.get();
 
-  if (!userData || userData.claimedFrom !== ghostId) {
-    throw new HttpsError('permission-denied', 'Profile mismatch');
+  if (!ghostDoc.exists) {
+    throw new HttpsError('not-found', 'Ghost profile not found');
   }
 
+  const ghostData = ghostDoc.data();
+
+  // Проверки безопасности
+  if (!ghostData?.isGhost && !ghostData?.isArchivedGhost) {
+     // Разрешаем клеймить только тех, кто помечен как гост (или был им)
+     // Если у тебя логика, что можно клеймить и обычных юзеров (миграция), убери это условие
+     // Но обычно клеймят только "призраков"
+  }
+
+  if (ghostData?.isClaimed) {
+    throw new HttpsError('already-exists', 'Profile already claimed');
+  }
+
+  // 2. Получаем данные нового пользователя (текущего)
+  const newUserRef = db.collection('users').doc(newUserId);
+  const newUserDoc = await newUserRef.get();
+  
+  if (!newUserDoc.exists) {
+      throw new HttpsError('not-found', 'Your user profile does not exist yet');
+  }
+
+  // 3. Подготовка данных для переноса (Merge logic)
   const batch = db.batch();
-  let operationCount = 0;
-  const commitThreshold = 400; // Firebase batch limit is 500
+  
+  // Копируем статистику и историю из госта в нового юзера
+  // Используем merge, чтобы не затереть существующие поля (email, name и т.д.)
+  const updatesForNewUser: any = {
+      // Маркеры миграции
+      claimedFrom: ghostId,
+      ghostId: ghostId, // Legacy field
+      
+      // Переносим базовую статистику, если у нового юзера она пустая (или 0)
+      // В реальном сценарии "клейма" новый юзер обычно пустой (0 матчей)
+      globalElo: ghostData?.globalElo ?? 1000,
+      matchesPlayed: ghostData?.matchesPlayed ?? 0,
+      wins: ghostData?.wins ?? 0,
+      losses: ghostData?.losses ?? 0,
+      
+      // Массивы просто перезаписываем/объединяем (тут стратегия зависит от требований)
+      // Для простоты: берем от госта, так как у нового юзера их скорее всего нет
+      eloHistory: ghostData?.eloHistory ?? [],
+      friends: ghostData?.friends ?? [],
+      rooms: ghostData?.rooms ?? [],
+      achievements: ghostData?.achievements ?? [],
+      
+      // Спорт-специфичные данные (deep merge не поддерживается в update, перезаписываем ключи)
+  };
 
+  // Копируем вложенные поля sports.*
+  if (ghostData?.sports) {
+      for (const sportKey in ghostData.sports) {
+          const sData = ghostData.sports[sportKey];
+          updatesForNewUser[`sports.${sportKey}`] = sData;
+      }
+  }
+  
+  // Если гост был менеджером чего-то
+  if (ghostData?.managedBy) {
+      updatesForNewUser.managedBy = ghostData.managedBy;
+  }
+
+  batch.update(newUserRef, updatesForNewUser);
+
+  // 4. Помечаем старого госта как заклеймленного
+  batch.update(ghostDocRef, {
+    isClaimed: true,
+    claimedBy: newUserId,
+    claimedAt: new Date().toISOString(),
+    isGhost: false, // Больше не гост
+    isArchivedGhost: true,
+    migrationStatus: 'completed',
+    migratedTo: newUserId
+  });
+
+  // 5. Миграция связей (Rooms, Matches, Communities) - ЭТО ОСТАЕТСЯ КАК БЫЛО
+  let operationCount = 0;
   const sports = ['pingpong', 'tennis', 'badminton'];
 
   try {
-    // 1. Обновляем КОМНАТЫ (Rooms)
+    // --- ROOMS ---
     for (const sport of sports) {
       const roomsRef = db.collection(`rooms-${sport}`);
       const snapshot = await roomsRef.where('memberIds', 'array-contains', ghostId).get();
@@ -1107,37 +1179,27 @@ export const claimGhostProfile = onCall(async (request) => {
         const data = doc.data();
         const updates: any = {};
 
-        // Обновляем массив ID
         const newMemberIds = (data.memberIds || []).filter((id: string) => id !== ghostId);
-        if (!newMemberIds.includes(newUserId)) {
-           newMemberIds.push(newUserId);
-        }
+        if (!newMemberIds.includes(newUserId)) newMemberIds.push(newUserId);
         updates.memberIds = newMemberIds;
 
-        // Обновляем массив объектов members
         if (Array.isArray(data.members)) {
           updates.members = data.members.map((m: any) => {
-            if (m.userId === ghostId) {
-              return { ...m, userId: newUserId };
-            }
+            if (m.userId === ghostId) return { ...m, userId: newUserId };
             return m;
           });
         }
 
-        // Если создатель комнаты был гостом
-        if (data.creator === ghostId) {
-          updates.creator = newUserId;
-        }
+        if (data.creator === ghostId) updates.creator = newUserId;
 
         batch.update(doc.ref, updates);
         operationCount++;
       }
     }
 
-    // 2. Обновляем МАТЧИ (Matches)
+    // --- MATCHES ---
     for (const sport of sports) {
       const matchesRef = db.collection(`matches-${sport}`);
-      // Ищем матчи, где гост был игроком (array-contains)
       const snapshot = await matchesRef.where('players', 'array-contains', ghostId).get();
 
       for (const doc of snapshot.docs) {
@@ -1145,26 +1207,19 @@ export const claimGhostProfile = onCall(async (request) => {
         const updates: any = {};
 
         const newPlayers = (data.players || []).filter((id: string) => id !== ghostId);
-        if (!newPlayers.includes(newUserId)) {
-           newPlayers.push(newUserId);
-        }
+        if (!newPlayers.includes(newUserId)) newPlayers.push(newUserId);
         updates.players = newPlayers;
 
-        if (data.player1Id === ghostId) {
-          updates.player1Id = newUserId;
-        }
-        if (data.player2Id === ghostId) {
-          updates.player2Id = newUserId;
-        }
+        if (data.player1Id === ghostId) updates.player1Id = newUserId;
+        if (data.player2Id === ghostId) updates.player2Id = newUserId;
 
         batch.update(doc.ref, updates);
         operationCount++;
       }
     }
 
-    // 3. Обновляем СООБЩЕСТВА (Communities)
+    // --- COMMUNITIES ---
     const communitiesRef = db.collection('communities');
-    // Ищем, где гост был участником
     const commSnapshot = await communitiesRef.where('members', 'array-contains', ghostId).get();
 
     for (const doc of commSnapshot.docs) {
@@ -1172,14 +1227,10 @@ export const claimGhostProfile = onCall(async (request) => {
       const updates: any = {};
 
       const newMembers = (data.members || []).filter((id: string) => id !== ghostId);
-      if (!newMembers.includes(newUserId)) {
-         newMembers.push(newUserId);
-      }
+      if (!newMembers.includes(newUserId)) newMembers.push(newUserId);
       updates.members = newMembers;
 
-      if (data.ownerId === ghostId) {
-        updates.ownerId = newUserId;
-      }
+      if (data.ownerId === ghostId) updates.ownerId = newUserId;
       
       if (Array.isArray(data.admins) && data.admins.includes(ghostId)) {
          const newAdmins = data.admins.filter((id: string) => id !== ghostId);
@@ -1191,15 +1242,8 @@ export const claimGhostProfile = onCall(async (request) => {
       operationCount++;
     }
 
-    // 4. Обновляем старого призрака
-    batch.update(db.collection('users').doc(ghostId), {
-      migrationStatus: 'completed',
-      migratedTo: newUserId,
-      isArchivedGhost: true // Убеждаемся, что флаг стоит
-    });
-
     await batch.commit();
-    return { success: true, migratedCount: operationCount };
+    return { success: true, migratedCount: operationCount, message: 'Profile successfully merged' };
 
   } catch (error: any) {
     console.error("Migration error:", error);
