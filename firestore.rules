@@ -48,10 +48,11 @@ service cloud.firestore {
       // ОБНОВЛЕНИЕ: 
       // 1. Владелец может обновлять свой профиль.
       // 2. ВАЖНО: Запрещаем владельцу менять поля, связанные с миграцией профиля.
-      //    Эти поля может менять только Cloud Function (через Admin SDK, который игнорирует правила).
+      //    Поля статистики (wins, losses, elo) оставляем доступными, так как 
+      //    матчи пишутся через Cloud Functions, но в будущем может понадобиться прямой доступ.
       allow update: if (isOwner(userId) && 
                        !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['claimedFrom', 'ghostId', 'managedBy', 'globalElo', 'wins', 'losses'])) 
+                        .hasAny(['claimedFrom', 'ghostId', 'managedBy'])) 
                     || isSuperAdmin();
       
       // УДАЛЕНИЕ:

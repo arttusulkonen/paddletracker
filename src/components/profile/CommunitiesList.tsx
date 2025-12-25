@@ -1,3 +1,4 @@
+// src/components/profile/CommunitiesList.tsx
 'use client';
 
 import {
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui';
 import { db } from '@/lib/firebase';
 import type { Community } from '@/lib/types';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, or, query, where } from 'firebase/firestore';
 import { Warehouse } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -32,13 +33,22 @@ export function CommunitiesList({ targetUid }: CommunitiesListProps) {
     const fetchCommunities = async () => {
       setLoading(true);
       try {
-        // Query communities where the user is a MEMBER (this covers owners/admins too usually,
-        // assuming owner is added to members array on creation)
+        // ИСПРАВЛЕНИЕ: Используем 'or', чтобы найти сообщества, где пользователь
+        // является участником ИЛИ админом ИЛИ владельцем.
+        // Это гарантирует, что мы ничего не пропустим.
         const q = query(
           collection(db, 'communities'),
-          where('members', 'array-contains', targetUid)
+          or(
+            where('members', 'array-contains', targetUid),
+            where('admins', 'array-contains', targetUid),
+            where('ownerId', '==', targetUid)
+          )
         );
+        
         const snap = await getDocs(q);
+        
+        // Firestore автоматически дедублирует документы в рамках одного запроса 'or',
+        // но на всякий случай маппинг не помешает.
         const comms = snap.docs.map(
           (d) => ({ id: d.id, ...d.data() } as Community)
         );

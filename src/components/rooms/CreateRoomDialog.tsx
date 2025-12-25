@@ -373,9 +373,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
               const chunk = membersArr.slice(i, i + 10);
               if (chunk.length === 0) continue;
 
-              // ИСПРАВЛЕНИЕ: Используем documentId() вместо 'uid'
-              // Это гарантирует, что мы найдем документ по его ключу,
-              // даже если поле uid отсутствует внутри данных.
+              // ИСПРАВЛЕНИЕ: Используем documentId() вместо 'uid' для поиска по ключу документа
               const q = query(
                 collection(db!, 'users'),
                 where(documentId(), 'in', chunk)
@@ -384,7 +382,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
               const snaps = await getDocs(q);
               snaps.forEach((d) => {
                 const p = d.data() as UserProfile;
-                const currentUid = d.id; // ИСПРАВЛЕНИЕ: Берем ID из документа, а не из данных
+                const currentUid = d.id; // Берем ID из документа
 
                 if (currentUid !== user?.uid) {
                   communityMembersToAdd.push({
