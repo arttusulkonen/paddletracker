@@ -1093,7 +1093,6 @@ export const claimGhostProfile = onCall(async (request) => {
 
   const batch = db.batch();
   let operationCount = 0;
-  const commitThreshold = 400; // Firebase batch limit is 500
 
   const sports = ['pingpong', 'tennis', 'badminton'];
 
