@@ -222,7 +222,7 @@ export default function ManageMembersPage() {
           ))}
         </div>
     );
-  }
+  };
 
   if (loading) {
     return (

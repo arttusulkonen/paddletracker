@@ -48,8 +48,6 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const AI_CUTOFF_DATE = new Date('2025-12-01').getTime();
-
 const parseCreatedAt = (dateStr?: string) => {
   if (!dateStr) return 0;
   const parts = dateStr.split(' ');

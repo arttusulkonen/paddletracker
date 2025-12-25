@@ -33,7 +33,6 @@ const parseRoomDate = (val: unknown): number => {
   if (!val) return 0;
   if (
     typeof val === 'object' &&
-    val !== null &&
     'toDate' in val &&
     typeof (val as { toDate: () => Date }).toDate === 'function'
   ) {
