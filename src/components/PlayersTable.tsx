@@ -238,7 +238,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         </CardDescription>
       </CardHeader>
       <CardContent className='p-0 sm:p-6'>
-        <Tabs defaultValue='global' className='w-full'>
+        <Tabs defaultValue='circles' className='w-full'>
           <div>
             <TabsList className='grid w-full grid-cols-2 mb-4'>
               <TabsTrigger value='global'>
