@@ -42,7 +42,6 @@ import {
 	Building2,
 	Percent,
 	Shield,
-	Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
