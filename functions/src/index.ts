@@ -258,7 +258,6 @@ export const aiSaveMatch = onCall(
     const memberMap = new Map<string, string>();
     members.forEach((m: any) => {
       const uid = m.userId;
-      // Сохраняем и имя и displayName в нижнем регистре для поиска
       if (m.name) memberMap.set(m.name.trim().toLowerCase(), uid);
       if (m.displayName) memberMap.set(m.displayName.trim().toLowerCase(), uid);
     });
@@ -274,19 +273,16 @@ export const aiSaveMatch = onCall(
         continue;
       }
 
-      // Если не нашли в memberMap, ищем глобально в users
       const findUser = async (n: string) => {
         const norm = n.trim();
         const normLower = norm.toLowerCase();
         const usersRef = db.collection('users');
 
-        // Точное совпадение
         let snap = await usersRef.where('name', '==', norm).limit(1).get();
         if (!snap.empty) return snap.docs[0];
         snap = await usersRef.where('displayName', '==', norm).limit(1).get();
         if (!snap.empty) return snap.docs[0];
 
-        // Нечеткий поиск (дорогой, но для AI фичи ок)
         const allUsers = await usersRef.get();
         let bestDoc: admin.firestore.QueryDocumentSnapshot | null = null;
         let minDist = Infinity;
@@ -310,7 +306,6 @@ export const aiSaveMatch = onCall(
             }
           }
         }
-        // Разрешаем дистанцию 2 (опечатки)
         return minDist <= 2 ? bestDoc : null;
       };
 
@@ -413,7 +408,7 @@ export const aiSaveMatch = onCall(
         const p1Id = nameToUidMap.get(player1Name);
         const p2Id = nameToUidMap.get(player2Name);
 
-        // --- ВАЖНОЕ ИЗМЕНЕНИЕ: Явный выброс ошибки, если игрок не найден ---
+        // --- ВАЖНО: Кидаем ошибку, если игрок не найден ---
         if (!p1Id) {
              console.error(`AI Match Error: Player 1 not found. Name: "${player1Name}"`);
              throw new HttpsError('failed-precondition', `Could not find player: "${player1Name}". Please check the name spelling.`);
@@ -555,7 +550,7 @@ export const aiSaveMatch = onCall(
         batch.update(db.collection('users').doc(uid), updates);
       });
 
-      // Обновляем memberIds, чтобы синхронизировать данные (если добавился новый игрок)
+      // Обновляем memberIds, чтобы синхронизировать данные
       const currentMemberIds: string[] = roomData.memberIds || [];
       const updatedMemberIds = new Set(currentMemberIds);
       members.forEach(m => updatedMemberIds.add(m.userId));
@@ -592,7 +587,6 @@ export const aiSaveMatch = onCall(
       return { success: true, updates: updatesList };
     } catch (error: any) {
       logger.error('aiSaveMatch error:', error);
-      // Если это наша кастомная ошибка, прокидываем её сообщение
       if (error instanceof HttpsError) {
           throw error;
       }
