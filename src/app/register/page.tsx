@@ -101,7 +101,7 @@ export default function RegisterPage() {
     if (claimUid && db) {
       const fetchGhost = async () => {
         try {
-          const docRef = doc(db, 'users', claimUid);
+          const docRef = doc(db!, 'users', claimUid);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
             const data = snap.data();

@@ -1,3 +1,5 @@
+// src/components/communities/CommunitySettingsDialog.tsx
+
 'use client';
 
 import {
@@ -89,9 +91,6 @@ export function CommunitySettingsDialog({
   const [adminProfiles, setAdminProfiles] = useState<UserProfile[]>([]);
   const [candidateProfiles, setCandidateProfiles] = useState<UserProfile[]>([]);
   const [newAdminId, setNewAdminId] = useState<string>('');
-  const [adminsList, setAdminsList] = useState<string[]>(
-    community.admins || []
-  );
 
   // 1. Initial Load (Rooms & User Profiles for Admins tab)
   useEffect(() => {
@@ -101,7 +100,7 @@ export function CommunitySettingsDialog({
       try {
         // --- A. Rooms Fetching ---
         const qMy = query(
-          collection(db, config.collections.rooms),
+          collection(db!, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid)
         );
         const snapMy = await getDocs(qMy);
@@ -117,7 +116,7 @@ export function CommunitySettingsDialog({
           }
           for (const chunk of chunks) {
             const qLinked = query(
-              collection(db, config.collections.rooms),
+              collection(db!, config.collections.rooms),
               where(documentId(), 'in', chunk)
             );
             const snapLinked = await getDocs(qLinked);
@@ -144,9 +143,12 @@ export function CommunitySettingsDialog({
           // Simple fetch by ID for exact list
           // Using promise all for small list of admins is fine, or chunks if many
           for (const uid of adminIdsArray) {
-            const snap = await getDoc(doc(db, 'users', uid));
+            const snap = await getDoc(doc(db!, 'users', uid));
             if (snap.exists()) {
-              loadedAdmins.push({ uid: snap.id, ...snap.data() } as UserProfile);
+              loadedAdmins.push({
+                uid: snap.id,
+                ...snap.data(),
+              } as UserProfile);
             }
           }
         }
@@ -157,22 +159,23 @@ export function CommunitySettingsDialog({
         // For UX, usually you search, but here we'll load current members to pick from.
         const memberIds = community.members || [];
         const candidateIds = memberIds.filter((id) => !allAdminIds.has(id));
-        
+
         // Let's fetch first 50 candidates to populate dropdown
         const idsToFetch = candidateIds.slice(0, 50);
         const loadedCandidates: UserProfile[] = [];
-        
-        if (idsToFetch.length > 0) {
-             const q = query(
-                collection(db, 'users'),
-                where(documentId(), 'in', idsToFetch)
-             )
-             const snap = await getDocs(q);
-             snap.forEach(d => loadedCandidates.push({uid: d.id, ...d.data()} as UserProfile));
-        }
-        
-        setCandidateProfiles(loadedCandidates);
 
+        if (idsToFetch.length > 0) {
+          const q = query(
+            collection(db!, 'users'),
+            where(documentId(), 'in', idsToFetch)
+          );
+          const snap = await getDocs(q);
+          snap.forEach((d) =>
+            loadedCandidates.push({ uid: d.id, ...d.data() } as UserProfile)
+          );
+        }
+
+        setCandidateProfiles(loadedCandidates);
       } catch (e) {
         console.error(e);
       }
@@ -313,16 +316,16 @@ export function CommunitySettingsDialog({
       await updateDoc(doc(db, 'communities', community.id), {
         admins: arrayUnion(newAdminId),
       });
-      
-      setAdminsList(prev => [...prev, newAdminId]);
-      
+
       // Move from candidate to admin list locally
-      const promoted = candidateProfiles.find(p => p.uid === newAdminId);
+      const promoted = candidateProfiles.find((p) => p.uid === newAdminId);
       if (promoted) {
-          setAdminProfiles(prev => [...prev, promoted]);
-          setCandidateProfiles(prev => prev.filter(p => p.uid !== newAdminId));
+        setAdminProfiles((prev) => [...prev, promoted]);
+        setCandidateProfiles((prev) =>
+          prev.filter((p) => p.uid !== newAdminId)
+        );
       }
-      
+
       setNewAdminId('');
       toast({ title: t('Admin added') });
       router.refresh();
@@ -341,14 +344,12 @@ export function CommunitySettingsDialog({
       await updateDoc(doc(db, 'communities', community.id), {
         admins: arrayRemove(uid),
       });
-      
-      setAdminsList(prev => prev.filter(id => id !== uid));
-      
+
       // Move from admin to candidate list locally
-      const demoted = adminProfiles.find(p => p.uid === uid);
+      const demoted = adminProfiles.find((p) => p.uid === uid);
       if (demoted) {
-          setAdminProfiles(prev => prev.filter(p => p.uid !== uid));
-          setCandidateProfiles(prev => [...prev, demoted]);
+        setAdminProfiles((prev) => prev.filter((p) => p.uid !== uid));
+        setCandidateProfiles((prev) => [...prev, demoted]);
       }
 
       toast({ title: t('Admin removed') });
@@ -560,7 +561,9 @@ export function CommunitySettingsDialog({
                     </Button>
                   </div>
                   <p className='text-xs text-muted-foreground'>
-                    {t('Admins can manage rooms, invite members, and edit settings.')}
+                    {t(
+                      'Admins can manage rooms, invite members, and edit settings.'
+                    )}
                   </p>
                 </div>
 
@@ -570,43 +573,45 @@ export function CommunitySettingsDialog({
                   </div>
                   <ScrollArea className='h-[300px]'>
                     <div className='p-2 space-y-1'>
-                        {adminProfiles.map((p) => {
-                            const isOwner = p.uid === community.ownerId;
-                            return (
-                                <div
-                                key={p.uid}
-                                className='flex items-center justify-between p-2 rounded-md hover:bg-muted/50 group'
-                                >
-                                <div className='flex items-center gap-3'>
-                                    <Avatar className='h-8 w-8 border'>
-                                    <AvatarImage src={p.photoURL || undefined} />
-                                    <AvatarFallback>{p.name?.[0]}</AvatarFallback>
-                                    </Avatar>
-                                    <div className='flex flex-col'>
-                                    <span className='text-sm font-medium flex items-center gap-1'>
-                                        {p.name}
-                                        {isOwner && <Crown className="h-3 w-3 text-amber-500 fill-amber-500" />}
-                                    </span>
-                                    <span className='text-[10px] text-muted-foreground capitalize'>
-                                        {isOwner ? t('Owner') : t('Admin')}
-                                    </span>
-                                    </div>
-                                </div>
-                                
-                                {!isOwner && (
-                                    <Button
-                                    size='icon'
-                                    variant='ghost'
-                                    className='h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity'
-                                    onClick={() => handleRemoveAdmin(p.uid)}
-                                    disabled={loading}
-                                    >
-                                    <X className='h-4 w-4' />
-                                    </Button>
-                                )}
-                                </div>
-                            );
-                        })}
+                      {adminProfiles.map((p) => {
+                        const isOwner = p.uid === community.ownerId;
+                        return (
+                          <div
+                            key={p.uid}
+                            className='flex items-center justify-between p-2 rounded-md hover:bg-muted/50 group'
+                          >
+                            <div className='flex items-center gap-3'>
+                              <Avatar className='h-8 w-8 border'>
+                                <AvatarImage src={p.photoURL || undefined} />
+                                <AvatarFallback>{p.name?.[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className='flex flex-col'>
+                                <span className='text-sm font-medium flex items-center gap-1'>
+                                  {p.name}
+                                  {isOwner && (
+                                    <Crown className='h-3 w-3 text-amber-500 fill-amber-500' />
+                                  )}
+                                </span>
+                                <span className='text-[10px] text-muted-foreground capitalize'>
+                                  {isOwner ? t('Owner') : t('Admin')}
+                                </span>
+                              </div>
+                            </div>
+
+                            {!isOwner && (
+                              <Button
+                                size='icon'
+                                variant='ghost'
+                                className='h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity'
+                                onClick={() => handleRemoveAdmin(p.uid)}
+                                disabled={loading}
+                              >
+                                <X className='h-4 w-4' />
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </div>
