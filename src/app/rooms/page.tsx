@@ -74,7 +74,7 @@ type RoomWithMeta = Room & {
 export default function RoomsPage() {
   const { t } = useTranslation();
   const { user, userProfile } = useAuth();
-  const { config } = useSport();
+  const { config } = useSport();	
 
   const [allRooms, setAllRooms] = useState<RoomWithMeta[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
@@ -165,11 +165,14 @@ export default function RoomsPage() {
       // 4. Map Result
       return list.map((data) => {
         const creatorId = data.creator || data.createdBy;
+        // Проверяем завершен ли сезон (или комната архивирована)
+        const isFinished = (data.seasonHistory?.length ?? 0) > 0 || data.isArchived === true;
+
         return {
           ...(data as Room),
           id: data.id,
           creatorName: creatorNameMap[creatorId] || data.creatorName,
-          isFinished: (data.seasonHistory?.length ?? 0) > 0,
+          isFinished: isFinished,
           _sortTs: parseRoomDate(
             data.createdAt || data.roomCreated || data.created
           ),
@@ -190,7 +193,20 @@ export default function RoomsPage() {
     const handleSnapshot = async (snap: { docs: DocumentData[] }) => {
       snap.docs.forEach((d) => roomsMap.set(d.id, { id: d.id, ...d.data() }));
       const processed = await processRooms(new Map(roomsMap));
-      processed.sort((a, b) => b._sortTs - a._sortTs);
+      
+      // Сортировка: Сначала активные (по дате), потом завершенные (по дате)
+      processed.sort((a, b) => {
+        // 1. Приоритет по статусу (Активные выше Завершенных)
+        if (a.isFinished !== b.isFinished) {
+          // Если a завершена, она идет ниже (возвращаем 1)
+          // Если b завершена, a идет выше (возвращаем -1)
+          return a.isFinished ? 1 : -1;
+        }
+        
+        // 2. Если статус одинаковый - сортируем по дате (Новые выше)
+        return b._sortTs - a._sortTs;
+      });
+
       setAllRooms(processed);
       setIsLoadingRooms(false);
     };

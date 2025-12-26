@@ -1,4 +1,3 @@
-// src/components/rooms/RoomHeader.tsx
 'use client';
 
 import {
@@ -18,12 +17,17 @@ import {
 	Card,
 	Dialog,
 	DialogTrigger,
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
 } from '@/components/ui';
 import type { Room, Member as RoomMember } from '@/lib/types';
 import {
 	Briefcase,
 	Gamepad2,
 	Globe,
+	HelpCircle,
 	Lock,
 	LogIn,
 	LogOut,
@@ -61,7 +65,7 @@ export function RoomHeader({
   const mode = room.mode || 'office';
   const memberCount = room.memberIds?.length || 0;
 
-  // Настройка темы
+  // Настройка темы и описания режима
   const getTheme = () => {
     switch (mode) {
       case 'professional':
@@ -71,6 +75,9 @@ export function RoomHeader({
           iconColor: 'text-amber-600 dark:text-amber-500',
           icon: <Medal className='w-4 h-4' />,
           label: t('Professional'),
+          description: t(
+            'Standard ELO rules apply. Every match counts towards your Global Ranking.'
+          ),
         };
       case 'arcade':
         return {
@@ -79,6 +86,9 @@ export function RoomHeader({
           iconColor: 'text-purple-600 dark:text-purple-500',
           icon: <Gamepad2 className='w-4 h-4' />,
           label: t('Arcade'),
+          description: t(
+            'Matches in this room do NOT affect your Global ELO. Play for fun and experiment!'
+          ),
         };
       default:
         return {
@@ -87,6 +97,9 @@ export function RoomHeader({
           iconColor: 'text-slate-600 dark:text-slate-500',
           icon: <Briefcase className='w-4 h-4' />,
           label: t('Office'),
+          description: t(
+            'Losses are penalized less (inflated ELO) to keep office morale high. Global ELO is still affected.'
+          ),
         };
     }
   };
@@ -117,13 +130,25 @@ export function RoomHeader({
                 </h1>
 
                 <div className='flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-muted-foreground font-medium'>
-                  <div
-                    className={`flex items-center gap-1.5 ${theme.iconColor}`}
-                  >
-                    {theme.icon}
-                    <span>{theme.label}</span>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`flex items-center gap-1.5 cursor-help ${theme.iconColor}`}
+                        >
+                          {theme.icon}
+                          <span>{theme.label}</span>
+                          <HelpCircle className='w-3 h-3 opacity-50' />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className='max-w-xs text-xs'>{theme.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
                   <div className='w-1 h-1 rounded-full bg-muted-foreground/30' />
+
                   <div className='flex items-center gap-1.5'>
                     {room.isPublic ? (
                       <>
@@ -137,7 +162,9 @@ export function RoomHeader({
                       </>
                     )}
                   </div>
+
                   <div className='w-1 h-1 rounded-full bg-muted-foreground/30' />
+
                   <div className='flex items-center gap-1.5'>
                     <Users className='w-3.5 h-3.5' />
                     <span>{memberCount}</span>
@@ -204,7 +231,6 @@ export function RoomHeader({
                   </AlertDialog>
                 )}
 
-                {/* ИСПРАВЛЕНИЕ: Кнопка настроек показывается, если isCreator (без isMember) */}
                 {isCreator && (
                   <Dialog>
                     <DialogTrigger asChild>
@@ -218,9 +244,14 @@ export function RoomHeader({
               </div>
             </div>
 
-            {room.description && (
+            {room.description ? (
               <p className='text-muted-foreground text-sm leading-relaxed max-w-2xl'>
                 {room.description}
+              </p>
+            ) : (
+              // Если описания нет, показываем описание режима как fallback, чтобы не было пусто
+              <p className='text-muted-foreground/70 text-sm leading-relaxed max-w-2xl italic'>
+                {theme.description}
               </p>
             )}
           </div>

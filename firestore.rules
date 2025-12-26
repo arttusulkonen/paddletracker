@@ -70,24 +70,46 @@ service cloud.firestore {
     // =========================================================
     // КОЛЛЕКЦИИ: ROOMS
     // =========================================================
+    // Общая логика для всех типов комнат:
+    // 1. Админ комнаты может менять всё.
+    // 2. Обычный юзер может менять ТОЛЬКО списки участников (вступить/выйти/запросить),
+    //    но НЕ может менять создателя или админов.
+    
     match /rooms-pingpong/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn(); 
+      
+      allow update: if 
+        // Либо это админ комнаты (полный доступ)
+        isRoomAdmin(resource.data) || 
+        // Либо это обычный юзер, который НЕ трогает админские поля
+        (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
+          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
     match /rooms-tennis/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      
+      allow update: if 
+        isRoomAdmin(resource.data) || 
+        (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
+          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
     match /rooms-badminton/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      
+      allow update: if 
+        isRoomAdmin(resource.data) || 
+        (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
+          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
