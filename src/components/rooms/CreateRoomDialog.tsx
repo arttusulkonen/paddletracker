@@ -1,5 +1,6 @@
 // src/components/rooms/CreateRoomDialog.tsx
 'use client';
+
 import ImageCropDialog from '@/components/ImageCropDialog';
 import {
 	Accordion,
@@ -138,11 +139,13 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
       );
       setFriends(
-        (loaded.filter(Boolean) as UserProfile[]).sort((a, b) =>
-          (a.name ?? a.displayName ?? '').localeCompare(
-            b.name ?? b.displayName ?? ''
+        (loaded.filter(Boolean) as UserProfile[])
+          .filter((p) => p.accountType !== 'coach') // FIX: Filter out coaches
+          .sort((a, b) =>
+            (a.name ?? a.displayName ?? '').localeCompare(
+              b.name ?? b.displayName ?? ''
+            )
           )
-        )
       );
     });
     return () => unsub();
@@ -168,11 +171,13 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         }))
       );
       setCoPlayers(
-        (loaded.filter(Boolean) as UserProfile[]).sort((a, b) =>
-          (a.name ?? a.displayName ?? '').localeCompare(
-            b.name ?? b.displayName ?? ''
+        (loaded.filter(Boolean) as UserProfile[])
+          .filter((p) => p.accountType !== 'coach') // FIX: Filter out coaches
+          .sort((a, b) =>
+            (a.name ?? a.displayName ?? '').localeCompare(
+              b.name ?? b.displayName ?? ''
+            )
           )
-        )
       );
     });
     return () => unsub();
@@ -738,7 +743,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   {/* Community Selector (Only if communities exist) */}
                   {myCommunities.length > 0 && (
                     <div className='mb-6 bg-muted/20 p-4 rounded-lg border'>
-                      <Label className='mb-2  font-semibold flex items-center gap-2'>
+                      <Label className='mb-2 block font-semibold flex items-center gap-2'>
                         <Warehouse className='h-4 w-4' />
                         {t('Link to Community (Optional)')}
                       </Label>

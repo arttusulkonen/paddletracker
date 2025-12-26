@@ -184,10 +184,11 @@ export default function RoomPage() {
     return () => unsub();
   }, [user, config.collections.rooms, room?.memberIds, accessDenied]);
 
+  // FIX: Filter out coaches
   const friendsAll = useMemo(
     () =>
       friends
-        .filter((p) => !memberIdsSet.has(p.uid))
+        .filter((p) => !memberIdsSet.has(p.uid) && p.accountType !== 'coach')
         .sort((a, b) =>
           (a.name ?? a.displayName ?? '').localeCompare(
             b.name ?? b.displayName ?? ''
@@ -196,10 +197,16 @@ export default function RoomPage() {
     [friends, memberIdsSet]
   );
 
+  // FIX: Filter out coaches
   const othersInSport = useMemo(() => {
     const friendSet = new Set(friends.map((f) => f.uid));
     return coPlayers
-      .filter((p) => !friendSet.has(p.uid) && !memberIdsSet.has(p.uid))
+      .filter(
+        (p) =>
+          !friendSet.has(p.uid) &&
+          !memberIdsSet.has(p.uid) &&
+          p.accountType !== 'coach'
+      )
       .sort((a, b) =>
         (a.name ?? a.displayName ?? '').localeCompare(
           b.name ?? b.displayName ?? ''
@@ -314,6 +321,10 @@ export default function RoomPage() {
             ? profile.name ?? profile.displayName ?? 'Unknown'
             : existing?.name ?? 'Unknown';
 
+          // FIX: Explicitly grab accountType
+          const accountType =
+            profile?.accountType || (existing as any)?.accountType || 'player';
+
           if (existing) {
             return {
               ...existing,
@@ -321,7 +332,8 @@ export default function RoomPage() {
               photoURL: profile?.photoURL,
               globalElo: profile?.sports?.[sport]?.globalElo,
               rank: profile?.rank,
-            };
+              accountType, // Inject accountType
+            } as any;
           }
 
           return {
@@ -335,7 +347,8 @@ export default function RoomPage() {
             role: 'viewer',
             date: new Date().toISOString(),
             globalElo: profile?.sports?.[sport]?.globalElo ?? 1000,
-          };
+            accountType, // Inject accountType
+          } as any;
         });
 
       setMembers(syncedMembers);
@@ -485,6 +498,12 @@ export default function RoomPage() {
       };
     });
   }, [members, rawMatches, seasonStarts, seasonRoomStarts, sport, last5Form]);
+
+  // FIX: Create a filtered list of members (players only) for components
+  const playersOnlyMembers = useMemo(
+    () => regularPlayers.filter((m: any) => m.accountType !== 'coach'),
+    [regularPlayers]
+  );
 
   const getSeasonEloSnapshots = useCallback(
     async (roomId: string): Promise<StartEndElo> => {
@@ -822,8 +841,9 @@ export default function RoomPage() {
                 <CardTitle>{t('Players')}</CardTitle>
               </CardHeader>
               <CardContent className='px-0 sm:px-6'>
+                {/* FIX: Pass filtered players to MembersList */}
                 <MembersList
-                  members={regularPlayers}
+                  members={playersOnlyMembers}
                   room={room}
                   isCreator={isCreator}
                   canManage={canManageRoom}
@@ -955,8 +975,9 @@ export default function RoomPage() {
             {/* 1. Record Block */}
             {isMember && !latestSeason && !room.isArchived && (
               <section>
+                {/* FIX: Pass filtered players to RecordBlock */}
                 <RecordBlock
-                  members={members}
+                  members={playersOnlyMembers}
                   roomId={roomId}
                   room={room}
                   isCreator={isCreator}
@@ -965,32 +986,23 @@ export default function RoomPage() {
                 />
               </section>
             )}
-
-            {/* 2. Standings */}
-            <section>
-              <div className='flex items-center justify-between mb-4'>
-                <h2 className='text-xl font-bold tracking-tight'>
-                  {t('Standings')}
-                </h2>
-              </div>
-              <StandingsTable
-                players={regularPlayers}
-                latestSeason={latestSeason}
-                roomCreatorId={room.createdBy || room.creator || ''}
-                roomMode={room.mode || 'office'}
-              />
-            </section>
-
-            {/* 3. Match History */}
-            <section>
-              <div className='flex items-center justify-between mb-4 pt-4 border-t'>
-                <h2 className='text-xl font-bold tracking-tight mt-4'>
-                  {t('Match History')}
-                </h2>
-              </div>
-              <RecentMatches matches={recentMatches} />
-            </section>
           </div>
+        </div>
+
+        <div className='mt-16 mb-8 text-center text-sm text-muted-foreground'>
+          <section>
+            {/* FIX: Pass filtered players to StandingsTable */}
+            <StandingsTable
+              players={playersOnlyMembers}
+              latestSeason={latestSeason}
+              roomCreatorId={room.createdBy || room.creator || ''}
+              roomMode={room.mode || 'office'}
+            />
+          </section>
+
+          <section>
+            <RecentMatches matches={recentMatches} />
+          </section>
         </div>
       </div>
     </ProtectedRoute>

@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-
 import { useAuth } from '@/contexts/AuthContext';
 import { sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
@@ -34,12 +33,7 @@ import {
 	query,
 	where,
 } from 'firebase/firestore';
-import {
-	BarChartHorizontal,
-	Building2,
-	Percent,
-	Shield,
-} from 'lucide-react';
+import { BarChartHorizontal, Building2, Percent, Shield } from 'lucide-react';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -59,6 +53,7 @@ type PlayerData = {
   isSelf?: boolean;
   communityName?: string;
   communityId?: string;
+  accountType?: string;
 };
 
 const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
@@ -72,13 +67,15 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
   useEffect(() => {
     const fetchPlayers = async () => {
       setLoading(true);
-			if (!db) return;
+      if (!db) return;
       try {
         const q = query(
           collection(db, 'users'),
           where('isPublic', '==', true),
+          // We filter out coaches on the client side to avoid complex index requirements
+          // with the 'orderBy' clause below.
           orderBy(`sports.${sport}.globalElo`, 'desc'),
-          limit(50)
+          limit(100) // Increased limit to account for filtered coaches
         );
         const querySnapshot = await getDocs(q);
         const friends = new Set(userProfile?.friends || []);
@@ -88,7 +85,8 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         querySnapshot.forEach((d) => {
           const data = d.data() as UserProfile;
           if (data.isDeleted) return;
-          
+          if (data.accountType === 'coach') return; // Filter out coaches
+
           const s = data.sports?.[sport];
 
           rawPlayers.push({
@@ -99,11 +97,15 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
             wins: s?.wins ?? 0,
             losses: s?.losses ?? 0,
             isFriend: friends.has(d.id),
+            accountType: data.accountType,
           });
         });
 
+        // Limit to 50 after filtering
+        const limitedPlayers = rawPlayers.slice(0, 50);
+
         const userToCommunityMap: Record<string, string> = {};
-        const playerIds = rawPlayers.map((p) => p.id);
+        const playerIds = limitedPlayers.map((p) => p.id);
         const chunkSize = 10;
         const chunks = [];
 
@@ -113,13 +115,13 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
         await Promise.all(
           chunks.map(async (chunk) => {
-						if (!db) return;
+            if (!db) return;
             const communitiesQuery = query(
               collection(db, 'communities'),
               where('members', 'array-contains-any', chunk)
             );
             const communitiesSnap = await getDocs(communitiesQuery);
-            
+
             communitiesSnap.forEach((doc) => {
               const cData = doc.data();
               const members = cData.members || [];
@@ -136,7 +138,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           })
         );
 
-        const finalPlayers = rawPlayers.map((p) => ({
+        const finalPlayers = limitedPlayers.map((p) => ({
           ...p,
           communityName: userToCommunityMap[p.id],
         }));
@@ -169,6 +171,9 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
         const list: PlayerData[] = [];
         for (const friend of friendProfiles) {
+          // Filter out coaches from friends list in ranking
+          if (friend.accountType === 'coach') continue;
+
           const s = friend.sports?.[sport] || {
             globalElo: 1000,
             wins: 0,
@@ -182,26 +187,27 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
             wins: s.wins ?? 0,
             losses: s.losses ?? 0,
             isFriend: true,
+            accountType: friend.accountType,
           });
         }
 
-        const selfSport = userProfile.sports?.[sport] || {
-          globalElo: 1000,
-          wins: 0,
-          losses: 0,
-        };
-        const selfEntry: PlayerData = {
-          id: userProfile.uid,
-          name: userProfile.name || userProfile.displayName || 'Me',
-          photoURL: userProfile.photoURL,
-          globalElo: selfSport.globalElo ?? 1000,
-          wins: selfSport.wins ?? 0,
-          losses: selfSport.losses ?? 0,
-          isFriend: false,
-          isSelf: true,
-        };
+        const selfEntry: PlayerData | null =
+          userProfile.accountType === 'coach'
+            ? null
+            : {
+                id: userProfile.uid,
+                name: userProfile.name || userProfile.displayName || 'Me',
+                photoURL: userProfile.photoURL,
+                globalElo: userProfile.sports?.[sport]?.globalElo ?? 1000,
+                wins: userProfile.sports?.[sport]?.wins ?? 0,
+                losses: userProfile.sports?.[sport]?.losses ?? 0,
+                isFriend: false,
+                isSelf: true,
+                accountType: userProfile.accountType,
+              };
 
-        const merged = [selfEntry, ...list];
+        const merged = selfEntry ? [selfEntry, ...list] : list;
+
         const dedup = Array.from(
           new Map(merged.map((p) => [p.id, p])).values()
         ).sort((a, b) => b.globalElo - a.globalElo);

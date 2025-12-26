@@ -1,6 +1,9 @@
 'use client';
 
 import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
 	Button,
 	Dialog,
 	DialogContent,
@@ -10,6 +13,12 @@ import {
 	DialogTrigger,
 	Input,
 	Label,
+	ScrollArea,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 	Tabs,
 	TabsContent,
 	TabsList,
@@ -20,13 +29,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import type { Community, Room } from '@/lib/types';
+import type { Community, Room, UserProfile } from '@/lib/types';
 import {
 	arrayRemove,
 	arrayUnion,
 	collection,
 	doc,
 	documentId,
+	getDoc,
 	getDocs,
 	query,
 	updateDoc,
@@ -35,10 +45,13 @@ import {
 } from 'firebase/firestore';
 import {
 	ArrowDownToLine,
+	Crown,
 	Link as LinkIcon,
 	Loader2,
 	Plus,
+	ShieldPlus,
 	Trash2,
+	X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -68,19 +81,27 @@ export function CommunitySettingsDialog({
   const [myRooms, setMyRooms] = useState<Room[]>([]);
   const [linkedRooms, setLinkedRooms] = useState<Room[]>([]);
 
-  // Import State
+  // Members Import State
   const [importCount, setImportCount] = useState<number | null>(null);
   const [potentialMembers, setPotentialMembers] = useState<string[]>([]);
 
-  // 1. Загрузка комнат (моих и уже привязанных)
-  useEffect(() => {
-    if (!user || !open) return;
+  // Admins State
+  const [adminProfiles, setAdminProfiles] = useState<UserProfile[]>([]);
+  const [candidateProfiles, setCandidateProfiles] = useState<UserProfile[]>([]);
+  const [newAdminId, setNewAdminId] = useState<string>('');
+  const [adminsList, setAdminsList] = useState<string[]>(
+    community.admins || []
+  );
 
-    const fetchRooms = async () => {
+  // 1. Initial Load (Rooms & User Profiles for Admins tab)
+  useEffect(() => {
+    if (!user || !open || !db) return;
+
+    const fetchData = async () => {
       try {
-        // A. Комнаты, где я участник (чтобы я мог их привязать)
+        // --- A. Rooms Fetching ---
         const qMy = query(
-          collection(db!, config.collections.rooms),
+          collection(db, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid)
         );
         const snapMy = await getDocs(qMy);
@@ -88,18 +109,15 @@ export function CommunitySettingsDialog({
           (d) => ({ id: d.id, ...d.data() } as Room)
         );
 
-        // B. Комнаты, уже привязанные к этому комьюнити
-        // (даже если я в них не состою, но я админ комьюнити - я должен их видеть)
         const linkedData: Room[] = [];
         if (community.roomIds && community.roomIds.length > 0) {
-          // Разбиваем на чанки по 10 для 'in' запроса
           const chunks = [];
           for (let i = 0; i < community.roomIds.length; i += 10) {
             chunks.push(community.roomIds.slice(i, i + 10));
           }
           for (const chunk of chunks) {
             const qLinked = query(
-              collection(db!, config.collections.rooms),
+              collection(db, config.collections.rooms),
               where(documentId(), 'in', chunk)
             );
             const snapLinked = await getDocs(qLinked);
@@ -111,39 +129,82 @@ export function CommunitySettingsDialog({
 
         setMyRooms(myRoomsData);
         setLinkedRooms(linkedData);
+
+        // --- B. Admins & Candidates Fetching ---
+        // Fetch Admin Profiles
+        const allAdminIds = new Set([
+          community.ownerId,
+          ...(community.admins || []),
+        ]);
+        const adminIdsArray = Array.from(allAdminIds);
+
+        // Fetch Admins
+        const loadedAdmins: UserProfile[] = [];
+        if (adminIdsArray.length > 0) {
+          // Simple fetch by ID for exact list
+          // Using promise all for small list of admins is fine, or chunks if many
+          for (const uid of adminIdsArray) {
+            const snap = await getDoc(doc(db, 'users', uid));
+            if (snap.exists()) {
+              loadedAdmins.push({ uid: snap.id, ...snap.data() } as UserProfile);
+            }
+          }
+        }
+        setAdminProfiles(loadedAdmins);
+
+        // Fetch Candidates (Members who are NOT admins)
+        // We limit this to avoid fetching thousands. e.g., first 20 or fetch by chunks.
+        // For UX, usually you search, but here we'll load current members to pick from.
+        const memberIds = community.members || [];
+        const candidateIds = memberIds.filter((id) => !allAdminIds.has(id));
+        
+        // Let's fetch first 50 candidates to populate dropdown
+        const idsToFetch = candidateIds.slice(0, 50);
+        const loadedCandidates: UserProfile[] = [];
+        
+        if (idsToFetch.length > 0) {
+             const q = query(
+                collection(db, 'users'),
+                where(documentId(), 'in', idsToFetch)
+             )
+             const snap = await getDocs(q);
+             snap.forEach(d => loadedCandidates.push({uid: d.id, ...d.data()} as UserProfile));
+        }
+        
+        setCandidateProfiles(loadedCandidates);
+
       } catch (e) {
         console.error(e);
       }
     };
-    fetchRooms();
-  }, [user, open, config.collections.rooms, community.roomIds]);
+    fetchData();
+  }, [user, open, config.collections.rooms, community, community.admins]);
 
-  // 2. Расчет доступных для импорта участников
+  // 2. Logic for Import Members
   useEffect(() => {
     if (linkedRooms.length === 0) {
       setImportCount(0);
       return;
     }
-
     const allMemberIds = new Set<string>();
     linkedRooms.forEach((r) => {
       r.memberIds?.forEach((mid) => allMemberIds.add(mid));
     });
-
-    // Убираем тех, кто уже в комьюнити
     const existingMembers = new Set(community.members);
     const newMembers = Array.from(allMemberIds).filter(
       (id) => !existingMembers.has(id)
     );
-
     setPotentialMembers(newMembers);
     setImportCount(newMembers.length);
   }, [linkedRooms, community.members]);
 
+  // --- Handlers ---
+
   const handleUpdateGeneral = async () => {
+    if (!db) return;
     setLoading(true);
     try {
-      await updateDoc(doc(db!, 'communities', community.id), {
+      await updateDoc(doc(db, 'communities', community.id), {
         name,
         description,
       });
@@ -157,26 +218,23 @@ export function CommunitySettingsDialog({
   };
 
   const handleLinkRoom = async (roomId: string) => {
+    if (!db) return;
     setLoading(true);
     try {
-      const batch = writeBatch(db!);
-      // 1. Обновляем комнату
-      const roomRef = doc(db!, config.collections.rooms, roomId);
+      const batch = writeBatch(db);
+      const roomRef = doc(db, config.collections.rooms, roomId);
       batch.update(roomRef, { communityId: community.id });
 
-      // 2. Обновляем комьюнити
-      const commRef = doc(db!, 'communities', community.id);
+      const commRef = doc(db, 'communities', community.id);
       batch.update(commRef, { roomIds: arrayUnion(roomId) });
 
       await batch.commit();
       toast({ title: t('Room Linked') });
 
-      // Обновляем локальный стейт (быстро)
       const room = myRooms.find((r) => r.id === roomId);
       if (room) {
         setLinkedRooms((prev) => [...prev, room]);
       }
-
       router.refresh();
     } catch (e) {
       console.error(e);
@@ -187,13 +245,14 @@ export function CommunitySettingsDialog({
   };
 
   const handleUnlinkRoom = async (roomId: string) => {
+    if (!db) return;
     setLoading(true);
     try {
-      const batch = writeBatch(db!);
-      const roomRef = doc(db!, config.collections.rooms, roomId);
+      const batch = writeBatch(db);
+      const roomRef = doc(db, config.collections.rooms, roomId);
       batch.update(roomRef, { communityId: null });
 
-      const commRef = doc(db!, 'communities', community.id);
+      const commRef = doc(db, 'communities', community.id);
       batch.update(commRef, { roomIds: arrayRemove(roomId) });
 
       await batch.commit();
@@ -209,27 +268,23 @@ export function CommunitySettingsDialog({
   };
 
   const handleImportMembers = async () => {
-    if (potentialMembers.length === 0) return;
+    if (potentialMembers.length === 0 || !db) return;
     setLoading(true);
     try {
-      // 1. Обновляем Community (массив members)
-      const commRef = doc(db!, 'communities', community.id);
+      const commRef = doc(db, 'communities', community.id);
       await updateDoc(commRef, {
         members: arrayUnion(...potentialMembers),
       });
 
-      // 2. Обновляем Users (массив communityIds)
-      // Внимание: Здесь лучше использовать batch, но Firebase лимит 500 операций.
-      // Для простоты делаем Promise.all чанками по 400.
-      const batch = writeBatch(db!);
+      const batch = writeBatch(db);
       let count = 0;
       for (const uid of potentialMembers) {
-        const userRef = doc(db!, 'users', uid);
+        const userRef = doc(db, 'users', uid);
         batch.update(userRef, {
           communityIds: arrayUnion(community.id),
         });
         count++;
-        if (count >= 400) break; // Лимит батча
+        if (count >= 400) break;
       }
       await batch.commit();
 
@@ -240,10 +295,66 @@ export function CommunitySettingsDialog({
         }),
       });
       router.refresh();
-      setOpen(false); // Закрываем, чтобы обновить данные
+      setOpen(false);
     } catch (e) {
       console.error(e);
       toast({ title: t('Error importing members'), variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Admin Management Handlers ---
+
+  const handleAddAdmin = async () => {
+    if (!newAdminId || !db) return;
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, 'communities', community.id), {
+        admins: arrayUnion(newAdminId),
+      });
+      
+      setAdminsList(prev => [...prev, newAdminId]);
+      
+      // Move from candidate to admin list locally
+      const promoted = candidateProfiles.find(p => p.uid === newAdminId);
+      if (promoted) {
+          setAdminProfiles(prev => [...prev, promoted]);
+          setCandidateProfiles(prev => prev.filter(p => p.uid !== newAdminId));
+      }
+      
+      setNewAdminId('');
+      toast({ title: t('Admin added') });
+      router.refresh();
+    } catch (e) {
+      console.error(e);
+      toast({ title: t('Failed to add admin'), variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveAdmin = async (uid: string) => {
+    if (!db) return;
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, 'communities', community.id), {
+        admins: arrayRemove(uid),
+      });
+      
+      setAdminsList(prev => prev.filter(id => id !== uid));
+      
+      // Move from admin to candidate list locally
+      const demoted = adminProfiles.find(p => p.uid === uid);
+      if (demoted) {
+          setAdminProfiles(prev => prev.filter(p => p.uid !== uid));
+          setCandidateProfiles(prev => [...prev, demoted]);
+      }
+
+      toast({ title: t('Admin removed') });
+      router.refresh();
+    } catch {
+      toast({ title: t('Error removing admin'), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -256,7 +367,7 @@ export function CommunitySettingsDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className='sm:max-w-xl h-[80vh] flex flex-col p-0 gap-0'>
+      <DialogContent className='sm:max-w-xl h-[85vh] flex flex-col p-0 gap-0'>
         <DialogHeader className='p-6 pb-2'>
           <DialogTitle>{t('Community Settings')}</DialogTitle>
           <DialogDescription>{t('Manage rooms and members')}</DialogDescription>
@@ -267,10 +378,11 @@ export function CommunitySettingsDialog({
           className='flex-1 flex flex-col overflow-hidden'
         >
           <div className='px-6'>
-            <TabsList className='grid w-full grid-cols-3'>
+            <TabsList className='grid w-full grid-cols-4'>
               <TabsTrigger value='general'>{t('General')}</TabsTrigger>
               <TabsTrigger value='rooms'>{t('Rooms')}</TabsTrigger>
               <TabsTrigger value='members'>{t('Members')}</TabsTrigger>
+              <TabsTrigger value='admins'>{t('Admins')}</TabsTrigger>
             </TabsList>
           </div>
 
@@ -405,6 +517,99 @@ export function CommunitySettingsDialog({
                 {t(
                   "Note: This will only add users who are not yet in the community. It won't remove anyone."
                 )}
+              </div>
+            </TabsContent>
+
+            {/* TAB: ADMINS */}
+            <TabsContent value='admins' className='space-y-6 mt-0'>
+              <div className='space-y-4'>
+                <div className='flex flex-col gap-2'>
+                  <Label>{t('Add Administrator')}</Label>
+                  <div className='flex gap-2'>
+                    <Select value={newAdminId} onValueChange={setNewAdminId}>
+                      <SelectTrigger className='flex-1'>
+                        <SelectValue
+                          placeholder={t('Select member to promote')}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {candidateProfiles.length === 0 && (
+                          <SelectItem value='none' disabled>
+                            {t('No eligible members')}
+                          </SelectItem>
+                        )}
+                        {candidateProfiles.map((m) => (
+                          <SelectItem key={m.uid} value={m.uid}>
+                            <div className='flex items-center gap-2'>
+                              <Avatar className='h-5 w-5'>
+                                <AvatarImage src={m.photoURL || undefined} />
+                                <AvatarFallback>{m.name?.[0]}</AvatarFallback>
+                              </Avatar>
+                              <span>{m.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleAddAdmin}
+                      disabled={!newAdminId || loading}
+                      size='icon'
+                    >
+                      <ShieldPlus className='h-4 w-4' />
+                    </Button>
+                  </div>
+                  <p className='text-xs text-muted-foreground'>
+                    {t('Admins can manage rooms, invite members, and edit settings.')}
+                  </p>
+                </div>
+
+                <div className='border rounded-md'>
+                  <div className='bg-muted/30 px-3 py-2 text-xs font-semibold text-muted-foreground border-b uppercase tracking-wider'>
+                    {t('Current Team')}
+                  </div>
+                  <ScrollArea className='h-[300px]'>
+                    <div className='p-2 space-y-1'>
+                        {adminProfiles.map((p) => {
+                            const isOwner = p.uid === community.ownerId;
+                            return (
+                                <div
+                                key={p.uid}
+                                className='flex items-center justify-between p-2 rounded-md hover:bg-muted/50 group'
+                                >
+                                <div className='flex items-center gap-3'>
+                                    <Avatar className='h-8 w-8 border'>
+                                    <AvatarImage src={p.photoURL || undefined} />
+                                    <AvatarFallback>{p.name?.[0]}</AvatarFallback>
+                                    </Avatar>
+                                    <div className='flex flex-col'>
+                                    <span className='text-sm font-medium flex items-center gap-1'>
+                                        {p.name}
+                                        {isOwner && <Crown className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                                    </span>
+                                    <span className='text-[10px] text-muted-foreground capitalize'>
+                                        {isOwner ? t('Owner') : t('Admin')}
+                                    </span>
+                                    </div>
+                                </div>
+                                
+                                {!isOwner && (
+                                    <Button
+                                    size='icon'
+                                    variant='ghost'
+                                    className='h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity'
+                                    onClick={() => handleRemoveAdmin(p.uid)}
+                                    disabled={loading}
+                                    >
+                                    <X className='h-4 w-4' />
+                                    </Button>
+                                )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                  </ScrollArea>
+                </div>
               </div>
             </TabsContent>
           </div>

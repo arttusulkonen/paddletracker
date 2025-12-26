@@ -1,3 +1,4 @@
+// src/components/rooms/MembersList.tsx
 'use client';
 
 import {
@@ -49,10 +50,12 @@ export function MembersList({
   const [viewMode, setViewMode] = useState<ViewMode>('regular');
 
   const computed = useMemo(() => {
-    // FIX: Removed filtering of room.creator. Everyone in the list plays.
     const arr = Array.isArray(members) ? members : [];
 
-    const base = arr.map((p: any) => {
+    // FIX: Filter out coaches
+    const playersOnly = arr.filter((p: any) => p.accountType !== 'coach');
+
+    const base = playersOnly.map((p: any) => {
       const totalMatches = Number.isFinite(p.totalMatches)
         ? Number(p.totalMatches)
         : Number(p.wins ?? 0) + Number(p.losses ?? 0);

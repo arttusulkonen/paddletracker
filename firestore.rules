@@ -38,24 +38,29 @@ service cloud.firestore {
     // КОЛЛЕКЦИЯ: USERS
     // =========================================================
     match /users/{userId} {
-      // ЧТЕНИЕ: 
       allow read: if isSignedIn() || (resource.data.isGhost == true);
 
-      // СОЗДАНИЕ:
-      // Разрешаем создавать документ только с собственным UID.
-      allow create: if isOwner(userId);
+      allow create: if isOwner(userId) || (
+        isSignedIn() && 
+        request.resource.data.isGhost == true && 
+        request.resource.data.managedBy == request.auth.uid
+      );
       
-      // ОБНОВЛЕНИЕ: 
-      // 1. Владелец может обновлять свой профиль.
-      // 2. ВАЖНО: Запрещаем владельцу менять поля, связанные с миграцией профиля.
-      //    Поля статистики (wins, losses, elo) оставляем доступными, так как 
-      //    матчи пишутся через Cloud Functions, но в будущем может понадобиться прямой доступ.
-      allow update: if (isOwner(userId) && 
-                       !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['claimedFrom', 'ghostId', 'managedBy'])) 
-                    || isSuperAdmin();
+      allow update: if 
+        // 1. Владелец может обновлять свой профиль (кроме защищенных полей)
+        (isOwner(userId) && 
+         !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['claimedFrom', 'ghostId', 'managedBy'])) 
+        || 
+        // 2. Супер-админ или Тренер этого игрока
+        isSuperAdmin() || 
+        isCoachOf(resource.data) 
+        ||
+        // 3. НОВОЕ ПРАВИЛО: Разрешаем любому авторизованному юзеру обновлять ТОЛЬКО поле 'rooms'
+        // Это нужно, чтобы можно было добавлять id комнаты в список комнат другого игрока при приглашении
+        (isSignedIn() && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rooms']));
       
-      // УДАЛЕНИЕ:
       allow delete: if isOwner(userId) || isSuperAdmin() || isCoachOf(resource.data);
     }
 
@@ -70,19 +75,12 @@ service cloud.firestore {
     // =========================================================
     // КОЛЛЕКЦИИ: ROOMS
     // =========================================================
-    // Общая логика для всех типов комнат:
-    // 1. Админ комнаты может менять всё.
-    // 2. Обычный юзер может менять ТОЛЬКО списки участников (вступить/выйти/запросить),
-    //    но НЕ может менять создателя или админов.
-    
     match /rooms-pingpong/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
       
       allow update: if 
-        // Либо это админ комнаты (полный доступ)
         isRoomAdmin(resource.data) || 
-        // Либо это обычный юзер, который НЕ трогает админские поля
         (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
           .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
           

@@ -1,3 +1,4 @@
+// src/components/rooms/RoomHeader.tsx
 'use client';
 
 import {
@@ -22,6 +23,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui';
+import { useAuth } from '@/contexts/AuthContext'; // <--- Импортируем хук авторизации
 import type { Room, Member as RoomMember } from '@/lib/types';
 import {
 	Briefcase,
@@ -61,9 +63,13 @@ export function RoomHeader({
   onLeave,
 }: RoomHeaderProps) {
   const { t } = useTranslation();
+  const { userProfile } = useAuth(); // <--- Получаем профиль пользователя
 
   const mode = room.mode || 'office';
   const memberCount = room.memberIds?.length || 0;
+
+  // Проверяем, является ли пользователь "управляемым" (созданным тренером)
+  const isManagedUser = !!userProfile?.managedBy;
 
   // Настройка темы и описания режима
   const getTheme = () => {
@@ -195,7 +201,11 @@ export function RoomHeader({
                   </>
                 )}
 
-                {isMember && !isCreator && !room.isArchived && (
+                {/* FIX: Скрываем кнопку Leave если:
+                  1. Пользователь создатель комнаты (isCreator)
+                  2. Пользователь управляется тренером (isManagedUser)
+                */}
+                {isMember && !isCreator && !room.isArchived && !isManagedUser && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button

@@ -101,7 +101,7 @@ export default function RegisterPage() {
     if (claimUid && db) {
       const fetchGhost = async () => {
         try {
-          const docRef = doc(db!, 'users', claimUid);
+          const docRef = doc(db, 'users', claimUid);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
             const data = snap.data();
@@ -425,7 +425,7 @@ export default function RegisterPage() {
                               </div>
                               <p className='text-xs text-muted-foreground leading-snug'>
                                 {t(
-                                  'Participate in matches, track your stats, join leagues.'
+                                  'Play matches, track your stats. Can also create communities & rooms.'
                                 )}
                               </p>
                             </Label>
@@ -448,7 +448,7 @@ export default function RegisterPage() {
                               </div>
                               <p className='text-xs text-muted-foreground leading-snug'>
                                 {t(
-                                  'Create communities, manage tournaments, oversee leagues.'
+                                  'Manage communities, players & tournaments. Cannot record own match stats.'
                                 )}
                               </p>
                             </Label>

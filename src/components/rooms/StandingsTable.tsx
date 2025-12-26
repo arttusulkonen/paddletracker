@@ -49,8 +49,11 @@ export function StandingsTable({
     latestSeason ? 'final' : 'regular'
   );
 
-  // FIX: activePlayers should include EVERYONE, including the creator.
-  const activePlayers = players;
+  // FIX: Filter out coaches
+  const activePlayers = useMemo(
+    () => players.filter((p: any) => p.accountType !== 'coach'),
+    [players]
+  );
 
   const [sortConfig, setSortConfig] = useState<{
     key: string;
