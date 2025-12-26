@@ -1,7 +1,7 @@
 // src/components/profile/OverallStatsCard.tsx
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { Card, CardContent } from '@/components/ui';
 import { sportConfig } from '@/contexts/SportContext';
 import type { Sport, UserProfile } from '@/lib/types';
 import { BarChart3, Trophy, Zap } from 'lucide-react';

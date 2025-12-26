@@ -2,20 +2,20 @@
 
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui/card';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -44,6 +44,8 @@ export default function ForgotPasswordPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+  // We can actually just rely on react-hook-form's setFocus if we wanted, 
+  // but to keep the logic similar to what the user intended with the ref merge:
   const emailInputRef = useRef<HTMLInputElement | null>(null);
 
   const schema = buildSchema(t);
@@ -60,7 +62,11 @@ export default function ForgotPasswordPage() {
   }, []);
 
   useEffect(() => {
-    if (hasMounted) emailInputRef.current?.focus();
+    // Alternative: form.setFocus('email') is often cleaner with RHF, 
+    // but we will fix the ref merge issue here.
+    if (hasMounted && emailInputRef.current) {
+        emailInputRef.current.focus();
+    }
   }, [hasMounted]);
 
   const onSubmit = async (raw: Values) => {
@@ -139,13 +145,18 @@ export default function ForgotPasswordPage() {
                     <FormLabel>{t('Email')}</FormLabel>
                     <FormControl>
                       <Input
-                        ref={emailInputRef}
+                        // Spread field first to get RHF props
+                        {...field}
+                        // Then override ref to merge them
+                        ref={(e) => {
+                          field.ref(e);
+                          emailInputRef.current = e;
+                        }}
                         type='email'
                         placeholder={t('your@email.com')}
                         inputMode='email'
                         autoComplete='email'
                         aria-describedby='reset-help'
-                        {...field}
                       />
                     </FormControl>
                     <p

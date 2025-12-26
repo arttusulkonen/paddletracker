@@ -23,11 +23,13 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui';
-import type { Room } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext'; // <--- Импортируем хук авторизации
+import type { Room, Member as RoomMember } from '@/lib/types';
 import {
 	Briefcase,
 	Gamepad2,
 	Globe,
+	HelpCircle,
 	Lock,
 	LogIn,
 	LogOut,
@@ -41,6 +43,7 @@ import { RoomSettingsDialog } from './RoomSettings';
 
 interface RoomHeaderProps {
   room: Room;
+  members?: RoomMember[];
   isMember: boolean;
   hasPendingRequest: boolean;
   isCreator: boolean;
@@ -51,6 +54,7 @@ interface RoomHeaderProps {
 
 export function RoomHeader({
   room,
+  members,
   isMember,
   hasPendingRequest,
   isCreator,
@@ -59,11 +63,15 @@ export function RoomHeader({
   onLeave,
 }: RoomHeaderProps) {
   const { t } = useTranslation();
+  const { userProfile } = useAuth(); // <--- Получаем профиль пользователя
 
   const mode = room.mode || 'office';
   const memberCount = room.memberIds?.length || 0;
 
-  // Настройка темы в зависимости от режима
+  // Проверяем, является ли пользователь "управляемым" (созданным тренером)
+  const isManagedUser = !!userProfile?.managedBy;
+
+  // Настройка темы и описания режима
   const getTheme = () => {
     switch (mode) {
       case 'professional':
@@ -73,6 +81,9 @@ export function RoomHeader({
           iconColor: 'text-amber-600 dark:text-amber-500',
           icon: <Medal className='w-4 h-4' />,
           label: t('Professional'),
+          description: t(
+            'Standard ELO rules apply. Every match counts towards your Global Ranking.'
+          ),
         };
       case 'arcade':
         return {
@@ -81,6 +92,9 @@ export function RoomHeader({
           iconColor: 'text-purple-600 dark:text-purple-500',
           icon: <Gamepad2 className='w-4 h-4' />,
           label: t('Arcade'),
+          description: t(
+            'Matches in this room do NOT affect your Global ELO. Play for fun and experiment!'
+          ),
         };
       default:
         return {
@@ -89,6 +103,9 @@ export function RoomHeader({
           iconColor: 'text-slate-600 dark:text-slate-500',
           icon: <Briefcase className='w-4 h-4' />,
           label: t('Office'),
+          description: t(
+            'Losses are penalized less (inflated ELO) to keep office morale high. Global ELO is still affected.'
+          ),
         };
     }
   };
@@ -98,8 +115,7 @@ export function RoomHeader({
   return (
     <Card className={`mb-8 shadow-sm overflow-hidden border ${theme.border}`}>
       <div className={`relative px-6 py-8 md:px-8 ${theme.bg}`}>
-        <div className='flex flex-col md:flex-row gap-6 items-start'>
-          {/* Аватар */}
+        <div className='flex flex-col md:flex-row gap-6 items-center'>
           <div className='flex-shrink-0'>
             <Avatar className='h-24 w-24 border-4 border-background shadow-sm'>
               <AvatarImage
@@ -112,7 +128,6 @@ export function RoomHeader({
             </Avatar>
           </div>
 
-          {/* Информация */}
           <div className='flex-grow space-y-3 min-w-0 w-full'>
             <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
               <div>
@@ -120,14 +135,23 @@ export function RoomHeader({
                   {room.name}
                 </h1>
 
-                {/* Мета-информация (в одну строку) */}
                 <div className='flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-muted-foreground font-medium'>
-                  <div
-                    className={`flex items-center gap-1.5 ${theme.iconColor}`}
-                  >
-                    {theme.icon}
-                    <span>{theme.label}</span>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`flex items-center gap-1.5 cursor-help ${theme.iconColor}`}
+                        >
+                          {theme.icon}
+                          <span>{theme.label}</span>
+                          <HelpCircle className='w-3 h-3 opacity-50' />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className='max-w-xs text-xs'>{theme.description}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
 
                   <div className='w-1 h-1 rounded-full bg-muted-foreground/30' />
 
@@ -154,7 +178,6 @@ export function RoomHeader({
                 </div>
               </div>
 
-              {/* Кнопки действий (Desktop: справа, Mobile: снизу) */}
               <div className='flex items-center gap-2 mt-2 md:mt-0 flex-shrink-0'>
                 {!isMember && !room.isArchived && (
                   <>
@@ -178,7 +201,11 @@ export function RoomHeader({
                   </>
                 )}
 
-                {isMember && !isCreator && !room.isArchived && (
+                {/* FIX: Скрываем кнопку Leave если:
+                  1. Пользователь создатель комнаты (isCreator)
+                  2. Пользователь управляется тренером (isManagedUser)
+                */}
+                {isMember && !isCreator && !room.isArchived && !isManagedUser && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
@@ -214,22 +241,27 @@ export function RoomHeader({
                   </AlertDialog>
                 )}
 
-                {isMember && isCreator && (
+                {isCreator && (
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant='outline' size='icon'>
                         <Settings className='h-4 w-4' />
                       </Button>
                     </DialogTrigger>
-                    <RoomSettingsDialog room={room} />
+                    <RoomSettingsDialog room={room} members={members} />{' '}
                   </Dialog>
                 )}
               </div>
             </div>
 
-            {room.description && (
+            {room.description ? (
               <p className='text-muted-foreground text-sm leading-relaxed max-w-2xl'>
                 {room.description}
+              </p>
+            ) : (
+              // Если описания нет, показываем описание режима как fallback, чтобы не было пусто
+              <p className='text-muted-foreground/70 text-sm leading-relaxed max-w-2xl italic'>
+                {theme.description}
               </p>
             )}
           </div>

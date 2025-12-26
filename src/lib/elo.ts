@@ -1,7 +1,7 @@
 // src/lib/elo.ts
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from './firebase';
-import type { Room, Sport } from './types';
+import type { Sport } from './types';
 
 type NonTennisRow = {
   score1: string;
@@ -14,13 +14,10 @@ type MatchInputData = NonTennisRow | any;
 
 export async function processAndSaveMatches(
   roomId: string,
-  room: Room,
   player1Id: string,
   player2Id: string,
   matchesInput: MatchInputData[],
-  currentMembers: Room['members'], 
   sport: Sport,
-  config: any 
 ): Promise<boolean> {
   if (!app) {
     console.error('Firebase app not initialized');

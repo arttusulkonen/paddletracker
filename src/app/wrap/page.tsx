@@ -230,7 +230,7 @@ function aggregate(
     )
     .sort((a, b) => a._ts - b._ts);
 
-  periodMatches.forEach((m, index) => {
+  periodMatches.forEach((m) => {
     const isP1 = m.player1Id === userId;
     const isP2 = m.player2Id === userId;
     if (!isP1 && !isP2) return;
@@ -247,7 +247,12 @@ function aggregate(
 
     // General Stats
     userStats.matches++;
-    win ? userStats.wins++ : userStats.losses++;
+    if (win) {
+      userStats.wins++;
+    } else {
+      userStats.losses++;
+    }
+
     userStats.pointsFor += scoreMe;
     userStats.pointsAgainst += scoreOpp;
 
@@ -283,16 +288,17 @@ function aggregate(
         });
       }
       const rival = userStats.rivals.get(oppId)!;
-      win ? rival.wins++ : rival.losses++;
+      if (win) {
+        rival.wins++;
+      } else {
+        rival.losses++;
+      }
       rival.history.push(m);
     }
 
     // ELO Tracking
     if (!isNaN(myRating) && myRating > 0) {
-      // Первый матч года? Фиксируем стартовый рейтинг
       if (userStats.matches === 1) eloStats.startElo = myOldRating || 1000;
-
-      // Обновляем конечный рейтинг
       eloStats.endElo = myRating;
 
       const dateStr = formatDatePretty(m._ts);
@@ -317,7 +323,11 @@ function aggregate(
       userStats.dayStats.set(dayIdx, { wins: 0, losses: 0 });
     }
     const ds = userStats.dayStats.get(dayIdx)!;
-    win ? ds.wins++ : ds.losses++;
+    if (win) {
+      ds.wins++;
+    } else {
+      ds.losses++;
+    }
   });
 
   // Fallbacks
@@ -437,6 +447,7 @@ export default function WrapPage() {
 
     const fetchData = async () => {
       setLoading(true);
+      if (!db) return;
       try {
         const roomsQuery = query(
           collection(db, config.collections.rooms),
@@ -493,7 +504,9 @@ export default function WrapPage() {
       }))
       .sort(
         (a, b) =>
-          b[t('Wins')] + b[t('Losses')] - (a[t('Wins')] + a[t('Losses')])
+          Number(b[t('Wins')]) +
+          Number(b[t('Losses')]) -
+          (Number(a[t('Wins')]) + Number(a[t('Losses')]))
       )
       .slice(0, 10);
   }, [agg, t]);
@@ -546,7 +559,7 @@ export default function WrapPage() {
   const handleShare = () => {
     if (!agg) return;
     const text =
-      `My ${year} in PaddleTracker 🏓\n` +
+      `My ${year} in SmashLog 🏓\n` +
       `🏆 ${agg.userStats.wins} Wins\n` +
       `🔥 ${agg.userStats.maxStreak} Max Streak\n` +
       `📈 ELO Change: ${agg.eloStats.eloDiff > 0 ? '+' : ''}${
@@ -737,7 +750,7 @@ export default function WrapPage() {
                       cursor={{
                         stroke: 'hsl(var(--primary))',
                         strokeWidth: 1,
-                        strokeDasharray: '4 4',
+                        strokeDasharray: '4 4', // ИСПРАВЛЕНО: Двоеточие вместо равно
                       }}
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
@@ -1146,7 +1159,7 @@ export default function WrapPage() {
                   }}
                 />
                 <Bar dataKey='count' radius={[6, 6, 0, 0]}>
-                  {daysChartData.map((entry, index) => (
+                  {daysChartData.map((_, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={

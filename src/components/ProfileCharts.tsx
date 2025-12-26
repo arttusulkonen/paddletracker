@@ -2,7 +2,6 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
-import { safeFormatDate } from '@/lib/utils/date';
 import { Activity, LineChart as LineChartIcon, TrendingUp } from 'lucide-react';
 import { FC } from 'react';
 import { useTranslation } from 'react-i18next';

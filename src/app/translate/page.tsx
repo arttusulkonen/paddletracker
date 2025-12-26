@@ -6,19 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
@@ -50,12 +50,12 @@ export default function TranslatePage() {
     const fetchTranslations = async () => {
       setIsLoading(true);
       try {
-        const enDocRef = doc(db, 'translations', 'en');
+        const enDocRef = doc(db!, 'translations', 'en');
         const enDocSnap = await getDoc(enDocRef);
         const enData = enDocSnap.exists() ? enDocSnap.data() : {};
         setBaseTranslations(enData);
 
-        const langDocRef = doc(db, 'translations', selectedLang);
+        const langDocRef = doc(db!, 'translations', selectedLang);
         const langDocSnap = await getDoc(langDocRef);
         const langData = langDocSnap.exists() ? langDocSnap.data() : {};
         setEditTranslations(langData);
@@ -76,7 +76,7 @@ export default function TranslatePage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const docRef = doc(db, 'translations', selectedLang);
+      const docRef = doc(db!, 'translations', selectedLang);
       await setDoc(docRef, editTranslations, { merge: true });
       toast({ title: t('Translations saved!') });
     } catch (error) {

@@ -18,7 +18,6 @@ import { db } from '@/lib/firebase';
 import type { Community, Match } from '@/lib/types';
 import {
 	collection,
-	doc,
 	documentId,
 	getDocs,
 	query,
@@ -43,7 +42,6 @@ import {
 	Bar,
 	BarChart,
 	CartesianGrid,
-	Cell,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
@@ -153,7 +151,7 @@ export function CommunityWrap({ community }: CommunityWrapProps) {
 
         for (const ids of roomChunks) {
           const q = query(
-            collection(db, config.collections.rooms),
+            collection(db!, config.collections.rooms),
             where(documentId(), 'in', ids)
           );
           const snap = await getDocs(q);
@@ -198,7 +196,7 @@ export function CommunityWrap({ community }: CommunityWrapProps) {
 
         for (const ids of roomChunks) {
           const q = query(
-            collection(db, config.collections.matches),
+            collection(db!, config.collections.matches),
             where('roomId', 'in', ids)
           );
           const snap = await getDocs(q);

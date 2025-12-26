@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/app/**/{page,layout,loading,error,not-found,route}.{ts,tsx}",
+    "src/pages/**/*.{ts,tsx}",
+    "functions/src/index.ts",
+    "scripts/**/*.{js,ts,cjs}",
+    "next.config.ts",
+    "middleware.ts",
+    "tailwind.config.ts",
+    "postcss.config.js"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "functions/src/**/*.{ts,tsx}",
+    "scripts/**/*.{js,ts,cjs}"
+  ],
+  "ignore": ["**/*.d.ts", ".next/**", ".firebase/**", "public/**"],
+  "ignoreDependencies": [
+    "autoprefixer",
+    "postcss",
+    "tailwindcss",
+    "eslint-config-next",
+    "@types/*",
+    "typescript",
+    "ts-node",
+    "firebase-admin",
+    "firebase-functions",
+    "globals",
+    "knip"
+  ],
+  "ignoreExportsUsedInFile": true
+}

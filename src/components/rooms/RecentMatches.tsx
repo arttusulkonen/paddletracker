@@ -2,18 +2,18 @@
 'use client';
 
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  ScrollArea,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	ScrollArea,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from '@/components/ui';
 import type { Match } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
@@ -26,36 +26,36 @@ interface RecentMatchesProps {
   defaultPlayer?: string;
 }
 
+const tsToMs = (m: any): number => {
+  const v =
+    m?.tsIso ??
+    m?.timestamp ??
+    (typeof m?.createdAt === 'string' ? m.createdAt : undefined);
+  const ms = typeof v === 'string' ? Date.parse(v) : NaN;
+  return Number.isFinite(ms) ? ms : 0;
+};
+
+const num = (v: any, fallback = 0) =>
+  typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+
+const roomDelta = (p: any): number => {
+  const dRoom = num(p?.roomNewRating, NaN) - num(p?.roomOldRating, NaN);
+  if (Number.isFinite(dRoom)) return dRoom;
+
+  const dGlobal = num(p?.newRating, NaN) - num(p?.oldRating, NaN);
+  if (Number.isFinite(dGlobal)) return dGlobal;
+
+  if (Number.isFinite(num(p?.roomAddedPoints, NaN)))
+    return num(p.roomAddedPoints);
+
+  return 0;
+};
+
 export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
   const { t } = useTranslation();
   const [selectedPlayer, setSelectedPlayer] = useState<string>(
     defaultPlayer ?? ''
   );
-
-  const tsToMs = (m: any): number => {
-    const v =
-      m?.tsIso ??
-      m?.timestamp ??
-      (typeof m?.createdAt === 'string' ? m.createdAt : undefined);
-    const ms = typeof v === 'string' ? Date.parse(v) : NaN;
-    return Number.isFinite(ms) ? ms : 0;
-  };
-
-  const num = (v: any, fallback = 0) =>
-    typeof v === 'number' && Number.isFinite(v) ? v : fallback;
-
-  const roomDelta = (p: any): number => {
-    const dRoom = num(p?.roomNewRating, NaN) - num(p?.roomOldRating, NaN);
-    if (Number.isFinite(dRoom)) return dRoom;
-
-    const dGlobal = num(p?.newRating, NaN) - num(p?.oldRating, NaN);
-    if (Number.isFinite(dGlobal)) return dGlobal;
-
-    if (Number.isFinite(num(p?.roomAddedPoints, NaN)))
-      return num(p.roomAddedPoints);
-
-    return 0;
-  };
 
   const allPlayers = useMemo(() => {
     const set = new Set<string>();
@@ -77,7 +77,7 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
   const cumulativeByMatchId = useMemo(() => {
     const chronological = [...matches].sort((a, b) => tsToMs(a) - tsToMs(b));
 
-    const gained: Record<string, number> = {}; 
+    const gained: Record<string, number> = {};
     const lost: Record<string, number> = {};
 
     const snapshot: Record<
@@ -176,12 +176,8 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
                   <TableHead>{t('Score')}</TableHead>
                   <TableHead>{t('Room Δ')}</TableHead>
                   <TableHead>{t('Elo Δ')}</TableHead>
-                  <TableHead>
-                    Gained (Δ) (Since joining room)
-                  </TableHead>
-                  <TableHead>
-                    Lost (Δ) (Since joining room)
-                  </TableHead>
+                  <TableHead>Gained (Δ) (Since joining room)</TableHead>
+                  <TableHead>Lost (Δ) (Since joining room)</TableHead>
                   <TableHead>{t('Winner')}</TableHead>
                   <TableHead>{t('Date')}</TableHead>
                 </TableRow>

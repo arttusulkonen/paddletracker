@@ -1,7 +1,6 @@
 // src/app/providers.tsx
 'use client';
 
-import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import ScrollToTopButton from '@/components/layout/ScrollToTopButton';
 import { Toaster } from '@/components/ui/toaster';

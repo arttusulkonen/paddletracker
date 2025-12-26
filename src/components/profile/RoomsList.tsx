@@ -2,13 +2,11 @@
 'use client';
 
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Card,
+	CardContent,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig } from '@/contexts/SportContext';
@@ -44,7 +42,7 @@ export function RoomsList({ targetUid, onVisibleCountChange }: RoomsListProps) {
         const promises = SPORTS.map((sport) => {
           const collectionName = sportConfig[sport].collections.rooms;
           const q = query(
-            collection(db, collectionName),
+            collection(db!, collectionName),
             where('memberIds', 'array-contains', targetUid)
           );
           return getDocs(q).then((snapshot) =>
@@ -98,8 +96,6 @@ export function RoomsList({ targetUid, onVisibleCountChange }: RoomsListProps) {
     return null;
   }
 
-  const cardTitle = t('Active Rooms');
-
   return (
     <Card className={'border-none shadow-none p-0'}>
       <CardContent className={'p-0'}>
@@ -148,7 +144,7 @@ export function RoomsList({ targetUid, onVisibleCountChange }: RoomsListProps) {
                   {room.name}
                 </p>
                 <p className='text-xs text-muted-foreground'>
-                  {t(room.sport)} • {t('Members')} {room.memberIds.length}
+                  {t(room.sport ?? '')} • {t('Members')} {room.memberIds.length}
                 </p>
               </div>
             </Link>

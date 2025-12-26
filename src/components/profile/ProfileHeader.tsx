@@ -1,4 +1,3 @@
-// src/components/profile/ProfileHeader.tsx
 'use client';
 
 import {
@@ -16,22 +15,25 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui';
-import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
+import { db } from '@/lib/firebase';
 import type { UserProfile } from '@/lib/types';
+import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
 import {
+	Briefcase,
 	Check,
 	Edit,
 	Globe,
 	Lock,
 	Medal,
-	Settings,
 	Trophy,
 	UserMinus,
 	UserPlus,
+	Warehouse,
 	X,
 } from 'lucide-react';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProfileSettingsDialog } from './ProfileSettingsDialog';
 
@@ -40,6 +42,7 @@ interface ProfileHeaderProps {
   friendStatus: 'none' | 'outgoing' | 'incoming' | 'friends';
   handleFriendAction: (action: 'add' | 'cancel' | 'accept' | 'remove') => void;
   isSelf: boolean;
+  isManager?: boolean;
   rank: string | null;
   medalSrc: string | null;
   onUpdate: () => void;
@@ -50,6 +53,7 @@ export function ProfileHeader({
   friendStatus,
   handleFriendAction,
   isSelf,
+  isManager,
   rank,
   medalSrc,
   onUpdate,
@@ -57,9 +61,49 @@ export function ProfileHeader({
   const { t } = useTranslation();
   const { sport } = useSport();
   
+  const [communityName, setCommunityName] = useState<string | null>(null);
+
   const displayName = targetProfile.displayName ?? targetProfile.name ?? t('Unknown Player');
   const elo = targetProfile.sports?.[sport]?.globalElo ?? 1000;
   
+  const isCoach = targetProfile.accountType === 'coach' || targetProfile.roles?.includes('coach');
+
+  // Логика загрузки названия сообщества
+  useEffect(() => {
+    const fetchCommunity = async () => {
+      // 1. Сначала проверяем, есть ли ID в профиле (быстрый способ)
+      if (targetProfile.communityIds && targetProfile.communityIds.length > 0) {
+        try {
+          const cDoc = await getDoc(doc(db!, 'communities', targetProfile.communityIds[0]));
+          if (cDoc.exists()) {
+            setCommunityName(cDoc.data().name);
+            return;
+          }
+        } catch (error) {
+          console.error("Failed to load community by ID", error);
+        }
+      }
+
+      // 2. Если в профиле нет ID, ищем сообщество, где этот пользователь АДМИН (для тренеров)
+      // Это решает проблему, когда в User.communityIds пусто, но в Community.admins он есть
+      try {
+				if (!db) return;
+        const q = query(
+          collection(db, 'communities'),
+          where('admins', 'array-contains', targetProfile.uid),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setCommunityName(snap.docs[0].data().name);
+        }
+      } catch (error) {
+        console.error("Failed to find managed community", error);
+      }
+    };
+    fetchCommunity();
+  }, [targetProfile.communityIds, targetProfile.uid]);
+
   const theme = {
     bg: 'bg-gradient-to-r from-slate-50 to-white dark:from-slate-950/50 dark:to-background',
     border: 'border-slate-200 dark:border-slate-800',
@@ -82,8 +126,8 @@ export function ProfileHeader({
               </AvatarFallback>
             </Avatar>
             
-            {/* Medal Overlay for Mobile */}
-            {medalSrc && (
+            {/* Medal Overlay (Only for Players) */}
+            {medalSrc && !isCoach && (
               <div className='absolute -bottom-2 -right-2 bg-background rounded-full p-1 shadow-sm border border-border md:hidden'>
                 <Image
                   src={medalSrc}
@@ -105,7 +149,7 @@ export function ProfileHeader({
                     {displayName}
                   </h1>
                   
-                  {/* IMPROVED: Public/Private Badge with Text */}
+                  {/* Public/Private Badge */}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -133,6 +177,28 @@ export function ProfileHeader({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+
+                  {/* Community Badge (Now shown for EVERYONE including coaches) */}
+                  {communityName && (
+                    <Badge variant="secondary" className="gap-1.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300 hover:bg-indigo-100 border border-indigo-100 dark:border-indigo-900">
+                       <Warehouse className="w-3.5 h-3.5" />
+                       {communityName}
+                    </Badge>
+                  )}
+
+                  {/* Coach Badge */}
+                  {isCoach && (
+                    <Badge className="bg-indigo-500 hover:bg-indigo-600 gap-1 text-white">
+                       <Briefcase className="w-3.5 h-3.5" /> {t('Organizer')}
+                    </Badge>
+                  )}
+
+                  {/* Manager Badge */}
+                  {isManager && (
+                    <Badge variant="secondary" className="gap-1">
+                       {t('Managed by You')}
+                    </Badge>
+                  )}
                 </div>
 
                 {targetProfile.bio && (
@@ -144,7 +210,7 @@ export function ProfileHeader({
 
               {/* Actions */}
               <div className='flex items-center gap-2 flex-shrink-0'>
-                {isSelf ? (
+                {isSelf || isManager ? (
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant='outline' size='sm' className='gap-2'>
@@ -213,41 +279,40 @@ export function ProfileHeader({
 
             <Separator className='bg-border/50' />
 
-            {/* Meta Stats Row */}
-            <div className='flex flex-wrap items-center gap-x-6 gap-y-3 text-sm'>
-              {/* Rank */}
-              <div className='flex items-center gap-2'>
-                {medalSrc ? (
-                  <Image
-                    src={medalSrc}
-                    alt={rank || 'Rank'}
-                    width={24}
-                    height={24}
-                    className='w-6 h-6'
-                  />
-                ) : (
-                  <Trophy className='w-5 h-5 text-amber-500' />
-                )}
-                <div className='flex flex-col'>
-                  <span className='text-xs text-muted-foreground uppercase font-bold tracking-wider'>{t('Rank')}</span>
-                  <span className='font-semibold'>{rank || t('Unranked')}</span>
+            {/* Meta Stats Row - HIDE FOR COACHES */}
+            {!isCoach && (
+              <div className='flex flex-wrap items-center gap-x-6 gap-y-3 text-sm'>
+                <div className='flex items-center gap-2'>
+                  {medalSrc ? (
+                    <Image
+                      src={medalSrc}
+                      alt={rank || 'Rank'}
+                      width={24}
+                      height={24}
+                      className='w-6 h-6'
+                    />
+                  ) : (
+                    <Trophy className='w-5 h-5 text-amber-500' />
+                  )}
+                  <div className='flex flex-col'>
+                    <span className='text-xs text-muted-foreground uppercase font-bold tracking-wider'>{t('Rank')}</span>
+                    <span className='font-semibold'>{rank || t('Unranked')}</span>
+                  </div>
+                </div>
+
+                <div className='w-px h-8 bg-border/50 hidden sm:block' />
+
+                <div className='flex items-center gap-2'>
+                  <div className='p-1.5 bg-primary/10 rounded-full text-primary'>
+                    <Medal className='w-4 h-4' />
+                  </div>
+                  <div className='flex flex-col'>
+                    <span className='text-xs text-muted-foreground uppercase font-bold tracking-wider'>ELO</span>
+                    <span className='font-semibold text-lg leading-none'>{elo}</span>
+                  </div>
                 </div>
               </div>
-
-              <div className='w-px h-8 bg-border/50 hidden sm:block' />
-
-              {/* ELO */}
-              <div className='flex items-center gap-2'>
-                <div className='p-1.5 bg-primary/10 rounded-full text-primary'>
-                  <Medal className='w-4 h-4' />
-                </div>
-                <div className='flex flex-col'>
-                  <span className='text-xs text-muted-foreground uppercase font-bold tracking-wider'>ELO</span>
-                  <span className='font-semibold text-lg leading-none'>{elo}</span>
-                </div>
-              </div>
-            
-            </div>
+            )}
           </div>
         </div>
       </div>

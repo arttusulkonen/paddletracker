@@ -10,7 +10,6 @@ import {
 	CardContent,
 	CardHeader,
 	CardTitle,
-	Label,
 	ScrollArea,
 	Select,
 	SelectContent,
@@ -25,7 +24,7 @@ import {
 	TableRow,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sport, SportConfig, sportConfig } from '@/contexts/SportContext';
+import { Sport, SportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Match, Room, UserProfile } from '@/lib/types';
 import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
@@ -363,8 +362,6 @@ function MatchesTableCard({
 export const ProfileContent: React.FC<ProfileContentProps> = ({
   canViewProfile,
   sport,
-  playedSports,
-  onSportChange,
   stats,
   sportProfile,
   sideStats,
@@ -372,15 +369,10 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   loadingMatches,
   meUid,
   config,
-  oppStats,
-  targetProfile,
   tennisStats,
   achievements,
   // insights, // Мы вычислим их заново здесь, чтобы передать правильные данные
   opponents,
-  pieData,
-  sidePieData,
-  sidePieLossData,
   perfData,
   monthlyData,
 }) => {
@@ -549,7 +541,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
 
   return (
     <div className='space-y-6'>
-      {playedSports.length > 1 && (
+      {/* {playedSports.length > 1 && (
         <Card>
           <CardContent className='p-4'>
             <div className='flex items-center gap-4'>
@@ -572,7 +564,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
             </div>
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'>
         <StatCard

@@ -13,7 +13,6 @@ import {
 	CardTitle,
 	Label,
 } from '@/components/ui';
-import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { processAndSaveMatches } from '@/lib/elo';
 import type { Room } from '@/lib/types';
@@ -24,14 +23,13 @@ import { useTranslation } from 'react-i18next';
 export function MobileBadmintonRecordBlock({
   members,
   roomId,
-  room,
+
 }: {
   members: Room['members'];
   roomId: string;
   room: Room & { sport?: string };
 }) {
   const { t } = useTranslation();
-  const { config } = useSport();
   const { toast } = useToast();
   const [player1Id, setPlayer1Id] = useState('');
   const [player2Id, setPlayer2Id] = useState('');
@@ -98,16 +96,16 @@ export function MobileBadmintonRecordBlock({
     });
 
     setIsRecording(true);
+
+    // ИСПРАВЛЕНИЕ: Передаем только 5 аргументов согласно новой сигнатуре
     const success = await processAndSaveMatches(
       roomId,
-      room,
       player1Id,
       player2Id,
       normalized,
-      members,
-      'badminton' as any,
-      config
+      'badminton'
     );
+
     if (success) {
       toast({ title: t('Matches recorded') });
       setPlayer1Id('');

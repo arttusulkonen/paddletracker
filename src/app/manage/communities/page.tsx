@@ -30,6 +30,7 @@ export default function CommunitiesPage() {
     if (!user) return;
 
     // ИСПРАВЛЕНО: Ищем по 'members', а не 'admins', чтобы обычные участники тоже видели сообщество
+		if (!db) return;
     const q = query(
       collection(db, 'communities'),
       where('members', 'array-contains', user.uid)

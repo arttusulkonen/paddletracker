@@ -1,4 +1,4 @@
-# Smashlog (PaddleTracker)
+# Smashlog
 
 The ultimate multi-sport ELO tracker for Ping-Pong, Tennis, and Badminton.
 Built for individual players, coaches, and clubs.

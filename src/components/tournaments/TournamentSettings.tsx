@@ -1,28 +1,28 @@
 'use client';
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
-  Label,
-  Separator,
-  Textarea,
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	Input,
+	Label,
+	Separator,
+	Textarea,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -68,6 +68,7 @@ export function TournamentSettingsDialog({ tournament }: Props) {
 
   const handleSave = async () => {
     setIsSaving(true);
+    if (!storage) return;
     try {
       const updateData: Partial<
         TournamentRoom & { avatarURL?: string; description?: string }
@@ -84,7 +85,7 @@ export function TournamentSettingsDialog({ tournament }: Props) {
         updateData.avatarURL = await getDownloadURL(uploadResult.ref);
       }
       await updateDoc(
-        doc(db, 'tournament-rooms', tournament.id),
+        doc(db!, 'tournament-rooms', tournament.id),
         updateData as any
       );
       toast({ title: t('Settings saved successfully') });
@@ -99,7 +100,7 @@ export function TournamentSettingsDialog({ tournament }: Props) {
   const handleDelete = async () => {
     setIsActing(true);
     try {
-      await deleteDoc(doc(db, 'tournament-rooms', tournament.id));
+      await deleteDoc(doc(db!, 'tournament-rooms', tournament.id));
       toast({ title: t('Success') });
       router.push('/tournaments');
     } catch {

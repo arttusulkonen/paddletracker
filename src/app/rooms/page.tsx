@@ -1,4 +1,3 @@
-// src/app/rooms/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -10,10 +9,6 @@ import {
 	CardTitle,
 	Input,
 	Skeleton,
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
@@ -29,15 +24,13 @@ import {
 	query,
 	where,
 } from 'firebase/firestore';
-import { LayoutGrid, Search, Users, Warehouse } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// Хелпер для парсинга дат (без any)
+// Helper for parsing dates
 const parseRoomDate = (val: unknown): number => {
   if (!val) return 0;
-
-  // Проверка на Firestore Timestamp (duck typing)
   if (
     typeof val === 'object' &&
     val !== null &&
@@ -46,9 +39,7 @@ const parseRoomDate = (val: unknown): number => {
   ) {
     return (val as { toDate: () => Date }).toDate().getTime();
   }
-
   if (typeof val === 'number') return val;
-
   const str = String(val).trim();
   if (str.includes('.')) {
     const parts = str.split(' ');
@@ -71,18 +62,19 @@ const parseRoomDate = (val: unknown): number => {
   return 0;
 };
 
-// Расширяем тип, добавляя communityId, если его нет в основном типе
+// Extended Type
 type RoomWithMeta = Room & {
   isFinished?: boolean;
   creatorName?: string;
   _sortTs: number;
   communityId?: string | null;
+  communityName?: string; // Correctly added
 };
 
 export default function RoomsPage() {
   const { t } = useTranslation();
   const { user, userProfile } = useAuth();
-  const { config } = useSport();
+  const { config } = useSport();	
 
   const [allRooms, setAllRooms] = useState<RoomWithMeta[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
@@ -91,12 +83,9 @@ export default function RoomsPage() {
   const [roomRating, setRoomRating] = useState<Record<string, number>>({});
   const [hasMounted, setHasMounted] = useState(false);
 
-  // Проверка роли тренера
-  const isCoach = userProfile?.accountType === 'coach';
-
   useEffect(() => setHasMounted(true), []);
 
-  // --- 1. Load Rooms ---
+  // --- 1. Load Rooms & Metadata ---
   useEffect(() => {
     if (!user || !db) {
       setIsLoadingRooms(false);
@@ -112,7 +101,7 @@ export default function RoomsPage() {
     ): Promise<RoomWithMeta[]> => {
       const list = Array.from(rawMap.values());
 
-      // Собираем уникальные ID создателей
+      // 1. Collect Creator IDs
       const creatorIds = [
         ...new Set(
           list
@@ -125,7 +114,7 @@ export default function RoomsPage() {
       if (creatorIds.length > 0) {
         await Promise.all(
           creatorIds.map(async (uid) => {
-            if (creatorNameMap[uid]) return; // optimization
+            if (creatorNameMap[uid]) return;
             try {
               const snap = await getDoc(doc(db!, 'users', uid));
               if (snap.exists()) {
@@ -140,26 +129,57 @@ export default function RoomsPage() {
         );
       }
 
+      // 2. Collect Community IDs to fetch names
+      const communityIds = [
+        ...new Set(
+          list.map((r) => r.communityId).filter((id): id is string => !!id)
+        ),
+      ];
+      const communityNameMap: Record<string, string> = {};
+
+      if (communityIds.length > 0) {
+        await Promise.all(
+          communityIds.map(async (cid) => {
+            if (communityNameMap[cid]) return;
+            try {
+              const snap = await getDoc(doc(db!, 'communities', cid));
+              if (snap.exists()) {
+                communityNameMap[cid] = snap.data().name;
+              }
+            } catch (e) {
+              console.error('Failed to load community name', e);
+            }
+          })
+        );
+      }
+
+      // 3. Process Ratings
       const ratingMap: Record<string, number> = {};
       list.forEach((r) => {
         const members = r.members || [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const me = members.find((m: any) => m.userId === user.uid);
         ratingMap[r.id] = me?.rating ?? 0;
       });
       setRoomRating(ratingMap);
 
+      // 4. Map Result
       return list.map((data) => {
         const creatorId = data.creator || data.createdBy;
+        // Проверяем завершен ли сезон (или комната архивирована)
+        const isFinished = (data.seasonHistory?.length ?? 0) > 0 || data.isArchived === true;
+
         return {
           ...(data as Room),
-          id: data.id, // Гарантируем, что ID есть (из map keys)
+          id: data.id,
           creatorName: creatorNameMap[creatorId] || data.creatorName,
-          isFinished: (data.seasonHistory?.length ?? 0) > 0,
+          isFinished: isFinished,
           _sortTs: parseRoomDate(
             data.createdAt || data.roomCreated || data.created
           ),
           communityId: data.communityId || null,
+          communityName: data.communityId
+            ? communityNameMap[data.communityId]
+            : undefined,
         };
       });
     };
@@ -173,12 +193,24 @@ export default function RoomsPage() {
     const handleSnapshot = async (snap: { docs: DocumentData[] }) => {
       snap.docs.forEach((d) => roomsMap.set(d.id, { id: d.id, ...d.data() }));
       const processed = await processRooms(new Map(roomsMap));
-      processed.sort((a, b) => b._sortTs - a._sortTs);
+      
+      // Сортировка: Сначала активные (по дате), потом завершенные (по дате)
+      processed.sort((a, b) => {
+        // 1. Приоритет по статусу (Активные выше Завершенных)
+        if (a.isFinished !== b.isFinished) {
+          // Если a завершена, она идет ниже (возвращаем 1)
+          // Если b завершена, a идет выше (возвращаем -1)
+          return a.isFinished ? 1 : -1;
+        }
+        
+        // 2. Если статус одинаковый - сортируем по дате (Новые выше)
+        return b._sortTs - a._sortTs;
+      });
+
       setAllRooms(processed);
       setIsLoadingRooms(false);
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const unsubMy = onSnapshot(qMyRooms, handleSnapshot as any);
     return () => unsubMy();
   }, [user, t, config.collections.rooms]);
@@ -220,33 +252,16 @@ export default function RoomsPage() {
   }, [allRooms, loadMyCounts, user]);
 
   // --- 3. Filter Rooms ---
-  const { myRooms, communityRooms, filteredAllRooms } = useMemo(() => {
+  const filteredRooms = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
-    const filtered = allRooms.filter(
+    return allRooms.filter(
       (r) =>
         r.name.toLowerCase().includes(lowerSearch) ||
-        (r.creatorName ?? '').toLowerCase().includes(lowerSearch)
+        (r.creatorName ?? '').toLowerCase().includes(lowerSearch) ||
+        (r.communityName ?? '').toLowerCase().includes(lowerSearch)
     );
-
-    const my: RoomWithMeta[] = [];
-    const comm: RoomWithMeta[] = [];
-
-    filtered.forEach((r) => {
-      if (r.communityId) {
-        comm.push(r);
-      } else {
-        my.push(r);
-      }
-    });
-
-    return {
-      myRooms: my,
-      communityRooms: comm,
-      filteredAllRooms: filtered, // Для обычных игроков показываем всё
-    };
   }, [allRooms, searchTerm]);
 
-  // --- 4. Permissions ---
   const canCreateRoom = userProfile && !userProfile.isGhost;
 
   if (!hasMounted) return null;
@@ -279,98 +294,28 @@ export default function RoomsPage() {
           />
         </div>
 
-        {/* VIEW LOGIC: Coach gets Tabs, Players get Single Grid */}
-        {isCoach ? (
-          <Tabs defaultValue='my' className='w-full flex-1'>
-            <TabsList className='grid w-full max-w-md grid-cols-2 p-1 pt-0 pb-0 mb-8 mx-auto md:mx-0'>
-              <TabsTrigger value='my' className='text-base gap-2'>
-                <LayoutGrid size={18} /> {t('My Rooms')}
-                <span className='ml-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full'>
-                  {myRooms.length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value='community' className='text-base gap-2'>
-                <Warehouse size={18} /> {t('Community')}
-                <span className='ml-1 bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full'>
-                  {communityRooms.length}
-                </span>
-              </TabsTrigger>
-            </TabsList>
-
-            {/* TAB: My Rooms */}
-            <TabsContent value='my' className='space-y-6'>
-              {isLoadingRooms ? (
-                <RoomsSkeleton />
-              ) : myRooms.length > 0 ? (
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-                  {myRooms.map((r) => (
-                    <RoomCard
-                      key={r.id}
-                      room={r}
-                      myMatches={myMatches[r.id]}
-                      myRating={roomRating[r.id]}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title={t('No personal rooms')}
-                  description={t(
-                    'Create a room to start playing with friends.'
-                  )}
+        {/* Unified Grid */}
+        <div className='space-y-6 flex-1'>
+          {isLoadingRooms ? (
+            <RoomsSkeleton />
+          ) : filteredRooms.length > 0 ? (
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+              {filteredRooms.map((r) => (
+                <RoomCard
+                  key={r.id}
+                  room={r}
+                  myMatches={myMatches[r.id]}
+                  myRating={roomRating[r.id]}
                 />
-              )}
-            </TabsContent>
-
-            {/* TAB: Community Rooms */}
-            <TabsContent value='community' className='space-y-6'>
-              {isLoadingRooms ? (
-                <RoomsSkeleton />
-              ) : communityRooms.length > 0 ? (
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-                  {communityRooms.map((r) => (
-                    <RoomCard
-                      key={r.id}
-                      room={r}
-                      myMatches={myMatches[r.id]}
-                      myRating={roomRating[r.id]}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title={t('No community rooms')}
-                  description={t(
-                    'Rooms created for your communities will appear here.'
-                  )}
-                />
-              )}
-            </TabsContent>
-          </Tabs>
-        ) : (
-          // PLAYER VIEW: All rooms in one grid
-          <div className='space-y-6 flex-1'>
-            {isLoadingRooms ? (
-              <RoomsSkeleton />
-            ) : filteredAllRooms.length > 0 ? (
-              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-                {filteredAllRooms.map((r) => (
-                  <RoomCard
-                    key={r.id}
-                    room={r}
-                    myMatches={myMatches[r.id]}
-                    myRating={roomRating[r.id]}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                title={t('No rooms found')}
-                description={t("You haven't joined any rooms yet.")}
-              />
-            )}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title={t('No rooms found')}
+              description={t("You haven't joined any rooms yet.")}
+            />
+          )}
+        </div>
       </div>
     </ProtectedRoute>
   );
@@ -382,10 +327,10 @@ function RoomsSkeleton() {
     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
       {[1, 2, 3].map((i) => (
         <div key={i} className='flex flex-col space-y-3'>
-          <Skeleton className='h-[180px] w-full rounded-xl' />
+          <Skeleton className='h-[200px] w-full rounded-xl' />
           <div className='space-y-2'>
             <Skeleton className='h-4 w-[250px]' />
-            <Skeleton className='h-4 w-[200px]' />
+            <Skeleton className='h-4 w-[150px]' />
           </div>
         </div>
       ))}

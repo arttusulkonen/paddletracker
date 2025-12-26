@@ -56,7 +56,6 @@ export default function LoginPage() {
     mode: 'onTouched',
   });
 
-  // Обновленные пункты, без упоминания блокировки
   const policyBullets = useMemo(
     () => [
       t('⚡ Welcome to the open beta of Smashlog.'),
@@ -70,6 +69,21 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
+
+		// Проверяем db перед использованием
+		if (!db) return;
+
+    // ИСПРАВЛЕНИЕ: Проверяем auth перед использованием
+    if (!auth) {
+      toast({
+        title: t('Error'),
+        description: t('Authentication service is unavailable.'),
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const cred = await signInWithEmailAndPassword(
         auth,

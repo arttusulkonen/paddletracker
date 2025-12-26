@@ -1,26 +1,26 @@
 'use client';
 
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  ScrollArea,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	ScrollArea,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import {
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
+	collection,
+	doc,
+	getDoc,
+	onSnapshot,
+	orderBy,
+	query,
+	where,
 } from 'firebase/firestore';
 import { Users } from 'lucide-react';
 import React from 'react';
@@ -62,7 +62,7 @@ export function MobileMembersList({
   React.useEffect(() => {
     setLoading(true);
     const unsub = onSnapshot(
-      doc(db, config.collections.rooms, roomId),
+      doc(db!, config.collections.rooms, roomId),
       (snap) => {
         if (snap.exists()) {
           const ms = (snap.data().members ?? []) as any[];
@@ -77,7 +77,7 @@ export function MobileMembersList({
 
   React.useEffect(() => {
     const q = query(
-      collection(db, config.collections.matches),
+      collection(db!, config.collections.matches),
       where('roomId', '==', roomId),
       orderBy('tsIso', 'asc')
     );
@@ -98,7 +98,7 @@ export function MobileMembersList({
       setProfiles({});
       return;
     }
-    Promise.all(ids.map((id: string) => getDoc(doc(db, 'users', id)))).then(
+    Promise.all(ids.map((id: string) => getDoc(doc(db!, 'users', id)))).then(
       (snaps) => {
         const map: Record<string, any> = {};
         snaps.forEach((s) => {

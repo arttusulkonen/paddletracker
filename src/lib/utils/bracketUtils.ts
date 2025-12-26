@@ -68,7 +68,6 @@ export function seedKnockoutRounds(bracket: any) {
   if (rr && rr.status === "finished" && semis.status === "pending" && !(quarters?.matches.length)) {
     const seeds = computeTable(rr.matches)
 
-    /* <=4 игроков – полуфиналы сразу */
     if (seeds.length <= 4) {
       semis.matches = [
         {
@@ -87,7 +86,6 @@ export function seedKnockoutRounds(bracket: any) {
       return
     }
 
-    /* >4 игроков – добавляем четверть‑финалы */
     if (!quarters) {
       quarters = makeRound(1, "knockoutQuarters", "Quarter-finals")
       bracket.rounds.push(quarters)
@@ -157,7 +155,6 @@ export function seedKnockoutRounds(bracket: any) {
 
   /* ───── 4. После матча за третье место ───── */
   if (bronze && bronze.status === "finished" && final.status === "pending") {
-    /* финалисты – победители полуфиналов */
     const winners = semis.matches.map((m: any) => m.winner)
     if (winners.length !== 2) return
 
@@ -203,8 +200,6 @@ export function computeFinalStats(bracket: any) {
   const runnerUpId = f.player1.userId === championId ? f.player2.userId
     : f.player1.userId
   const thirdId = b.winner
-  const fourthId = b.player1.userId === thirdId ? b.player2.userId
-    : b.player1.userId
 
   /* 3️⃣  проставляем места вручную */
   bracket.finalStats.forEach((s: any) => {

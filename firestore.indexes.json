@@ -403,6 +403,124 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionId": "matches-tennis",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roomId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsIso",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionId": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isPublic",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sports.tennis.globalElo",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "isDeleted",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "sports.tennis.matchesPlayed",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionId": "matches-tennis",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roomId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsIso",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionId": "matches-badminton",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roomId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tsIso",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionId": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isPublic",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sports.pingpong.globalElo",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "isDeleted",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "sports.pingpong.matchesPlayed",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionId": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isGhost",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "managedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionId": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "managedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

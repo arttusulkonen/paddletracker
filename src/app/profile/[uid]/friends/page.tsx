@@ -3,14 +3,14 @@
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui';
 import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
@@ -53,7 +53,7 @@ export default function UserFriendsPage() {
     const fetchAllData = async () => {
       setLoading(true);
       try {
-        const userDoc = await getDoc(doc(db, 'users', uid));
+        const userDoc = await getDoc(doc(db!, 'users', uid));
         if (userDoc.exists()) {
           const profile = userDoc.data() as UserProfile;
           setUserProfile(profile);

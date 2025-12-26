@@ -1,13 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
@@ -31,7 +25,6 @@ export function WrapAnnouncement() {
   const { config } = useSport();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -39,14 +32,12 @@ export function WrapAnnouncement() {
     const checkEligibility = async () => {
       // 1. Проверка даты (не показываем после января 2026)
       if (Date.now() > DEADLINE) {
-        setLoading(false);
         return;
       }
 
       // 2. Проверка LocalStorage (уже видели?)
       const hasSeen = localStorage.getItem(STORAGE_KEY);
       if (hasSeen === 'true') {
-        setLoading(false);
         return;
       }
 
@@ -54,14 +45,13 @@ export function WrapAnnouncement() {
         // 3. Проверка количества матчей за 2025 год
         // Ищем комнаты пользователя
         const roomsQuery = query(
-          collection(db, config.collections.rooms),
+          collection(db!, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid)
         );
         const roomsSnap = await getDocs(roomsQuery);
         const roomIds = roomsSnap.docs.map((doc) => doc.id);
 
         if (roomIds.length === 0) {
-          setLoading(false);
           return;
         }
 
@@ -73,7 +63,7 @@ export function WrapAnnouncement() {
         const checkRoomIds = roomIds.slice(0, 10);
 
         const matchesQuery = query(
-          collection(db, config.collections.matches),
+          collection(db!, config.collections.matches),
           where('roomId', 'in', checkRoomIds)
         );
 
@@ -108,7 +98,6 @@ export function WrapAnnouncement() {
       } catch (error) {
         console.error('Failed to check wrap eligibility', error);
       } finally {
-        setLoading(false);
       }
     };
 

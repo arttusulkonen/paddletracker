@@ -1,4 +1,4 @@
-# Smashlog (PaddleTracker) — Architectural Blueprint
+# Smashlog — Architectural Blueprint
 
 ## 1\. Project Overview
 

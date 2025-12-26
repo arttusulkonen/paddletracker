@@ -1,20 +1,19 @@
 'use client';
 
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Dialog,
-  DialogTrigger,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Card,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+	Dialog,
+	DialogTrigger,
 } from '@/components/ui';
 import type { TournamentRoom } from '@/lib/types';
 import { Settings } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 import { TournamentSettingsDialog } from './TournamentSettings';
 
 interface Props {
@@ -23,7 +22,6 @@ interface Props {
 }
 
 export function TournamentHeader({ tournament, isCreator }: Props) {
-  const { t } = useTranslation();
 
   return (
     <Card className='mb-8 shadow-xl'>

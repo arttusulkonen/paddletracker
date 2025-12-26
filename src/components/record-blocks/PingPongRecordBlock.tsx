@@ -46,8 +46,9 @@ export function PingPongRowInput({
   const p2Winner = !isNaN(score1) && !isNaN(score2) && score2 > score1;
 
   // Conditional styling based on winner
-  const baseClassName = 'grid grid-cols-2 gap-4 relative p-4 border rounded-lg bg-muted/50';
-  
+  const baseClassName =
+    'grid grid-cols-2 gap-4 relative p-4 border rounded-lg bg-muted/50';
+
   const winnerClass = 'bg-green-100 dark:bg-green-900 border-green-400';
   const neutralClass = 'bg-background';
 
@@ -57,7 +58,6 @@ export function PingPongRowInput({
   const input2ClassName = `text-center text-base font-bold ${
     p2Winner ? winnerClass : neutralClass
   }`;
-
 
   return (
     <div className={baseClassName}>
@@ -110,7 +110,6 @@ export function PingPongRowInput({
           className='w-full border rounded p-2 bg-muted'
           value={side2}
           disabled
-          readOnly
         >
           <option value='left'>{t('Left')}</option>
           <option value='right'>{t('Right')}</option>
