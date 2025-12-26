@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import {
 	Card,
 	CardContent,
-	CardDescription,
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
@@ -51,8 +50,10 @@ export default function CommunityDetailsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+		
     const fetchData = async () => {
       try {
+				if (!db) return;
         const docRef = doc(db, 'communities', communityId);
         const snap = await getDoc(docRef);
 

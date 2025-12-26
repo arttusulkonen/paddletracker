@@ -242,7 +242,7 @@ export function Navbar() {
             ) : (
               <span className='md:hidden'>
                 {React.isValidElement(config.icon) &&
-                  React.cloneElement(config.icon as React.ReactElement, {
+                  React.cloneElement(config.icon as React.ReactElement<any>, {
                     className: cn(
                       (config.icon as any).props?.className,
                       'h-8 w-8',
@@ -266,7 +266,7 @@ export function Navbar() {
             ) : (
               <span className='hidden md:inline-flex items-center gap-2 font-bold text-xl'>
                  {React.isValidElement(config.icon) &&
-                  React.cloneElement(config.icon as React.ReactElement, {
+                  React.cloneElement(config.icon as React.ReactElement<any>, {
                     className: cn(
                       (config.icon as any).props?.className,
                       'h-6 w-6',

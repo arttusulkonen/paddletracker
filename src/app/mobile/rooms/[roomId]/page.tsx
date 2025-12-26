@@ -4,7 +4,6 @@ import { MobileMembersList } from '@/components/mobile/MobileMembersList';
 import { MobileRecordBlock } from '@/components/mobile/MobileRecordBlock';
 import { RecentMatchesMobile } from '@/components/mobile/RecentMatchesMobile';
 import { Button } from '@/components/ui';
-import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
@@ -20,7 +19,6 @@ const KNOWN_SPORTS: Sport[] = ['pingpong', 'tennis', 'badminton'];
 
 export default function MobileRoomPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const { config, sport, setSport } = useSport();
   const { toast } = useToast();
   const sportRef = useRef<Sport | undefined>(sport);
@@ -38,7 +36,7 @@ export default function MobileRoomPage() {
     let cancelled = false;
 
     const subscribeTo = (sp: Sport) => {
-      const ref = doc(db, sportConfig[sp].collections.rooms, roomId);
+      const ref = doc(db!, sportConfig[sp].collections.rooms, roomId);
       unsub = onSnapshot(
         ref,
         (snap) => {
@@ -72,7 +70,7 @@ export default function MobileRoomPage() {
     (async () => {
       setLoading(true);
       try {
-        const currentRef = doc(db, config.collections.rooms, roomId);
+        const currentRef = doc(db!, config.collections.rooms, roomId);
         const currentSnap = await getDoc(currentRef);
         if (cancelled) return;
 
@@ -85,7 +83,7 @@ export default function MobileRoomPage() {
         }
 
         for (const sp of KNOWN_SPORTS) {
-          const ref = doc(db, sportConfig[sp].collections.rooms, roomId);
+          const ref = doc(db!, sportConfig[sp].collections.rooms, roomId);
           const snap = await getDoc(ref);
           if (cancelled) return;
           if (snap.exists()) {

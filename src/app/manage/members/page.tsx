@@ -55,6 +55,7 @@ export default function ManageMembersPage() {
         const adminIds = new Set<string>();
 
         // 1. Fetch Communities managed by user
+				if (!db) return;
         const communitiesQ = query(
           collection(db, 'communities'),
           where('admins', 'array-contains', user.uid)

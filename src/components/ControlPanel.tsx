@@ -3,10 +3,7 @@
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-	Briefcase,
-	Globe,
 	LayoutGrid,
-	Search,
 	User,
 	Users,
 	Warehouse

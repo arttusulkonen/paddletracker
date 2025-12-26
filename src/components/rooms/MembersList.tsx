@@ -35,16 +35,6 @@ interface MembersListProps {
   onRemovePlayer: (userId: string) => void;
 }
 
-function getRank(elo: number, t: (key: string) => string) {
-  if (elo < 1001) return t('Ping-Pong Padawan');
-  if (elo < 1100) return t('Table-Tennis Trainee');
-  if (elo < 1200) return t('Racket Rookie');
-  if (elo < 1400) return t('Paddle Prodigy');
-  if (elo < 1800) return t('Spin Sensei');
-  if (elo < 2000) return t('Smash Samurai');
-  return t('Ping-Pong Paladin');
-}
-
 type ViewMode = 'regular' | 'liveFinal';
 
 export function MembersList({
@@ -115,10 +105,10 @@ export function MembersList({
 
         if (b.adjPointsLive !== a.adjPointsLive)
           return b.adjPointsLive - a.adjPointsLive;
-        
-        if ((b.totalAddedPoints ?? 0) !== (a.totalAddedPoints ?? 0)) 
+
+        if ((b.totalAddedPoints ?? 0) !== (a.totalAddedPoints ?? 0))
           return (b.totalAddedPoints ?? 0) - (a.totalAddedPoints ?? 0);
-          
+
         if (b.wins !== a.wins) return b.wins - a.wins;
         return b.winRate - a.winRate;
       }
@@ -166,13 +156,11 @@ export function MembersList({
 
       <ScrollArea className='border rounded-md p-3 bg-background h-[400px] shadow-inner'>
         {sortedMembers.length === 0 ? (
-           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              {t('No players yet.')}
-           </div>
+          <div className='flex items-center justify-center h-full text-muted-foreground text-sm'>
+            {t('No players yet.')}
+          </div>
         ) : (
           sortedMembers.map((p, index) => {
-            const rank = getRank(p.globalElo ?? 1000, t);
-
             let rightValueNode;
             if (viewMode === 'regular') {
               rightValueNode = p.ratingVisible ? (
@@ -184,7 +172,9 @@ export function MembersList({
               );
             } else {
               if (p.totalMatches === 0) {
-                rightValueNode = <span className='text-muted-foreground'>—</span>;
+                rightValueNode = (
+                  <span className='text-muted-foreground'>—</span>
+                );
               } else {
                 rightValueNode = (
                   <div className='text-right'>

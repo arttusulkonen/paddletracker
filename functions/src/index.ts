@@ -9,7 +9,7 @@ import {
 } from 'firebase-functions/v2/https';
 import { genkit, z } from 'genkit';
 import { SPORT_COLLECTIONS } from './config';
-import { calculateDelta as calcDeltaImport, getDynamicK, RoomMode } from './lib/eloMath';
+import { calculateDelta as calcDeltaImport } from './lib/eloMath';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -76,49 +76,6 @@ const calculateDelta = (
     }
   }
   return delta;
-};
-
-const findUserOrSuggest = async (name: string) => {
-  const normalized = (name || '').trim();
-  if (!normalized) return { doc: null };
-
-  const normalizedLower = normalized.toLowerCase();
-  const usersRef = db.collection('users');
-
-  let snap = await usersRef.where('name', '==', normalized).limit(1).get();
-  if (!snap.empty) return { doc: snap.docs[0] };
-
-  snap = await usersRef.where('displayName', '==', normalized).limit(1).get();
-  if (!snap.empty) return { doc: snap.docs[0] };
-
-  const allUsers = await usersRef.get();
-  let bestDoc: admin.firestore.QueryDocumentSnapshot | null = null;
-  let minDist = Infinity;
-
-  for (const doc of allUsers.docs) {
-    const data = doc.data();
-    const dn = (data.displayName || '').toString();
-    const n = (data.name || '').toString();
-    const variants = [dn.toLowerCase(), n.toLowerCase()].filter(Boolean);
-
-    if (variants.includes(normalizedLower)) {
-      return { doc };
-    }
-
-    for (const field of variants) {
-      const dist = levenshtein(normalizedLower, field);
-      if (dist < minDist) {
-        minDist = dist;
-        bestDoc = doc;
-      }
-    }
-  }
-
-  if (minDist <= 2 && bestDoc) {
-    return { doc: bestDoc };
-  }
-
-  return { doc: null };
 };
 
 const ai = genkit({
@@ -245,7 +202,7 @@ export const aiSaveMatch = onCall(
     }
 
     const roomData = roomSnap.data() || {};
-    let members: any[] = roomData.members || [];
+    const members: any[] = roomData.members || [];
 
     // --- Сбор уникальных имен из запроса ---
     const uniqueNames = new Set<string>();
@@ -858,7 +815,7 @@ export const recordMatch = onCall(async (request) => {
      throw new HttpsError('failed-precondition', `Player 2 (${player2Id}) is not in the room memberIds`);
   }
 
-  let members = roomData.members || [];
+  const members = roomData.members || [];
   
   const getOrAddMember = (uid: string, userData: any) => {
     const existingIndex = members.findIndex((m: any) => m.userId === uid);
@@ -897,8 +854,6 @@ export const recordMatch = onCall(async (request) => {
   const tennisStatsP1 = { aces: 0, doubleFaults: 0, winners: 0 };
   const tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
 
-  const mode: RoomMode = roomData.mode || 'office';
-  const baseK = typeof roomData.kFactor === 'number' ? roomData.kFactor : 32;
   const isRankedRoom = roomData.isRanked !== false;
 
   const batch = db.batch();
@@ -908,9 +863,6 @@ export const recordMatch = onCall(async (request) => {
     const game = matches[i];
     const score1 = Number(game.score1);
     const score2 = Number(game.score2);
-
-    const p1MatchesPlayed = (member1.wins ?? 0) + (member1.losses ?? 0) + i;
-    const p2MatchesPlayed = (member2.wins ?? 0) + (member2.losses ?? 0) + i;
 
     const oldG1 = currentG1;
     const oldG2 = currentG2;
@@ -928,9 +880,6 @@ export const recordMatch = onCall(async (request) => {
       currentG1 += d1_Global;
       currentG2 += d2_Global;
     }
-
-    const k1 = getDynamicK(baseK, p1MatchesPlayed, mode);
-    const k2 = getDynamicK(baseK, p2MatchesPlayed, mode);
 
     d1_Room = calcDeltaImport(oldRoom1, oldRoom2, score1, score2, false);
     d2_Room = calcDeltaImport(oldRoom2, oldRoom1, score2, score1, false);

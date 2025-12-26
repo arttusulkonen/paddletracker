@@ -1,3 +1,4 @@
+// src/components/profile/ProfileSettingsDialog.tsx
 'use client';
 
 import ImageCropDialog from '@/components/ImageCropDialog';
@@ -49,7 +50,7 @@ import {
 	ref,
 	uploadBytesResumable,
 } from 'firebase/storage';
-import { Image as ImageIcon, Trash2, UserPlus, UserX } from 'lucide-react';
+import { Trash2, UserPlus, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -145,7 +146,7 @@ export function ProfileSettingsDialog({
   };
 
   const uploadAvatar = async (): Promise<string> => {
-    if (!avatarBlob) return profile.photoURL ?? '';
+    if (!avatarBlob || !storage) return profile.photoURL ?? '';
     const path = `avatars/${profile.uid}/${Date.now()}.jpg`;
     const storageRef = ref(storage, path);
     const task = uploadBytesResumable(storageRef, avatarBlob);
@@ -163,7 +164,7 @@ export function ProfileSettingsDialog({
   };
 
   const tryDeleteFromStorageByUrl = async (url: string | null | undefined) => {
-    if (!url) return;
+    if (!url || !storage) return;
     try {
       const r = ref(storage, url);
       await deleteObject(r);
@@ -171,6 +172,7 @@ export function ProfileSettingsDialog({
   };
 
   const handleSave = async () => {
+    if (!db) return;
     setIsSaving(true);
     try {
       let nextPhoto: string | null | undefined = profile.photoURL ?? null;
@@ -191,7 +193,7 @@ export function ProfileSettingsDialog({
       };
 
       await updateDoc(doc(db, 'users', profile.uid), payload);
-      if (auth.currentUser) {
+      if (auth && auth.currentUser) {
         await updateProfile(auth.currentUser, {
           displayName: name.trim(),
           photoURL: nextPhoto ?? null,
@@ -247,13 +249,20 @@ export function ProfileSettingsDialog({
           <DialogTitle>{t('Profile Settings')}</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue='general' className='flex-1 overflow-hidden flex flex-col'>
+        <Tabs
+          defaultValue='general'
+          className='flex-1 overflow-hidden flex flex-col'
+        >
           <div className='px-6'>
             <TabsList className='grid w-full grid-cols-3'>
               <TabsTrigger value='general'>{t('General')}</TabsTrigger>
               <TabsTrigger value='friends'>
                 {t('Friends')}
-                {friends.length > 0 && <span className="ml-2 text-xs opacity-70">({friends.length})</span>}
+                {friends.length > 0 && (
+                  <span className='ml-2 text-xs opacity-70'>
+                    ({friends.length})
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger value='danger'>{t('Danger')}</TabsTrigger>
             </TabsList>
@@ -264,12 +273,15 @@ export function ProfileSettingsDialog({
               <div className='flex items-start gap-6'>
                 <div className='flex flex-col items-center gap-3'>
                   <Avatar className='h-24 w-24 border-2 border-border shadow-sm'>
-                    <AvatarImage src={avatarPreview ?? undefined} className='object-cover' />
+                    <AvatarImage
+                      src={avatarPreview ?? undefined}
+                      className='object-cover'
+                    />
                     <AvatarFallback className='text-2xl'>
                       {(name || 'U').charAt(0)}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div className='flex flex-col gap-2 w-full'>
                     <Button
                       size='sm'
@@ -296,7 +308,7 @@ export function ProfileSettingsDialog({
                       </Button>
                     )}
                   </div>
-                  
+
                   <input
                     type='file'
                     ref={fileInputRef}
@@ -336,7 +348,7 @@ export function ProfileSettingsDialog({
 
               <div className='space-y-4 pt-2'>
                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                   <div className='space-y-2'>
+                  <div className='space-y-2'>
                     <Label htmlFor='default-sport'>{t('Default Sport')}</Label>
                     <Select
                       value={activeSport}
@@ -374,13 +386,18 @@ export function ProfileSettingsDialog({
               </div>
             </TabsContent>
 
-            <TabsContent value='friends' className='space-y-4 mt-0 h-full flex flex-col'>
-               <div className='flex items-center justify-between mb-2'>
-                  <h3 className='font-medium'>{t('Your Friends')}</h3>
-                  <span className='text-sm text-muted-foreground'>{friends.length} {t('total')}</span>
-               </div>
-               
-               <ScrollArea className='flex-1 -mx-2 px-2'>
+            <TabsContent
+              value='friends'
+              className='space-y-4 mt-0 h-full flex flex-col'
+            >
+              <div className='flex items-center justify-between mb-2'>
+                <h3 className='font-medium'>{t('Your Friends')}</h3>
+                <span className='text-sm text-muted-foreground'>
+                  {friends.length} {t('total')}
+                </span>
+              </div>
+
+              <ScrollArea className='flex-1 -mx-2 px-2'>
                 <div className='space-y-2'>
                   {friends.length > 0 ? (
                     friends.map((f) => (
@@ -416,7 +433,9 @@ export function ProfileSettingsDialog({
                     <div className='flex flex-col items-center justify-center py-12 text-center text-muted-foreground'>
                       <UserPlus className='h-12 w-12 opacity-20 mb-3' />
                       <p>{t('No friends yet.')}</p>
-                      <p className='text-xs mt-1'>{t('Search for players to add them.')}</p>
+                      <p className='text-xs mt-1'>
+                        {t('Search for players to add them.')}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -430,13 +449,17 @@ export function ProfileSettingsDialog({
                     <Trash2 className='h-5 w-5' />
                   </div>
                   <div className='space-y-1'>
-                    <h4 className='font-medium text-destructive'>{t('Delete Account')}</h4>
+                    <h4 className='font-medium text-destructive'>
+                      {t('Delete Account')}
+                    </h4>
                     <p className='text-sm text-muted-foreground leading-relaxed'>
-                      {t('This action is irreversible. It will permanently delete your account, remove your personal data, and anonymize your match history across all rooms.')}
+                      {t(
+                        'This action is irreversible. It will permanently delete your account, remove your personal data, and anonymize your match history across all rooms.'
+                      )}
                     </p>
                   </div>
                 </div>
-                
+
                 <div className='pt-2 flex justify-end'>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -457,7 +480,10 @@ export function ProfileSettingsDialog({
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleAccountDelete} className='bg-destructive text-destructive-foreground hover:bg-destructive/90'>
+                        <AlertDialogAction
+                          onClick={handleAccountDelete}
+                          className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                        >
                           {t('Yes, Delete Everything')}
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -470,7 +496,11 @@ export function ProfileSettingsDialog({
         </Tabs>
 
         <DialogFooter className='p-6 pt-0'>
-          <Button onClick={handleSave} disabled={isSaving} className='w-full sm:w-auto'>
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className='w-full sm:w-auto'
+          >
             {isSaving ? t('Saving...') : t('Save Changes')}
           </Button>
         </DialogFooter>

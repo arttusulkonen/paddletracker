@@ -282,7 +282,6 @@ function MatchupDraftBlock({
 export function RecordBlock({
   members,
   roomId,
-  room,
   isCreator,
   isGlobalAdmin,
   onFinishSeason,
@@ -298,7 +297,6 @@ export function RecordBlock({
   const { sport, config } = useSport();
   const { toast } = useToast();
 
-  // FIX: Removed filtering. Creator/Coach is a player.
   const playableMembers = members; 
 
   const createInitialGame = () =>
@@ -390,15 +388,13 @@ export function RecordBlock({
     let successCount = 0;
     
     for (const draft of validDrafts) {
+      // ИСПРАВЛЕНИЕ: Передаем только нужные 5 аргументов
       const success = await processAndSaveMatches(
         roomId,
-        room,
         draft.player1Id,
         draft.player2Id,
         draft.games as any,
-        members,
-        sport,
-        config
+        sport
       );
       if (success) successCount++;
     }

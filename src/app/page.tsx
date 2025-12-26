@@ -48,18 +48,6 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const parseCreatedAt = (dateStr?: string) => {
-  if (!dateStr) return 0;
-  const parts = dateStr.split(' ');
-  const dateParts = parts[0].split('.');
-  if (dateParts.length === 3) {
-    const d = new Date(+dateParts[2], +dateParts[1] - 1, +dateParts[0]);
-    return d.getTime();
-  }
-  const iso = Date.parse(dateStr);
-  return isNaN(iso) ? 0 : iso;
-};
-
 const DefaultSportSelector = () => {
   const { t } = useTranslation();
   const { updateActiveSport } = useSport();

@@ -36,6 +36,7 @@ export function CommunitiesList({ targetUid }: CommunitiesListProps) {
         // ИСПРАВЛЕНИЕ: Используем 'or', чтобы найти сообщества, где пользователь
         // является участником ИЛИ админом ИЛИ владельцем.
         // Это гарантирует, что мы ничего не пропустим.
+				if (!db) return;
         const q = query(
           collection(db, 'communities'),
           or(

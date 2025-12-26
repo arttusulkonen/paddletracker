@@ -1,3 +1,4 @@
+// src/components/rooms/RoomSettings.tsx
 'use client';
 
 import ImageCropDialog from '@/components/ImageCropDialog';
@@ -56,7 +57,6 @@ import {
 	Archive,
 	Crown,
 	Image as ImageIcon,
-	Shield,
 	Trash2,
 	Undo2,
 	UserPlus,
@@ -83,7 +83,6 @@ export function RoomSettingsDialog({
 
   const [name, setName] = useState(room.name);
   const [description, setDescription] = useState(room.description ?? '');
-  const [isPublic, setIsPublic] = useState(room.isPublic);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isActing, setIsActing] = useState(false);
@@ -166,7 +165,6 @@ export function RoomSettingsDialog({
       const data: Partial<Room> & { communityId?: string | null } = {
         name,
         description,
-        isPublic,
         communityId:
           selectedCommunityId === 'none' ? null : selectedCommunityId,
       };
@@ -204,8 +202,7 @@ export function RoomSettingsDialog({
       setAdmins((prev) => [...prev, newAdminId]);
       setNewAdminId('');
       toast({ title: t('Admin added') });
-    } catch (e) {
-      console.error(e);
+    } catch {
       toast({ title: t('Failed to add admin'), variant: 'destructive' });
     } finally {
       setIsActing(false);
@@ -220,7 +217,7 @@ export function RoomSettingsDialog({
       });
       setAdmins((prev) => prev.filter((id) => id !== uid));
       toast({ title: t('Admin removed') });
-    } catch (e) {
+    } catch {
       toast({ title: t('Failed to remove admin'), variant: 'destructive' });
     } finally {
       setIsActing(false);

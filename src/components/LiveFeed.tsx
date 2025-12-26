@@ -1,3 +1,4 @@
+// src/components/LiveFeed.tsx
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +9,7 @@ import { parseFlexDate } from '@/lib/utils/date';
 import { formatTimeAgo } from '@/lib/utils/timeAgo';
 import {
 	collection,
+	documentId,
 	DocumentSnapshot,
 	getDocs,
 	limit,
@@ -56,7 +58,7 @@ const MatchItem: React.FC<{
   const p1 = match.player1;
   const p2 = match.player2;
   const timeAgo = formatTimeAgo(
-    match.tsIso ?? match.timestamp ?? match.createdAt,
+    match.tsIso ?? match.timestamp ?? match.createdAt ?? '',
     t
   );
 
@@ -65,7 +67,8 @@ const MatchItem: React.FC<{
 
   return (
     <div
-      className={`relative flex flex-col gap-2 p-3 border-b ${config.theme.border} border-l-4 rounded-r bg-card/50 hover:bg-accent/5 transition-colors`}
+      // FIX 1: Removed config.theme.border which doesn't exist on the type. Used generic border-border.
+      className={`relative flex flex-col gap-2 p-3 border-b border-border border-l-4 rounded-r bg-card/50 hover:bg-accent/5 transition-colors`}
     >
       {/* Community Badge */}
       {communityName && (
@@ -77,7 +80,8 @@ const MatchItem: React.FC<{
 
       <div className='flex items-start gap-3 mt-1 pt-4 sm:pt-1'>
         <div className={`mt-1 ${config.theme.primary}`}>
-          {React.cloneElement(config.icon as React.ReactElement, {
+          {/* FIX 2: Cast icon to ReactElement<any> to match cloneElement overload */}
+          {React.cloneElement(config.icon as React.ReactElement<any>, {
             className: 'h-5 w-5',
           })}
         </div>
@@ -88,7 +92,8 @@ const MatchItem: React.FC<{
               className='flex items-center gap-1.5 group'
             >
               <Avatar className='h-5 w-5'>
-                <AvatarImage src={p1.photoURL || undefined} />
+                {/* FIX 3: Cast p1 as any because photoURL is not in MatchSide type */}
+                <AvatarImage src={(p1 as any).photoURL || undefined} />
                 <AvatarFallback className='text-[10px]'>
                   {p1.name?.[0]}
                 </AvatarFallback>
@@ -105,7 +110,8 @@ const MatchItem: React.FC<{
               className='flex items-center gap-1.5 group'
             >
               <Avatar className='h-5 w-5'>
-                <AvatarImage src={p2.photoURL || undefined} />
+                {/* FIX 4: Cast p2 as any because photoURL is not in MatchSide type */}
+                <AvatarImage src={(p2 as any).photoURL || undefined} />
                 <AvatarFallback className='text-[10px]'>
                   {p2.name?.[0]}
                 </AvatarFallback>
@@ -178,30 +184,14 @@ export const LiveFeed: React.FC = () => {
   const loadVisibleRoomsAndCommunities = useCallback(async () => {
     if (!user || !config || !db) return;
 
-    // 1. Build Community Map first (Global)
-    const tempMap: Record<string, string> = {};
-    try {
-      const communitiesSnap = await getDocs(collection(db, 'communities'));
-      communitiesSnap.forEach((doc) => {
-        const data = doc.data();
-        const cName = data.name;
-        const rooms = data.roomIds || [];
-        if (Array.isArray(rooms)) {
-          rooms.forEach((rid) => {
-            if (typeof rid === 'string') {
-              tempMap[rid] = cName;
-            }
-          });
-        }
-      });
-    } catch (e) {
-      console.error("Failed to load communities", e);
-    }
+    const allVisibleIds = new Set<string>();
+    const uniqueCommunityIds = new Set<string>();
 
-    // 2. Identify Visible Rooms
-    let allVisibleIds = new Set<string>();
+    const tempMap: Record<string, string> = {};
+
     const roomCollections = sports.map((s) => sportConfig[s].collections.rooms);
 
+    // 1. Identify Visible Rooms & Collect Community IDs
     for (const collectionName of roomCollections) {
       // Public Rooms
       const qPublic = query(
@@ -211,10 +201,12 @@ export const LiveFeed: React.FC = () => {
       const snapPublic = await getDocs(qPublic);
       snapPublic.docs.forEach((doc) => {
         allVisibleIds.add(doc.id);
-        // Fallback: If room doc has communityName and we missed it from 'communities'
         const rData = doc.data();
-        if (rData.communityName && !tempMap[doc.id]) {
-            tempMap[doc.id] = rData.communityName;
+
+        if (rData.communityName) {
+          tempMap[doc.id] = rData.communityName;
+        } else if (rData.communityId) {
+          uniqueCommunityIds.add(rData.communityId);
         }
       });
 
@@ -227,12 +219,50 @@ export const LiveFeed: React.FC = () => {
       const snapMember = await getDocs(qMember);
       snapMember.docs.forEach((doc) => {
         allVisibleIds.add(doc.id);
-        // Fallback
         const rData = doc.data();
-        if (rData.communityName && !tempMap[doc.id]) {
-            tempMap[doc.id] = rData.communityName;
+
+        if (rData.communityName) {
+          tempMap[doc.id] = rData.communityName;
+        } else if (rData.communityId) {
+          uniqueCommunityIds.add(rData.communityId);
         }
       });
+    }
+
+    // 2. Fetch ONLY the relevant communities (in chunks of 10)
+    const commIdsArray = Array.from(uniqueCommunityIds);
+    if (commIdsArray.length > 0) {
+      const chunks = [];
+      for (let i = 0; i < commIdsArray.length; i += 10) {
+        chunks.push(commIdsArray.slice(i, i + 10));
+      }
+
+      await Promise.all(
+        chunks.map(async (chunk) => {
+          try {
+            if (!db) return;
+            const qComm = query(
+              collection(db, 'communities'),
+              // FIX 5: Explicitly type chunk as string[]
+              where(documentId(), 'in', chunk as string[])
+            );
+            const snap = await getDocs(qComm);
+            snap.forEach((doc) => {
+              const cName = doc.data().name;
+              const roomIds = doc.data().roomIds || [];
+              if (Array.isArray(roomIds)) {
+                roomIds.forEach((rid) => {
+                  if (allVisibleIds.has(rid)) {
+                    tempMap[rid] = cName;
+                  }
+                });
+              }
+            });
+          } catch (e) {
+            console.error('Error fetching community chunk', e);
+          }
+        })
+      );
     }
 
     setRoomToCommunityMap(tempMap);
@@ -278,7 +308,7 @@ export const LiveFeed: React.FC = () => {
           constraints.push(startAfter(cursor));
         }
 
-        const q = query(collection(db, collectionName), ...constraints);
+        const q = query(collection(db!, collectionName), ...constraints);
         const snap = await getDocs(q);
 
         if (snap.empty) {
@@ -345,7 +375,8 @@ export const LiveFeed: React.FC = () => {
             continue;
           }
           anyFetched = true;
-          const sport = result.matches[0]?.sport;
+          // FIX 6: Cast sport to Sport type to fix implicit any indexing error
+          const sport = result.matches[0]?.sport as Sport;
           if (sport) {
             queuesRef.current[sport] = [
               ...queuesRef.current[sport],

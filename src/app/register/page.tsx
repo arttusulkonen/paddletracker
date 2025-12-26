@@ -40,8 +40,6 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import * as z from 'zod';
 
-const AVATAR_MAX_MB = 2;
-const AVATAR_MAX_BYTES = AVATAR_MAX_MB * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default function RegisterPage() {
@@ -103,7 +101,7 @@ export default function RegisterPage() {
     if (claimUid && db) {
       const fetchGhost = async () => {
         try {
-          const docRef = doc(db, 'users', claimUid);
+          const docRef = doc(db!, 'users', claimUid);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
             const data = snap.data();
@@ -179,7 +177,7 @@ export default function RegisterPage() {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      if (!auth || !db) throw new Error('Service unavailable');
+      if (!auth || !db || !app) throw new Error('Service unavailable'); // Check 'app' here
       const data = {
         ...raw,
         name: raw.name.trim(),
@@ -257,22 +255,30 @@ export default function RegisterPage() {
       // Теперь это ЕДИНСТВЕННОЕ место, где происходит слияние профилей
       if (ghostUser) {
         try {
+          // 'app' checked above, so strictly typed now
           const functions = getFunctions(app, 'us-central1');
-          const claimProfileFunc = httpsCallable(functions, 'claimGhostProfile');
-          
+          const claimProfileFunc = httpsCallable(
+            functions,
+            'claimGhostProfile'
+          );
+
           await claimProfileFunc({ ghostId: ghostUser.uid });
-          
+
           toast({
             title: t('Profile Merged'),
-            description: t('Your match history has been successfully transferred.'),
+            description: t(
+              'Your match history has been successfully transferred.'
+            ),
           });
         } catch (migrationError: any) {
-          console.error("Migration failed:", migrationError);
-          // Аккаунт создан, но миграция не прошла. 
+          console.error('Migration failed:', migrationError);
+          // Аккаунт создан, но миграция не прошла.
           // Можно добавить логику retry или просто сообщить пользователю.
           toast({
             title: t('Warning'),
-            description: t('Account created, but history migration failed. Contact support.'),
+            description: t(
+              'Account created, but history migration failed. Contact support.'
+            ),
             variant: 'destructive',
           });
         }
@@ -392,7 +398,9 @@ export default function RegisterPage() {
                   name='accountType'
                   render={({ field }) => (
                     <FormItem className='space-y-3'>
-                      <FormLabel className='text-base'>{t('I am a...')}</FormLabel>
+                      <FormLabel className='text-base'>
+                        {t('I am a...')}
+                      </FormLabel>
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
@@ -411,10 +419,14 @@ export default function RegisterPage() {
                             >
                               <div className='flex items-center gap-2 mb-2'>
                                 <User className='h-5 w-5 text-primary' />
-                                <span className='font-bold text-lg'>{t('Player')}</span>
+                                <span className='font-bold text-lg'>
+                                  {t('Player')}
+                                </span>
                               </div>
                               <p className='text-xs text-muted-foreground leading-snug'>
-                                {t('Participate in matches, track your stats, join leagues.')}
+                                {t(
+                                  'Participate in matches, track your stats, join leagues.'
+                                )}
                               </p>
                             </Label>
                           </div>
@@ -430,10 +442,14 @@ export default function RegisterPage() {
                             >
                               <div className='flex items-center gap-2 mb-2'>
                                 <Building2 className='h-5 w-5 text-primary' />
-                                <span className='font-bold text-lg'>{t('Organizer')}</span>
+                                <span className='font-bold text-lg'>
+                                  {t('Organizer')}
+                                </span>
                               </div>
                               <p className='text-xs text-muted-foreground leading-snug'>
-                                {t('Create communities, manage tournaments, oversee leagues.')}
+                                {t(
+                                  'Create communities, manage tournaments, oversee leagues.'
+                                )}
                               </p>
                             </Label>
                           </div>
@@ -510,7 +526,12 @@ export default function RegisterPage() {
                 )}
               />
 
-              <Button type='submit' className='w-full font-bold' size="lg" disabled={isLoading}>
+              <Button
+                type='submit'
+                className='w-full font-bold'
+                size='lg'
+                disabled={isLoading}
+              >
                 {isLoading
                   ? t('Processing...')
                   : ghostUser
@@ -521,7 +542,10 @@ export default function RegisterPage() {
           </Form>
         </CardContent>
         <div className='p-6 pt-0 text-center text-sm text-muted-foreground'>
-          <Link href='/login' className='hover:underline hover:text-primary transition-colors'>
+          <Link
+            href='/login'
+            className='hover:underline hover:text-primary transition-colors'
+          >
             {t('Already have an account? Login')}
           </Link>
         </div>

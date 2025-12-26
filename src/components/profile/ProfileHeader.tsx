@@ -74,7 +74,7 @@ export function ProfileHeader({
       // 1. Сначала проверяем, есть ли ID в профиле (быстрый способ)
       if (targetProfile.communityIds && targetProfile.communityIds.length > 0) {
         try {
-          const cDoc = await getDoc(doc(db, 'communities', targetProfile.communityIds[0]));
+          const cDoc = await getDoc(doc(db!, 'communities', targetProfile.communityIds[0]));
           if (cDoc.exists()) {
             setCommunityName(cDoc.data().name);
             return;
@@ -87,6 +87,7 @@ export function ProfileHeader({
       // 2. Если в профиле нет ID, ищем сообщество, где этот пользователь АДМИН (для тренеров)
       // Это решает проблему, когда в User.communityIds пусто, но в Community.admins он есть
       try {
+				if (!db) return;
         const q = query(
           collection(db, 'communities'),
           where('admins', 'array-contains', targetProfile.uid),

@@ -1,6 +1,5 @@
 // src/app/layout.tsx
 import Providers from '@/app/providers';
-// import { AiAssistant } from '@/components/AiAssistant'; // <-- Удалено отсюда
 import AppGuard from '@/components/auth/AppGuard';
 import InstallPrompt from '@/components/pwa/InstallPrompt';
 import PWAInit from '@/components/pwa/PWAInit';

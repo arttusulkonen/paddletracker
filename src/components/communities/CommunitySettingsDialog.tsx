@@ -35,7 +35,6 @@ import {
 } from 'firebase/firestore';
 import {
 	ArrowDownToLine,
-	Check,
 	Link as LinkIcon,
 	Loader2,
 	Plus,
@@ -81,7 +80,7 @@ export function CommunitySettingsDialog({
       try {
         // A. Комнаты, где я участник (чтобы я мог их привязать)
         const qMy = query(
-          collection(db, config.collections.rooms),
+          collection(db!, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid)
         );
         const snapMy = await getDocs(qMy);
@@ -91,7 +90,7 @@ export function CommunitySettingsDialog({
 
         // B. Комнаты, уже привязанные к этому комьюнити
         // (даже если я в них не состою, но я админ комьюнити - я должен их видеть)
-        let linkedData: Room[] = [];
+        const linkedData: Room[] = [];
         if (community.roomIds && community.roomIds.length > 0) {
           // Разбиваем на чанки по 10 для 'in' запроса
           const chunks = [];
@@ -100,7 +99,7 @@ export function CommunitySettingsDialog({
           }
           for (const chunk of chunks) {
             const qLinked = query(
-              collection(db, config.collections.rooms),
+              collection(db!, config.collections.rooms),
               where(documentId(), 'in', chunk)
             );
             const snapLinked = await getDocs(qLinked);
@@ -144,7 +143,7 @@ export function CommunitySettingsDialog({
   const handleUpdateGeneral = async () => {
     setLoading(true);
     try {
-      await updateDoc(doc(db, 'communities', community.id), {
+      await updateDoc(doc(db!, 'communities', community.id), {
         name,
         description,
       });
@@ -160,13 +159,13 @@ export function CommunitySettingsDialog({
   const handleLinkRoom = async (roomId: string) => {
     setLoading(true);
     try {
-      const batch = writeBatch(db);
+      const batch = writeBatch(db!);
       // 1. Обновляем комнату
-      const roomRef = doc(db, config.collections.rooms, roomId);
+      const roomRef = doc(db!, config.collections.rooms, roomId);
       batch.update(roomRef, { communityId: community.id });
 
       // 2. Обновляем комьюнити
-      const commRef = doc(db, 'communities', community.id);
+      const commRef = doc(db!, 'communities', community.id);
       batch.update(commRef, { roomIds: arrayUnion(roomId) });
 
       await batch.commit();
@@ -190,11 +189,11 @@ export function CommunitySettingsDialog({
   const handleUnlinkRoom = async (roomId: string) => {
     setLoading(true);
     try {
-      const batch = writeBatch(db);
-      const roomRef = doc(db, config.collections.rooms, roomId);
+      const batch = writeBatch(db!);
+      const roomRef = doc(db!, config.collections.rooms, roomId);
       batch.update(roomRef, { communityId: null });
 
-      const commRef = doc(db, 'communities', community.id);
+      const commRef = doc(db!, 'communities', community.id);
       batch.update(commRef, { roomIds: arrayRemove(roomId) });
 
       await batch.commit();
@@ -214,7 +213,7 @@ export function CommunitySettingsDialog({
     setLoading(true);
     try {
       // 1. Обновляем Community (массив members)
-      const commRef = doc(db, 'communities', community.id);
+      const commRef = doc(db!, 'communities', community.id);
       await updateDoc(commRef, {
         members: arrayUnion(...potentialMembers),
       });
@@ -222,10 +221,10 @@ export function CommunitySettingsDialog({
       // 2. Обновляем Users (массив communityIds)
       // Внимание: Здесь лучше использовать batch, но Firebase лимит 500 операций.
       // Для простоты делаем Promise.all чанками по 400.
-      const batch = writeBatch(db);
+      const batch = writeBatch(db!);
       let count = 0;
       for (const uid of potentialMembers) {
-        const userRef = doc(db, 'users', uid);
+        const userRef = doc(db!, 'users', uid);
         batch.update(userRef, {
           communityIds: arrayUnion(community.id),
         });

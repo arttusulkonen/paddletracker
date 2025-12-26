@@ -1,3 +1,4 @@
+// src/app/rooms/[roomId]/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -13,16 +14,17 @@ import {
 	Button,
 	Card,
 	CardContent,
+	CardHeader,
+	CardTitle,
 	Checkbox,
 	Dialog,
 	DialogContent,
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
-	Label,
 	ScrollArea,
-	Separator,
 } from '@/components/ui';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +54,7 @@ import {
 	where,
 	writeBatch,
 } from 'firebase/firestore';
-import { ArrowLeft } from 'lucide-react';
+import { Archive, ArrowLeft, Clock, Info, Lock, UserPlus } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -107,14 +109,14 @@ export default function RoomPage() {
   useEffect(() => {
     if (!room) return;
     setSelectedFriends((prev) => prev.filter((id) => !memberIdsSet.has(id)));
-  }, [room?.memberIds, memberIdsSet]);
+  }, [room?.memberIds, memberIdsSet, room]);
 
   useEffect(() => setHasMounted(true), []);
 
   useEffect(() => {
     if (!user || !db) return;
     const unsubRoom = onSnapshot(
-      doc(db!, config.collections.rooms, roomId),
+      doc(db, config.collections.rooms, roomId),
       (snap) => {
         if (!snap.exists()) {
           router.push('/rooms');
@@ -152,7 +154,7 @@ export default function RoomPage() {
   useEffect(() => {
     if (!user || accessDenied || !db) return;
     const roomsQ = query(
-      collection(db!, config.collections.rooms),
+      collection(db, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid)
     );
     const unsub = onSnapshot(roomsQ, async (snap) => {
@@ -205,25 +207,18 @@ export default function RoomPage() {
       );
   }, [coPlayers, friends, memberIdsSet]);
 
-  // --- ИСПРАВЛЕННАЯ ЛОГИКА ПРАВ ---
-
-  // 1. Создатель (проверяем оба поля: creator и старое createdBy)
   const isCreator = useMemo(() => {
     if (!user || !room) return false;
     return room.creator === user.uid || room.createdBy === user.uid;
   }, [user, room]);
 
-  // 2. Управление (Создатель, Админ комнаты, Супер-админ)
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
     if (isCreator || isGlobalAdmin) return true;
-
-    // Проверка массива adminIds
     const r = room as Room & { adminIds?: string[] };
     return Array.isArray(r.adminIds) && r.adminIds.includes(user.uid);
   }, [room, user, isGlobalAdmin, isCreator]);
 
-  // 3. Членство (проверяем массив ID)
   const isMember = useMemo(
     () => room?.memberIds?.includes(user?.uid ?? ''),
     [user, room]
@@ -232,7 +227,7 @@ export default function RoomPage() {
   useEffect(() => {
     if (!user || !db || accessDenied) return;
     const q = query(
-      collection(db!, config.collections.matches),
+      collection(db, config.collections.matches),
       where('roomId', '==', roomId)
     );
     const unsub = onSnapshot(q, (snap) => {
@@ -279,7 +274,6 @@ export default function RoomPage() {
       setSeasonStarts(starts);
       setSeasonRoomStarts(roomStarts);
 
-      // Синхронизация мемберов
       const memberIds = room.memberIds || [];
       const existingMembersMap = new Map<string, RoomMember>();
 
@@ -496,7 +490,7 @@ export default function RoomPage() {
     async (roomId: string): Promise<StartEndElo> => {
       if (!db) throw new Error('DB not initialized');
       const qs = query(
-        collection(db!, config.collections.matches),
+        collection(db, config.collections.matches),
         where('roomId', '==', roomId),
         orderBy('tsIso', 'asc')
       );
@@ -552,7 +546,7 @@ export default function RoomPage() {
 
   const handleRequestToJoin = useCallback(async () => {
     if (!user || !room || !db) return;
-    await updateDoc(doc(db!, config.collections.rooms, roomId), {
+    await updateDoc(doc(db, config.collections.rooms, roomId), {
       joinRequests: arrayUnion(user.uid),
     });
     toast({ title: t('Request Sent') });
@@ -560,7 +554,7 @@ export default function RoomPage() {
 
   const handleCancelRequestToJoin = useCallback(async () => {
     if (!user || !room || !db) return;
-    await updateDoc(doc(db!, config.collections.rooms, roomId), {
+    await updateDoc(doc(db, config.collections.rooms, roomId), {
       joinRequests: arrayRemove(user.uid),
     });
     toast({ title: t('Request Canceled') });
@@ -569,7 +563,7 @@ export default function RoomPage() {
   const handleLeaveRoom = useCallback(async () => {
     if (!user || !room || !db) return;
     const memberToRemove = members.find((m) => m.userId === user.uid);
-    await updateDoc(doc(db!, config.collections.rooms, roomId), {
+    await updateDoc(doc(db, config.collections.rooms, roomId), {
       members: memberToRemove ? arrayRemove(memberToRemove) : undefined,
       memberIds: arrayRemove(user.uid),
     });
@@ -609,7 +603,10 @@ export default function RoomPage() {
         const fromCo = coPlayers.find((p) => p.uid === uid);
         if (fromCo) return fromCo;
         const lite = await getUserLite(uid);
-        return lite ? ({ uid, ...lite } as UserProfile) : null;
+        // FIX: Use Omit to prevent TS error about uid overwrite
+        return lite
+          ? ({ uid, ...(lite as Omit<typeof lite, 'uid'>) } as UserProfile)
+          : null;
       };
 
       const profiles = await Promise.all(
@@ -619,8 +616,8 @@ export default function RoomPage() {
         }))
       );
 
-      const batch = writeBatch(db!);
-      const roomRef = doc(db!, config.collections.rooms, roomId);
+      const batch = writeBatch(db);
+      const roomRef = doc(db, config.collections.rooms, roomId);
 
       const newMembers = profiles.map(({ uid, profile }) => ({
         userId: uid,
@@ -677,8 +674,8 @@ export default function RoomPage() {
         return;
       }
 
-      const batch = writeBatch(db!);
-      const roomRef = doc(db!, config.collections.rooms, roomId);
+      const batch = writeBatch(db);
+      const roomRef = doc(db, config.collections.rooms, roomId);
 
       const updates: any = {
         memberIds: arrayRemove(userIdToRemove),
@@ -689,7 +686,7 @@ export default function RoomPage() {
 
       batch.update(roomRef, updates);
 
-      const userRef = doc(db!, 'users', userIdToRemove);
+      const userRef = doc(db, 'users', userIdToRemove);
       batch.update(userRef, { rooms: arrayRemove(roomId) });
 
       await batch.commit();
@@ -744,8 +741,8 @@ export default function RoomPage() {
     <ProtectedRoute>
       <div className='container mx-auto py-8 px-4'>
         <Button
-          variant='outline'
-          className='mb-6'
+          variant='ghost'
+          className='mb-4 -ml-2 text-muted-foreground hover:text-foreground'
           onClick={() => router.push('/rooms')}
         >
           <ArrowLeft className='mr-2 h-4 w-4' /> {t('Back to Rooms')}
@@ -753,7 +750,7 @@ export default function RoomPage() {
 
         <RoomHeader
           room={room}
-					members={members}
+          members={members}
           isMember={!!isMember}
           hasPendingRequest={!!hasPendingRequest}
           isCreator={isCreator}
@@ -761,39 +758,100 @@ export default function RoomPage() {
           onCancelJoin={handleCancelRequestToJoin}
           onLeave={handleLeaveRoom}
         />
-				
-        <Card>
-          <CardContent className='grid md:grid-cols-3 gap-6 p-4'>
-            <div className='md:col-span-1 space-y-4'>
-              <MembersList
-                members={regularPlayers}
-                room={room}
-                isCreator={isCreator}
-                canManage={canManageRoom}
-                currentUser={user}
-                onRemovePlayer={handleRemovePlayer}
-              />
 
-              {showInviteSection && (
-                <div className='pt-4 border-t'>
-                  <Label className='text-sm font-medium'>
-                    {t('Invite players:')}
-                  </Label>
-                  <ScrollArea className='h-32 mt-2 border rounded-md p-2'>
-                    {friendsAll.length + othersInSport.length > 0 ? (
-                      <>
-                        {friendsAll.length > 0 && (
-                          <>
-                            <div className='px-2 pt-1 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
-                              {t('Friends')}
-                            </div>
-                            {friendsAll.map((p) => {
-                              const displayName =
-                                p.name ?? p.displayName ?? '?';
-                              return (
+        {/* ALERTS SECTION */}
+        <div className='space-y-4 mb-8'>
+          {room.isArchived && (
+            <Alert variant='destructive'>
+              <Archive className='h-4 w-4' />
+              <AlertTitle>{t('Archived Room')}</AlertTitle>
+              <AlertDescription>
+                {t('This room is read-only. No new matches can be recorded.')}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!room.isArchived && latestSeason && (
+            <Alert className='border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20'>
+              <Clock className='h-4 w-4 text-amber-600 dark:text-amber-500' />
+              <AlertTitle className='text-amber-800 dark:text-amber-400'>
+                {t('Season Finished')}
+              </AlertTitle>
+              <AlertDescription className='text-amber-700 dark:text-amber-300'>
+                {t('Matches are paused until a new season starts.')}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!isMember &&
+            room.isPublic &&
+            !hasPendingRequest &&
+            !room.isArchived && (
+              <Alert className='border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20'>
+                <Info className='h-4 w-4 text-blue-600 dark:text-blue-500' />
+                <AlertTitle className='text-blue-800 dark:text-blue-400'>
+                  {t('Join to Play')}
+                </AlertTitle>
+                <AlertDescription className='text-blue-700 dark:text-blue-300'>
+                  {t(
+                    'This is a public room. Join to start recording matches and see your stats.'
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
+          {hasPendingRequest && (
+            <Alert className='border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/20'>
+              <Lock className='h-4 w-4 text-yellow-600 dark:text-yellow-500' />
+              <AlertTitle className='text-yellow-800 dark:text-yellow-400'>
+                {t('Request Pending')}
+              </AlertTitle>
+              <AlertDescription className='text-yellow-700 dark:text-yellow-300'>
+                {t('Waiting for admin approval to join.')}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        {/* MAIN LAYOUT GRID */}
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8'>
+          {/* LEFT COLUMN: Players & Invites (4 cols) */}
+          <div className='lg:col-span-4 space-y-6'>
+            <Card className='shadow-sm border-0 bg-transparent sm:bg-card sm:border'>
+              <CardHeader className='px-0 sm:px-6'>
+                <CardTitle>{t('Players')}</CardTitle>
+              </CardHeader>
+              <CardContent className='px-0 sm:px-6'>
+                <MembersList
+                  members={regularPlayers}
+                  room={room}
+                  isCreator={isCreator}
+                  canManage={canManageRoom}
+                  currentUser={user}
+                  onRemovePlayer={handleRemovePlayer}
+                />
+
+                {showInviteSection && (
+                  <div className='mt-6 pt-6 border-t'>
+                    <div className='flex items-center gap-2 mb-3'>
+                      <UserPlus className='h-4 w-4 text-muted-foreground' />
+                      <h4 className='font-semibold text-sm'>
+                        {t('Invite Friends')}
+                      </h4>
+                    </div>
+
+                    <ScrollArea className='h-40 border rounded-lg bg-muted/30 p-2'>
+                      {friendsAll.length + othersInSport.length > 0 ? (
+                        <div className='space-y-4'>
+                          {friendsAll.length > 0 && (
+                            <div className='space-y-1'>
+                              <div className='px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-wider'>
+                                {t('My Friends')}
+                              </div>
+                              {friendsAll.map((p) => (
                                 <label
                                   key={p.uid}
-                                  className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
+                                  className='flex items-center gap-3 p-2 rounded-md hover:bg-background cursor-pointer transition-colors border border-transparent hover:border-border'
                                 >
                                   <Checkbox
                                     checked={selectedFriends.includes(p.uid)}
@@ -810,35 +868,33 @@ export default function RoomPage() {
                                           )
                                     }
                                   />
-                                  <div className='flex items-center gap-2'>
+                                  <div className='flex items-center gap-2 overflow-hidden'>
                                     <Avatar className='h-6 w-6'>
                                       <AvatarImage
                                         src={p.photoURL ?? undefined}
                                       />
                                       <AvatarFallback>
-                                        {displayName.charAt(0)}
+                                        {(p.name ?? '?')[0]}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span>{displayName}</span>
+                                    <span className='truncate text-sm font-medium'>
+                                      {p.name ?? p.displayName}
+                                    </span>
                                   </div>
                                 </label>
-                              );
-                            })}
-                          </>
-                        )}
-
-                        {othersInSport.length > 0 && (
-                          <>
-                            <div className='px-2 pt-3 pb-2 text-xs uppercase tracking-wide text-muted-foreground'>
-                              {t('From your sport rooms')}
+                              ))}
                             </div>
-                            {othersInSport.map((p) => {
-                              const displayName =
-                                p.name ?? p.displayName ?? '?';
-                              return (
+                          )}
+
+                          {othersInSport.length > 0 && (
+                            <div className='space-y-1'>
+                              <div className='px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-wider'>
+                                {t('Recent Opponents')}
+                              </div>
+                              {othersInSport.map((p) => (
                                 <label
                                   key={p.uid}
-                                  className='flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted'
+                                  className='flex items-center gap-3 p-2 rounded-md hover:bg-background cursor-pointer transition-colors border border-transparent hover:border-border'
                                 >
                                   <Checkbox
                                     checked={selectedFriends.includes(p.uid)}
@@ -855,44 +911,50 @@ export default function RoomPage() {
                                           )
                                     }
                                   />
-                                  <div className='flex items-center gap-2'>
+                                  <div className='flex items-center gap-2 overflow-hidden'>
                                     <Avatar className='h-6 w-6'>
                                       <AvatarImage
                                         src={p.photoURL ?? undefined}
                                       />
                                       <AvatarFallback>
-                                        {displayName.charAt(0)}
+                                        {(p.name ?? '?')[0]}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span>{displayName}</span>
+                                    <span className='truncate text-sm font-medium'>
+                                      {p.name ?? p.displayName}
+                                    </span>
                                   </div>
                                 </label>
-                              );
-                            })}
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <p className='text-muted-foreground text-sm text-center py-4'>
-                        {t('No players to show here yet.')}
-                      </p>
-                    )}
-                  </ScrollArea>
-                  <Button
-                    onClick={handleInviteFriends}
-                    disabled={isInviting || selectedFriends.length === 0}
-                    className='w-full mt-2'
-                  >
-                    {isInviting
-                      ? t('Inviting...')
-                      : t('Invite to {{roomName}}', { roomName: room.name })}
-                  </Button>
-                </div>
-              )}
-            </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className='h-full flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4'>
+                          <UserPlus className='h-8 w-8 mb-2 opacity-20' />
+                          <p>{t('No friends available to invite.')}</p>
+                        </div>
+                      )}
+                    </ScrollArea>
+                    <Button
+                      onClick={handleInviteFriends}
+                      disabled={isInviting || selectedFriends.length === 0}
+                      className='w-full mt-3'
+                      size='sm'
+                    >
+                      {isInviting ? t('Sending...') : t('Send Invites')}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
+          {/* RIGHT COLUMN: Record -> Standings -> History (8 cols) */}
+          <div className='lg:col-span-8 space-y-8'>
+            {/* 1. Record Block */}
             {isMember && !latestSeason && !room.isArchived && (
-              <div className='md:col-span-2'>
+              <section>
                 <RecordBlock
                   members={members}
                   roomId={roomId}
@@ -901,21 +963,35 @@ export default function RoomPage() {
                   isGlobalAdmin={isGlobalAdmin}
                   onFinishSeason={handleFinishSeason}
                 />
-              </div>
+              </section>
             )}
-          </CardContent>
-        </Card>
 
-        <Separator className='my-8' />
+            {/* 2. Standings */}
+            <section>
+              <div className='flex items-center justify-between mb-4'>
+                <h2 className='text-xl font-bold tracking-tight'>
+                  {t('Standings')}
+                </h2>
+              </div>
+              <StandingsTable
+                players={regularPlayers}
+                latestSeason={latestSeason}
+                roomCreatorId={room.createdBy || room.creator || ''}
+                roomMode={room.mode || 'office'}
+              />
+            </section>
 
-        <StandingsTable
-          players={regularPlayers}
-          latestSeason={latestSeason}
-          roomCreatorId={room.createdBy || room.creator || ''}
-          roomMode={room.mode || 'office'}
-        />
-
-        <RecentMatches matches={recentMatches} />
+            {/* 3. Match History */}
+            <section>
+              <div className='flex items-center justify-between mb-4 pt-4 border-t'>
+                <h2 className='text-xl font-bold tracking-tight mt-4'>
+                  {t('Match History')}
+                </h2>
+              </div>
+              <RecentMatches matches={recentMatches} />
+            </section>
+          </div>
+        </div>
       </div>
     </ProtectedRoute>
   );

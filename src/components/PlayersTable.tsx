@@ -18,12 +18,8 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from '@/components/ui/tooltip';
+
+
 import { useAuth } from '@/contexts/AuthContext';
 import { sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
@@ -76,6 +72,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
   useEffect(() => {
     const fetchPlayers = async () => {
       setLoading(true);
+			if (!db) return;
       try {
         const q = query(
           collection(db, 'users'),
@@ -116,6 +113,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
         await Promise.all(
           chunks.map(async (chunk) => {
+						if (!db) return;
             const communitiesQuery = query(
               collection(db, 'communities'),
               where('members', 'array-contains-any', chunk)

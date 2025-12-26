@@ -3,34 +3,35 @@
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Checkbox,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  Textarea,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter, // Added missing import
+	CardHeader,
+	CardTitle,
+	Checkbox,
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+	Input,
+	Label,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+	Tabs,
+	TabsList,
+	TabsTrigger,
+	Textarea,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
@@ -42,34 +43,44 @@ import { getFinnishFormattedDate } from '@/lib/utils';
 import { seedKnockoutRounds } from '@/lib/utils/bracketUtils';
 import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
 import {
-  addDoc,
-  arrayUnion,
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  updateDoc,
-  where,
+	addDoc,
+	arrayUnion,
+	collection,
+	doc,
+	onSnapshot,
+	query,
+	updateDoc,
+	where,
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Crown,
-  Image as ImageIcon,
-  PlusCircle,
-  Search,
-  SearchIcon,
-  Trophy,
-  Users,
+	Calendar,
+	CheckCircle2,
+	Clock,
+	Crown,
+	Image as ImageIcon,
+	PlusCircle,
+	Search,
+	SearchIcon,
+	Trophy,
+	Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const PLAYER_COUNTS = [4, 6, 8, 12] as const;
+
+// Define a local extended type to handle properties missing in the global TournamentRoom type
+type ExtendedTournament = TournamentRoom & {
+  sport?: string;
+  createdAt: string;
+  isFinished?: boolean;
+  champion?: { name: string } | null;
+  participants?: any[];
+  participantsIds?: string[];
+};
 
 // Безопасная генерация UUID для любых сред (включая HTTP LAN)
 function generateUUID() {
@@ -95,7 +106,7 @@ export default function TournamentRoomsPage() {
   const { sport, config, setSport } = useSport();
   const tournamentsEnabled = sport === 'pingpong';
 
-  const [tournaments, setTournaments] = useState<TournamentRoom[]>([]);
+  const [tournaments, setTournaments] = useState<ExtendedTournament[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<
@@ -125,7 +136,7 @@ export default function TournamentRoomsPage() {
 
   // Загрузка турниров
   useEffect(() => {
-    if (!user || !tournamentsEnabled) {
+    if (!user || !tournamentsEnabled || !db) {
       setIsLoading(false);
       return;
     }
@@ -148,7 +159,7 @@ export default function TournamentRoomsPage() {
             parseFlexDate(b.createdAt).getTime() -
             parseFlexDate(a.createdAt).getTime()
         );
-        setTournaments(arrBySport as TournamentRoom[]);
+        setTournaments(arrBySport as ExtendedTournament[]);
         setIsLoading(false);
       },
       (err) => {
@@ -166,7 +177,7 @@ export default function TournamentRoomsPage() {
 
   // Загрузка друзей (только активных)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
     const unsub = onSnapshot(doc(db, 'users', user.uid), async (snap) => {
       if (!snap.exists()) return setFriends([]);
       const ids: string[] = snap.data().friends ?? [];
@@ -184,7 +195,7 @@ export default function TournamentRoomsPage() {
 
   // Загрузка со-игроков из комнат (только активных)
   useEffect(() => {
-    if (!user || !tournamentsEnabled) return;
+    if (!user || !tournamentsEnabled || !db) return;
 
     // Используем только комнаты ТЕКУЩЕГО спорта
     const qRooms = query(
@@ -246,23 +257,26 @@ export default function TournamentRoomsPage() {
     };
   }, [friends, coPlayers]);
 
-  const filterFn = (p: UserProfile) => {
-    if (!peopleSearch.trim()) return true;
-    const q = peopleSearch.toLowerCase();
-    return (
-      (p.name ?? '').toLowerCase().includes(q) ||
-      (p.displayName ?? '').toLowerCase().includes(q) ||
-      (p.email ?? '').toLowerCase().includes(q)
-    );
-  };
+  const filterFn = useCallback(
+    (p: UserProfile) => {
+      if (!peopleSearch.trim()) return true;
+      const q = peopleSearch.toLowerCase();
+      return (
+        (p.name ?? '').toLowerCase().includes(q) ||
+        (p.displayName ?? '').toLowerCase().includes(q) ||
+        (p.email ?? '').toLowerCase().includes(q)
+      );
+    },
+    [peopleSearch]
+  );
 
   const filteredFriends = useMemo(
     () => friendsInSport.filter(filterFn),
-    [friendsInSport, peopleSearch]
+    [friendsInSport, filterFn]
   );
   const filteredOthers = useMemo(
     () => othersInSport.filter(filterFn),
-    [othersInSport, peopleSearch]
+    [othersInSport, filterFn]
   );
 
   const shuffle = <T,>(arr: T[]) =>
@@ -276,7 +290,7 @@ export default function TournamentRoomsPage() {
     for (let i = 0; i < arr.length; i++)
       for (let j = i + 1; j < arr.length; j++)
         res.push({
-          matchId: generateUUID(), // FIX: Используем безопасную функцию
+          matchId: generateUUID(),
           name: `${arr[i].name} vs ${arr[j].name}`,
           player1: arr[i],
           player2: arr[j],
@@ -305,7 +319,9 @@ export default function TournamentRoomsPage() {
   };
 
   const createTournament = async () => {
-    if (!tournamentsEnabled) return;
+    // FIX: Added !storage check here to satisfy TypeScript
+    if (!tournamentsEnabled || !db || !storage) return;
+
     if (!user) {
       toast({
         title: t('Error'),
@@ -340,6 +356,7 @@ export default function TournamentRoomsPage() {
         const filePath = `tournament-avatars/${sport}/${Date.now()}_${
           avatarFile.name
         }`;
+        // Now TypeScript knows 'storage' is not null because of the check at the top
         const storageRef = ref(storage, filePath);
         const uploadResult = await uploadBytes(storageRef, avatarFile);
         avatarURL = await getDownloadURL(uploadResult.ref);
@@ -387,7 +404,8 @@ export default function TournamentRoomsPage() {
           },
         ],
       };
-      seedKnockoutRounds(bracket, []);
+
+      seedKnockoutRounds(bracket);
 
       const refDoc = await addDoc(collection(db, 'tournament-rooms'), {
         name: name.trim(),
@@ -406,7 +424,7 @@ export default function TournamentRoomsPage() {
       const allIdsToUpdate = [user.uid, ...selected];
       await Promise.all(
         allIdsToUpdate.map((uid) =>
-          updateDoc(doc(db, 'users', uid), {
+          updateDoc(doc(db!, 'users', uid), {
             tournaments: arrayUnion(refDoc.id),
           })
         )

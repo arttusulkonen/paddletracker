@@ -72,15 +72,16 @@ export default function MobileHomePage() {
     const processRooms = async (
       roomMap: Map<string, any>
     ): Promise<AnyRoom[]> => {
-      let list = Array.from(roomMap.values());
+      const list = Array.from(roomMap.values());
 
       const creatorIds = [
         ...new Set(list.map((r) => r.creator).filter(Boolean)),
       ];
       const creatorNameMap: Record<string, string> = {};
+			
       if (creatorIds.length > 0) {
         const creatorDocs = await Promise.all(
-          creatorIds.map((uid) => getDoc(doc(db, 'users', uid)))
+          creatorIds.map((uid) => getDoc(doc(db!, 'users', uid)))
         );
         creatorDocs.forEach((snap) => {
           if (snap.exists())
@@ -106,7 +107,7 @@ export default function MobileHomePage() {
         isFinished: (data.seasonHistory?.length ?? 0) > 0,
       }));
     };
-
+		if (!db) return;
     const qMyRooms = query(
       collection(db, roomsCollectionName),
       where('memberIds', 'array-contains', user.uid)
@@ -168,7 +169,7 @@ export default function MobileHomePage() {
       await Promise.all(
         roomsToLoad.map(async (r) => {
           const qy = query(
-            collection(db, matchesCollectionName),
+            collection(db!, matchesCollectionName),
             where('roomId', '==', r.id),
             where('players', 'array-contains', user.uid)
           );

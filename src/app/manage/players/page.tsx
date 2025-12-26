@@ -103,6 +103,7 @@ export default function ManagePlayersPage() {
   const loadPlayers = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+		if (!db) return;
     try {
       const q = query(
         collection(db, 'users'),
@@ -135,6 +136,7 @@ export default function ManagePlayersPage() {
     if (!user) return;
     const fetchCommunities = async () => {
       try {
+				if (!db) return;
         const q = query(
           collection(db, 'communities'),
           where('admins', 'array-contains', user.uid)
@@ -158,11 +160,11 @@ export default function ManagePlayersPage() {
     if (!newGhostName.trim() || !user) return;
     setIsCreating(true);
     try {
-      const batch = writeBatch(db);
+      const batch = writeBatch(db!);
       const now = getFinnishFormattedDate();
 
       // 1. Create reference for new user
-      const newUserRef = doc(collection(db, 'users'));
+      const newUserRef = doc(collection(db!, 'users'));
       const newUserId = newUserRef.id;
 
       batch.set(newUserRef, {
@@ -186,6 +188,7 @@ export default function ManagePlayersPage() {
 
       // 2. If community selected, add player to community members
       if (selectedCommunity) {
+				if (!db) return;
         const commRef = doc(db, 'communities', selectedCommunity);
         batch.update(commRef, {
           members: arrayUnion(newUserId),
@@ -227,6 +230,7 @@ export default function ManagePlayersPage() {
 
   const deleteGhost = async (uid: string) => {
     try {
+			if (!db) return;
       await deleteDoc(doc(db, 'users', uid));
       setPlayers((prev) => prev.filter((p) => p.uid !== uid));
       toast({ title: t('Player deleted') });

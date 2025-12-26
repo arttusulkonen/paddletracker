@@ -1,18 +1,19 @@
+// src/lib/season.ts
 import type { Sport, SportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import {
-  arrayUnion,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  Timestamp,
-  updateDoc,
-  where,
+	arrayUnion,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	limit,
+	orderBy,
+	query,
+	Timestamp,
+	updateDoc,
+	where,
 } from 'firebase/firestore';
 import type { RoomMode } from './types';
 
@@ -35,6 +36,16 @@ const toDate = (v: string | Timestamp): Date => {
     return new Date(v);
   }
   return new Date();
+};
+
+const formatDate = (d: Date): string => {
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = d.getHours().toString().padStart(2, '0');
+  const mins = d.getMinutes().toString().padStart(2, '0');
+  const secs = d.getSeconds().toString().padStart(2, '0');
+  return `${day}.${month}.${year} ${hours}:${mins}:${secs}`;
 };
 
 const pickRoomRating = (o: any): number =>
@@ -77,6 +88,8 @@ async function collectStats(
   matchesCollectionName: string,
   mode: RoomMode
 ): Promise<SeasonRow[]> {
+  if (!db) return [];
+
   const snap = await getDocs(
     query(
       collection(db, matchesCollectionName),
@@ -114,7 +127,11 @@ async function collectStats(
 
       const isWinner = m.winner === info.name;
 
-      isWinner ? rec.wins++ : rec.losses++;
+      if (isWinner) {
+        rec.wins++;
+      } else {
+        rec.losses++;
+      }
       rec.totalAddedPoints += info.roomAddedPoints ?? info.addedPoints ?? 0;
 
       const matchDate = m.tsIso ? new Date(m.tsIso) : toDate(m.timestamp);
@@ -199,6 +216,8 @@ async function getLastMatchFinishDateFinnish(
   roomId: string,
   matchesCollectionName: string
 ): Promise<string> {
+  if (!db) return getFinnishFormattedDate();
+
   const qs = query(
     collection(db, matchesCollectionName),
     where('roomId', '==', roomId),
@@ -216,7 +235,9 @@ async function getLastMatchFinishDateFinnish(
       : m?.timestamp
       ? toDate(m.timestamp)
       : new Date();
-  return getFinnishFormattedDate(dt);
+  
+  // FIX: Use local helper instead of getFinnishFormattedDate(dt)
+  return formatDate(dt);
 }
 
 export async function finalizeSeason(
@@ -225,6 +246,8 @@ export async function finalizeSeason(
   config: SportConfig['collections'],
   sport: Sport
 ): Promise<void> {
+  if (!db) return;
+
   const roomRef = doc(db, config.rooms, roomId);
   const roomSnap = await getDoc(roomRef);
   if (!roomSnap.exists()) return;
@@ -290,8 +313,10 @@ export async function finalizeSeason(
       mode,
     };
 
-    await updateDoc(doc(db, 'users', r.userId), {
-      achievements: arrayUnion(achievement),
-    });
+    if (db) {
+      await updateDoc(doc(db, 'users', r.userId), {
+        achievements: arrayUnion(achievement),
+      });
+    }
   }
 }

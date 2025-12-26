@@ -23,8 +23,9 @@ export function CoachDashboard({ profile, isSelf }: CoachDashboardProps) {
     const fetchCoachStats = async () => {
       try {
         // 1. Communities managed
+				if (!db) return;
         const qComm = query(
-          collection(db, 'communities'),
+          collection(db!, 'communities'),
           where('admins', 'array-contains', profile.uid)
         );
         const snapComm = await getDocs(qComm);

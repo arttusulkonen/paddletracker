@@ -178,7 +178,7 @@ export function AiAssistant() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [playersList, setPlayersList] = useState<PlayerOption[]>([]);
   const [roomsList, setRoomsList] = useState<RoomOption[]>([]);
-  const functions = getFunctions(app, 'us-central1');
+  const functions = getFunctions(app ?? undefined, 'us-central1');
   const { toast } = useToast();
 
   const suggestionChips = [
@@ -214,6 +214,7 @@ export function AiAssistant() {
     if (isOpen && user && userProfile && config) {
       const loadData = async () => {
         try {
+          if (!db) return;
           const roomsCollection = config.collections.rooms;
           const qRooms = query(
             collection(db, roomsCollection),
@@ -244,9 +245,6 @@ export function AiAssistant() {
                 id: doc.id,
                 name: data.name || 'Unnamed Room',
               });
-
-              // FIX: Filter out the room Creator from the players list
-              const creatorId = data.creator;
 
               if (Array.isArray(data.members)) {
                 data.members.forEach((m: any) => {
@@ -634,6 +632,7 @@ function DraftsForm({
 
       if (playerObj) {
         try {
+          if (!db) return;
           const matchesRef = collection(db, config.collections.matches);
           const q = query(
             matchesRef,

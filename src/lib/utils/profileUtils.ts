@@ -132,9 +132,17 @@ export function computeSideStats(list: Match[], uid: string) {
     const opp = isP1 ? m.player2 : m.player1;
     const win = me.scores > opp.scores;
     if ((me as any).side === 'left') {
-      win ? leftSideWins++ : leftSideLosses++;
+      if (win) {
+        leftSideWins++;
+      } else {
+        leftSideLosses++;
+      }
     } else if ((me as any).side === 'right') {
-      win ? rightSideWins++ : rightSideLosses++;
+      if (win) {
+        rightSideWins++;
+      } else {
+        rightSideLosses++;
+      }
     }
   });
   return { leftSideWins, leftSideLosses, rightSideWins, rightSideLosses };
@@ -183,7 +191,11 @@ export function opponentStats(list: Match[], uid: string) {
     if (!map.has(oppId))
       map.set(oppId, { name: oppName, wins: 0, losses: 0, elo: 0 });
     const rec = map.get(oppId)!;
-    win ? rec.wins++ : rec.losses++;
+    if (win) {
+      rec.wins++;
+    } else {
+      rec.losses++;
+    }
     rec.elo += me.addedPoints;
   });
   return Array.from(map.values())

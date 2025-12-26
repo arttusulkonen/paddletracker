@@ -1,6 +1,7 @@
+// src/app/profile/[uid]/page.tsx
 'use client';
 
-import { CoachDashboard } from '@/components/profile/CoachDashboard'; // <--- Импорт
+import { CoachDashboard } from '@/components/profile/CoachDashboard';
 import { NewPlayerCard } from '@/components/profile/NewPlayerCard';
 import { OverallStatsCard } from '@/components/profile/OverallStatsCard';
 import { ProfileContent } from '@/components/profile/ProfileContent';
@@ -38,7 +39,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// ... (Оставляем вспомогательные функции chunk и loadAccessibleRooms без изменений)
 type RoomsMap = Record<Sport, string[]>;
 
 function chunk<T>(arr: T[], n: number): T[][] {
@@ -53,9 +53,11 @@ async function loadAccessibleRooms(
   const sports: Sport[] = ['pingpong', 'tennis', 'badminton'];
   const out: RoomsMap = { pingpong: [], tennis: [], badminton: [] };
 
+  if (!db) return out;
+
   for (const s of sports) {
     const roomsColl = sportConfig[s].collections.rooms;
-
+    
     const qPublic = query(
       collection(db, roomsColl),
       where('isPublic', '==', true)
@@ -145,7 +147,7 @@ export default function ProfileUidPage() {
   }, []);
 
   const fetchProfileAndMatches = useCallback(async () => {
-    if (!targetUid) {
+    if (!targetUid || !db) {
       setLoading(false);
       setLoadingMatches(false);
       return;
@@ -164,12 +166,12 @@ export default function ProfileUidPage() {
         return;
       }
 
-      const profileData = { uid: targetUid, ...(snap.data() as UserProfile) };
+      // FIX: Use Omit to prevent TS error about overwriting 'uid'
+      const data = snap.data() as Omit<UserProfile, 'uid'>;
+      const profileData: UserProfile = { uid: targetUid, ...data };
+      
       setTargetProfile(profileData);
 
-      // Если это тренер, нам не обязательно грузить матчи для отображения статистики игрока
-      // (хотя в будущем может понадобиться). Пока загружаем как есть.
-      
       const allMatches: Record<Sport, Match[]> = {
         pingpong: [],
         tennis: [],
@@ -249,9 +251,10 @@ export default function ProfileUidPage() {
         variant: 'destructive',
       });
     } finally {
-      if (!mountedRef.current) return;
-      setLoading(false);
-      setLoadingMatches(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setLoadingMatches(false);
+      }
     }
   }, [targetUid, router, t, toast, isGlobalAdmin, user?.uid]);
 
@@ -334,7 +337,6 @@ export default function ProfileUidPage() {
     return { rankLabel: t(key), medalSrc: medalMap[key] };
   }, [viewedSport, targetProfile, t]);
 
-  // Расчет статистики нужен только если это НЕ тренер, или если тренер играет сам
   const sportSpecificData = useMemo(() => {
     if (!viewedSport || !targetProfile) return null;
     const matches = matchesBySport[viewedSport] ?? [];
@@ -443,7 +445,7 @@ export default function ProfileUidPage() {
               ts: Date.now(),
               rating: sportProfile?.globalElo ?? 1000,
               diff: 0,
-              result: 0 as 0,
+              result: 0 as const,
               opponent: '',
               score: '',
               addedPoints: 0,
@@ -505,13 +507,6 @@ export default function ProfileUidPage() {
         medalSrc={medalSrc}
       />
       
-      {/* ЛОГИКА ОТОБРАЖЕНИЯ:
-         1. Если это профиль ТРЕНЕРА (isCoachProfile):
-            - Показываем CoachDashboard.
-         2. Если это профиль ИГРОКА:
-            - Стандартная статистика (OverallStats, Charts и т.д.)
-      */}
-
       {isCoachProfile ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
            <div className="lg:col-span-12">
