@@ -1,7 +1,10 @@
-// functions/src/index.ts
 import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
+import {
+	onDocumentCreated,
+	onDocumentUpdated,
+} from 'firebase-functions/v2/firestore';
 import {
 	CallableRequest,
 	HttpsError,
@@ -774,14 +777,12 @@ export const permanentlyDeleteUser = onCall(
 );
 
 export const recordMatch = onCall(async (request) => {
-  // 1. Проверка авторизации
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
 
   const { roomId, player1Id, player2Id, matches, sport } = request.data;
 
-  // 2. Валидация входных данных
   if (
     !roomId ||
     !player1Id ||
@@ -796,7 +797,6 @@ export const recordMatch = onCall(async (request) => {
     );
   }
 
-  // 3. Загрузка данных
   const roomRef = db.collection(`rooms-${sport}`).doc(roomId);
   const p1Ref = db.collection('users').doc(player1Id);
   const p2Ref = db.collection('users').doc(player2Id);
@@ -815,14 +815,10 @@ export const recordMatch = onCall(async (request) => {
   const p1Data = p1Snap.data() || {};
   const p2Data = p2Snap.data() || {};
 
-  // Проверка участия (опционально, но рекомендуется)
   const callerUid = request.auth.uid;
   if (!roomData.memberIds?.includes(callerUid)) {
-    // Можно разрешить админам, но для начала строго:
-    // throw new HttpsError('permission-denied', 'You must be a member of the room');
   }
 
-  // 4. Подготовка участников (из массива members комнаты)
   const members = roomData.members || [];
   const m1Index = members.findIndex((m: any) => m.userId === player1Id);
   const m2Index = members.findIndex((m: any) => m.userId === player2Id);
@@ -837,19 +833,15 @@ export const recordMatch = onCall(async (request) => {
   const member1 = members[m1Index];
   const member2 = members[m2Index];
 
-  // Инициализация переменных для цикла
   let currentG1 = p1Data.sports?.[sport]?.globalElo ?? 1000;
   let currentG2 = p2Data.sports?.[sport]?.globalElo ?? 1000;
 
-  // Берем рейтинги из member объекта
   let currentRoom1 = member1.rating ?? 1000;
   let currentRoom2 = member2.rating ?? 1000;
 
-  // Счетчики для статистики
   let totalWinsP1 = 0;
   let totalWinsP2 = 0;
 
-  // Статистика тенниса
   const tennisStatsP1 = { aces: 0, doubleFaults: 0, winners: 0 };
   const tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
 
@@ -860,18 +852,14 @@ export const recordMatch = onCall(async (request) => {
   const batch = db.batch();
   const startDate = new Date();
 
-  // 5. Обработка каждого матча/сета в массиве
   for (let i = 0; i < matches.length; i++) {
     const game = matches[i];
     const score1 = Number(game.score1);
     const score2 = Number(game.score2);
 
-    // Подсчет количества сыгранных матчей для Dynamic K
-    // (Текущее кол-во в базе + уже сыгранные в этом цикле)
     const p1MatchesPlayed = (member1.wins ?? 0) + (member1.losses ?? 0) + i;
     const p2MatchesPlayed = (member2.wins ?? 0) + (member2.losses ?? 0) + i;
 
-    // Сохраняем старые рейтинги для записи в историю матча
     const oldG1 = currentG1;
     const oldG2 = currentG2;
     const oldRoom1 = currentRoom1;
@@ -882,7 +870,6 @@ export const recordMatch = onCall(async (request) => {
     let d1_Room = 0;
     let d2_Room = 0;
 
-    // --- GLOBAL ---
     if (isRankedRoom) {
       d1_Global = calcDeltaImport(
         oldG1,
@@ -907,7 +894,6 @@ export const recordMatch = onCall(async (request) => {
       currentG2 += d2_Global;
     }
 
-    // --- ROOM ---
     const k1 = getDynamicK(baseK, p1MatchesPlayed, mode);
     const k2 = getDynamicK(baseK, p2MatchesPlayed, mode);
 
@@ -933,11 +919,9 @@ export const recordMatch = onCall(async (request) => {
     currentRoom1 += d1_Room;
     currentRoom2 += d2_Room;
 
-    // Статистика побед
     if (score1 > score2) totalWinsP1++;
     else totalWinsP2++;
 
-    // Подготовка данных для матча
     let player1Extra: any = {};
     let player2Extra: any = {};
 
@@ -964,8 +948,7 @@ export const recordMatch = onCall(async (request) => {
       player2Extra.side = game.side2 || 'right';
     }
 
-    // Создание документа матча
-    const matchDate = new Date(startDate.getTime() + i * 1000); // +1 сек для порядка
+    const matchDate = new Date(startDate.getTime() + i * 1000);
     const matchRef = db.collection(`matches-${sport}`).doc();
 
     batch.set(matchRef, {
@@ -1003,8 +986,6 @@ export const recordMatch = onCall(async (request) => {
     });
   }
 
-  // 6. Обновление Room Members (локальные рейтинги и статы)
-  // Обновляем данные в объектах массива (они ссылочные)
   member1.rating = currentRoom1;
   member1.globalElo = currentG1;
   member1.wins = (member1.wins || 0) + totalWinsP1;
@@ -1017,7 +998,6 @@ export const recordMatch = onCall(async (request) => {
 
   batch.update(roomRef, { members: members });
 
-  // 7. Обновление User Profiles (Глобальные статы)
   const updateUserStats = (
     ref: any,
     newGlobalElo: number,
@@ -1059,4 +1039,333 @@ export const recordMatch = onCall(async (request) => {
   await batch.commit();
 
   return { success: true, gamesRecorded: matches.length };
+});
+
+export const claimGhostProfile = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be logged in');
+  }
+
+  const { ghostId } = request.data;
+  const newUserId = request.auth.uid;
+
+  if (!ghostId || typeof ghostId !== 'string') {
+    throw new HttpsError('invalid-argument', 'Missing or invalid ghostId');
+  }
+
+  const ghostDocRef = db.collection('users').doc(ghostId);
+  const ghostDoc = await ghostDocRef.get();
+
+  if (!ghostDoc.exists) {
+    throw new HttpsError('not-found', 'Ghost profile not found');
+  }
+
+  const ghostData = ghostDoc.data();
+
+  if (!ghostData?.isGhost && !ghostData?.isArchivedGhost) {
+  }
+
+  if (ghostData?.isClaimed) {
+    throw new HttpsError('already-exists', 'Profile already claimed');
+  }
+
+  const newUserRef = db.collection('users').doc(newUserId);
+  const newUserDoc = await newUserRef.get();
+  
+  if (!newUserDoc.exists) {
+      throw new HttpsError('not-found', 'Your user profile does not exist yet');
+  }
+
+  const batch = db.batch();
+  
+  const updatesForNewUser: any = {
+      claimedFrom: ghostId,
+      ghostId: ghostId, 
+      
+      globalElo: ghostData?.globalElo ?? 1000,
+      matchesPlayed: ghostData?.matchesPlayed ?? 0,
+      wins: ghostData?.wins ?? 0,
+      losses: ghostData?.losses ?? 0,
+      
+      eloHistory: ghostData?.eloHistory ?? [],
+      friends: ghostData?.friends ?? [],
+      rooms: ghostData?.rooms ?? [],
+      achievements: ghostData?.achievements ?? [],
+  };
+
+  if (ghostData?.sports) {
+      for (const sportKey in ghostData.sports) {
+          const sData = ghostData.sports[sportKey];
+          updatesForNewUser[`sports.${sportKey}`] = sData;
+      }
+  }
+  
+  if (ghostData?.managedBy) {
+      updatesForNewUser.managedBy = ghostData.managedBy;
+  }
+
+  batch.update(newUserRef, updatesForNewUser);
+
+  batch.update(ghostDocRef, {
+    isClaimed: true,
+    claimedBy: newUserId,
+    claimedAt: new Date().toISOString(),
+    isGhost: false, 
+    isArchivedGhost: true,
+    migrationStatus: 'completed',
+    migratedTo: newUserId
+  });
+
+  let operationCount = 0;
+  const sports = ['pingpong', 'tennis', 'badminton'];
+
+  try {
+    for (const sport of sports) {
+      const roomsRef = db.collection(`rooms-${sport}`);
+      const snapshot = await roomsRef.where('memberIds', 'array-contains', ghostId).get();
+
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const updates: any = {};
+
+        const newMemberIds = (data.memberIds || []).filter((id: string) => id !== ghostId);
+        if (!newMemberIds.includes(newUserId)) newMemberIds.push(newUserId);
+        updates.memberIds = newMemberIds;
+
+        if (Array.isArray(data.members)) {
+          updates.members = data.members.map((m: any) => {
+            if (m.userId === ghostId) return { ...m, userId: newUserId };
+            return m;
+          });
+        }
+
+        if (data.creator === ghostId) updates.creator = newUserId;
+
+        batch.update(doc.ref, updates);
+        operationCount++;
+      }
+    }
+
+    for (const sport of sports) {
+      const matchesRef = db.collection(`matches-${sport}`);
+      const snapshot = await matchesRef.where('players', 'array-contains', ghostId).get();
+
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const updates: any = {};
+
+        const newPlayers = (data.players || []).filter((id: string) => id !== ghostId);
+        if (!newPlayers.includes(newUserId)) newPlayers.push(newUserId);
+        updates.players = newPlayers;
+
+        if (data.player1Id === ghostId) updates.player1Id = newUserId;
+        if (data.player2Id === ghostId) updates.player2Id = newUserId;
+
+        batch.update(doc.ref, updates);
+        operationCount++;
+      }
+    }
+
+    const communitiesRef = db.collection('communities');
+    const commSnapshot = await communitiesRef.where('members', 'array-contains', ghostId).get();
+
+    for (const doc of commSnapshot.docs) {
+      const data = doc.data();
+      const updates: any = {};
+
+      const newMembers = (data.members || []).filter((id: string) => id !== ghostId);
+      if (!newMembers.includes(newUserId)) newMembers.push(newUserId);
+      updates.members = newMembers;
+
+      if (data.ownerId === ghostId) updates.ownerId = newUserId;
+      
+      if (Array.isArray(data.admins) && data.admins.includes(ghostId)) {
+         const newAdmins = data.admins.filter((id: string) => id !== ghostId);
+         if (!newAdmins.includes(newUserId)) newAdmins.push(newUserId);
+         updates.admins = newAdmins;
+      }
+
+      batch.update(doc.ref, updates);
+      operationCount++;
+    }
+
+    await batch.commit();
+    return { success: true, migratedCount: operationCount, message: 'Profile successfully merged' };
+
+  } catch (error: any) {
+    console.error("Migration error:", error);
+    throw new HttpsError('internal', error.message);
+  }
+});
+
+// ============================================================================
+//                               COMMUNITY FEED TRIGGERS
+// ============================================================================
+
+const addToCommunityFeed = async (communityIds: string[], eventData: any) => {
+  if (!communityIds || communityIds.length === 0) return;
+  
+  const uniqueIds = [...new Set(communityIds)];
+  const batch = db.batch();
+
+  uniqueIds.forEach((commId) => {
+    const ref = db.collection('communities').doc(commId).collection('feed').doc();
+    batch.set(ref, {
+      ...eventData,
+      id: ref.id,
+      communityId: commId,
+      createdAt: new Date().toISOString(),
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
+  await batch.commit();
+};
+
+const handleMatchCreated = async (event: any, sport: string) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const match = snapshot.data();
+  const params = event.params as { matchId: string };
+  const { player1Id, player2Id, roomId } = match;
+
+  const [p1Snap, p2Snap, roomSnap] = await Promise.all([
+    db.collection('users').doc(player1Id).get(),
+    db.collection('users').doc(player2Id).get(),
+    db.collection(`rooms-${sport}`).doc(roomId).get()
+  ]);
+
+  const p1 = p1Snap.data();
+  const p2 = p2Snap.data();
+  const room = roomSnap.data();
+
+  const targetCommunities: string[] = [];
+
+  if (room?.communityId) {
+    targetCommunities.push(room.communityId);
+  }
+
+  if (p1?.communityIds) targetCommunities.push(...p1.communityIds);
+  if (p2?.communityIds) targetCommunities.push(...p2.communityIds);
+
+  if (targetCommunities.length === 0) return;
+
+  await addToCommunityFeed(targetCommunities, {
+    type: 'match_finished',
+    sport: sport,
+    title: `${p1?.name || 'Unknown'} vs ${p2?.name || 'Unknown'}`,
+    description: `Score: ${match.player1?.scores} - ${match.player2?.scores}`,
+    meta: {
+      matchId: params.matchId,
+      roomId: roomId,
+      roomName: room?.name,
+      winner: match.winner
+    },
+    actorAvatars: [p1?.photoURL, p2?.photoURL].filter(Boolean)
+  });
+};
+
+export const onMatchCreatedPingPong = onDocumentCreated('matches-pingpong/{matchId}', (e) => handleMatchCreated(e, 'pingpong'));
+export const onMatchCreatedTennis = onDocumentCreated('matches-tennis/{matchId}', (e) => handleMatchCreated(e, 'tennis'));
+export const onMatchCreatedBadminton = onDocumentCreated('matches-badminton/{matchId}', (e) => handleMatchCreated(e, 'badminton'));
+
+const handleRoomCreated = async (event: any, sport: string) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const room = snapshot.data();
+  const params = event.params as { roomId: string };
+  const creatorId = room.creator;
+
+  const userSnap = await db.collection('users').doc(creatorId).get();
+  const user = userSnap.data();
+  
+  const targetCommunities: string[] = [];
+  
+  if (room.communityId) {
+    targetCommunities.push(room.communityId);
+  } else if (user?.communityIds) {
+    targetCommunities.push(...user.communityIds);
+  }
+
+  if (targetCommunities.length === 0) return;
+
+  await addToCommunityFeed(targetCommunities, {
+    type: 'room_created',
+    sport: sport,
+    title: `${user?.name || 'Someone'} created a new room`,
+    description: `Room "${room.name}" is now available.`,
+    meta: {
+      roomId: params.roomId,
+      mode: room.mode
+    },
+    actorAvatars: [user?.photoURL].filter(Boolean)
+  });
+};
+
+export const onRoomCreatedPingPong = onDocumentCreated('rooms-pingpong/{roomId}', (e) => handleRoomCreated(e, 'pingpong'));
+export const onRoomCreatedTennis = onDocumentCreated('rooms-tennis/{roomId}', (e) => handleRoomCreated(e, 'tennis'));
+export const onRoomCreatedBadminton = onDocumentCreated('rooms-badminton/{roomId}', (e) => handleRoomCreated(e, 'badminton'));
+
+export const onUserFriendsUpdated = onDocumentUpdated('users/{userId}', async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  
+  const oldFriends: string[] = before?.friends || [];
+  const newFriends: string[] = after?.friends || [];
+
+  if (newFriends.length <= oldFriends.length) return;
+
+  const addedFriendIds = newFriends.filter(id => !oldFriends.includes(id));
+  if (addedFriendIds.length === 0) return;
+
+  const actorId = event.params.userId;
+  const actorName = after?.name || 'Unknown';
+  const communities: string[] = after?.communityIds || [];
+
+  if (communities.length === 0) return;
+
+  for (const friendId of addedFriendIds) {
+    const friendSnap = await db.collection('users').doc(friendId).get();
+    const friendData = friendSnap.data();
+    const friendName = friendData?.name || 'Unknown';
+
+    await addToCommunityFeed(communities, {
+      type: 'friend_added',
+      sport: 'global', 
+      title: `${actorName} added a friend`,
+      description: `${actorName} is now friends with ${friendName}`,
+      meta: {
+        actorId: actorId,
+        targetId: friendId
+      },
+      actorAvatars: [after?.photoURL, friendData?.photoURL].filter(Boolean)
+    });
+  }
+});
+
+export const onGhostClaimed = onDocumentUpdated('users/{userId}', async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+
+  if (!before?.isClaimed && after?.isClaimed) {
+    const communities: string[] = after?.communityIds || [];
+    if (communities.length === 0) return;
+
+    const realUserId = after.claimedBy; 
+    const userName = after.name;
+
+    await addToCommunityFeed(communities, {
+      type: 'ghost_claimed',
+      sport: 'global',
+      title: `New player joined!`,
+      description: `Profile "${userName}" has been claimed by a real user.`,
+      meta: {
+        ghostId: event.params.userId,
+        realUserId: realUserId
+      },
+      actorAvatars: [after.photoURL].filter(Boolean)
+    });
+  }
 });

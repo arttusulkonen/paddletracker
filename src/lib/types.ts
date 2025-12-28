@@ -288,3 +288,24 @@ export interface TournamentRoom {
   id: string;
   name: string;
 }
+
+// --- Activity Feed ---
+export interface FeedItem {
+  id: string;
+  type: 'match' | 'room' | 'friend';
+  timestamp: string;
+  communityId: string;
+  actorId: string;
+  actorName: string;
+  actorAvatar?: string | null;
+  targetId?: string;
+  targetName?: string;
+  content?: string;
+  sport?: Sport;
+  metadata?: {
+    winnerId?: string;
+    scores?: string;
+    roomName?: string;
+    [key: string]: any;
+  };
+}
