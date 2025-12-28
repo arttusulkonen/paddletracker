@@ -1,12 +1,13 @@
+// src/app/friend-requests/page.tsx
 'use client';
 
 import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+	Button,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,19 +17,19 @@ import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import {
-  arrayRemove,
-  arrayUnion,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  updateDoc,
-  where,
+	arrayRemove,
+	arrayUnion,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	query,
+	updateDoc,
+	where,
 } from 'firebase/firestore';
 import { Check, X } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type LiteUser = { uid: string; name: string; photoURL?: string };
@@ -61,7 +62,8 @@ export default function FriendRequestsPage() {
 
   useEffect(() => {
     const loadRequests = async () => {
-      if (!user || !userProfile) {
+      // ИСПРАВЛЕНИЕ: Добавили проверку db
+      if (!user || !userProfile || !db) {
         setLoading(false);
         return;
       }
@@ -99,7 +101,7 @@ export default function FriendRequestsPage() {
             if (requestUids.length === 0) continue;
 
             const userDocs = await Promise.all(
-              requestUids.map((uid) => getDoc(doc(db, 'users', uid)))
+              requestUids.map((uid) => getDoc(doc(db!, 'users', uid)))
             );
 
             userDocs.forEach((snap, idx) => {
@@ -122,7 +124,8 @@ export default function FriendRequestsPage() {
         }
 
         setRoomRequests(allRoomRequests);
-      } catch {
+      } catch (error) {
+        console.error(error);
         toast({
           title: t('Error'),
           description: t('Failed to load requests. Please try again.'),
@@ -160,7 +163,7 @@ export default function FriendRequestsPage() {
   };
 
   const handleRoomRequest = async (req: RoomRequest, accept: boolean) => {
-    if (!user) return;
+    if (!user || !db) return;
 
     const roomRef = doc(db, req.toRoom.collectionName, req.toRoom.id);
 

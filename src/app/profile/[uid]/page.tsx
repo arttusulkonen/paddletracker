@@ -1,5 +1,7 @@
+// src/app/profile/[uid]/page.tsx
 'use client';
 
+import { CoachDashboard } from '@/components/profile/CoachDashboard';
 import { NewPlayerCard } from '@/components/profile/NewPlayerCard';
 import { OverallStatsCard } from '@/components/profile/OverallStatsCard';
 import { ProfileContent } from '@/components/profile/ProfileContent';
@@ -51,9 +53,11 @@ async function loadAccessibleRooms(
   const sports: Sport[] = ['pingpong', 'tennis', 'badminton'];
   const out: RoomsMap = { pingpong: [], tennis: [], badminton: [] };
 
+  if (!db) return out;
+
   for (const s of sports) {
     const roomsColl = sportConfig[s].collections.rooms;
-
+    
     const qPublic = query(
       collection(db, roomsColl),
       where('isPublic', '==', true)
@@ -103,6 +107,9 @@ export default function ProfileUidPage() {
 
   const isSelf = targetUid && user?.uid && targetUid === user.uid;
 
+  // Определение типа профиля
+  const isCoachProfile = targetProfile?.accountType === 'coach' || targetProfile?.roles?.includes('coach');
+
   const playedSports = useMemo(() => {
     if (!targetProfile?.sports) return [];
     return (Object.keys(targetProfile.sports) as Sport[]).filter(
@@ -113,13 +120,14 @@ export default function ProfileUidPage() {
     );
   }, [targetProfile]);
 
-  // ОБНОВЛЕНО: Тренер всегда видит профиль своего игрока
+  const isManager = targetProfile?.managedBy === user?.uid;
+
   const canView =
     isGlobalAdmin ||
     isSelf ||
+    isManager ||
     (targetProfile?.isPublic ?? true) ||
-    friendStatus === 'friends' ||
-    targetProfile?.managedBy === user?.uid;
+    friendStatus === 'friends';
 
   useEffect(() => {
     if (!targetProfile) return;
@@ -139,7 +147,7 @@ export default function ProfileUidPage() {
   }, []);
 
   const fetchProfileAndMatches = useCallback(async () => {
-    if (!targetUid) {
+    if (!targetUid || !db) {
       setLoading(false);
       setLoadingMatches(false);
       return;
@@ -158,7 +166,10 @@ export default function ProfileUidPage() {
         return;
       }
 
-      const profileData = { uid: targetUid, ...(snap.data() as UserProfile) };
+      // FIX: Use Omit to prevent TS error about overwriting 'uid'
+      const data = snap.data() as Omit<UserProfile, 'uid'>;
+      const profileData: UserProfile = { uid: targetUid, ...data };
+      
       setTargetProfile(profileData);
 
       const allMatches: Record<Sport, Match[]> = {
@@ -171,9 +182,8 @@ export default function ProfileUidPage() {
         ? (Object.keys(profileData.sports) as Sport[])
         : [];
 
-      // ОБНОВЛЕНО: Тренер может грузить матчи своего игрока
-      const isManager = profileData.managedBy === user?.uid;
-      const canFetchAll = isGlobalAdmin || isSelf || isManager;
+      const _isManager = profileData.managedBy === user?.uid;
+      const canFetchAll = isGlobalAdmin || (user?.uid === targetUid) || _isManager;
 
       const accessibleRooms = canFetchAll
         ? null
@@ -241,11 +251,12 @@ export default function ProfileUidPage() {
         variant: 'destructive',
       });
     } finally {
-      if (!mountedRef.current) return;
-      setLoading(false);
-      setLoadingMatches(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setLoadingMatches(false);
+      }
     }
-  }, [targetUid, router, t, toast, isGlobalAdmin, isSelf, user?.uid]);
+  }, [targetUid, router, t, toast, isGlobalAdmin, user?.uid]);
 
   useEffect(() => {
     fetchProfileAndMatches();
@@ -259,7 +270,6 @@ export default function ProfileUidPage() {
         setFriendStatus('outgoing');
       else if (viewerProfile.incomingRequests?.includes(targetUid))
         setFriendStatus('incoming');
-      // ОБНОВЛЕНО: Если я тренер этого игрока, считаем что мы "друзья" (доступ есть)
       else if (targetProfile?.managedBy === user.uid)
         setFriendStatus('friends');
       else setFriendStatus('none');
@@ -435,7 +445,7 @@ export default function ProfileUidPage() {
               ts: Date.now(),
               rating: sportProfile?.globalElo ?? 1000,
               diff: 0,
-              result: 0 as 0,
+              result: 0 as const,
               opponent: '',
               score: '',
               addedPoints: 0,
@@ -491,88 +501,97 @@ export default function ProfileUidPage() {
         friendStatus={friendStatus}
         handleFriendAction={handleFriendAction}
         isSelf={!!isSelf}
+        isManager={!!isManager}
         onUpdate={fetchProfileAndMatches}
         rank={rankLabel}
         medalSrc={medalSrc}
       />
-      <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
-        <div className='lg:col-span-8 xl:col-span-9 space-y-6'>
-          {playedSports.length === 0 ? (
-            // ОБНОВЛЕНО: Используем правильную карточку с profile
-            <NewPlayerCard isSelf={!!isSelf} profile={targetProfile} />
-          ) : (
-            <>
-              <OverallStatsCard profile={targetProfile} />
-              {viewedSport &&
-              canView &&
-              hasMatchesInViewed &&
-              sportSpecificData ? (
-                <ProfileContent
-                  key={viewedSport}
-                  canViewProfile={canView}
-                  sport={viewedSport}
-                  playedSports={playedSports}
-                  onSportChange={setViewedSport}
-                  stats={sportSpecificData.stats}
-                  sportProfile={sportSpecificData.sportProfile}
-                  sideStats={sportSpecificData.sideStats}
-                  matches={sportSpecificData.matches}
-                  loadingMatches={loadingMatches}
-                  meUid={targetProfile.uid}
-                  config={sportConfig[viewedSport]}
-                  oppStats={sportSpecificData.oppStats}
-                  opponents={sportSpecificData.opponents}
-                  targetProfile={targetProfile}
-                  tennisStats={sportSpecificData.tennisStats}
-                  achievements={targetProfile.achievements ?? []}
-                  pieData={sportSpecificData.pieData}
-                  sidePieData={sportSpecificData.sidePieData}
-                  sidePieLossData={sportSpecificData.sidePieLossData}
-                  insights={sportSpecificData.insights}
-                  perfData={sportSpecificData.perfData}
-                  monthlyData={sportSpecificData.monthlyData}
-                />
-              ) : (
-                <Card className='border-dashed'>
-                  <CardContent className='py-12 flex flex-col items-center justify-center text-center'>
-                    <div className='bg-muted rounded-full p-4 mb-4'>
-                      <Rocket className='h-8 w-8 text-muted-foreground' />
-                    </div>
-                    <h3 className='text-xl font-semibold'>
-                      {isSelf ? emptySelfTitle : emptyOtherTitle}
-                    </h3>
-                    <p className='text-muted-foreground mt-2 max-w-sm mx-auto'>
-                      {isSelf ? emptySelfDesc : emptyOtherDesc}
-                    </p>
-                    {isSelf && (
-                      <div className='flex gap-3 mt-6'>
-                        <Button asChild>
-                          <Link href='/rooms'>{t('Browse Rooms')}</Link>
-                        </Button>
-                        <CreateRoomDialog onSuccess={fetchProfileAndMatches} />
+      
+      {isCoachProfile ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+           <div className="lg:col-span-12">
+              <CoachDashboard profile={targetProfile} isSelf={!!isSelf} />
+           </div>
+        </div>
+      ) : (
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
+          <div className='lg:col-span-8 xl:col-span-9 space-y-6'>
+            {playedSports.length === 0 ? (
+              <NewPlayerCard isSelf={!!isSelf} profile={targetProfile} />
+            ) : (
+              <>
+                <OverallStatsCard profile={targetProfile} />
+                {viewedSport &&
+                canView &&
+                hasMatchesInViewed &&
+                sportSpecificData ? (
+                  <ProfileContent
+                    key={viewedSport}
+                    canViewProfile={canView}
+                    sport={viewedSport}
+                    playedSports={playedSports}
+                    onSportChange={setViewedSport}
+                    stats={sportSpecificData.stats}
+                    sportProfile={sportSpecificData.sportProfile}
+                    sideStats={sportSpecificData.sideStats}
+                    matches={sportSpecificData.matches}
+                    loadingMatches={loadingMatches}
+                    meUid={targetProfile.uid}
+                    config={sportConfig[viewedSport]}
+                    oppStats={sportSpecificData.oppStats}
+                    opponents={sportSpecificData.opponents}
+                    targetProfile={targetProfile}
+                    tennisStats={sportSpecificData.tennisStats}
+                    achievements={targetProfile.achievements ?? []}
+                    pieData={sportSpecificData.pieData}
+                    sidePieData={sportSpecificData.sidePieData}
+                    sidePieLossData={sportSpecificData.sidePieLossData}
+                    insights={sportSpecificData.insights}
+                    perfData={sportSpecificData.perfData}
+                    monthlyData={sportSpecificData.monthlyData}
+                  />
+                ) : (
+                  <Card className='border-dashed'>
+                    <CardContent className='py-12 flex flex-col items-center justify-center text-center'>
+                      <div className='bg-muted rounded-full p-4 mb-4'>
+                        <Rocket className='h-8 w-8 text-muted-foreground' />
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          )}
+                      <h3 className='text-xl font-semibold'>
+                        {isSelf ? emptySelfTitle : emptyOtherTitle}
+                      </h3>
+                      <p className='text-muted-foreground mt-2 max-w-sm mx-auto'>
+                        {isSelf ? emptySelfDesc : emptyOtherDesc}
+                      </p>
+                      {isSelf && (
+                        <div className='flex gap-3 mt-6'>
+                          <Button asChild>
+                            <Link href='/rooms'>{t('Browse Rooms')}</Link>
+                          </Button>
+                          <CreateRoomDialog onSuccess={fetchProfileAndMatches} />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
+          <div className='lg:col-span-4 xl:col-span-3'>
+            {!canView && (
+              <Card>
+                <CardContent className='py-8 flex flex-col items-center text-center text-muted-foreground'>
+                  <Lock className='h-10 w-10 mb-3 opacity-50' />
+                  <p>{t('Stats are hidden')}</p>
+                </CardContent>
+              </Card>
+            )}
+            <ProfileSidebar
+              canViewProfile={canView}
+              targetProfile={targetProfile}
+            />
+          </div>
         </div>
-        <div className='lg:col-span-4 xl:col-span-3'>
-          {!canView && (
-            <Card>
-              <CardContent className='py-8 flex flex-col items-center text-center text-muted-foreground'>
-                <Lock className='h-10 w-10 mb-3 opacity-50' />
-                <p>{t('Stats are hidden')}</p>
-              </CardContent>
-            </Card>
-          )}
-          <ProfileSidebar
-            canViewProfile={canView}
-            targetProfile={targetProfile}
-          />
-        </div>
-      </div>
+      )}
     </section>
   );
 }

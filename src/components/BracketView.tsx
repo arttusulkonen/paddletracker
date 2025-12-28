@@ -2,31 +2,31 @@
 'use client';
 
 import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Input,
-  Progress,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
+	Badge,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	Input,
+	Progress,
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
 } from '@/components/ui';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import type { Tournament } from '@/lib/types';
+import type { TournamentRoom } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { computeTable, seedKnockoutRounds } from '@/lib/utils/bracketUtils';
 import { collection, doc, runTransaction, Timestamp } from 'firebase/firestore';
-import { Check, Crown, Save, Trophy } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Check, Crown, Save, Trophy, User } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
-  tournament: Tournament;
+  tournament: TournamentRoom;
   onUpdate: () => void;
 }
 
@@ -60,16 +60,222 @@ export default function BracketView({ tournament, onUpdate }: Props) {
     setBracket(tournament.bracket);
   }, [tournament.bracket]);
 
+  const saveResults = useCallback(
+    async (next: any) => {
+      const date = getFinnishFormattedDate();
+      const ts = Timestamp.fromDate(new Date());
+
+      const finalRound = next.rounds.find(
+        (r: any) => r.type === 'knockoutFinal'
+      );
+      const bronzeRound = next.rounds.find(
+        (r: any) => r.type === 'knockoutBronze'
+      );
+
+      if (!finalRound?.matches?.[0]?.winner) return;
+
+      const finalMatch = finalRound.matches[0];
+      const bronzeMatch = bronzeRound?.matches?.[0];
+      if (!db) return;
+      const tRef = doc(db, 'tournament-rooms', tournament.id);
+      const matchesCol = collection(db, 'matches');
+      const finalMatchRef = doc(matchesCol, `${tournament.id}-final`);
+      const bronzeMatchRef = bronzeMatch
+        ? doc(matchesCol, `${tournament.id}-bronze`)
+        : null;
+
+      const statByUser: Record<string, any> = {};
+      (next.finalStats || []).forEach((p: any) => {
+        statByUser[p.userId] = p;
+      });
+
+      try {
+        await runTransaction(db, async (tx) => {
+          const tSnap = await tx.get(tRef);
+          if (!tSnap.exists()) throw new Error('Tournament not found');
+          if (tSnap.data()?.resultsCommitted === true) return;
+
+          const userIds = Object.keys(statByUser);
+          const userRefs = userIds.map((id) => doc(db!, 'users', id));
+          const userSnaps = await Promise.all(
+            userRefs.map((ref) => tx.get(ref))
+          );
+
+          userSnaps.forEach((uSnap) => {
+            if (!uSnap.exists()) return;
+
+            const userId = uSnap.id;
+            const uData = uSnap.data() || {};
+            const achievements = Array.isArray(uData.achievements)
+              ? uData.achievements
+              : [];
+
+            if (
+              achievements.some(
+                (a: any) =>
+                  a?.type === 'tournamentFinish' &&
+                  a?.tournamentId === tournament.id
+              )
+            ) {
+              return;
+            }
+
+            const s = statByUser[userId];
+            if (!s) return;
+
+            const delta = computeDelta(s.place);
+            const prevElo = Number(uData.globalElo ?? 1000);
+            const newElo = prevElo + delta;
+
+            const newAchievement = {
+              type: 'tournamentFinish',
+              dateFinished: date,
+              tournamentId: tournament.id,
+              tournamentName: tournament.name,
+              place: s.place,
+              wins: s.wins,
+              losses: s.losses,
+              pointsFor: s.pf,
+              pointsAgainst: s.pa,
+              eloReward: delta,
+              sport: tournament.sport || 'pingpong',
+            };
+
+            const sport = tournament.sport || 'pingpong';
+            const sportEloPath = `sports.${sport}.globalElo`;
+            const sportEloHistoryPath = `sports.${sport}.eloHistory`;
+
+            const currentSportElo = uData.sports?.[sport]?.globalElo ?? 1000;
+            const newSportElo = currentSportElo + delta;
+            const sportHistory = uData.sports?.[sport]?.eloHistory || [];
+
+            tx.update(uSnap.ref, {
+              globalElo: newElo,
+              eloHistory: [...(uData.eloHistory || []), { date, elo: newElo }],
+              achievements: [...achievements, newAchievement],
+              [sportEloPath]: newSportElo,
+              [sportEloHistoryPath]: [
+                ...sportHistory,
+                { date: ts.toDate().toISOString(), elo: newSportElo },
+              ],
+            });
+
+            const rewardMatchRef = doc(matchesCol);
+            tx.set(rewardMatchRef, {
+              isRanked: true,
+              isTournamentReward: true,
+              roomId: tournament.id,
+              timestamp: date,
+              tsIso: ts.toDate().toISOString(),
+              createdAt: date,
+              player1Id: userId,
+              player2Id: 'SYSTEM',
+              winner: userId,
+              players: [userId],
+              sport: sport,
+              player1: {
+                name: uData.name || uData.displayName || 'Player',
+                scores: 1,
+                oldRating: currentSportElo,
+                newRating: newSportElo,
+                addedPoints: delta,
+                roomOldRating: 0,
+                roomNewRating: 0,
+                roomAddedPoints: 0,
+                side: 'left',
+              },
+              player2: {
+                name: `${t('Tournament')}: ${tournament.name} (#${s.place})`,
+                scores: 0,
+                oldRating: 0,
+                newRating: 0,
+                addedPoints: 0,
+                roomOldRating: 0,
+                roomNewRating: 0,
+                roomAddedPoints: 0,
+                side: 'right',
+              },
+            });
+          });
+
+          const saveMatchDoc = (m: any, ref: any, stage: string) => {
+            if (!m.winner) return;
+            const p1Id = m.player1.userId;
+            const p2Id = m.player2.userId;
+            const p1Stat = statByUser[p1Id];
+            const p2Stat = statByUser[p2Id];
+
+            if (!p1Stat || !p2Stat) return;
+
+            tx.set(
+              ref,
+              {
+                tournamentId: tournament.id,
+                tournamentName: tournament.name,
+                tournamentStage: stage,
+                isTournament: true,
+                timestamp: date,
+                playedAt: ts,
+                roomId: tournament.id,
+                winner: m.winner === p1Id ? p1Stat.name : p2Stat.name,
+                players: [p1Id, p2Id],
+                player1Id: p1Id,
+                player2Id: p2Id,
+                sport: tournament.sport || 'pingpong',
+                player1: {
+                  name: p1Stat.name,
+                  scores: parseScore(m.scorePlayer1),
+                  side: 'left',
+                  oldRating: 0,
+                  newRating: 0,
+                  roomOldRating: 0,
+                  roomNewRating: 0,
+                  addedPoints: 0,
+                  roomAddedPoints: 0,
+                },
+                player2: {
+                  name: p2Stat.name,
+                  scores: parseScore(m.scorePlayer2),
+                  side: 'right',
+                  oldRating: 0,
+                  newRating: 0,
+                  roomOldRating: 0,
+                  roomNewRating: 0,
+                  addedPoints: 0,
+                  roomAddedPoints: 0,
+                },
+              },
+              { merge: true }
+            );
+          };
+
+          saveMatchDoc(finalMatch, finalMatchRef, 'final');
+          if (bronzeMatch && bronzeMatch.winner) {
+            saveMatchDoc(bronzeMatch, bronzeMatchRef, 'bronze');
+          }
+
+          tx.update(tRef, { resultsCommitted: true });
+        });
+
+        toast({ title: t('Tournament results saved & rewards distributed!') });
+        onUpdate();
+      } catch (error) {
+        console.error('Failed to save results:', error);
+        toast({ title: t('Error saving results'), variant: 'destructive' });
+      }
+    },
+    [tournament.id, tournament.name, tournament.sport, t, onUpdate, toast]
+  );
+
+  // Извлекаем свойство resultsCommitted в переменную для использования в dependency array
+  const resultsCommitted = (tournament as any).resultsCommitted;
+
   // Автоматическая попытка сохранения результатов
   useEffect(() => {
-    if (
-      tournament.bracket.stage === 'completed' &&
-      !(tournament as any).resultsCommitted
-    ) {
+    if (tournament.bracket?.stage === 'completed' && !resultsCommitted) {
       saveResults(tournament.bracket);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournament.bracket.stage, (tournament as any).resultsCommitted]);
+  }, [tournament.bracket, resultsCommitted, saveResults]);
 
   const persist = async (next: any) => {
     // Дедупликация раундов перед сохранением (на всякий случай)
@@ -82,8 +288,8 @@ export default function BracketView({ tournament, onUpdate }: Props) {
 
     setBracket(cleanNext);
 
-    await runTransaction(db, async (tx) => {
-      const tRef = doc(db, 'tournament-rooms', tournament.id);
+    await runTransaction(db!, async (tx) => {
+      const tRef = doc(db!, 'tournament-rooms', tournament.id);
       const snap = await tx.get(tRef);
       if (!snap.exists()) return;
 
@@ -98,206 +304,6 @@ export default function BracketView({ tournament, onUpdate }: Props) {
       await saveResults(cleanNext);
     }
     onUpdate();
-  };
-
-  const saveResults = async (next: any) => {
-    const date = getFinnishFormattedDate();
-    const ts = Timestamp.fromDate(new Date());
-
-    const finalRound = next.rounds.find((r: any) => r.type === 'knockoutFinal');
-    const bronzeRound = next.rounds.find(
-      (r: any) => r.type === 'knockoutBronze'
-    );
-
-    if (!finalRound?.matches?.[0]?.winner) return;
-
-    const finalMatch = finalRound.matches[0];
-    const bronzeMatch = bronzeRound?.matches?.[0];
-
-    const tRef = doc(db, 'tournament-rooms', tournament.id);
-    const matchesCol = collection(db, 'matches');
-    const finalMatchRef = doc(matchesCol, `${tournament.id}-final`);
-    const bronzeMatchRef = bronzeMatch
-      ? doc(matchesCol, `${tournament.id}-bronze`)
-      : null;
-
-    const statByUser: Record<string, any> = {};
-    (next.finalStats || []).forEach((p: any) => {
-      statByUser[p.userId] = p;
-    });
-
-    try {
-      await runTransaction(db, async (tx) => {
-        const tSnap = await tx.get(tRef);
-        if (!tSnap.exists()) throw new Error('Tournament not found');
-        if (tSnap.data()?.resultsCommitted === true) return;
-
-        const userIds = Object.keys(statByUser);
-        const userRefs = userIds.map((id) => doc(db, 'users', id));
-        const userSnaps = await Promise.all(userRefs.map((ref) => tx.get(ref)));
-
-        userSnaps.forEach((uSnap) => {
-          if (!uSnap.exists()) return;
-
-          const userId = uSnap.id;
-          const uData = uSnap.data() || {};
-          const achievements = Array.isArray(uData.achievements)
-            ? uData.achievements
-            : [];
-
-          if (
-            achievements.some(
-              (a: any) =>
-                a?.type === 'tournamentFinish' &&
-                a?.tournamentId === tournament.id
-            )
-          ) {
-            return;
-          }
-
-          const s = statByUser[userId];
-          if (!s) return;
-
-          const delta = computeDelta(s.place);
-          const prevElo = Number(uData.globalElo ?? 1000);
-          const newElo = prevElo + delta;
-
-          const newAchievement = {
-            type: 'tournamentFinish',
-            dateFinished: date,
-            tournamentId: tournament.id,
-            tournamentName: tournament.name,
-            place: s.place,
-            wins: s.wins,
-            losses: s.losses,
-            pointsFor: s.pf,
-            pointsAgainst: s.pa,
-            eloReward: delta,
-            sport: tournament.sport || 'pingpong',
-          };
-
-          const sport = tournament.sport || 'pingpong';
-          const sportEloPath = `sports.${sport}.globalElo`;
-          const sportEloHistoryPath = `sports.${sport}.eloHistory`;
-
-          const currentSportElo = uData.sports?.[sport]?.globalElo ?? 1000;
-          const newSportElo = currentSportElo + delta;
-          const sportHistory = uData.sports?.[sport]?.eloHistory || [];
-
-          tx.update(uSnap.ref, {
-            globalElo: newElo,
-            eloHistory: [...(uData.eloHistory || []), { date, elo: newElo }],
-            achievements: [...achievements, newAchievement],
-            [sportEloPath]: newSportElo,
-            [sportEloHistoryPath]: [
-              ...sportHistory,
-              { date: ts.toDate().toISOString(), elo: newSportElo },
-            ],
-          });
-
-          const rewardMatchRef = doc(matchesCol);
-          tx.set(rewardMatchRef, {
-            isRanked: true,
-            isTournamentReward: true,
-            roomId: tournament.id,
-            timestamp: date,
-            tsIso: ts.toDate().toISOString(),
-            createdAt: date,
-            player1Id: userId,
-            player2Id: 'SYSTEM',
-            winner: userId,
-            players: [userId],
-            sport: sport,
-            player1: {
-              name: uData.name || uData.displayName || 'Player',
-              scores: 1,
-              oldRating: currentSportElo,
-              newRating: newSportElo,
-              addedPoints: delta,
-              roomOldRating: 0,
-              roomNewRating: 0,
-              roomAddedPoints: 0,
-              side: 'left',
-            },
-            player2: {
-              name: `${t('Tournament')}: ${tournament.name} (#${s.place})`,
-              scores: 0,
-              oldRating: 0,
-              newRating: 0,
-              addedPoints: 0,
-              roomOldRating: 0,
-              roomNewRating: 0,
-              roomAddedPoints: 0,
-              side: 'right',
-            },
-          });
-        });
-
-        const saveMatchDoc = (m: any, ref: any, stage: string) => {
-          if (!m.winner) return;
-          const p1Id = m.player1.userId;
-          const p2Id = m.player2.userId;
-          const p1Stat = statByUser[p1Id];
-          const p2Stat = statByUser[p2Id];
-
-          if (!p1Stat || !p2Stat) return;
-
-          tx.set(
-            ref,
-            {
-              tournamentId: tournament.id,
-              tournamentName: tournament.name,
-              tournamentStage: stage,
-              isTournament: true,
-              timestamp: date,
-              playedAt: ts,
-              roomId: tournament.id,
-              winner: m.winner === p1Id ? p1Stat.name : p2Stat.name,
-              players: [p1Id, p2Id],
-              player1Id: p1Id,
-              player2Id: p2Id,
-              sport: tournament.sport || 'pingpong',
-              player1: {
-                name: p1Stat.name,
-                scores: parseScore(m.scorePlayer1),
-                side: 'left',
-                oldRating: 0,
-                newRating: 0,
-                roomOldRating: 0,
-                roomNewRating: 0,
-                addedPoints: 0,
-                roomAddedPoints: 0,
-              },
-              player2: {
-                name: p2Stat.name,
-                scores: parseScore(m.scorePlayer2),
-                side: 'right',
-                oldRating: 0,
-                newRating: 0,
-                roomOldRating: 0,
-                roomNewRating: 0,
-                addedPoints: 0,
-                roomAddedPoints: 0,
-              },
-            },
-            { merge: true }
-          );
-        };
-
-        saveMatchDoc(finalMatch, finalMatchRef, 'final');
-        if (bronzeMatch && bronzeMatch.winner) {
-          saveMatchDoc(bronzeMatch, bronzeMatchRef, 'bronze');
-        }
-
-        tx.update(tRef, { resultsCommitted: true });
-      });
-
-      toast({ title: t('Tournament results saved & rewards distributed!') });
-      onUpdate();
-    } catch (error) {
-      console.error('Failed to save results:', error);
-      toast({ title: t('Error saving results'), variant: 'destructive' });
-    }
   };
 
   // Дедупликация раундов для рендеринга (исправляет ошибку React ключей)
@@ -708,7 +714,7 @@ function FinalStandings({ stats, t }: any) {
       </CardHeader>
       <CardContent>
         <div className='space-y-2'>
-          {stats.map((p: any, i: number) => {
+          {stats.map((p: any, _: number) => {
             const reward = computeDelta(p.place);
             return (
               <div

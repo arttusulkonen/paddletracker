@@ -28,6 +28,7 @@ export function FriendsList({ targetProfile }: FriendsListProps) {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+			if (!db) return;
       try {
         if (isCoach) {
           // FETCH PLAYERS MANAGED BY COACH

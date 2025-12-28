@@ -5,18 +5,15 @@ import {
 	collection,
 	doc,
 	getDocs,
-	limit,
 	orderBy,
 	query,
-	startAfter,
 	updateDoc,
 	where,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
 import {
 	Card,
 	CardContent,
@@ -53,48 +50,46 @@ export default function AdminUsersPage() {
   const { toast } = useToast();
 
   const [pending, setPending] = useState<U[]>([]);
-  // Меняем логику: будем загружать всех сразу, но только если поиск не активен
   const [allUsers, setAllUsers] = useState<U[]>([]);
   const [search, setSearch] = useState('');
   const [loadingInitial, setLoadingInitial] = useState(true);
-  // Элементы для постраничной загрузки (loadMore) удаляем,
-  // так как мы переходим к загрузке всех сразу для поиска/администрирования.
-  // Оставляем только для Pending.
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
-  // lastDocRef больше не нужен, т.к. убрано limit(24)
-  // const lastDocRef = useRef<any>(null);
 
   const loadAllData = useCallback(
     async (isInitial = false) => {
+      // ИСПРАВЛЕНИЕ 1: Проверка на существование db
+      if (!db) return;
+
       if (isInitial) setLoadingInitial(true);
 
       try {
-        // 1. Загружаем пользователей, ожидающих одобрения (approved: false)
+        // 1. Загружаем пользователей, ожидающих одобрения
         const qPending = query(
           collection(db, 'users'),
           where('approved', '==', false),
-          // Добавляем сортировку по createdAt для порядка
           orderBy('createdAt', 'desc')
         );
         const dsPending = await getDocs(qPending);
+
+        // ИСПРАВЛЕНИЕ 2: Используем Omit<U, 'uid'> чтобы избежать дублирования поля uid
         setPending(
-          dsPending.docs.map((d) => ({ uid: d.id, ...(d.data() as U) }))
+          dsPending.docs.map((d) => ({
+            uid: d.id,
+            ...(d.data() as Omit<U, 'uid'>),
+          }))
         );
 
-        // 2. Загружаем ВСЕХ пользователей (убираем limit(24)),
-        // чтобы найти старых игроков для одобрения.
-        const qAll = query(
-          collection(db, 'users'),
-          // Удаляем orderBy('createdAt', 'desc') и limit(24)
-          // Если важна сортировка, можно оставить только orderBy.
-          // В данном случае, оставим без явной сортировки для простоты,
-          // так как фильтрация по поиску важнее.
-          orderBy('email', 'asc') // Сортируем по email для стабильности
-        );
+        // 2. Загружаем ВСЕХ пользователей
+        const qAll = query(collection(db, 'users'), orderBy('email', 'asc'));
         const dsAll = await getDocs(qAll);
-        setAllUsers(dsAll.docs.map((d) => ({ uid: d.id, ...(d.data() as U) })));
 
-        // lastDocRef.current = null; // сбрасываем, т.к. загрузили всех
+        // ИСПРАВЛЕНИЕ 3: Аналогично используем Omit<U, 'uid'>
+        setAllUsers(
+          dsAll.docs.map((d) => ({
+            uid: d.id,
+            ...(d.data() as Omit<U, 'uid'>),
+          }))
+        );
       } catch (error) {
         console.error('Failed to load user data:', error);
         toast({ title: 'Error loading data', variant: 'destructive' });
@@ -122,9 +117,8 @@ export default function AdminUsersPage() {
 
   const filteredAll = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return allUsers; // Если поиска нет, показываем всех загруженных
+    if (!q) return allUsers;
     return allUsers.filter((u) => {
-      // Здесь используем имя, которое берет name или displayName, чтобы найти старых
       const n = (u.name || u.displayName || '').toLowerCase();
       const e = (u.email || '').toLowerCase();
       const id = u.uid.toLowerCase();
@@ -133,13 +127,13 @@ export default function AdminUsersPage() {
   }, [allUsers, search]);
 
   const approve = async (u: U) => {
+    if (!db) return;
     try {
       await updateDoc(doc(db, 'users', u.uid), {
         approved: true,
         approvedAt: new Date().toISOString(),
         approvedBy: user?.uid || null,
       });
-      // Перезагружаем все данные, чтобы обновить списки
       await loadAllData();
       toast({ title: 'User Approved' });
     } catch (error) {
@@ -149,6 +143,7 @@ export default function AdminUsersPage() {
   };
 
   const togglePublic = async (u: U) => {
+    if (!db) return;
     try {
       const nextIsPublic = !(u.isPublic ?? true);
       await updateDoc(doc(db, 'users', u.uid), { isPublic: nextIsPublic });
@@ -179,7 +174,6 @@ export default function AdminUsersPage() {
       );
       await deleteUserCallable({ userId: u.uid });
       toast({ title: 'User permanently deleted' });
-      // Перезагружаем все данные
       await loadAllData();
     } catch (error: any) {
       console.error('Failed to delete user:', error);
@@ -194,13 +188,13 @@ export default function AdminUsersPage() {
   };
 
   const saveName = async (u: U, newName: string) => {
+    if (!db) return;
     const name = newName.trim();
     if (!name) {
       toast({ title: 'Name cannot be empty', variant: 'destructive' });
       return;
     }
     try {
-      // Обновляем оба поля, name и displayName
       await updateDoc(doc(db, 'users', u.uid), { name, displayName: name });
       setAllUsers((prev) =>
         prev.map((x) =>
@@ -218,12 +212,6 @@ export default function AdminUsersPage() {
       toast({ title: 'Failed to save', variant: 'destructive' });
     }
   };
-
-  // Функция loadMore больше не нужна, т.к. мы загружаем всех сразу
-  // const loadMore = async () => { ... }
-  // Мы ее удаляем, но оставляем заглушку, чтобы не менять остальной код сильно
-  const loadMore = async () => {};
-  const lastDocRef = useRef<any>(null); // оставляем пустым, чтобы не было ошибок
 
   if (!ready) {
     return (
@@ -280,8 +268,6 @@ export default function AdminUsersPage() {
           ) : (
             <>
               <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'>
-                {/* filteredAll теперь содержит всех загруженных пользователей, 
-                    что позволяет найти старых игроков через поиск. */}
                 {filteredAll.map((u) => (
                   <UserCard
                     key={u.uid}
@@ -294,22 +280,6 @@ export default function AdminUsersPage() {
                   />
                 ))}
               </div>
-              {/* Элемент Load More убран, т.к. вся база загружается сразу */}
-              {/* {lastDocRef.current && !search && (
-                <div className='pt-4 flex justify-center'>
-                  <Button
-                    variant='outline'
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore && (
-                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                    )}
-                    Load More
-                  </Button>
-                </div>
-              )} */}
-              {/* Вместо Load More: сообщение о количестве */}
               {!filteredAll.length && (
                 <div className='text-center text-muted-foreground py-10'>
                   No users found matching your search.

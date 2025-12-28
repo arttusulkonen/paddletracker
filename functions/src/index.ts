@@ -248,7 +248,7 @@ export const aiSaveMatch = onCall(
     }
 
     const roomData = roomSnap.data() || {};
-    let members: any[] = roomData.members || [];
+    const members: any[] = roomData.members || [];
 
     const uniqueNames = new Set<string>();
     matches.forEach((m) => {
@@ -259,8 +259,8 @@ export const aiSaveMatch = onCall(
     const memberMap = new Map<string, string>();
     members.forEach((m: any) => {
       const uid = m.userId;
-      if (m.name) memberMap.set(m.name.toLowerCase(), uid);
-      if (m.displayName) memberMap.set(m.displayName.toLowerCase(), uid);
+      if (m.name) memberMap.set(m.name.trim().toLowerCase(), uid);
+      if (m.displayName) memberMap.set(m.displayName.trim().toLowerCase(), uid);
     });
 
     const nameToUidMap = new Map<string, string>();
@@ -312,10 +312,13 @@ export const aiSaveMatch = onCall(
       const foundDoc = await findUser(name);
       if (foundDoc) {
         nameToUidMap.set(name, foundDoc.id);
+      } else {
+         console.warn(`User not found for name: ${name}`);
       }
     }
 
     const uniqueUids = Array.from(new Set(nameToUidMap.values()));
+    
     const userDocsRefs = uniqueUids.map((uid) =>
       db.collection('users').doc(uid)
     );
@@ -327,6 +330,28 @@ export const aiSaveMatch = onCall(
     userDocs.forEach((d) => {
       if (d.exists) userDataMap.set(d.id, d.data());
     });
+
+    const getOrAddMember = (uid: string, userData: any) => {
+      const existingIndex = members.findIndex((m: any) => m.userId === uid);
+      if (existingIndex !== -1) {
+        return members[existingIndex];
+      }
+      
+      const newMember = {
+        userId: uid,
+        name: userData?.name || userData?.displayName || 'Unknown Player',
+        email: userData?.email || '',
+        rating: 1000,
+        wins: 0,
+        losses: 0,
+        role: 'viewer', 
+        date: new Date().toISOString(),
+        globalElo: userData?.sports?.[sport]?.globalElo ?? 1000
+      };
+      
+      members.push(newMember);
+      return newMember;
+    };
 
     const batch = db.batch();
     const baseDate = new Date();
@@ -351,13 +376,12 @@ export const aiSaveMatch = onCall(
 
     const userUpdates = new Map<string, UserUpdateState>();
 
-    const initUser = (uid: string, nameForReport: string) => {
+    const initUser = (uid: string, nameForReport: string, memberObj: any) => {
       if (!userUpdates.has(uid)) {
         const globalData = userDataMap.get(uid) || {};
-        const roomMember = members.find((m: any) => m.userId === uid);
-
+        
         const gElo = globalData.sports?.[sport]?.globalElo ?? 1000;
-        const rElo = roomMember?.rating ?? 1000;
+        const rElo = memberObj?.rating ?? 1000;
 
         const realName =
           globalData.name || globalData.displayName || nameForReport;
@@ -382,25 +406,23 @@ export const aiSaveMatch = onCall(
         const p1Id = nameToUidMap.get(player1Name);
         const p2Id = nameToUidMap.get(player2Name);
 
-        if (!p1Id || !p2Id) {
-          continue;
+        if (!p1Id) {
+             console.error(`AI Match Error: Player 1 not found. Name: "${player1Name}"`);
+             throw new HttpsError('failed-precondition', `Could not find player: "${player1Name}". Please check the name spelling.`);
+        }
+        if (!p2Id) {
+             console.error(`AI Match Error: Player 2 not found. Name: "${player2Name}"`);
+             throw new HttpsError('failed-precondition', `Could not find player: "${player2Name}". Please check the name spelling.`);
         }
 
-        const m1Index = members.findIndex((m: any) => m.userId === p1Id);
-        const m2Index = members.findIndex((m: any) => m.userId === p2Id);
+        const p1Data = userDataMap.get(p1Id) || {};
+        const p2Data = userDataMap.get(p2Id) || {};
 
-        if (m1Index === -1 || m2Index === -1) {
-          throw new HttpsError(
-            'failed-precondition',
-            `Player ${player1Name} or ${player2Name} not in room`
-          );
-        }
+        const p1Member = getOrAddMember(p1Id, p1Data);
+        const p2Member = getOrAddMember(p2Id, p2Data);
 
-        const p1Member = members[m1Index];
-        const p2Member = members[m2Index];
-
-        initUser(p1Id, player1Name);
-        initUser(p2Id, player2Name);
+        initUser(p1Id, player1Name, p1Member);
+        initUser(p2Id, player2Name, p2Member);
 
         const p1State = userUpdates.get(p1Id)!;
         const p2State = userUpdates.get(p2Id)!;
@@ -525,7 +547,14 @@ export const aiSaveMatch = onCall(
         batch.update(db.collection('users').doc(uid), updates);
       });
 
-      batch.update(roomRef, { members });
+      const currentMemberIds: string[] = roomData.memberIds || [];
+      const updatedMemberIds = new Set(currentMemberIds);
+      members.forEach(m => updatedMemberIds.add(m.userId));
+
+      batch.update(roomRef, { 
+        members, 
+        memberIds: Array.from(updatedMemberIds) 
+      });
 
       await batch.commit();
 
@@ -554,6 +583,9 @@ export const aiSaveMatch = onCall(
       return { success: true, updates: updatesList };
     } catch (error: any) {
       logger.error('aiSaveMatch error:', error);
+      if (error instanceof HttpsError) {
+          throw error;
+      }
       throw new HttpsError(
         'internal',
         error?.message || 'Failed to save matches'
@@ -808,30 +840,46 @@ export const recordMatch = onCall(async (request) => {
   ]);
 
   if (!roomSnap.exists) throw new HttpsError('not-found', 'Room not found');
-  if (!p1Snap.exists || !p2Snap.exists)
-    throw new HttpsError('not-found', 'One or both players not found');
 
   const roomData = roomSnap.data() || {};
-  const p1Data = p1Snap.data() || {};
-  const p2Data = p2Snap.data() || {};
+  const p1Data = p1Snap.exists ? p1Snap.data() || {} : {};
+  const p2Data = p2Snap.exists ? p2Snap.data() || {} : {};
 
-  const callerUid = request.auth.uid;
-  if (!roomData.memberIds?.includes(callerUid)) {
+  const validMemberIds: string[] = roomData.memberIds || [];
+  
+  if (!validMemberIds.includes(player1Id)) {
+     throw new HttpsError('failed-precondition', `Player 1 (${player1Id}) is not in the room memberIds`);
+  }
+  if (!validMemberIds.includes(player2Id)) {
+     throw new HttpsError('failed-precondition', `Player 2 (${player2Id}) is not in the room memberIds`);
   }
 
   const members = roomData.members || [];
-  const m1Index = members.findIndex((m: any) => m.userId === player1Id);
-  const m2Index = members.findIndex((m: any) => m.userId === player2Id);
+  
+  const getOrAddMember = (uid: string, userData: any) => {
+    const existingIndex = members.findIndex((m: any) => m.userId === uid);
+    if (existingIndex !== -1) {
+      return members[existingIndex];
+    }
 
-  if (m1Index === -1 || m2Index === -1) {
-    throw new HttpsError(
-      'failed-precondition',
-      'Players are not in the room members list'
-    );
-  }
+    const newMember = {
+      userId: uid,
+      name: userData.name || userData.displayName || 'Unknown Player',
+      email: userData.email || '',
+      rating: 1000,
+      wins: 0,
+      losses: 0,
+      role: 'viewer',
+      date: new Date().toISOString(),
+      globalElo: userData.sports?.[sport]?.globalElo ?? 1000
+    };
+    
+    members.push(newMember);
+    return newMember;
+  };
 
-  const member1 = members[m1Index];
-  const member2 = members[m2Index];
+  const member1 = getOrAddMember(player1Id, p1Data);
+  const member2 = getOrAddMember(player2Id, p2Data);
 
   let currentG1 = p1Data.sports?.[sport]?.globalElo ?? 1000;
   let currentG2 = p2Data.sports?.[sport]?.globalElo ?? 1000;
@@ -951,6 +999,9 @@ export const recordMatch = onCall(async (request) => {
     const matchDate = new Date(startDate.getTime() + i * 1000);
     const matchRef = db.collection(`matches-${sport}`).doc();
 
+    const p1Name = p1Data.name || p1Data.displayName || member1.name || 'Unknown';
+    const p2Name = p2Data.name || p2Data.displayName || member2.name || 'Unknown';
+
     batch.set(matchRef, {
       roomId,
       player1Id,
@@ -960,9 +1011,9 @@ export const recordMatch = onCall(async (request) => {
       createdAt: getFinnishDate(matchDate),
       timestamp: getFinnishDate(matchDate),
       tsIso: matchDate.toISOString(),
-      winner: score1 > score2 ? p1Data.name || 'P1' : p2Data.name || 'P2',
+      winner: score1 > score2 ? p1Name : p2Name,
       player1: {
-        name: p1Data.name || p1Data.displayName || 'Unknown',
+        name: p1Name,
         scores: score1,
         oldRating: oldG1,
         newRating: currentG1,
@@ -973,7 +1024,7 @@ export const recordMatch = onCall(async (request) => {
         ...player1Extra,
       },
       player2: {
-        name: p2Data.name || p2Data.displayName || 'Unknown',
+        name: p2Name,
         scores: score2,
         oldRating: oldG2,
         newRating: currentG2,
@@ -1005,6 +1056,8 @@ export const recordMatch = onCall(async (request) => {
     lossesToAdd: number,
     tennisStats: any
   ) => {
+    if (!ref) return;
+
     const updateData: any = {
       [`sports.${sport}.wins`]: admin.firestore.FieldValue.increment(winsToAdd),
       [`sports.${sport}.losses`]:
@@ -1033,8 +1086,8 @@ export const recordMatch = onCall(async (request) => {
     batch.update(ref, updateData);
   };
 
-  updateUserStats(p1Ref, currentG1, totalWinsP1, totalWinsP2, tennisStatsP1);
-  updateUserStats(p2Ref, currentG2, totalWinsP2, totalWinsP1, tennisStatsP2);
+  if (p1Snap.exists) updateUserStats(p1Ref, currentG1, totalWinsP1, totalWinsP2, tennisStatsP1);
+  if (p2Snap.exists) updateUserStats(p2Ref, currentG2, totalWinsP2, totalWinsP1, tennisStatsP2);
 
   await batch.commit();
 
@@ -1197,10 +1250,6 @@ export const claimGhostProfile = onCall(async (request) => {
     throw new HttpsError('internal', error.message);
   }
 });
-
-// ============================================================================
-//                               COMMUNITY FEED TRIGGERS
-// ============================================================================
 
 const addToCommunityFeed = async (communityIds: string[], eventData: any) => {
   if (!communityIds || communityIds.length === 0) return;

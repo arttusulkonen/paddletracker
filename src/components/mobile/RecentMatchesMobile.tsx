@@ -1,11 +1,11 @@
 'use client';
 
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  ScrollArea,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	ScrollArea,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
@@ -35,7 +35,7 @@ export function RecentMatchesMobile({ roomId, members = [] }: Props) {
   React.useEffect(() => {
     setLoading(true);
     const q = query(
-      collection(db, config.collections.matches),
+      collection(db!, config.collections.matches),
       where('roomId', '==', roomId)
     );
     const unsub = onSnapshot(

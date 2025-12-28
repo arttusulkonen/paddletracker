@@ -41,14 +41,3 @@ export const calculateDelta = (
 
   return delta;
 };
-
-// Legacy export if needed somewhere else, but calculateDelta is preferred
-export const calculateElo = (
-  rating1: number,
-  rating2: number,
-  score1: number,
-  score2: number
-) => {
-  // Simple ELO calculation used by older parts of the system if any
-  return rating1 + calculateDelta(rating1, rating2, score1, score2, true);
-};

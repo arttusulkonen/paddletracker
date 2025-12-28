@@ -1,6 +1,5 @@
 // src/lib/utils/date.ts
 import { format } from "date-fns";
-import { Timestamp } from "firebase/firestore";
 
 /** Robust date parser for many legacy formats */
 export function parseFlexDate(d: any): Date {
@@ -18,13 +17,13 @@ export function parseFlexDate(d: any): Date {
   }
 
   /* Normalise legacy Finnish “klo”, commas, double spaces */
-  let str = d.replace("klo", "")
+  const str = d.replace("klo", "")
     .replace(",", "")
     .replace(/\s+/g, " ")
     .trim();
 
   /* dd.MM.yyyy HH.mm.ss or dd.MM.yyyy HH.mm ------------ */
-  let m = str.match(
+  const m = str.match(
     /^(\d{1,2})\.(\d{1,2})\.(\d{4}) (\d{1,2})\.(\d{1,2})(?:\.(\d{1,2}))?$/
   );
   if (m) {

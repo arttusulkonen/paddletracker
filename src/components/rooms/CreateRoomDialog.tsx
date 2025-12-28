@@ -1,3 +1,4 @@
+// src/components/rooms/CreateRoomDialog.tsx
 'use client';
 
 import ImageCropDialog from '@/components/ImageCropDialog';
@@ -46,6 +47,7 @@ import {
 	arrayUnion,
 	collection,
 	doc,
+	documentId,
 	getDoc,
 	getDocs,
 	onSnapshot,
@@ -69,14 +71,13 @@ import {
 	Warehouse,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface CreateRoomDialogProps {
   onSuccess?: () => void;
 }
 
-// Тип для создаваемого участника (чтобы убрать any)
 interface NewMember {
   userId: string;
   name: string;
@@ -101,33 +102,27 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const { sport, config } = useSport();
   const { toast } = useToast();
 
-  // Dialog State
   const [isOpen, setIsOpen] = useState(false);
 
-  // Form State
   const [roomName, setRoomName] = useState('');
   const [roomDescription, setRoomDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [isRanked, setIsRanked] = useState(true);
   const [roomMode, setRoomMode] = useState<RoomMode>('office');
 
-  // Community Selection (Только для тренеров)
   const [selectedCommunityId, setSelectedCommunityId] =
     useState<string>('none');
   const [myCommunities, setMyCommunities] = useState<Community[]>([]);
 
-  // Professional Settings
   const [kFactor, setKFactor] = useState(32);
   const [useGlobalElo, setUseGlobalElo] = useState(false);
 
-  // Players State
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
 
-  // Avatar State
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
   const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -135,21 +130,22 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- Effects for loading friends/players ---
   useEffect(() => {
     if (!user || !isOpen || !db) return;
-    const unsub = onSnapshot(doc(db!, 'users', user.uid), async (snap) => {
+    const unsub = onSnapshot(doc(db, 'users', user.uid), async (snap) => {
       if (!snap.exists()) return setFriends([]);
       const ids: string[] = snap.data().friends ?? [];
       const loaded = await Promise.all(
         ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
       );
       setFriends(
-        (loaded.filter(Boolean) as UserProfile[]).sort((a, b) =>
-          (a.name ?? a.displayName ?? '').localeCompare(
-            b.name ?? b.displayName ?? ''
+        (loaded.filter(Boolean) as UserProfile[])
+          .filter((p) => p.accountType !== 'coach') // FIX: Filter out coaches
+          .sort((a, b) =>
+            (a.name ?? a.displayName ?? '').localeCompare(
+              b.name ?? b.displayName ?? ''
+            )
           )
-        )
       );
     });
     return () => unsub();
@@ -158,7 +154,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   useEffect(() => {
     if (!user || !isOpen || !db) return;
     const qRooms = query(
-      collection(db!, config.collections.rooms),
+      collection(db, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid)
     );
     const unsub = onSnapshot(qRooms, async (snap) => {
@@ -175,17 +171,18 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         }))
       );
       setCoPlayers(
-        (loaded.filter(Boolean) as UserProfile[]).sort((a, b) =>
-          (a.name ?? a.displayName ?? '').localeCompare(
-            b.name ?? b.displayName ?? ''
+        (loaded.filter(Boolean) as UserProfile[])
+          .filter((p) => p.accountType !== 'coach') // FIX: Filter out coaches
+          .sort((a, b) =>
+            (a.name ?? a.displayName ?? '').localeCompare(
+              b.name ?? b.displayName ?? ''
+            )
           )
-        )
       );
     });
     return () => unsub();
   }, [user, isOpen, config.collections.rooms]);
 
-  // --- Load Communities (Only if Coach/Admin) ---
   useEffect(() => {
     if (!user || !isOpen || !db) return;
     const fetchComms = async () => {
@@ -206,7 +203,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     fetchComms();
   }, [user, isOpen]);
 
-  // --- Filtering Logic ---
   const { friendsAll, othersInSport, allCandidates } = useMemo(() => {
     const friendSet = new Set(friends.map((f) => f.uid));
     const others = coPlayers.filter((p) => !friendSet.has(p.uid));
@@ -226,23 +222,26 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     };
   }, [coPlayers, friends]);
 
-  const filterFn = (p: UserProfile) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      (p.name ?? '').toLowerCase().includes(q) ||
-      (p.displayName ?? '').toLowerCase().includes(q) ||
-      (p.email ?? '').toLowerCase().includes(q)
-    );
-  };
+  const filterFn = useCallback(
+    (p: UserProfile) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        (p.name ?? '').toLowerCase().includes(q) ||
+        (p.displayName ?? '').toLowerCase().includes(q) ||
+        (p.email ?? '').toLowerCase().includes(q)
+      );
+    },
+    [search]
+  );
 
   const filteredFriends = useMemo(
     () => friendsAll.filter(filterFn),
-    [friendsAll, search]
+    [friendsAll, filterFn]
   );
   const filteredOthers = useMemo(
     () => othersInSport.filter(filterFn),
-    [othersInSport, search]
+    [othersInSport, filterFn]
   );
 
   const toggleSelected = (uid: string, checked: boolean | string) => {
@@ -255,7 +254,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     });
   };
 
-  // --- Avatar Logic ---
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     e.target.value = '';
@@ -323,7 +321,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const uploadAvatar = async (): Promise<string> => {
     if (!avatarBlob || !storage) return '';
     const path = `room-avatars/${sport}/${Date.now()}.jpg`;
-    const storageRef = ref(storage!, path);
+    const storageRef = ref(storage, path);
     const task = uploadBytesResumable(storageRef, avatarBlob);
     return await new Promise<string>((resolve, reject) => {
       task.on(
@@ -351,36 +349,36 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         return 1000;
       };
 
-      // 1. Сбор участников
       const finalMemberIds = new Set([user!.uid, ...selectedFriends]);
       const communityMembersToAdd: NewMember[] = [];
 
-      // Логика для сообществ (только если выбрано)
       if (selectedCommunityId !== 'none') {
         const commDoc = await getDoc(
-          doc(db!, 'communities', selectedCommunityId)
+          doc(db, 'communities', selectedCommunityId)
         );
         if (commDoc.exists()) {
           const commData = commDoc.data() as Community;
           if (commData.members && Array.isArray(commData.members)) {
             commData.members.forEach((id) => finalMemberIds.add(id));
 
-            // Загружаем профили участников сообщества для добавления в комнату
             const membersArr = Array.from(finalMemberIds);
             for (let i = 0; i < membersArr.length; i += 10) {
               const chunk = membersArr.slice(i, i + 10);
               if (chunk.length === 0) continue;
 
               const q = query(
-                collection(db!, 'users'),
-                where('uid', 'in', chunk)
+                collection(db, 'users'),
+                where(documentId(), 'in', chunk)
               );
+
               const snaps = await getDocs(q);
               snaps.forEach((d) => {
                 const p = d.data() as UserProfile;
-                if (p.uid !== user?.uid) {
+                const currentUid = d.id;
+
+                if (currentUid !== user?.uid) {
                   communityMembersToAdd.push({
-                    userId: p.uid,
+                    userId: currentUid,
                     name: p.name || p.displayName || '',
                     email: p.email || '',
                     rating: getStartingRating(
@@ -399,11 +397,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         }
       }
 
-      // Логика для друзей (всегда работает, если они выбраны)
-      // Добавляем тех, кого еще нет в списке от сообщества
       const friendMembers = selectedFriends
-        .map((uid) => {
-          // Пропускаем, если уже добавлен через сообщество
+        .map((uid): NewMember | null => {
           if (communityMembersToAdd.some((m) => m.userId === uid)) return null;
 
           const f =
@@ -419,10 +414,10 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
             wins: 0,
             losses: 0,
             date: now,
-            role: 'editor' as const,
+            role: 'editor',
           };
         })
-        .filter((m): m is NewMember => !!m);
+        .filter((m): m is NewMember => m !== null);
 
       const myGlobalElo = userProfile?.sports?.[sport]?.globalElo ?? 1000;
       const initialMembers: NewMember[] = [
@@ -445,7 +440,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       const adminIds = withSuperAdmins(user!.uid, superAdmins);
       const memberIdsArr = Array.from(finalMemberIds);
 
-      const docRef = await addDoc(collection(db!, config.collections.rooms), {
+      const docRef = await addDoc(collection(db, config.collections.rooms), {
         name: roomName.trim(),
         description: roomDescription.trim(),
         avatarURL,
@@ -467,14 +462,12 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
           selectedCommunityId !== 'none' ? selectedCommunityId : null,
       });
 
-      const batch = writeBatch(db!);
+      const batch = writeBatch(db);
 
-      // Обновляем список комнат у пользователей
       memberIdsArr.forEach((uid) => {
         batch.update(doc(db!, 'users', uid), { rooms: arrayUnion(docRef.id) });
       });
 
-      // Обновляем сообщество (если выбрано)
       if (selectedCommunityId !== 'none') {
         batch.update(doc(db!, 'communities', selectedCommunityId), {
           roomIds: arrayUnion(docRef.id),

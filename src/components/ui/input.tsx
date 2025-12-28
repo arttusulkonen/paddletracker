@@ -42,9 +42,9 @@ export const Input = React.forwardRef<HTMLInputElement, Props>(
       delete (inputProps as any).onChange;
     }
 
-    delete (inputProps as any).defaultValue &&
-      isControlled &&
+    if (isControlled) {
       delete (inputProps as any).defaultValue;
+    }
 
     return <input ref={ref} {...inputProps} />;
   }

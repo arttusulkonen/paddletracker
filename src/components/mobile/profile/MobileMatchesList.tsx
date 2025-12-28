@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
-import { Sport, sportConfig } from '@/contexts/SportContext';
+import { Sport } from '@/contexts/SportContext';
 import type { Match } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
 import Link from 'next/link';
@@ -9,7 +9,6 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function MobileMatchesList({
-  sport,
   matches,
   meUid,
 }: {

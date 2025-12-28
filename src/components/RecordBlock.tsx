@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { processAndSaveMatches } from '@/lib/elo';
 import type { Room } from '@/lib/types';
 import { Plus, Sword, Trash2, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -124,12 +124,13 @@ function MatchupDraftBlock({
     if (sport === 'tennis') {
       return { score1: '', score2: '' } as TennisSetData;
     }
-    
-    const lastSide1 = (lastGame as PingPongMatchData | BadmintonMatchData)?.side1 || 'left';
+
+    const lastSide1 =
+      (lastGame as PingPongMatchData | BadmintonMatchData)?.side1 || 'left';
     // Alternate sides for pingpong/badminton to simplify input
     const newSide1 = lastSide1 === 'left' ? 'right' : 'left';
     const newSide2 = newSide1 === 'left' ? 'right' : 'left';
-    
+
     return {
       score1: '',
       score2: '',
@@ -159,24 +160,28 @@ function MatchupDraftBlock({
       games: matchup.games.map((row, index) => (index === i ? data : row)),
     });
   };
-  
-  const isMatchupReady = matchup.player1Id && matchup.player2Id && matchup.games.length > 0;
-  
+
+  const isMatchupReady =
+    matchup.player1Id && matchup.player2Id && matchup.games.length > 0;
+
   const invalidGame = matchup.games.find(({ score1, score2 }: any) => {
     const a = +score1;
     const b = +score2;
     if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
     return !config.validateScore(a, b).isValid;
   });
-  
-  const p1Name = members.find(m => m.userId === matchup.player1Id)?.name;
-  const p2Name = members.find(m => m.userId === matchup.player2Id)?.name;
 
-  let headerClass = 'flex items-center gap-2 font-bold text-lg p-2 rounded-t-lg transition-colors';
+  const p1Name = members.find((m) => m.userId === matchup.player1Id)?.name;
+  const p2Name = members.find((m) => m.userId === matchup.player2Id)?.name;
+
+  let headerClass =
+    'flex items-center gap-2 font-bold text-lg p-2 rounded-t-lg transition-colors';
   if (invalidGame) {
-    headerClass += ' bg-amber-100 dark:bg-amber-950/20 text-amber-600 border-b border-amber-300';
+    headerClass +=
+      ' bg-amber-100 dark:bg-amber-950/20 text-amber-600 border-b border-amber-300';
   } else if (isMatchupReady) {
-    headerClass += ' bg-primary/5 dark:bg-primary/10 text-primary border-b border-primary/20';
+    headerClass +=
+      ' bg-primary/5 dark:bg-primary/10 text-primary border-b border-primary/20';
   } else {
     headerClass += ' bg-muted text-muted-foreground border-b border-border';
   }
@@ -225,18 +230,17 @@ function MatchupDraftBlock({
           </Label>
           <div className='space-y-4'>
             {matchup.games.map((row, i) => {
-              // FIX: Remove 'key: i' from rowProps and pass it directly to the component
               const rowProps = {
                 data: row as any,
                 onChange: (d: any) => updateGameRow(i, d),
                 onRemove: () => removeGameRow(i),
-                removable: matchup.games.length > 1, // Only allow removal if there is more than one game/set
+                removable: matchup.games.length > 1,
               };
-              
+
               if (sport === 'pingpong') {
                 return (
                   <PingPongRowInput
-                    key={i} // Key passed directly
+                    key={i}
                     {...rowProps}
                     data={row as PingPongMatchData}
                     matchIndex={i}
@@ -246,7 +250,7 @@ function MatchupDraftBlock({
               if (sport === 'badminton') {
                 return (
                   <BadmintonRowInput
-                    key={i} // Key passed directly
+                    key={i}
                     {...rowProps}
                     data={row as BadmintonMatchData}
                     matchIndex={i}
@@ -256,7 +260,7 @@ function MatchupDraftBlock({
               if (sport === 'tennis') {
                 return (
                   <TennisRowInput
-                    key={i} // Key passed directly
+                    key={i}
                     {...rowProps}
                     data={row as TennisSetData}
                     setIndex={i}
@@ -266,7 +270,7 @@ function MatchupDraftBlock({
               return null;
             })}
           </div>
-          
+
           <Button
             variant='outline'
             className='flex items-center gap-2 w-full mt-4'
@@ -283,7 +287,6 @@ function MatchupDraftBlock({
 export function RecordBlock({
   members,
   roomId,
-  room,
   isCreator,
   isGlobalAdmin,
   onFinishSeason,
@@ -299,29 +302,50 @@ export function RecordBlock({
   const { sport, config } = useSport();
   const { toast } = useToast();
 
-  const createInitialGame = () =>
-    sport === 'tennis'
-      ? ({ score1: '', score2: '' } as TennisSetData)
-      : ({ score1: '', score2: '', side1: 'left', side2: 'right' } as
-          | PingPongMatchData
-          | BadmintonMatchData);
+  // FIX: Filter out coaches from playable members
+  const playableMembers = members.filter((m: any) => m.accountType !== 'coach');
 
-  const createInitialMatchup = (): MatchupDraft => ({
-    id: Date.now().toString(), // Simple unique ID
-    player1Id: '',
-    player2Id: '',
-    games: [createInitialGame()],
-  });
+  const createInitialGame = useCallback(
+    () =>
+      sport === 'tennis'
+        ? ({ score1: '', score2: '' } as TennisSetData)
+        : ({ score1: '', score2: '', side1: 'left', side2: 'right' } as
+            | PingPongMatchData
+            | BadmintonMatchData),
+    [sport]
+  );
 
+  const createInitialMatchup = useCallback(
+    (): MatchupDraft => ({
+      id: Date.now().toString(),
+      player1Id: '',
+      player2Id: '',
+      games: [createInitialGame()],
+    }),
+    [createInitialGame]
+  );
+
+  // Используем функцию-инициализатор для useState, чтобы избежать проблем с начальным рендером
+  // но также обновляем через useEffect при смене спорта
   const [matchupDrafts, setMatchupDrafts] = useState<MatchupDraft[]>(() => [
-    createInitialMatchup(),
+    {
+      id: Date.now().toString(),
+      player1Id: '',
+      player2Id: '',
+      games: [
+        sport === 'tennis'
+          ? ({ score1: '', score2: '' } as TennisSetData)
+          : ({ score1: '', score2: '', side1: 'left', side2: 'right' } as
+              | PingPongMatchData
+              | BadmintonMatchData),
+      ],
+    },
   ]);
   const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
-    // Reset drafts when sport changes
     setMatchupDrafts([createInitialMatchup()]);
-  }, [sport]);
+  }, [sport, createInitialMatchup]);
 
   const addMatchup = () => {
     setMatchupDrafts((prev) => [...prev, createInitialMatchup()]);
@@ -338,7 +362,6 @@ export function RecordBlock({
   };
 
   const saveMatches = async () => {
-    // 1. Validate all matchups
     const validDrafts = matchupDrafts.filter(
       (m) =>
         m.player1Id &&
@@ -350,16 +373,17 @@ export function RecordBlock({
     if (validDrafts.length === 0) {
       toast({
         title: t('No valid matches to record'),
-        description: t('Please select two different players and enter at least one game/set result for a matchup.'),
+        description: t(
+          'Please select two different players and enter at least one game/set result for a matchup.'
+        ),
         variant: 'destructive',
       });
       return;
     }
-    
-    // Check all games in valid drafts
+
     let allGamesValid = true;
     let firstInvalidGame: GameData | undefined = undefined;
-    
+
     for (const draft of validDrafts) {
       const invalidGame = draft.games.find(({ score1, score2 }: any) => {
         const a = +score1;
@@ -373,7 +397,7 @@ export function RecordBlock({
         break;
       }
     }
-    
+
     if (!allGamesValid) {
       const { message } = config.validateScore(
         +(firstInvalidGame as any).score1,
@@ -389,18 +413,14 @@ export function RecordBlock({
 
     setIsRecording(true);
     let successCount = 0;
-    
-    // 2. Process and Save each matchup sequentially
+
     for (const draft of validDrafts) {
       const success = await processAndSaveMatches(
         roomId,
-        room,
         draft.player1Id,
         draft.player2Id,
         draft.games as any,
-        members,
-        sport,
-        config
+        sport
       );
       if (success) successCount++;
     }
@@ -408,7 +428,9 @@ export function RecordBlock({
     if (successCount > 0) {
       toast({
         title: t('Matches recorded'),
-        description: t('{{count}} matchups successfully recorded.', { count: successCount }),
+        description: t('{{count}} matchups successfully recorded.', {
+          count: successCount,
+        }),
       });
       setMatchupDrafts([createInitialMatchup()]);
     } else {
@@ -421,14 +443,21 @@ export function RecordBlock({
 
     setIsRecording(false);
   };
-  
+
   const totalGames = matchupDrafts.reduce((sum, m) => sum + m.games.length, 0);
-  const totalMatchupsReady = matchupDrafts.filter(m => m.player1Id && m.player2Id && m.player1Id !== m.player2Id && m.games.length > 0 && !m.games.find(({ score1, score2 }: any) => {
-    const a = +score1;
-    const b = +score2;
-    if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
-    return !config.validateScore(a, b).isValid;
-  })).length;
+  const totalMatchupsReady = matchupDrafts.filter(
+    (m) =>
+      m.player1Id &&
+      m.player2Id &&
+      m.player1Id !== m.player2Id &&
+      m.games.length > 0 &&
+      !m.games.find(({ score1, score2 }: any) => {
+        const a = +score1;
+        const b = +score2;
+        if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
+        return !config.validateScore(a, b).isValid;
+      })
+  ).length;
 
   return (
     <Card className='shadow-md flex flex-col h-full'>
@@ -440,13 +469,13 @@ export function RecordBlock({
           {t('Record one or more matchups with their game/set results.')}
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className='space-y-6 flex-grow'>
         {matchupDrafts.map((matchup) => (
           <MatchupDraftBlock
             key={matchup.id}
             matchup={matchup}
-            members={members}
+            members={playableMembers}
             sport={sport}
             config={config}
             onUpdate={updateMatchup}
@@ -467,7 +496,11 @@ export function RecordBlock({
           </Button>
           <div className='flex flex-col items-end gap-2'>
             <span className='text-sm text-muted-foreground'>
-              {t('Ready to record')}: <strong>{totalMatchupsReady} / {matchupDrafts.length}</strong> {t('matchups')} ({totalGames} {t('games')})
+              {t('Ready to record')}:{' '}
+              <strong>
+                {totalMatchupsReady} / {matchupDrafts.length}
+              </strong>{' '}
+              {t('matchups')} ({totalGames} {t('games')})
             </span>
             <Button
               className='w-full sm:w-auto sm:max-w-xs'
@@ -479,7 +512,7 @@ export function RecordBlock({
           </div>
         </div>
       </CardContent>
-      
+
       {sport === 'tennis' && (
         <CardFooter className='flex-col items-start gap-4 border-t pt-4 text-xs text-muted-foreground'>
           <p className='font-semibold'>{t('Tennis Terms:')}</p>

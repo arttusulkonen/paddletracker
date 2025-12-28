@@ -49,13 +49,19 @@ export function StandingsTable({
     latestSeason ? 'final' : 'regular'
   );
 
+  // FIX: Filter out coaches
+  const activePlayers = useMemo(
+    () => players.filter((p: any) => p.accountType !== 'coach'),
+    [players]
+  );
+
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     dir: 'asc' | 'desc';
   }>({ key: 'rating', dir: 'desc' });
 
   const sortedPlayers = useMemo(() => {
-    return [...players].sort((a: any, b: any) => {
+    return [...activePlayers].sort((a: any, b: any) => {
       if (a.ratingVisible !== b.ratingVisible) return a.ratingVisible ? -1 : 1;
 
       const { key, dir } = sortConfig;
@@ -69,7 +75,7 @@ export function StandingsTable({
       }
       return factor * ((a[key] ?? 0) - (b[key] ?? 0));
     });
-  }, [players, sortConfig]);
+  }, [activePlayers, sortConfig]);
 
   const handleSort = (key: string) => {
     setSortConfig((prev) => ({
@@ -156,20 +162,14 @@ export function StandingsTable({
 
         {viewMode === 'liveFinal' && (
           <LiveFinalStandings
-            players={players}
-            sport={sport}
+            players={activePlayers}
             t={t}
             roomMode={roomMode}
           />
         )}
 
         {viewMode === 'final' && (
-          <FinalStandings
-            season={latestSeason}
-            sport={sport}
-            t={t}
-            roomMode={roomMode}
-          />
+          <FinalStandings season={latestSeason} t={t} roomMode={roomMode} />
         )}
       </CardContent>
     </Card>
@@ -300,7 +300,7 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
     return sport === 'tennis'
       ? [...common, ...tennisSpecific]
       : [...common, ...standardSpecific];
-  }, [sport, t]);
+  }, [sport]);
 
   return (
     <div className='overflow-x-auto'>
@@ -457,10 +457,15 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
   );
 }
 
-function LiveFinalStandings({ players, sport, t, roomMode }: any) {
+function LiveFinalStandings({ players, t, roomMode }: any) {
   const rows = useMemo(() => {
-    const base = (players ?? []).map((p: any) => {
-      const matchesPlayed = Number(p.totalMatches ?? p.wins + p.losses ?? 0);
+    // FIX: Removing 'players ?? []' fallback since 'players' is guaranteed by prop types usually
+    const base = players.map((p: any) => {
+      const matchesPlayed = Number(
+        typeof p.totalMatches === 'number'
+          ? p.totalMatches
+          : (p.wins ?? 0) + (p.losses ?? 0)
+      );
       const roomRating = Number(p.rating ?? 1000);
 
       // FIXED: Strictly handle players with 0 matches.
@@ -660,11 +665,12 @@ function LiveFinalStandings({ players, sport, t, roomMode }: any) {
   );
 }
 
-function FinalStandings({ season, sport, t, roomMode }: any) {
-  const data = useMemo(
-    () => (Array.isArray(season?.summary) ? season.summary : []),
-    [season]
-  );
+function FinalStandings({ season, t, roomMode }: any) {
+  // FIX: activePlayers should include EVERYONE, including the creator.
+  const data = useMemo(() => {
+    const summary = Array.isArray(season?.summary) ? season.summary : [];
+    return summary; // No filtering
+  }, [season]);
 
   if (!data.length) {
     return (

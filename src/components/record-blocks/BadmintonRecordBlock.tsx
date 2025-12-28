@@ -105,7 +105,6 @@ export function BadmintonRowInput({
           className='w-full border rounded p-2 bg-muted'
           value={data.side2}
           disabled
-          readOnly
         >
           <option value='left'>{t('Left')}</option>
           <option value='right'>{t('Right')}</option>

@@ -31,6 +31,7 @@ i18n
 
 // Эта функция будет подгружать свежие переводы из Firestore
 export const fetchAndMergeTranslations = async (lang: string) => {
+	if (!db) return;
   try {
     const docRef = doc(db, 'translations', lang);
     const docSnap = await getDoc(docRef);

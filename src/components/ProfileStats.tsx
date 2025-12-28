@@ -2,39 +2,37 @@
 'use client';
 
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Badge,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  ScrollArea,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Badge,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	ScrollArea,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from '@/components/ui';
-import { useAuth } from '@/contexts/AuthContext';
+// FIX: Import SportConfig from context, not types
+import { SportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
-import { Match, Room, SportConfig } from '@/lib/types';
+import { Match, Room } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
 import { doc, getDoc } from 'firebase/firestore';
 import {
-  CornerUpLeft,
-  CornerUpRight,
-  PieChart as PieChartIcon,
+	CornerUpLeft,
+	CornerUpRight,
+	PieChart as PieChartIcon,
 } from 'lucide-react';
-import { FC, useEffect, useMemo, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Pie,
-  PieChart,
-  Legend as ReLegend,
-  ResponsiveContainer,
+	Pie,
+	PieChart,
+	Legend as ReLegend,
+	ResponsiveContainer,
 } from 'recharts';
 
 // Типы для пропсов
@@ -197,6 +195,7 @@ function MatchesTableCard({
       const roomsCollectionName = config.collections.rooms;
 
       for (const roomId of newIdsToFetch) {
+        // FIX: Ensure db is checked (already checked at top of function)
         const roomSnap = await getDoc(doc(db, roomsCollectionName, roomId!));
         if (roomSnap.exists()) {
           newRoomData.set(roomId!, { id: roomId, ...roomSnap.data() } as Room);

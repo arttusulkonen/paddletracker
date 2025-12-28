@@ -24,14 +24,13 @@ import { useTranslation } from 'react-i18next';
 export function MobilePingPongRecordBlock({
   members,
   roomId,
-  room,
 }: {
   members: Room['members'];
   roomId: string;
   room: Room;
 }) {
   const { t } = useTranslation();
-  const { sport, config } = useSport();
+  const { sport } = useSport();
   const { toast } = useToast();
 
   const [player1Id, setPlayer1Id] = useState('');
@@ -103,13 +102,10 @@ export function MobilePingPongRecordBlock({
     setIsRecording(true);
     const success = await processAndSaveMatches(
       roomId,
-      room,
       player1Id,
       player2Id,
       normalizedRows,
-      members,
-      sport,
-      config
+      'pingpong'
     );
     if (success) {
       toast({ title: t('Matches recorded') });

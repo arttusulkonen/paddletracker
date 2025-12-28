@@ -2,14 +2,14 @@
 'use client';
 
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
 } from '@/components/ui';
 import { Sport, sportConfig } from '@/contexts/SportContext';
 import { safeFormatDate } from '@/lib/utils/date';
@@ -84,7 +84,6 @@ export default function AchievementsPanel({
   sport,
   sportMatches = 0,
   sportWins = 0,
-  sportWinRate = 0,
   sportMaxStreak = 0,
 }: Props) {
   const { t } = useTranslation();

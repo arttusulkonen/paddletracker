@@ -15,8 +15,7 @@ import {
 	limit,
 	onSnapshot,
 	orderBy,
-	query,
-	Timestamp
+	query
 } from 'firebase/firestore';
 import { Globe, Trophy, UserPlus, Users } from 'lucide-react';
 import { useParams } from 'next/navigation';

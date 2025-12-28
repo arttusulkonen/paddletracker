@@ -1,5 +1,3 @@
-// src/lib/types.ts
-
 // --- Enums & Unions ---
 export type Sport = 'pingpong' | 'tennis' | 'badminton';
 export type RoomMode = 'office' | 'professional' | 'arcade';
@@ -19,7 +17,7 @@ export interface Community {
   ownerId: string; // Главный тренер/создатель
   admins: string[]; // Список ID тренеров, которые управляют
   members: string[]; // Список ID игроков (призраков и реальных)
-	roomIds?: string[];
+  roomIds?: string[];
   createdAt: string;
   avatarURL?: string | null;
 }
@@ -214,6 +212,10 @@ export interface Room {
   // Data
   seasonHistory?: Season[];
   rankHistories?: Record<string, RankHistoryPoint[]>; // userId -> history
+  
+  // Communities
+  communityId?: string | null;
+  communityName?: string;
 }
 
 // --- Matches ---
@@ -287,6 +289,24 @@ export interface Match {
 export interface TournamentRoom {
   id: string;
   name: string;
+  creator: string;
+  participants: Array<{
+    userId: string;
+    name: string;
+  }>;
+  sport: Sport;
+  createdAt: string;
+  startDate: string;
+  endDate?: string;
+  structure: string; // e.g. 'singleElimination'
+  status: string;    // e.g. 'upcoming', 'ongoing', 'completed'
+  
+  bracket?: any; 
+  description?: string;
+  avatarURL?: string;
+  participantsIds?: string[];
+  isFinished?: boolean;
+  champion?: { name: string; userId?: string } | null;
 }
 
 // --- Activity Feed ---
@@ -309,3 +329,12 @@ export interface FeedItem {
     [key: string]: any;
   };
 }
+
+export interface Tournament  {
+  id: string;
+  name: string;
+  description?: string;
+  sport?: string;
+  bracket: any;
+  [key: string]: any;
+};

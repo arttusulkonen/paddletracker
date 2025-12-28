@@ -3,26 +3,26 @@
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Room, UserProfile } from '@/lib/types';
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	query,
+	where,
 } from 'firebase/firestore';
 import { ArrowLeft, LockIcon } from 'lucide-react';
 import Link from 'next/link';
@@ -64,7 +64,7 @@ function RoomListItem({ room }: { room: Room }) {
                 )}
               </p>
               <p className='text-sm text-muted-foreground'>
-                {t(room.sport)} • {t('Members')} {room.memberIds.length}
+                {t(room.sport ?? '')} • {t('Members')} {room.memberIds.length}
               </p>
             </div>
           </div>
@@ -95,7 +95,7 @@ export default function UserRoomsPage() {
     const fetchUserData = async () => {
       setLoading(true);
       try {
-        const userDoc = await getDoc(doc(db, 'users', uid));
+        const userDoc = await getDoc(doc(db!, 'users', uid));
         if (userDoc.exists()) {
           setUserProfile(userDoc.data() as UserProfile);
         }
@@ -103,7 +103,7 @@ export default function UserRoomsPage() {
         const promises = SPORTS.map((sport) => {
           const collectionName = sportConfig[sport].collections.rooms;
           const q = query(
-            collection(db, collectionName),
+            collection(db!, collectionName),
             where('memberIds', 'array-contains', uid)
           );
           return getDocs(q).then((snapshot) =>
