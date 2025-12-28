@@ -40,6 +40,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
+import { containsProfanity, validateImageFile } from '@/lib/moderation';
 import type { Room, Member as RoomMember } from '@/lib/types';
 import {
 	arrayRemove,
@@ -124,11 +125,17 @@ export function RoomSettingsDialog({
     const f = e.target.files?.[0] ?? null;
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (!f) return;
-    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
-    if (!allowed.includes(f.type)) {
-      toast({ title: t('Invalid image'), variant: 'destructive' });
+    
+    const { valid, error } = validateImageFile(f);
+    if (!valid) {
+      toast({ 
+        title: t('Invalid image'), 
+        description: t(error || 'Invalid file'), 
+        variant: 'destructive' 
+      });
       return;
     }
+
     const src = URL.createObjectURL(f);
     setAvatarSrc(src);
     setCropOpen(true);
@@ -160,6 +167,15 @@ export function RoomSettingsDialog({
   // --- ACTIONS ---
 
   const handleSave = async () => {
+    if (containsProfanity(name) || containsProfanity(description)) {
+      toast({
+        title: t('Content Warning'),
+        description: t('Name or description contains inappropriate words.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const data: Partial<Room> & { communityId?: string | null } = {

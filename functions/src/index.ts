@@ -1514,3 +1514,48 @@ export const onGhostClaimed = onDocumentUpdated(
     });
   }
 });
+
+export const aiContentCheck = onCall(
+  { region: 'europe-west1' }, 
+  async (request: CallableRequest) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
+    }
+
+    const { text, context } = request.data; // context: 'room_name', 'bio', etc.
+
+    try {
+      const prompt = `
+        You are a strict content moderator for a sports community app.
+        Analyze the following text for:
+        1. Profanity (Russian,English,Finnish,Korean).
+        2. Hate speech or calls to violence.
+        3. Sexual content / 18+ references.
+        4. Spam.
+
+        Text to check: "${text}"
+        Context: ${context || 'general'}
+
+        If the text is SAFE, return valid: true.
+        If UNSAFE, return valid: false and a brief reason (localized to user language if possible, otherwise English).
+
+        JSON Output only.
+      `;
+
+      const response = await ai.generate({
+        prompt: prompt,
+        output: {
+          schema: z.object({
+            valid: z.boolean(),
+            reason: z.string().optional(),
+          }),
+        },
+      });
+
+      return response.output;
+    } catch (error: any) {
+      logger.error('Content check error:', error);
+      return { valid: true }; 
+    }
+  }
+);
