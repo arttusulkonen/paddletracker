@@ -2,33 +2,30 @@
 'use client';
 
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui';
 import {
-  Calendar,
-  LineChart as LineChartIcon,
-  PieChart as PieChartIcon,
-  Users,
+	LineChart as LineChartIcon,
+	PieChart as PieChartIcon,
+	TrendingUp,
 } from 'lucide-react';
 import React from 'react';
 import {
-  Bar,
-  Brush,
-  CartesianGrid,
-  Line,
-  Pie,
-  BarChart as RBarChart,
-  ResponsiveContainer,
-  Legend as RLegend,
-  LineChart as RLineChart,
-  PieChart as RPieChart,
-  Tooltip as RTooltip,
-  XAxis,
-  YAxis,
+	Brush,
+	CartesianGrid,
+	Line,
+	Pie,
+	ResponsiveContainer,
+	Legend as RLegend,
+	LineChart as RLineChart,
+	PieChart as RPieChart,
+	Tooltip as RTooltip,
+	XAxis,
+	YAxis,
 } from 'recharts';
 
 type PerfPoint = {
@@ -54,6 +51,19 @@ type OpponentPoint = {
   losses: number;
 };
 
+// Новый тип для тренда
+type WinRatePoint = {
+  matchIndex: number;
+  label: string;
+  date: string;
+  winRate: number;
+  wins: number;
+  total: number;
+};
+
+// FIX: Updated TFunction type to accept optional options
+type TFunction = (k: string, options?: any) => string;
+
 function EloTooltip({
   active,
   payload,
@@ -63,7 +73,7 @@ function EloTooltip({
   active?: boolean;
   payload?: any[];
   label?: string;
-  t: (k: string) => string;
+  t: TFunction;
 }) {
   if (!active || !payload || payload.length === 0) return null;
   const d: PerfPoint = payload[0].payload;
@@ -71,7 +81,7 @@ function EloTooltip({
     d.result === 1 ? t('Win') : d.result === -1 ? t('Loss') : t('Draw');
   const delta = d.addedPoints > 0 ? `+${d.addedPoints}` : `${d.addedPoints}`;
   return (
-    <div className='bg-white p-2 rounded shadow text-sm'>
+    <div className='bg-white p-2 rounded shadow text-sm border'>
       <div className='font-semibold mb-1'>{label}</div>
       <div>
         {t('Opponent')}: {d.opponent}
@@ -92,17 +102,46 @@ function EloTooltip({
   );
 }
 
+// Тултип для графика Win Rate
+function WinRateTooltip({
+  active,
+  payload,
+  // FIX: Removed unused 'label'
+  t,
+}: {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  t: TFunction;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const d: WinRatePoint = payload[0].payload;
+  return (
+    <div className='bg-white p-2 rounded shadow text-sm border'>
+      <div className='font-semibold mb-1'>{d.date}</div>
+      <div>
+        {t('Matches')}: {d.total}
+      </div>
+      <div>
+        {t('Wins')}: {d.wins}
+      </div>
+      <div className='font-bold text-primary'>
+        {t('Win Rate')}: {d.winRate.toFixed(1)}%
+      </div>
+    </div>
+  );
+}
+
 export default function ProfileCharts({
   t,
   pieData,
   sidePieData,
   sidePieLossData,
   perfData,
-  monthlyData,
-  oppStats,
-  compact = false,
+  winRateTrend,
+  selectedOpponentName,
 }: {
-  t: (k: string) => string;
+  t: TFunction; // FIX: Use updated type
   pieData: { name: string; value: number; fill?: string }[];
   sidePieData: { name: string; value: number; fill?: string }[];
   sidePieLossData: { name: string; value: number; fill?: string }[];
@@ -110,9 +149,13 @@ export default function ProfileCharts({
   monthlyData: MonthlyPoint[];
   oppStats: OpponentPoint[];
   compact?: boolean;
+  // Добавлены новые пропсы
+  winRateTrend?: WinRatePoint[] | null;
+  selectedOpponentName?: string;
 }) {
   const hasPerf = perfData && perfData.length > 0;
   const [isMobile, setIsMobile] = React.useState(false);
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     const mql = window.matchMedia('(max-width: 640px)');
@@ -209,6 +252,52 @@ export default function ProfileCharts({
         </Card>
       </div>
 
+      {/* Если есть данные по тренду Win Rate (выбран оппонент) */}
+      {winRateTrend && winRateTrend.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center gap-2'>
+              <TrendingUp className='h-5 w-5 text-primary' />
+              {t('Win Rate Trend vs {{name}}', {
+                name: selectedOpponentName || 'Opponent',
+              })}
+            </CardTitle>
+            <CardDescription>
+              {t('Cumulative win percentage over time')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='h-[350px]'>
+            <ResponsiveContainer width='100%' height='100%'>
+              <RLineChart
+                data={winRateTrend}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray='3 3' vertical={false} />
+                <XAxis
+                  dataKey='label'
+                  tick={{ fontSize: 12 }}
+                  minTickGap={30}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tickFormatter={(val) => `${val}%`}
+                  tick={{ fontSize: 12 }}
+                />
+                <RTooltip content={<WinRateTooltip t={t} />} />
+                <Line
+                  type='monotone'
+                  dataKey='winRate'
+                  stroke='hsl(var(--primary))'
+                  strokeWidth={3}
+                  dot={{ r: 3, fill: 'hsl(var(--primary))' }}
+                  activeDot={{ r: 6 }}
+                />
+              </RLineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className={isMobile ? 'pb-2' : undefined}>
           <CardTitle className='flex items-center gap-2'>
@@ -264,85 +353,6 @@ export default function ProfileCharts({
           )}
         </CardContent>
       </Card>
-
-      {/* {!compact && (
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-          <Card>
-            <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <LineChartIcon /> {t('Match Result Timeline')}
-              </CardTitle>
-              <CardDescription>{t('Win = 1, Loss = -1')}</CardDescription>
-            </CardHeader>
-            <CardContent className='h-[380px]'>
-              {hasPerf ? (
-                <ResponsiveContainer width='100%' height='100%'>
-                  <RLineChart data={perfData} syncId='profilePerf'>
-                    <CartesianGrid strokeDasharray='3 3' />
-                    <XAxis dataKey='label' />
-                    <YAxis domain={[-1.2, 1.2]} ticks={[-1, 0, 1]} />
-                    <RTooltip />
-                    <RLegend />
-                    <Line
-                      type='stepAfter'
-                      dataKey='result'
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
-                    />
-                    <Brush
-                      dataKey='label'
-                      height={20}
-                      travellerWidth={10}
-                      startIndex={lastMonthStartIndex}
-                    />
-                  </RLineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className='text-center text-sm text-muted-foreground'>
-                  {t('No data available')}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <LineChartIcon /> {t('Score Difference')}
-              </CardTitle>
-              <CardDescription>{t('Per ranked match')}</CardDescription>
-            </CardHeader>
-            <CardContent className='h-[380px]'>
-              {hasPerf ? (
-                <ResponsiveContainer width='100%' height='100%'>
-                  <RLineChart data={perfData} syncId='profilePerf'>
-                    <CartesianGrid strokeDasharray='3 3' />
-                    <XAxis dataKey='label' />
-                    <YAxis />
-                    <RTooltip />
-                    <RLegend />
-                    <Line
-                      type='monotone'
-                      dataKey='diff'
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
-                    />
-                    <Brush
-                      dataKey='label'
-                      height={20}
-                      travellerWidth={10}
-                      startIndex={lastMonthStartIndex}
-                    />
-                  </RLineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className='text-center text-sm text-muted-foreground'>
-                  {t('No data available')}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )} */}
     </div>
   );
 }

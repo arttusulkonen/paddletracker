@@ -47,7 +47,7 @@ export function middleware(req: NextRequest) {
   }
 
   // Комнаты: /rooms/:id → /mobile/rooms/:id
-  const roomMatch = pathname.match(/^\/rooms\/([^\/]+)$/);
+  const roomMatch = pathname.match(/^\/rooms\/([^/]+)$/);
   if (roomMatch) {
     const roomId = roomMatch[1];
     const url = req.nextUrl.clone();
@@ -56,7 +56,7 @@ export function middleware(req: NextRequest) {
   }
 
   // Профиль: /profile/:uid → /mobile/profile/:uid
-  const profileMatch = pathname.match(/^\/profile\/([^\/]+)$/);
+  const profileMatch = pathname.match(/^\/profile\/([^/]+)$/);
   if (profileMatch) {
     const uid = profileMatch[1];
     const url = req.nextUrl.clone();

@@ -38,21 +38,29 @@ service cloud.firestore {
     // КОЛЛЕКЦИЯ: USERS
     // =========================================================
     match /users/{userId} {
-      // ЧТЕНИЕ: Разрешаем всем авторизованным пользователям.
-      // Это необходимо, чтобы видеть списки участников в комнатах и комьюнити, 
-      // даже если у кого-то стоит приватный профиль (приватность можно обрабатывать на клиенте визуально, но данные должны читаться).
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() || (resource.data.isGhost == true);
 
-      allow create: if isSignedIn();
+      allow create: if isOwner(userId) || (
+        isSignedIn() && 
+        request.resource.data.isGhost == true && 
+        request.resource.data.managedBy == request.auth.uid
+      );
       
-      // ОБНОВЛЕНИЕ: 
-      // - Владелец (изменение имени, фото)
-      // - Супер-админ
-      // - Любой авторизованный (для обновления массивов rooms/friends/requests при взаимодействии).
-      //   В идеале можно ужесточить, но для работы приглашений и вступлений пока оставляем так.
-      allow update: if isSignedIn();
+      allow update: if 
+        // 1. Владелец может обновлять свой профиль (кроме защищенных полей)
+        (isOwner(userId) && 
+         !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['claimedFrom', 'ghostId', 'managedBy'])) 
+        || 
+        // 2. Супер-админ или Тренер этого игрока
+        isSuperAdmin() || 
+        isCoachOf(resource.data) 
+        ||
+        // 3. НОВОЕ ПРАВИЛО: Разрешаем любому авторизованному юзеру обновлять ТОЛЬКО поле 'rooms'
+        // Это нужно, чтобы можно было добавлять id комнаты в список комнат другого игрока при приглашении
+        (isSignedIn() && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rooms']));
       
-      // УДАЛЕНИЕ: Строго ограничено
       allow delete: if isOwner(userId) || isSuperAdmin() || isCoachOf(resource.data);
     }
 
@@ -65,62 +73,65 @@ service cloud.firestore {
     }
 
     // =========================================================
-    // КОЛЛЕКЦИИ: ROOMS (Явное перечисление)
+    // КОЛЛЕКЦИИ: ROOMS
     // =========================================================
-    
-    // Ping-Pong Rooms
     match /rooms-pingpong/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      // Обновление: разрешаем всем авторизованным (нужно для joinRequests и обновления статистики через Cloud Function, если она пишет от лица юзера, но обычно CF использует Admin SDK и игнорирует правила)
-      // Оставляем isSignedIn для клиентских операций типа "Leave room"
-      allow update: if isSignedIn();
+      
+      allow update: if 
+        isRoomAdmin(resource.data) || 
+        (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
+          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
-    // Tennis Rooms
     match /rooms-tennis/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      
+      allow update: if 
+        isRoomAdmin(resource.data) || 
+        (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
+          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
-    // Badminton Rooms
     match /rooms-badminton/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      
+      allow update: if 
+        isRoomAdmin(resource.data) || 
+        (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
+          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
     // =========================================================
-    // КОЛЛЕКЦИИ: MATCHES (Явное перечисление)
+    // КОЛЛЕКЦИИ: MATCHES
     // =========================================================
-
-    // Мы перенесли запись матчей в Cloud Functions (recordMatch), 
-    // поэтому клиент больше не должен писать сюда напрямую.
-    // Однако, чтение (read) нужно оставить для отображения истории.
-    
     match /matches-pingpong/{matchId} {
       allow read: if isSignedIn();
-      allow write: if false; // Запись только через сервер (Cloud Functions)
+      allow write: if false; 
     }
 
     match /matches-tennis/{matchId} {
       allow read: if isSignedIn();
-      allow write: if false; // Запись только через сервер (Cloud Functions)
+      allow write: if false; 
     }
 
     match /matches-badminton/{matchId} {
       allow read: if isSignedIn();
-      allow write: if false; // Запись только через сервер (Cloud Functions)
+      allow write: if false; 
     }
 
     // =========================================================
-    // КОЛЛЕКЦИЯ: TOURNAMENTS (Явное перечисление)
+    // КОЛЛЕКЦИЯ: TOURNAMENTS
     // =========================================================
-    
     match /tournaments-pingpong/{tournamentId} {
       allow read, write: if isSignedIn();
     }

@@ -5,11 +5,11 @@ import BracketView from '@/components/BracketView';
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import { TournamentHeader } from '@/components/tournaments/TournamentHeader';
 import {
-  Button,
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+	Button,
+	Card,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
@@ -42,7 +42,7 @@ export default function TournamentPage() {
     if (!tournamentId || !tournamentsEnabled) return;
     setLoading(true);
     try {
-      const snap = await getDoc(doc(db, 'tournament-rooms', tournamentId));
+      const snap = await getDoc(doc(db!, 'tournament-rooms', tournamentId));
       if (!snap.exists()) {
         toast({
           title: t('Error'),

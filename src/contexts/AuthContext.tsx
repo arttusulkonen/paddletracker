@@ -6,26 +6,27 @@ import { auth, db } from '@/lib/firebase';
 import type { UserProfile } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import {
-  User as FirebaseUser,
-  onAuthStateChanged,
-  signOut,
+	User as FirebaseUser,
+	onAuthStateChanged,
+	signOut,
 } from 'firebase/auth';
 import {
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  query,
-  setDoc,
-  where,
+	collection,
+	doc,
+	getDoc,
+	onSnapshot,
+	query,
+	setDoc,
+	where,
 } from 'firebase/firestore';
 import React, {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
+	createContext,
+	ReactNode,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useState,
 } from 'react';
 
 interface AuthContextType {
@@ -51,11 +52,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
 
   useEffect(() => {
-    const unsubscribers: Array<() => void> = [];
+    let unsubscribers: Array<() => void> = [];
+    const requestsMap = new Map<string, number>();
+
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       unsubscribers.forEach((u) => u());
-      unsubscribers.length = 0;
+      unsubscribers = [];
+      requestsMap.clear();
 
       if (!firebaseUser) {
         setUser(null);
@@ -70,127 +78,108 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const token = await firebaseUser.getIdTokenResult(true);
-        setIsGlobalAdmin(!!token.claims.admin);
+        let isAdmin = !!token.claims.admin;
+
+        if (!isAdmin && db) {
+          try {
+            const appSnap = await getDoc(doc(db, 'config', 'app'));
+            const ids = Array.isArray(appSnap.data()?.superAdminIds)
+              ? (appSnap.data()!.superAdminIds as string[])
+              : [];
+            if (ids.includes(firebaseUser.uid)) {
+              isAdmin = true;
+            }
+          } catch {
+            // игнорируем ошибку чтения конфига
+          }
+        }
+        setIsGlobalAdmin(isAdmin);
       } catch {
         setIsGlobalAdmin(false);
       }
 
-      try {
-        const appSnap = await getDoc(doc(db, 'config', 'app'));
-        const ids = Array.isArray(appSnap.data()?.superAdminIds)
-          ? (appSnap.data()!.superAdminIds as string[])
-          : [];
-        if (ids.includes(firebaseUser.uid)) {
-          setIsGlobalAdmin(true);
-        }
-      } catch {}
-
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const unsubProfile = onSnapshot(
-        userRef,
-        async (snap) => {
-          if (snap.exists()) {
-            setUserProfile({ uid: snap.id, ...(snap.data() as any) });
-          } else {
-            const initialData: UserProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || 'New Player',
-              name: firebaseUser.displayName || 'New Player',
-              globalElo: 1000,
-              matchesPlayed: 0,
-              wins: 0,
-              losses: 0,
-              maxRating: 1000,
-              createdAt: getFinnishFormattedDate(),
-              photoURL: firebaseUser.photoURL || null,
-              eloHistory: [{ date: getFinnishFormattedDate(), elo: 1000 }],
-              friends: [],
-              incomingRequests: [],
-              outgoingRequests: [],
-              achievements: [],
-              rooms: [],
-              isPublic: true,
-              bio: '',
-              isDeleted: false,
-              approved: false,
-              approvalReason: '',
-              approvedAt: null,
-              approvedBy: null,
-            };
-            await setDoc(userRef, initialData);
-            setUserProfile(initialData);
-          }
-          setLoading(false);
-        },
-        (error) => {
-          setLoading(false);
-        }
-      );
-      unsubscribers.push(unsubProfile);
-
-      const unsubsRooms = ROOM_COLLECTIONS.map((collName) => {
-        const ownedRoomsQuery = query(
-          collection(db, collName),
-          where('creator', '==', firebaseUser.uid)
-        );
-        return onSnapshot(
-          ownedRoomsQuery,
-          (snapshot) => {
-            let requests = 0;
-            snapshot.forEach((d) => {
-              const room = d.data() as any;
-              if (Array.isArray(room.joinRequests)) {
-                requests += room.joinRequests.length;
-              }
-            });
-            setRoomRequestCount((prev) => {
-              return prev;
-            });
-          },
-          (err) => {}
-        );
-      });
-
-      unsubsRooms.forEach((u) => u());
-      const accurateUnsubs = ROOM_COLLECTIONS.map((collName) => {
-        const ownedRoomsQuery = query(
-          collection(db, collName),
-          where('creator', '==', firebaseUser.uid)
-        );
-        return onSnapshot(
-          ownedRoomsQuery,
-          (snapshot) => {
-            let requests = 0;
-            snapshot.forEach((d) => {
-              const room = d.data() as any;
-              if (Array.isArray(room.joinRequests)) {
-                requests += room.joinRequests.length;
-              }
-            });
-
-            perCollCounts.current.set(collName, requests);
-            const total = Array.from(perCollCounts.current.values()).reduce(
-              (a, b) => a + b,
-              0
-            );
-            setRoomRequestCount(total);
+      if (db) {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const unsubProfile = onSnapshot(
+          userRef,
+          async (snap) => {
+            if (snap.exists()) {
+              setUserProfile({ uid: snap.id, ...(snap.data() as any) });
+            } else {
+              const initialData: UserProfile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                displayName: firebaseUser.displayName || 'New Player',
+                name: firebaseUser.displayName || 'New Player',
+                globalElo: 1000,
+                matchesPlayed: 0,
+                wins: 0,
+                losses: 0,
+                maxRating: 1000,
+                createdAt: getFinnishFormattedDate(),
+                photoURL: firebaseUser.photoURL || null,
+                eloHistory: [{ date: getFinnishFormattedDate(), elo: 1000 }],
+                friends: [],
+                incomingRequests: [],
+                outgoingRequests: [],
+                achievements: [],
+                rooms: [],
+                isPublic: true,
+                bio: '',
+                isDeleted: false,
+                approved: false,
+                approvalReason: '',
+                approvedAt: undefined,
+                approvedBy: undefined,
+              };
+              await setDoc(userRef, initialData);
+              setUserProfile(initialData);
+            }
+            setLoading(false);
           },
           (err) => {
-            perCollCounts.current.delete(collName);
-            const total = Array.from(perCollCounts.current.values()).reduce(
-              (a, b) => a + b,
-              0
-            );
-            setRoomRequestCount(total);
+            console.error('Profile subscription error:', err);
+            setLoading(false);
           }
         );
-      });
+        unsubscribers.push(unsubProfile);
 
-      unsubscribers.push(...accurateUnsubs);
+        ROOM_COLLECTIONS.forEach((collName) => {
+          if (!db) return;
+          const ownedRoomsQuery = query(
+            collection(db, collName),
+            where('creator', '==', firebaseUser.uid)
+          );
+
+          const unsubRoom = onSnapshot(
+            ownedRoomsQuery,
+            (snapshot) => {
+              let requests = 0;
+              snapshot.forEach((d) => {
+                const room = d.data() as any;
+                if (Array.isArray(room.joinRequests)) {
+                  requests += room.joinRequests.length;
+                }
+              });
+
+              requestsMap.set(collName, requests);
+
+              const total = Array.from(requestsMap.values()).reduce(
+                (a, b) => a + b,
+                0
+              );
+              setRoomRequestCount(total);
+            },
+            () => {
+              requestsMap.set(collName, 0);
+            }
+          );
+          unsubscribers.push(unsubRoom);
+        });
+      } else {
+        setLoading(false);
+      }
     });
-
-    const perCollCounts = { current: new Map<string, number>() };
 
     return () => {
       unsubscribeAuth();
@@ -198,11 +187,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [toast]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
+    if (!auth) return;
     try {
       await signOut(auth);
-    } catch (err) {}
-  };
+    } catch {
+      // ignore logout errors
+    }
+  }, []);
 
   const value = useMemo<AuthContextType>(
     () => ({

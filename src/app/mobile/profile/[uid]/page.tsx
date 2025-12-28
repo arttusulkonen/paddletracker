@@ -1,3 +1,4 @@
+// src/app/mobile/profile/[uid]/page.tsx
 'use client';
 
 import MobileEditProfileSheet from '@/components/mobile/profile/MobileEditProfileSheet';
@@ -5,32 +6,31 @@ import MobileMatchesList from '@/components/mobile/profile/MobileMatchesList';
 import MobileProfileHeader from '@/components/mobile/profile/MobileProfileHeader';
 import MobileStatTiles from '@/components/mobile/profile/MobileStatTiles';
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Match, UserProfile } from '@/lib/types';
-import { parseFlexDate } from '@/lib/utils/date';
 import { getRank } from '@/lib/utils/profileUtils';
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	limit,
+	orderBy,
+	query,
+	where,
 } from 'firebase/firestore';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -42,8 +42,8 @@ export default function MobileProfilePage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { uid } = useParams<{ uid: string }>();
-  const { user, isGlobalAdmin } = useAuth();
-  const { sport, setSport, config } = useSport();
+  const { user } = useAuth();
+  const { sport, setSport } = useSport();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,13 +54,23 @@ export default function MobileProfilePage() {
 
   useEffect(() => {
     (async () => {
+      // ИСПРАВЛЕНИЕ: Проверка db
+      if (!db || !uid) return;
+
       setLoading(true);
       const snap = await getDoc(doc(db, 'users', uid));
+
       if (!snap.exists() || (snap.data() as any)?.isDeleted) {
         router.replace('/');
         return;
       }
-      const p = { uid, ...(snap.data() as UserProfile) } as UserProfile;
+
+      // ИСПРАВЛЕНИЕ: Используем Omit, чтобы избежать конфликта uid
+      const p = {
+        uid,
+        ...(snap.data() as Omit<UserProfile, 'uid'>),
+      };
+
       setProfile(p);
       if (p.activeSport) setSport?.(p.activeSport);
       setLoading(false);
@@ -68,7 +78,7 @@ export default function MobileProfilePage() {
   }, [uid, router, setSport]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !db) return;
     (async () => {
       const coll = sportConfig[sport].collections.matches;
       const qy = query(
@@ -86,7 +96,7 @@ export default function MobileProfilePage() {
   }, [uid, profile, sport]);
 
   const sportElo = profile?.sports?.[sport]?.globalElo ?? 1000;
-  const rank = useMemo(() => getRank(sportElo, t), [sportElo, t]);
+  const rank = useMemo(() => getRank(sportElo), [sportElo]);
 
   if (loading || !profile) {
     return (
@@ -154,9 +164,15 @@ export default function MobileProfilePage() {
           onOpenChange={setEditOpen}
           profile={profile}
           onUpdated={async () => {
+            if (!db) return;
             const snap = await getDoc(doc(db, 'users', uid));
-            if (snap.exists())
-              setProfile({ uid, ...(snap.data() as UserProfile) });
+            if (snap.exists()) {
+              // ИСПРАВЛЕНИЕ: То же самое здесь для обновления
+              setProfile({
+                uid,
+                ...(snap.data() as Omit<UserProfile, 'uid'>),
+              });
+            }
           }}
         />
       )}

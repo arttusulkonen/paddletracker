@@ -1,6 +1,6 @@
-# Smashlog (PaddleTracker) — Architectural Blueprint
+# Smashlog — Architectural Blueprint
 
-## 1\. Project Overview
+## 1. Project Overview
 
 **Smashlog** is a progressive web application (PWA) designed to track ELO ratings, manage match history, and organize tournaments for racket sports.
 **Supported Sports:** Ping-Pong, Tennis, Badminton.
@@ -20,7 +20,7 @@ The core philosophy is a **Dual-Rating System**:
 
 ---
 
-## 2\. Technology Stack
+## 2. Technology Stack
 
 ### Frontend
 
@@ -41,14 +41,14 @@ The core philosophy is a **Dual-Rating System**:
 
 ---
 
-## 3\. User Roles & Account Types
+## 3. User Roles & Account Types
 
 The system distinguishes between user roles to tailor the interface and capabilities.
 
 ### A. Account Types (Registration Choice)
 
 - **Player:** Standard user. Can join rooms, record matches, and view their own stats.
-- **Coach / Organizer:** Extended capabilities. Can create **Communities**, manage **Ghost Players**, and view the "Management Console" (`/manage`).
+- **Coach / Organizer:** Extended capabilities. Can create **Communities**, manage **Ghost Players**, and view the "Management Console" (`/manage`). Not visible on public leaderboards.
 
 ### B. System Roles
 
@@ -58,7 +58,7 @@ The system distinguishes between user roles to tailor the interface and capabili
 
 ---
 
-## 4\. Game Modes & Logic
+## 4. Game Modes & Logic
 
 When creating a room, admins select a **Game Mode** which dictates how ELO is calculated and how the leaderboard is ranked.
 
@@ -93,7 +93,7 @@ _Designed for "just for fun" games without ranking stress._
 
 ---
 
-## 5\. Coaching & Community Features
+## 5. Coaching & Community Features
 
 ### A. Ghost Players (Managed Profiles)
 
@@ -109,11 +109,11 @@ A **Community** is a higher-level grouping entity (e.g., "Junior Squad 2008", "C
 
 - **Structure:** Contains a list of `members` (Players/Ghosts) and `admins` (Coaches).
 - **Purpose:** Allows coaches to organize players into logical groups.
-- **Integration:** When creating a Ghost Player, the coach can immediately assign them to a specific Community.
+- **Activity Feed:** A "wall" of events (matches played, rooms created) happening within the community, visible to admins.
 
 ---
 
-## 6\. Directory Structure & Key Files
+## 6. Directory Structure & Key Files
 
 ```text
 src/
@@ -133,7 +133,8 @@ src/
 │   ├── AiAssistant.tsx      # AI Chat Interface (Genkit integration)
 │   ├── RecordBlock.tsx      # Manual match entry component
 │   ├── communities/         # [NEW] Community-related components
-│   │   └── CreateCommunityDialog.tsx
+│   │   ├── CreateCommunityDialog.tsx
+│   │   └── CommunitySettingsDialog.tsx
 │   ├── layout/
 │   │   └── Navbar.tsx       # Dynamic navigation based on roles (Coach/Admin/Player)
 │   ├── rooms/
@@ -151,7 +152,7 @@ src/
 │   └── types.ts             # TS Interfaces (User, Room, Match, Community, GhostUser)
 functions/
 ├── src/
-│   ├── index.ts             # Cloud Functions (recordMatch, aiSaveMatch)
+│   ├── index.ts             # Cloud Functions (recordMatch, aiSaveMatch, Triggers)
 │   ├── config.ts            # Collection names configuration
 │   ├── lib/
 │   │   └── eloMath.ts       # Shared ELO math logic (K-factor, Delta)
@@ -160,39 +161,42 @@ functions/
 
 ---
 
-## 7\. ELO Rating System Details
+## 7. ELO Rating System Details
 
 ### The Dual-Layer Formula
 
 **Calculation Location:** Server-side (Cloud Functions).
 The client sends raw match data, and the server calculates both Global and Room ratings using `functions/src/lib/eloMath.ts`.
 
-#### 1\. Global ELO (Always Professional)
+#### 1. Global ELO (Always Professional)
 
 - Used for cross-room skill comparison.
-- **Formula:** Standard ELO ($R_a' = R_a + K \cdot (S_a - E_a)$).
+- **Formula:** Standard ELO ().
 - **K-Factor:** Always fixed at `32`.
 - **Type:** Zero-Sum.
 
-#### 2\. Room ELO (Mode Dependent)
+#### 2. Room ELO (Mode Dependent)
 
 Calculated using the **current room ratings** of the players (not Global).
 
 - **Office Mode:**
-  - Base K = 32.
-  - If Delta \< 0 (Loss): $\text{FinalDelta} = \text{Delta} \times 0.8$.
+- Base K = 32.
+- If Delta < 0 (Loss): .
+
 - **Professional Mode:**
-  - **Dynamic K (Provisional):**
-    - If `matchesPlayed < 10`: $K = \text{BaseK} \times 2$. (Calibration Phase)
-    - If `matchesPlayed >= 10`: $K = \text{BaseK}$.
-  - **Base K:** Configured in room settings (default 32).
-  - Logic: Standard Zero-Sum.
+- **Dynamic K (Provisional):**
+- If `matchesPlayed < 10`: . (Calibration Phase)
+- If `matchesPlayed >= 10`: .
+
+- **Base K:** Configured in room settings (default 32).
+- Logic: Standard Zero-Sum.
+
 - **Arcade Mode:**
-  - K = 0. Delta is always 0.
+- K = 0. Delta is always 0.
 
 ---
 
-## 8\. Database Structure (Firestore)
+## 8. Database Structure (Firestore)
 
 The database is partitioned by sport (`pingpong`, `tennis`, `badminton`) for matches and rooms, but Users and Communities are shared/global.
 
@@ -227,16 +231,7 @@ users/{uid}
       "losses": "number",
       "eloHistory": [{ "ts": "ISO", "elo": 1200 }]
     },
-    "tennis": {
-      "globalElo": "number",
-      "wins": "number",
-      "losses": "number",
-      "aces": "number",
-      "doubleFaults": "number",
-      "winners": "number",
-      "eloHistory": [...]
-    }
-    // ... badminton
+    // ... tennis, badminton
   }
 }
 ```
@@ -258,6 +253,25 @@ communities/{communityId}
   "createdAt": "string (ISO)",
   "avatarURL": "string | null"
 }
+```
+
+### Community Feed (`community_feed`) [NEW]
+
+Event log for community activity. Populated via Cloud Function triggers.
+
+```json
+community_feed/{feedId}
+{
+  "communityId": "string",
+  "type": "match_finished" | "room_created",
+  "sport": "pingpong" | "tennis",
+  "title": "string", // e.g. "Alex vs Bob"
+  "description": "string", // e.g. "Score: 11-9"
+  "timestamp": "Timestamp",
+  "meta": { "matchId": "...", "roomId": "..." },
+  "actorAvatars": ["url1", "url2"]
+}
+
 ```
 
 ### Rooms Collections (`rooms-pingpong`, etc.)
@@ -291,6 +305,7 @@ rooms-pingpong/{roomId}
   },
   "seasonHistory": [...]
 }
+
 ```
 
 ### Matches Collections (`matches-pingpong`, etc.)
@@ -309,76 +324,81 @@ matches-pingpong/{matchId}
 
   "player1": {
     "name": "string",
-    "scores": "number", // or sets for tennis
+    "scores": "number",
     "side": "left | right",
-
-    // GLOBAL TRACKING
     "oldRating": "number",
     "newRating": "number",
     "addedPoints": "number",
-
-    // ROOM TRACKING (Used for Standings)
+    // Room Ratings
     "roomOldRating": "number",
     "roomNewRating": "number",
-    "roomAddedPoints": "number",
-
-    // Tennis Stats (Optional)
-    "aces": "number",
-    "doubleFaults": "number",
-    "winners": "number"
+    "roomAddedPoints": "number"
   },
   // ... player2
 }
+
 ```
 
 ---
 
-## 9\. Workflows
+## 9. Workflows
 
 ### A. Ghost Player Lifecycle
 
-1.  **Create:** Coach goes to `/manage/players` -\> "Create Ghost Player".
-2.  **Assign:** Coach selects a Community (optional) during creation.
-3.  **Play:** Ghost appears in search results and can be added to rooms. Matches are recorded normally against the Ghost's ID.
-4.  **Invite:** Coach clicks "Copy Invite Link" (`.../register?claim=GHOST_ID`).
-5.  **Claim:** User opens link -\> Registers.
-    - System detects `claim` param.
-    - New user document created with stats copied from Ghost document.
-    - Ghost document updated to `isClaimed: true` / `isGhost: false`.
+1. **Create:** Coach goes to `/manage/players` -> "Create Ghost Player".
+2. **Assign:** Coach selects a Community (optional) during creation.
+3. **Play:** Ghost appears in search results and can be added to rooms. Matches are recorded normally against the Ghost's ID.
+4. **Invite:** Coach clicks "Copy Invite Link" (`.../register?claim=GHOST_ID`).
+5. **Claim:** User opens link -> Registers.
 
-### B. Community Management
+- System detects `claim` param.
+- New user document created with stats copied from Ghost document.
+- Ghost document updated to `isClaimed: true` / `isGhost: false`.
 
-1.  **Create:** Coach creates a Community via `/manage/communities`.
-2.  **Populate:** Coach adds new Ghost Players directly into the Community or assigns existing ones.
-3.  **View:** Coach can view the roster and jump to individual player profiles.
+### B. Community Management & Feed
+
+1. **Create:** Coach creates a Community via `/manage/communities`.
+2. **Populate:** Coach adds new Ghost Players directly into the Community or assigns existing ones.
+3. **Feed:** The "Feed" tab shows real-time updates of matches played by community members, powered by backend triggers (`onMatchCreated`).
 
 ### C. Match Entry (Server-Side)
 
 **File:** `functions/src/index.ts` (Function: `recordMatch`)
 
-1.  **Client:** Collects scores and calls `recordMatch` Cloud Function.
-2.  **Server:** - Validates user auth and permissions.
-    - Fetches Room config and User profiles.
-    - Calculates Global ELO change (always K=32).
-    - Calculates Room ELO change (based on Room Mode & K-Factor).
-3.  **Batch Write:** Atomically updates:
-    - `matches` collection (new doc).
-    - `rooms` collection (updates `members` array stats).
-    - `users` collection (updates global stats & history).
+1. **Client:** Collects scores and calls `recordMatch` Cloud Function.
+2. **Server:** - Validates user auth and permissions.
+
+- Fetches Room config and User profiles.
+- Calculates Global ELO change (always K=32).
+- Calculates Room ELO change (based on Room Mode & K-Factor).
+
+3. **Batch Write:** Atomically updates:
+
+- `matches` collection (new doc).
+- `rooms` collection (updates `members` array stats).
+- `users` collection (updates global stats & history).
+
+4. **Trigger:** `onPingPongMatchCreated` detects new match -> writes to `community_feed` of relevant communities.
 
 ### D. Season Finalization
 
 **File:** `src/lib/season.ts`
 
-1.  Fetch all matches for the room.
-2.  Re-calculate statistics (Wins/Losses/Streaks).
-3.  **Sort Leaderboard:**
-    - **Office:** Sort by `AdjPoints` (Activity biased).
-    - **Professional:** Sort by `RoomRating` (Skill biased).
-    - **Arcade:** Sort by `Wins`.
-4.  Save snapshot to `seasonHistory` and award Achievements.
+1. Fetch all matches for the room.
+2. Re-calculate statistics (Wins/Losses/Streaks).
+3. **Sort Leaderboard:**
+
+- **Office:** Sort by `AdjPoints` (Activity biased).
+- **Professional:** Sort by `RoomRating` (Skill biased).
+- **Arcade:** Sort by `Wins`.
+
+4. Save snapshot to `seasonHistory` and award Achievements.
 
 ### E. AI Assistant
 
 **File:** `functions/src/index.ts`
 The server-side AI handler `aiSaveMatch` implements the **exact same logic** as `recordMatch`. It parses natural language input into structured match data and then applies the standard ELO math logic.
+
+```
+
+```

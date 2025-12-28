@@ -36,16 +36,6 @@ interface MembersListProps {
   onRemovePlayer: (userId: string) => void;
 }
 
-function getRank(elo: number, t: (key: string) => string) {
-  if (elo < 1001) return t('Ping-Pong Padawan');
-  if (elo < 1100) return t('Table-Tennis Trainee');
-  if (elo < 1200) return t('Racket Rookie');
-  if (elo < 1400) return t('Paddle Prodigy');
-  if (elo < 1800) return t('Spin Sensei');
-  if (elo < 2000) return t('Smash Samurai');
-  return t('Ping-Pong Paladin');
-}
-
 type ViewMode = 'regular' | 'liveFinal';
 
 export function MembersList({
@@ -62,7 +52,10 @@ export function MembersList({
   const computed = useMemo(() => {
     const arr = Array.isArray(members) ? members : [];
 
-    const base = arr.map((p: any) => {
+    // FIX: Filter out coaches
+    const playersOnly = arr.filter((p: any) => p.accountType !== 'coach');
+
+    const base = playersOnly.map((p: any) => {
       const totalMatches = Number.isFinite(p.totalMatches)
         ? Number(p.totalMatches)
         : Number(p.wins ?? 0) + Number(p.losses ?? 0);
@@ -115,11 +108,10 @@ export function MembersList({
 
         if (b.adjPointsLive !== a.adjPointsLive)
           return b.adjPointsLive - a.adjPointsLive;
-        
-        // FIX: Sort by totalAddedPoints instead of raw rating for consistency
-        if ((b.totalAddedPoints ?? 0) !== (a.totalAddedPoints ?? 0)) 
+
+        if ((b.totalAddedPoints ?? 0) !== (a.totalAddedPoints ?? 0))
           return (b.totalAddedPoints ?? 0) - (a.totalAddedPoints ?? 0);
-          
+
         if (b.wins !== a.wins) return b.wins - a.wins;
         return b.winRate - a.winRate;
       }
@@ -133,7 +125,7 @@ export function MembersList({
       <div className='mb-2 flex items-center justify-between'>
         <h3 className='font-semibold text-lg flex items-center gap-2'>
           <Users className='text-primary' />
-          {t('Members')} ({members.length})
+          {t('Members')} ({sortedMembers.length})
         </h3>
 
         <div className='flex gap-2 bg-muted/30 p-1 rounded-lg'>
@@ -166,160 +158,167 @@ export function MembersList({
       </div>
 
       <ScrollArea className='border rounded-md p-3 bg-background h-[400px] shadow-inner'>
-        {sortedMembers.map((p, index) => {
-          const rank = getRank(p.globalElo ?? 1000, t);
-
-          let rightValueNode;
-          if (viewMode === 'regular') {
-            rightValueNode = p.ratingVisible ? (
-              <span className='text-primary font-bold'>
-                {Math.round(p.roomRating)}
-              </span>
-            ) : (
-              <span className='text-muted-foreground'>—</span>
-            );
-          } else {
-            if (p.totalMatches === 0) {
-              rightValueNode = <span className='text-muted-foreground'>—</span>;
-            } else {
-              rightValueNode = (
-                <div className='text-right'>
-                  <div className='font-bold text-green-700 text-sm'>
-                    {p.adjPointsLive.toFixed(1)}
-                  </div>
-                  <div className='text-[10px] text-muted-foreground'>
-                    {t('adj')}
-                  </div>
-                </div>
+        {sortedMembers.length === 0 ? (
+          <div className='flex items-center justify-center h-full text-muted-foreground text-sm'>
+            {t('No players yet.')}
+          </div>
+        ) : (
+          sortedMembers.map((p, index) => {
+            let rightValueNode;
+            if (viewMode === 'regular') {
+              rightValueNode = p.ratingVisible ? (
+                <span className='text-primary font-bold'>
+                  {Math.round(p.roomRating)}
+                </span>
+              ) : (
+                <span className='text-muted-foreground'>—</span>
               );
+            } else {
+              if (p.totalMatches === 0) {
+                rightValueNode = (
+                  <span className='text-muted-foreground'>—</span>
+                );
+              } else {
+                rightValueNode = (
+                  <div className='text-right'>
+                    <div className='font-bold text-green-700 text-sm'>
+                      {p.adjPointsLive.toFixed(1)}
+                    </div>
+                    <div className='text-[10px] text-muted-foreground'>
+                      {t('adj')}
+                    </div>
+                  </div>
+                );
+              }
             }
-          }
 
-          return (
-            <div
-              key={p.userId}
-              className='flex items-center justify-between p-2 hover:bg-muted/50 rounded-md transition-colors group relative'
-            >
-              <div className='flex items-center gap-3 flex-grow min-w-0'>
-                {viewMode === 'liveFinal' && (
-                  <div
-                    className={`w-5 text-center font-mono text-xs font-bold ${
-                      index < 3 ? 'text-amber-500' : 'text-muted-foreground'
-                    }`}
-                  >
-                    {index + 1}
-                  </div>
-                )}
-
-                <Avatar className='h-10 w-10 border border-border'>
-                  <AvatarImage src={p.photoURL || undefined} />
-                  <AvatarFallback className='bg-primary/10 text-primary text-xs'>
-                    {(p.name || '?').substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className='min-w-0 flex-1'>
-                  <div className='font-medium text-sm leading-none flex items-center gap-1.5 truncate'>
-                    {p.isDeleted ? (
-                      <span className='truncate text-muted-foreground italic'>
-                        {p.name}
-                      </span>
-                    ) : (
-                      <a
-                        href={`/profile/${p.userId}`}
-                        className='hover:underline truncate hover:text-primary transition-colors'
-                      >
-                        {p.name}
-                      </a>
-                    )}
-                    {p.userId === room.creator && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <ShieldCheck className='h-3.5 w-3.5 text-primary flex-shrink-0' />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <span>{t('Room Creator')}</span>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-
-                  <div className='text-xs text-muted-foreground truncate mt-1 flex items-center gap-2'>
-                    <span>
-                      {t('W')}:{' '}
-                      <span className='text-green-600 font-medium'>
-                        {p.wins}
-                      </span>
-                    </span>
-                    <span className='opacity-50'>/</span>
-                    <span>
-                      {t('L')}:{' '}
-                      <span className='text-red-600 font-medium'>
-                        {p.losses}
-                      </span>
-                    </span>
-
-                    {viewMode === 'liveFinal' && p.totalMatches > 0 && (
-                      <>
-                        <span className='opacity-50'>·</span>
-                        <span title={t('Net Points (Rating - 1000)')}>
-                          Δ {p.totalAddedPoints > 0 ? '+' : ''}
-                          {Math.round(p.totalAddedPoints)}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className='flex items-center gap-3 pl-2'>
-                <div className='min-w-[60px] text-right flex justify-end'>
-                  {rightValueNode}
-                </div>
-
-                <div className='w-7 h-7 flex-shrink-0 flex items-center justify-center'>
-                  {canRemovePlayers && p.userId !== currentUser?.uid && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          className='h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive'
-                        >
-                          <Trash2 className='h-4 w-4' />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            {t('Are you sure?')}
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {t(
-                              'This action cannot be undone. This will permanently remove {{playerName}} from the room.',
-                              { playerName: p.name }
-                            )}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => onRemovePlayer(p.userId)}
-                            className='bg-destructive hover:bg-destructive/90'
-                          >
-                            {t('Remove')}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+            return (
+              <div
+                key={p.userId}
+                className='flex items-center justify-between p-2 hover:bg-muted/50 rounded-md transition-colors group relative'
+              >
+                <div className='flex items-center gap-3 flex-grow min-w-0'>
+                  {viewMode === 'liveFinal' && (
+                    <div
+                      className={`w-5 text-center font-mono text-xs font-bold ${
+                        index < 3 ? 'text-amber-500' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {index + 1}
+                    </div>
                   )}
+
+                  <Avatar className='h-10 w-10 border border-border'>
+                    <AvatarImage src={p.photoURL || undefined} />
+                    <AvatarFallback className='bg-primary/10 text-primary text-xs'>
+                      {(p.name || '?').substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className='min-w-0 flex-1'>
+                    <div className='font-medium text-sm leading-none flex items-center gap-1.5 truncate'>
+                      {p.isDeleted ? (
+                        <span className='truncate text-muted-foreground italic'>
+                          {p.name}
+                        </span>
+                      ) : (
+                        <a
+                          href={`/profile/${p.userId}`}
+                          className='hover:underline truncate hover:text-primary transition-colors'
+                        >
+                          {p.name}
+                        </a>
+                      )}
+                      {/* Show visual indicator for creator, but keep them in list */}
+                      {p.userId === room.creator && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <ShieldCheck className='h-3.5 w-3.5 text-primary flex-shrink-0' />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <span>{t('Room Creator')}</span>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+
+                    <div className='text-xs text-muted-foreground truncate mt-1 flex items-center gap-2'>
+                      <span>
+                        {t('W')}:{' '}
+                        <span className='text-green-600 font-medium'>
+                          {p.wins}
+                        </span>
+                      </span>
+                      <span className='opacity-50'>/</span>
+                      <span>
+                        {t('L')}:{' '}
+                        <span className='text-red-600 font-medium'>
+                          {p.losses}
+                        </span>
+                      </span>
+
+                      {viewMode === 'liveFinal' && p.totalMatches > 0 && (
+                        <>
+                          <span className='opacity-50'>·</span>
+                          <span title={t('Net Points (Rating - 1000)')}>
+                            Δ {p.totalAddedPoints > 0 ? '+' : ''}
+                            {Math.round(p.totalAddedPoints)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className='flex items-center gap-3 pl-2'>
+                  <div className='min-w-[60px] text-right flex justify-end'>
+                    {rightValueNode}
+                  </div>
+
+                  <div className='w-7 h-7 flex-shrink-0 flex items-center justify-center'>
+                    {canRemovePlayers && p.userId !== currentUser?.uid && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive'
+                          >
+                            <Trash2 className='h-4 w-4' />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {t('Are you sure?')}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t(
+                                'This action cannot be undone. This will permanently remove {{playerName}} from the room.',
+                                { playerName: p.name }
+                              )}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => onRemovePlayer(p.userId)}
+                              className='bg-destructive hover:bg-destructive/90'
+                            >
+                              {t('Remove')}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </ScrollArea>
     </div>
   );

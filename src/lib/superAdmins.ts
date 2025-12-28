@@ -10,8 +10,9 @@ let cache: string[] | null = null;
  */
 export async function getSuperAdminIds(force: boolean = false): Promise<string[]> {
   if (cache && !force) return cache;
+	
   try {
-    const snap = await getDoc(doc(db, 'config', 'app'));
+    const snap = await getDoc(doc(db!, 'config', 'app'));
     const list =
       snap.exists() && Array.isArray((snap.data() as any)?.superAdminIds)
         ? ((snap.data() as any).superAdminIds as unknown[])
@@ -26,10 +27,6 @@ export async function getSuperAdminIds(force: boolean = false): Promise<string[]
     // отдаём кэш, если он был, иначе пустой массив
     return cache ?? [];
   }
-}
-
-export function invalidateSuperAdminsCache() {
-  cache = null;
 }
 
 export function withSuperAdmins(ownerUid: string, extra: string[]): string[] {

@@ -1,23 +1,23 @@
 // src/lib/friends.ts
 import { isGlobalAdminClient } from '@/lib/auth/isGlobalAdmin';
 import {
-  arrayRemove,
-  arrayUnion,
-  collection,
-  doc,
-  documentId,
-  getDoc,
-  getDocs,
-  query,
-  updateDoc,
-  where,
+	arrayRemove,
+	arrayUnion,
+	collection,
+	doc,
+	documentId,
+	getDoc,
+	getDocs,
+	query,
+	updateDoc,
+	where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { UserProfile } from './types';
 
 export async function sendFriendRequest(fromUid: string, toUid: string) {
   if (fromUid === toUid) return;
-
+	if (!db) return;
   if (await isGlobalAdminClient()) {
     await Promise.all([
       updateDoc(doc(db, 'users', fromUid), {
@@ -45,6 +45,7 @@ export async function sendFriendRequest(fromUid: string, toUid: string) {
 }
 
 export async function cancelRequest(fromUid: string, toUid: string) {
+	if (!db) return;
   await Promise.all([
     updateDoc(doc(db, 'users', fromUid), {
       outgoingRequests: arrayRemove(toUid),
@@ -56,6 +57,7 @@ export async function cancelRequest(fromUid: string, toUid: string) {
 }
 
 export async function acceptRequest(myUid: string, fromUid: string) {
+	if (!db) return;
   await Promise.all([
     updateDoc(doc(db, 'users', myUid), {
       incomingRequests: arrayRemove(fromUid),
@@ -72,9 +74,8 @@ export async function declineRequest(myUid: string, fromUid: string) {
   await cancelRequest(fromUid, myUid);
 }
 
-export const rejectRequest = declineRequest;
-
 export async function unfriend(uidA: string, uidB: string) {
+	if (!db) return;
   await Promise.all([
     updateDoc(doc(db, 'users', uidA), { friends: arrayRemove(uidB) }),
     updateDoc(doc(db, 'users', uidB), { friends: arrayRemove(uidA) }),
@@ -84,17 +85,10 @@ export async function unfriend(uidA: string, uidB: string) {
 export async function getUserLite(
   uid: string
 ): Promise<(UserProfile & { uid: string }) | null> {
+  if (!db) return null;
   const snap = await getDoc(doc(db, 'users', uid));
   if (!snap.exists() || snap.data()?.isDeleted) return null;
-  return { uid, ...(snap.data() as UserProfile) };
-}
-
-export function toggleFriend(
-  uid: string,
-  targetUid: string,
-  targetProfile: UserProfile
-): void {
-  throw new Error('Function not implemented.');
+  return { uid, ...(snap.data() as Omit<UserProfile, 'uid'>) };
 }
 
 export async function getMultipleUsersLite(
@@ -109,12 +103,14 @@ export async function getMultipleUsersLite(
   }
 
   const results: (UserProfile & { uid: string })[] = [];
+  
   for (const chunk of chunks) {
+    if (!db) return results;
     const q = query(collection(db, 'users'), where(documentId(), 'in', chunk));
     const snap = await getDocs(q);
     snap.forEach((doc) => {
       if (!doc.data().isDeleted) {
-        results.push({ uid: doc.id, ...(doc.data() as UserProfile) });
+        results.push({ uid: doc.id, ...(doc.data() as Omit<UserProfile, 'uid'>) });
       }
     });
   }
