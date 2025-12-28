@@ -1,3 +1,4 @@
+
 // src/app/friend-requests/page.tsx
 'use client';
 

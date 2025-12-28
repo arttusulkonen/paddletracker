@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.tsx
 'use client';
 
 import { useToast } from '@/hooks/use-toast';
@@ -55,12 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let unsubscribers: Array<() => void> = [];
     const requestsMap = new Map<string, number>();
 
+    // Если Firebase не инициализирован (например, на сервере или ошибка конфига)
     if (!auth) {
       setLoading(false);
       return;
     }
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Очистка предыдущих подписок при смене юзера
       unsubscribers.forEach((u) => u());
       unsubscribers = [];
       requestsMap.clear();
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(firebaseUser);
 
+      // Проверка на админа
       try {
         const token = await firebaseUser.getIdTokenResult(true);
         let isAdmin = !!token.claims.admin;
@@ -100,12 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (db) {
         const userRef = doc(db, 'users', firebaseUser.uid);
+        
         const unsubProfile = onSnapshot(
           userRef,
           async (snap) => {
             if (snap.exists()) {
               setUserProfile({ uid: snap.id, ...(snap.data() as any) });
             } else {
+              // ИСПРАВЛЕНО: Заменил undefined на null, так как Firestore не принимает undefined
               const initialData: UserProfile = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
@@ -129,21 +133,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isDeleted: false,
                 approved: false,
                 approvalReason: '',
-                approvedAt: undefined,
-                approvedBy: undefined,
+                // FIX: Firestore throws error on 'undefined'
+                approvedAt: null as any, 
+                approvedBy: null as any,
               };
-              await setDoc(userRef, initialData);
-              setUserProfile(initialData);
+              
+              try {
+                await setDoc(userRef, initialData);
+                // Сразу устанавливаем профиль, чтобы UI обновился
+                setUserProfile(initialData);
+              } catch (e) {
+                console.error("Error creating user profile:", e);
+                // Не блокируем UI, если создание не удалось (возможно, проблема прав)
+              }
             }
             setLoading(false);
           },
           (err) => {
             console.error('Profile subscription error:', err);
+            // Если ошибка прав доступа (permission-denied), мы все равно должны убрать loading
             setLoading(false);
           }
         );
         unsubscribers.push(unsubProfile);
 
+        // Подписка на запросы в комнаты (для владельцев комнат)
         ROOM_COLLECTIONS.forEach((collName) => {
           if (!db) return;
           const ownedRoomsQuery = query(
@@ -171,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setRoomRequestCount(total);
             },
             () => {
+              // В случае ошибки просто сбрасываем счетчик для этой коллекции
               requestsMap.set(collName, 0);
             }
           );

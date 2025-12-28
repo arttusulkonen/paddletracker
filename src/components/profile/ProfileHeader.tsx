@@ -1,3 +1,4 @@
+// src/components/profile/ProfileHeader.tsx
 'use client';
 
 import {

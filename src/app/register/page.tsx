@@ -256,7 +256,7 @@ export default function RegisterPage() {
       if (ghostUser) {
         try {
           // 'app' checked above, so strictly typed now
-          const functions = getFunctions(app, 'us-central1');
+          const functions = getFunctions(app, 'europe-west1');
           const claimProfileFunc = httpsCallable(
             functions,
             'claimGhostProfile'

@@ -25,7 +25,7 @@ export async function processAndSaveMatches(
   }
 
   try {
-    const functions = getFunctions(app, 'us-central1');
+    const functions = getFunctions(app, 'europe-west1');
     const recordMatch = httpsCallable(functions, 'recordMatch');
 
     const response = await recordMatch({

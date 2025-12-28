@@ -1,3 +1,4 @@
+// src/app/manage/communities/[communityId]/page.tsx
 'use client';
 
 import CommunityFeed from '@/components/communities/CommunityFeed';
