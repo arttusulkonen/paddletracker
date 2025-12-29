@@ -1554,8 +1554,11 @@ export const aiContentCheck = onCall(
 
       return response.output;
     } catch (error: any) {
-      logger.error('Content check error:', error);
-      return { valid: true }; 
+      logger.error('CRITICAL content check error:', error);
+      return {
+        valid: false,
+        reason: 'Content check failed. Please try again later.',
+      };
     }
   }
 );
