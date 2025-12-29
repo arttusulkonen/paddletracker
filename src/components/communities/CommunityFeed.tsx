@@ -125,7 +125,6 @@ export default function CommunityFeed() {
           </Link>
 
           <span className='text-muted-foreground text-xs'>vs</span>
-					{console.log('item.targetId:', item)}
           <Link
             href={item.targetId ? `/profile/${item.targetId}` : '#'}
             className='font-semibold hover:underline text-foreground'
