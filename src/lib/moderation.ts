@@ -1,55 +1,55 @@
 // src/lib/moderation.ts
 import filter from 'leo-profanity';
 
-// Импортируем словари языков из naughty-words
-// en - английский, ru - русский, fi - финский, ko - корейский
+// Import language dictionaries from naughty-words
+// en - English, ru - Russian, fi - Finnish, ko - Korean
 import { en, fi, ko, ru } from 'naughty-words';
-// Дополнительные популярные языки для защиты от "гостей"
+// Additional popular languages to protect against abusive "guests"
 import { de, es, fr, ja, zh } from 'naughty-words';
 
-// 1. Создаем объединенный массив плохих слов
-// Мы объединяем все массивы в один плоский список.
-// filter.add() принимает массив строк.
+// 1. Create a combined array of bad words
+// We merge all arrays into one flat list.
+// filter.add() accepts an array of strings.
 const GLOBAL_BAD_WORDS = [
   ...en, 
   ...ru, 
   ...fi, 
   ...ko,
-  ...es, // Испанский
-  ...fr, // Французский
-  ...de, // Немецкий
-  ...ja, // Японский
-  ...zh, // Китайский
+  ...es, // Spanish
+  ...fr, // French
+  ...de, // German
+  ...ja, // Japanese
+  ...zh, // Chinese
   'порнхаб', 'xvideos', 'brazzers', 'xnxx', 'redtube', 'pornhub', 
 ];
 
-// 2. Сбрасываем дефолтный словарь и загружаем наш ГЛОБАЛЬНЫЙ
-// Это заставляет библиотеку проверять текст сразу по всем этим языкам.
+// 2. Reset the default dictionary and load our GLOBAL one
+// This makes the library check the text against all these languages at once.
 filter.clearList();
 filter.add(GLOBAL_BAD_WORDS);
 
 /**
- * Проверяет текст на наличие нецензурной лексики на множестве языков.
- * Возвращает true, если найден мат.
+ * Checks the text for profanity in multiple languages.
+ * Returns true if profanity is found.
  */
 export function containsProfanity(text: string | null | undefined): boolean {
   if (!text || text.trim() === '') return false;
   
-  // Метод check() теперь ищет совпадения из нашего огромного объединенного списка
-  // Он также пытается найти "замаскированный" мат (l33t speak) для латиницы.
+  // The check() method now searches in our large combined list
+  // It also tries to detect "masked" profanity (l33t speak) for Latin-based text.
   return filter.check(text);
 }
 
 /**
- * Валидация файла изображения (размер и тип)
+ * Image file validation (size and type)
  */
 export function validateImageFile(file: File): { valid: boolean; error?: string } {
-  // Проверка размера (2MB)
+  // Size check (2MB)
   if (file.size > 2 * 1024 * 1024) {
     return { valid: false, error: 'File too large (max 2MB)' };
   }
   
-  // Проверка типа
+  // Type check
   const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (!validTypes.includes(file.type)) {
     return { valid: false, error: 'Invalid file type (JPG/PNG/WEBP only)' };
