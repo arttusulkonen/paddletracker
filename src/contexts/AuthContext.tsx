@@ -134,8 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 approved: false,
                 approvalReason: '',
                 // FIX: Firestore throws error on 'undefined'
-                approvedAt: null as any, 
-                approvedBy: null as any,
+                approvedAt: null,
+                approvedBy: null,
               };
               
               try {
