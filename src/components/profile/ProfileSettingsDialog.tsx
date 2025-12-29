@@ -108,7 +108,7 @@ export function ProfileSettingsDialog({
 
     const { valid, error } = validateImageFile(f);
     if (!valid) {
-      toast({ title: t('Invalid image'), description: t(error!), variant: 'destructive' });
+      toast({ title: t('Invalid image'), description: t(error || 'Invalid image'), variant: 'destructive' });
       return;
     }
 
