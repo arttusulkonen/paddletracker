@@ -1,7 +1,10 @@
-// functions/src/index.ts
 import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
+import {
+	onDocumentCreated,
+	onDocumentUpdated,
+} from 'firebase-functions/v2/firestore';
 import {
 	CallableRequest,
 	HttpsError,
@@ -9,12 +12,47 @@ import {
 } from 'firebase-functions/v2/https';
 import { genkit, z } from 'genkit';
 import { SPORT_COLLECTIONS } from './config';
-import { calculateDelta as calcDeltaImport } from './lib/eloMath';
+import { calculateDelta as calcDeltaImport, getDynamicK, RoomMode } from './lib/eloMath';
 
 admin.initializeApp();
 const db = admin.firestore();
 const auth = admin.auth();
 const storage = admin.storage();
+
+// --- CONSTANTS ---
+// Used for permanentlyDeleteUser
+const collectionsToScan = {
+  rooms: ['rooms-pingpong', 'rooms-tennis', 'rooms-badminton'],
+  matches: ['matches-pingpong', 'matches-tennis', 'matches-badminton'],
+  tournaments: [
+    'tournaments-pingpong',
+    'tournaments-tennis',
+    'tournaments-badminton',
+  ],
+};
+
+// --- INTERFACES ---
+interface Member {
+  userId: string;
+  name?: string;
+  displayName?: string;
+  email?: string;
+  photoURL?: string | null;
+  [k: string]: any;
+}
+interface Participant {
+  userId: string;
+  name?: string;
+}
+interface MatchRef {
+  player1?: Participant;
+  player2?: Participant;
+}
+interface Round {
+  matches: MatchRef[];
+}
+
+// --- HELPER FUNCTIONS ---
 
 function levenshtein(a: string, b: string): number {
   const matrix: number[][] = [];
@@ -78,6 +116,25 @@ const calculateDelta = (
   return delta;
 };
 
+async function getSuperAdminIds(): Promise<string[]> {
+  try {
+    const docRef = db.collection('config').doc('app');
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      if (data && Array.isArray(data.superAdminIds)) {
+        return data.superAdminIds;
+      }
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching super admin IDs:', error);
+    return [];
+  }
+}
+
+// --- AI CONFIG ---
+
 const ai = genkit({
   plugins: [
     googleAI({
@@ -87,8 +144,10 @@ const ai = genkit({
   model: 'googleai/gemini-2.0-flash',
 });
 
+// --- CALLABLE FUNCTIONS ---
+
 export const aiChat = onCall(
-  { cors: true },
+  { cors: true, region: 'europe-west1' },
   async (request: CallableRequest) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
@@ -171,6 +230,7 @@ export const aiSaveMatch = onCall(
     cors: true,
     timeoutSeconds: 540,
     memory: '512MiB',
+    region: 'europe-west1'
   },
   async (request: CallableRequest) => {
     if (!request.auth) {
@@ -204,14 +264,12 @@ export const aiSaveMatch = onCall(
     const roomData = roomSnap.data() || {};
     const members: any[] = roomData.members || [];
 
-    // --- Сбор уникальных имен из запроса ---
     const uniqueNames = new Set<string>();
     matches.forEach((m) => {
       uniqueNames.add(m.player1Name);
       uniqueNames.add(m.player2Name);
     });
 
-    // --- Маппинг имен на UID из текущих участников ---
     const memberMap = new Map<string, string>();
     members.forEach((m: any) => {
       const uid = m.userId;
@@ -221,7 +279,6 @@ export const aiSaveMatch = onCall(
 
     const nameToUidMap = new Map<string, string>();
 
-    // --- Поиск UID для тех имен, которых нет в мапе ---
     for (const name of Array.from(uniqueNames)) {
       const lower = name.trim().toLowerCase();
 
@@ -276,7 +333,6 @@ export const aiSaveMatch = onCall(
 
     const uniqueUids = Array.from(new Set(nameToUidMap.values()));
     
-    // Загружаем данные пользователей
     const userDocsRefs = uniqueUids.map((uid) =>
       db.collection('users').doc(uid)
     );
@@ -289,7 +345,6 @@ export const aiSaveMatch = onCall(
       if (d.exists) userDataMap.set(d.id, d.data());
     });
 
-    // --- Хелпер для создания/получения участника ---
     const getOrAddMember = (uid: string, userData: any) => {
       const existingIndex = members.findIndex((m: any) => m.userId === uid);
       if (existingIndex !== -1) {
@@ -365,7 +420,6 @@ export const aiSaveMatch = onCall(
         const p1Id = nameToUidMap.get(player1Name);
         const p2Id = nameToUidMap.get(player2Name);
 
-        // --- ВАЖНО: Кидаем ошибку, если игрок не найден ---
         if (!p1Id) {
              console.error(`AI Match Error: Player 1 not found. Name: "${player1Name}"`);
              throw new HttpsError('failed-precondition', `Could not find player: "${player1Name}". Please check the name spelling.`);
@@ -507,7 +561,6 @@ export const aiSaveMatch = onCall(
         batch.update(db.collection('users').doc(uid), updates);
       });
 
-      // Обновляем memberIds, чтобы синхронизировать данные
       const currentMemberIds: string[] = roomData.memberIds || [];
       const updatedMemberIds = new Set(currentMemberIds);
       members.forEach(m => updatedMemberIds.add(m.userId));
@@ -555,54 +608,8 @@ export const aiSaveMatch = onCall(
   }
 );
 
-const collectionsToScan = {
-  rooms: ['rooms-pingpong', 'rooms-tennis', 'rooms-badminton'],
-  matches: ['matches-pingpong', 'matches-tennis', 'matches-badminton'],
-  tournaments: [
-    'tournaments-pingpong',
-    'tournaments-tennis',
-    'tournaments-badminton',
-  ],
-};
-
-interface Member {
-  userId: string;
-  name?: string;
-  displayName?: string;
-  email?: string;
-  photoURL?: string | null;
-  [k: string]: any;
-}
-interface Participant {
-  userId: string;
-  name?: string;
-}
-interface MatchRef {
-  player1?: Participant;
-  player2?: Participant;
-}
-interface Round {
-  matches: MatchRef[];
-}
-
-async function getSuperAdminIds(): Promise<string[]> {
-  try {
-    const docRef = db.collection('config').doc('app');
-    const docSnap = await docRef.get();
-    if (docSnap.exists) {
-      const data = docSnap.data();
-      if (data && Array.isArray(data.superAdminIds)) {
-        return data.superAdminIds;
-      }
-    }
-    return [];
-  } catch (error) {
-    console.error('Error fetching super admin IDs:', error);
-    return [];
-  }
-}
-
 export const permanentlyDeleteUser = onCall(
+  { region: 'europe-west1' },
   async (request: CallableRequest) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'You must be logged in.');
@@ -769,7 +776,9 @@ export const permanentlyDeleteUser = onCall(
   }
 );
 
-export const recordMatch = onCall(async (request) => {
+export const recordMatch = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
@@ -854,6 +863,8 @@ export const recordMatch = onCall(async (request) => {
   const tennisStatsP1 = { aces: 0, doubleFaults: 0, winners: 0 };
   const tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
 
+  const mode: RoomMode = roomData.mode || 'office';
+  const baseK = typeof roomData.kFactor === 'number' ? roomData.kFactor : 32;
   const isRankedRoom = roomData.isRanked !== false;
 
   const batch = db.batch();
@@ -863,6 +874,9 @@ export const recordMatch = onCall(async (request) => {
     const game = matches[i];
     const score1 = Number(game.score1);
     const score2 = Number(game.score2);
+
+    const p1MatchesPlayed = (member1.wins ?? 0) + (member1.losses ?? 0) + i;
+    const p2MatchesPlayed = (member2.wins ?? 0) + (member2.losses ?? 0) + i;
 
     const oldG1 = currentG1;
     const oldG2 = currentG2;
@@ -875,14 +889,50 @@ export const recordMatch = onCall(async (request) => {
     let d2_Room = 0;
 
     if (isRankedRoom) {
-      d1_Global = calcDeltaImport(oldG1, oldG2, score1, score2, true);
-      d2_Global = calcDeltaImport(oldG2, oldG1, score2, score1, true);
+      d1_Global = calcDeltaImport(
+        oldG1,
+        oldG2,
+        score1,
+        score2,
+        true,
+        'professional',
+        32
+      );
+      d2_Global = calcDeltaImport(
+        oldG2,
+        oldG1,
+        score2,
+        score1,
+        true,
+        'professional',
+        32
+      );
+
       currentG1 += d1_Global;
       currentG2 += d2_Global;
     }
 
-    d1_Room = calcDeltaImport(oldRoom1, oldRoom2, score1, score2, false);
-    d2_Room = calcDeltaImport(oldRoom2, oldRoom1, score2, score1, false);
+    const k1 = getDynamicK(baseK, p1MatchesPlayed, mode);
+    const k2 = getDynamicK(baseK, p2MatchesPlayed, mode);
+
+    d1_Room = calcDeltaImport(
+      oldRoom1,
+      oldRoom2,
+      score1,
+      score2,
+      false,
+      mode,
+      k1
+    );
+    d2_Room = calcDeltaImport(
+      oldRoom2,
+      oldRoom1,
+      score2,
+      score1,
+      false,
+      mode,
+      k2
+    );
 
     currentRoom1 += d1_Room;
     currentRoom2 += d2_Room;
@@ -916,7 +966,7 @@ export const recordMatch = onCall(async (request) => {
       player2Extra.side = game.side2 || 'right';
     }
 
-    const matchDate = new Date(startDate.getTime() + i * 1000); 
+    const matchDate = new Date(startDate.getTime() + i * 1000);
     const matchRef = db.collection(`matches-${sport}`).doc();
 
     const p1Name = p1Data.name || p1Data.displayName || member1.name || 'Unknown';
@@ -941,6 +991,7 @@ export const recordMatch = onCall(async (request) => {
         roomOldRating: oldRoom1,
         roomNewRating: currentRoom1,
         roomAddedPoints: d1_Room,
+        side: 'left',
         ...player1Extra,
       },
       player2: {
@@ -952,6 +1003,7 @@ export const recordMatch = onCall(async (request) => {
         roomOldRating: oldRoom2,
         roomNewRating: currentRoom2,
         roomAddedPoints: d2_Room,
+        side: 'right',
         ...player2Extra,
       },
     });
@@ -1014,7 +1066,9 @@ export const recordMatch = onCall(async (request) => {
   return { success: true, gamesRecorded: matches.length };
 });
 
-export const claimGhostProfile = onCall(async (request) => {
+export const claimGhostProfile = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'User must be logged in');
   }
@@ -1026,7 +1080,6 @@ export const claimGhostProfile = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Missing or invalid ghostId');
   }
 
-  // 1. Получаем данные госта
   const ghostDocRef = db.collection('users').doc(ghostId);
   const ghostDoc = await ghostDocRef.get();
 
@@ -1036,18 +1089,10 @@ export const claimGhostProfile = onCall(async (request) => {
 
   const ghostData = ghostDoc.data();
 
-  // Проверки безопасности
-  if (!ghostData?.isGhost && !ghostData?.isArchivedGhost) {
-     // Разрешаем клеймить только тех, кто помечен как гост (или был им)
-     // Если у тебя логика, что можно клеймить и обычных юзеров (миграция), убери это условие
-     // Но обычно клеймят только "призраков"
-  }
-
   if (ghostData?.isClaimed) {
     throw new HttpsError('already-exists', 'Profile already claimed');
   }
 
-  // 2. Получаем данные нового пользователя (текущего)
   const newUserRef = db.collection('users').doc(newUserId);
   const newUserDoc = await newUserRef.get();
   
@@ -1055,34 +1100,23 @@ export const claimGhostProfile = onCall(async (request) => {
       throw new HttpsError('not-found', 'Your user profile does not exist yet');
   }
 
-  // 3. Подготовка данных для переноса (Merge logic)
   const batch = db.batch();
   
-  // Копируем статистику и историю из госта в нового юзера
-  // Используем merge, чтобы не затереть существующие поля (email, name и т.д.)
   const updatesForNewUser: any = {
-      // Маркеры миграции
       claimedFrom: ghostId,
-      ghostId: ghostId, // Legacy field
+      ghostId: ghostId, 
       
-      // Переносим базовую статистику, если у нового юзера она пустая (или 0)
-      // В реальном сценарии "клейма" новый юзер обычно пустой (0 матчей)
       globalElo: ghostData?.globalElo ?? 1000,
       matchesPlayed: ghostData?.matchesPlayed ?? 0,
       wins: ghostData?.wins ?? 0,
       losses: ghostData?.losses ?? 0,
       
-      // Массивы просто перезаписываем/объединяем (тут стратегия зависит от требований)
-      // Для простоты: берем от госта, так как у нового юзера их скорее всего нет
       eloHistory: ghostData?.eloHistory ?? [],
       friends: ghostData?.friends ?? [],
       rooms: ghostData?.rooms ?? [],
       achievements: ghostData?.achievements ?? [],
-      
-      // Спорт-специфичные данные (deep merge не поддерживается в update, перезаписываем ключи)
   };
 
-  // Копируем вложенные поля sports.*
   if (ghostData?.sports) {
       for (const sportKey in ghostData.sports) {
           const sData = ghostData.sports[sportKey];
@@ -1090,30 +1124,26 @@ export const claimGhostProfile = onCall(async (request) => {
       }
   }
   
-  // Если гост был менеджером чего-то
   if (ghostData?.managedBy) {
       updatesForNewUser.managedBy = ghostData.managedBy;
   }
 
   batch.update(newUserRef, updatesForNewUser);
 
-  // 4. Помечаем старого госта как заклеймленного
   batch.update(ghostDocRef, {
     isClaimed: true,
     claimedBy: newUserId,
     claimedAt: new Date().toISOString(),
-    isGhost: false, // Больше не гост
+    isGhost: false, 
     isArchivedGhost: true,
     migrationStatus: 'completed',
     migratedTo: newUserId
   });
 
-  // 5. Миграция связей (Rooms, Matches, Communities) - ЭТО ОСТАЕТСЯ КАК БЫЛО
   let operationCount = 0;
   const sports = ['pingpong', 'tennis', 'badminton'];
 
   try {
-    // --- ROOMS ---
     for (const sport of sports) {
       const roomsRef = db.collection(`rooms-${sport}`);
       const snapshot = await roomsRef.where('memberIds', 'array-contains', ghostId).get();
@@ -1140,7 +1170,6 @@ export const claimGhostProfile = onCall(async (request) => {
       }
     }
 
-    // --- MATCHES ---
     for (const sport of sports) {
       const matchesRef = db.collection(`matches-${sport}`);
       const snapshot = await matchesRef.where('players', 'array-contains', ghostId).get();
@@ -1161,7 +1190,6 @@ export const claimGhostProfile = onCall(async (request) => {
       }
     }
 
-    // --- COMMUNITIES ---
     const communitiesRef = db.collection('communities');
     const commSnapshot = await communitiesRef.where('members', 'array-contains', ghostId).get();
 
@@ -1193,3 +1221,344 @@ export const claimGhostProfile = onCall(async (request) => {
     throw new HttpsError('internal', error.message);
   }
 });
+
+// ============================================================================
+//                               COMMUNITY FEED TRIGGERS
+// ============================================================================
+
+const addToCommunityFeed = async (communityIds: string[], eventData: any) => {
+  if (!communityIds || communityIds.length === 0) return;
+  
+  const uniqueIds = [...new Set(communityIds)];
+  const batch = db.batch();
+
+  uniqueIds.forEach((commId) => {
+    const ref = db.collection('communities').doc(commId).collection('feed').doc();
+    batch.set(ref, {
+      ...eventData,
+      id: ref.id,
+      communityId: commId,
+      createdAt: new Date().toISOString(),
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
+  await batch.commit();
+};
+
+const handleMatchCreated = async (event: any, sport: string) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const match = snapshot.data();
+  const params = event.params as { matchId: string };
+  const { player1Id, player2Id, roomId } = match;
+
+  const [p1Snap, p2Snap, roomSnap] = await Promise.all([
+    db.collection('users').doc(player1Id).get(),
+    db.collection('users').doc(player2Id).get(),
+    db.collection(`rooms-${sport}`).doc(roomId).get()
+  ]);
+
+  const p1 = p1Snap.data();
+  const p2 = p2Snap.data();
+  const room = roomSnap.data();
+
+  // Determine Names
+  const p1Name = p1?.name || p1?.displayName || 'Unknown';
+  const p2Name = p2?.name || p2?.displayName || 'Unknown';
+
+  const targetCommunities: string[] = [];
+
+  if (room?.communityId) {
+    targetCommunities.push(room.communityId);
+  }
+
+  if (p1?.communityIds) targetCommunities.push(...p1.communityIds);
+  if (p2?.communityIds) targetCommunities.push(...p2.communityIds);
+
+  if (targetCommunities.length === 0) return;
+
+  await addToCommunityFeed(targetCommunities, {
+    type: 'match_finished',
+    sport: sport,
+    
+    // CRITICAL: Explicitly adding actorId and targetId for UI links
+    actorId: player1Id,
+    targetId: player2Id,
+
+    actorName: p1Name,
+    targetName: p2Name,
+    
+    title: `${p1Name} vs ${p2Name}`,
+    description: `Score: ${match.player1?.scores} - ${match.player2?.scores}`,
+    meta: {
+      matchId: params.matchId,
+      roomId: roomId,
+      roomName: room?.name,
+      winner: match.winner,
+      scores: `${match.player1?.scores} - ${match.player2?.scores}`
+    },
+    actorAvatars: [p1?.photoURL, p2?.photoURL].filter(Boolean)
+  });
+};
+
+export const onMatchCreatedPingPong = onDocumentCreated(
+  { region: 'europe-west1', document: 'matches-pingpong/{matchId}' },
+  (e) => handleMatchCreated(e, 'pingpong')
+);
+export const onMatchCreatedTennis = onDocumentCreated(
+  { region: 'europe-west1', document: 'matches-tennis/{matchId}' },
+  (e) => handleMatchCreated(e, 'tennis')
+);
+export const onMatchCreatedBadminton = onDocumentCreated(
+  { region: 'europe-west1', document: 'matches-badminton/{matchId}' },
+  (e) => handleMatchCreated(e, 'badminton')
+);
+
+const handleRoomCreated = async (event: any, sport: string) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const room = snapshot.data();
+  const params = event.params as { roomId: string };
+  const creatorId = room.creator;
+
+  const userSnap = await db.collection('users').doc(creatorId).get();
+  const user = userSnap.data();
+  const creatorName = user?.name || user?.displayName || 'Someone';
+  
+  const targetCommunities: string[] = [];
+  
+  if (room.communityId) {
+    targetCommunities.push(room.communityId);
+  } else if (user?.communityIds) {
+    targetCommunities.push(...user.communityIds);
+  }
+
+  if (targetCommunities.length === 0) return;
+
+  await addToCommunityFeed(targetCommunities, {
+    type: 'room_created',
+    sport: sport,
+    actorId: creatorId,
+    actorName: creatorName,
+    
+    title: `${creatorName} created a new room`,
+    description: `Room "${room.name}" is now available.`,
+    meta: {
+      roomId: params.roomId,
+      roomName: room.name,
+      mode: room.mode
+    },
+    actorAvatars: [user?.photoURL].filter(Boolean)
+  });
+};
+
+export const onRoomCreatedPingPong = onDocumentCreated(
+  { region: 'europe-west1', document: 'rooms-pingpong/{roomId}' },
+  (e) => handleRoomCreated(e, 'pingpong')
+);
+export const onRoomCreatedTennis = onDocumentCreated(
+  { region: 'europe-west1', document: 'rooms-tennis/{roomId}' },
+  (e) => handleRoomCreated(e, 'tennis')
+);
+export const onRoomCreatedBadminton = onDocumentCreated(
+  { region: 'europe-west1', document: 'rooms-badminton/{roomId}' },
+  (e) => handleRoomCreated(e, 'badminton')
+);
+
+const handleRoomUpdated = async (event: any, sport: string) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  const roomId = event.params.roomId;
+
+  if (!before || !after) return;
+
+  const targetCommunities: string[] = [];
+  if (after.communityId) targetCommunities.push(after.communityId);
+  
+  if (targetCommunities.length === 0) return;
+
+  // A. Check for Season Finish
+  const oldHistory = before.seasonHistory || [];
+  const newHistory = after.seasonHistory || [];
+  
+  if (newHistory.length > oldHistory.length) {
+    const lastSeason = newHistory[newHistory.length - 1];
+    await addToCommunityFeed(targetCommunities, {
+      type: 'season_finished',
+      sport: sport,
+      title: `Season finished in ${after.name}`,
+      description: `Winner: ${lastSeason.summary?.[0]?.name || 'Unknown'}`,
+      meta: {
+        roomId: roomId,
+        roomName: after.name
+      },
+      actorAvatars: [] 
+    });
+  }
+
+  // B. Check for New Members
+  const oldMembers = new Set((before.memberIds || []) as string[]);
+  const newMembers = (after.memberIds || []) as string[];
+  
+  const joinedUsers = newMembers.filter(uid => !oldMembers.has(uid));
+  
+  for (const userId of joinedUsers) {
+    const userSnap = await db.collection('users').doc(userId).get();
+    const userData = userSnap.data();
+    const userName = userData?.name || userData?.displayName || 'Player';
+    
+    await addToCommunityFeed(targetCommunities, {
+      type: 'room_joined',
+      sport: sport,
+      actorId: userId,
+      actorName: userName,
+      
+      title: `${userName} joined ${after.name}`,
+      description: `New challenger approaches!`,
+      meta: {
+        roomId: roomId,
+        roomName: after.name
+      },
+      actorAvatars: [userData?.photoURL].filter(Boolean)
+    });
+  }
+};
+
+export const onRoomUpdatedPingPong = onDocumentUpdated(
+  { region: 'europe-west1', document: 'rooms-pingpong/{roomId}' },
+  (e) => handleRoomUpdated(e, 'pingpong')
+);
+export const onRoomUpdatedTennis = onDocumentUpdated(
+  { region: 'europe-west1', document: 'rooms-tennis/{roomId}' },
+  (e) => handleRoomUpdated(e, 'tennis')
+);
+export const onRoomUpdatedBadminton = onDocumentUpdated(
+  { region: 'europe-west1', document: 'rooms-badminton/{roomId}' },
+  (e) => handleRoomUpdated(e, 'badminton')
+);
+
+export const onUserFriendsUpdated = onDocumentUpdated(
+  { region: 'europe-west1', document: 'users/{userId}' },
+  async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  
+  const oldFriends: string[] = before?.friends || [];
+  const newFriends: string[] = after?.friends || [];
+
+  if (newFriends.length <= oldFriends.length) return;
+
+  const addedFriendIds = newFriends.filter(id => !oldFriends.includes(id));
+  if (addedFriendIds.length === 0) return;
+
+  const actorId = event.params.userId;
+  const actorName = after?.name || after?.displayName || 'Unknown';
+  const communities: string[] = after?.communityIds || [];
+
+  if (communities.length === 0) return;
+
+  for (const friendId of addedFriendIds) {
+    const friendSnap = await db.collection('users').doc(friendId).get();
+    const friendData = friendSnap.data();
+    const friendName = friendData?.name || friendData?.displayName || 'Unknown';
+
+    await addToCommunityFeed(communities, {
+      type: 'friend_added',
+      sport: 'global', 
+      
+      actorId: actorId,
+      actorName: actorName,
+      targetId: friendId,
+      targetName: friendName,
+
+      title: `${actorName} added a friend`,
+      description: `${actorName} is now friends with ${friendName}`,
+      meta: {
+        actorId: actorId,
+        targetId: friendId
+      },
+      actorAvatars: [after?.photoURL, friendData?.photoURL].filter(Boolean)
+    });
+  }
+});
+
+export const onGhostClaimed = onDocumentUpdated(
+  { region: 'europe-west1', document: 'users/{userId}' },
+  async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+
+  if (!before?.isClaimed && after?.isClaimed) {
+    const communities: string[] = after?.communityIds || [];
+    if (communities.length === 0) return;
+
+    const realUserId = after.claimedBy; 
+    const userName = after.name || after.displayName || 'Unknown';
+
+    await addToCommunityFeed(communities, {
+      type: 'ghost_claimed',
+      sport: 'global',
+      actorId: event.params.userId,
+      actorName: userName,
+      
+      title: `New player joined!`,
+      description: `Profile "${userName}" has been claimed by a real user.`,
+      meta: {
+        ghostId: event.params.userId,
+        realUserId: realUserId
+      },
+      actorAvatars: [after.photoURL].filter(Boolean)
+    });
+  }
+});
+
+export const aiContentCheck = onCall(
+  { region: 'europe-west1' }, 
+  async (request: CallableRequest) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
+    }
+
+    const { text, context } = request.data; // context: 'room_name', 'bio', etc.
+
+    try {
+      const prompt = `
+        You are a strict content moderator for a sports community app.
+        Analyze the following text for:
+        1. Profanity (Russian,English,Finnish,Korean).
+        2. Hate speech or calls to violence.
+        3. Sexual content / 18+ references.
+        4. Spam.
+
+        Text to check: "${text}"
+        Context: ${context || 'general'}
+
+        If the text is SAFE, return valid: true.
+        If UNSAFE, return valid: false and a brief reason (localized to user language if possible, otherwise English).
+
+        JSON Output only.
+      `;
+
+      const response = await ai.generate({
+        prompt: prompt,
+        output: {
+          schema: z.object({
+            valid: z.boolean(),
+            reason: z.string().optional(),
+          }),
+        },
+      });
+
+      return response.output;
+    } catch (error: any) {
+      logger.error('CRITICAL content check error:', error);
+      return {
+        valid: false,
+        reason: 'Content check failed. Please try again later.',
+      };
+    }
+  }
+);

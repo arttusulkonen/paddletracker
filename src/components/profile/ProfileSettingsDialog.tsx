@@ -40,6 +40,7 @@ import { Sport, sportConfig, useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db, storage } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
+import { containsProfanity, validateImageFile } from '@/lib/moderation';
 import { UserProfile } from '@/lib/types';
 import { updateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -105,30 +106,9 @@ export function ProfileSettingsDialog({
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (!f) return;
 
-    const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp'];
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-    const fileExtension = f.name
-      .substring(f.name.lastIndexOf('.'))
-      .toLowerCase();
-
-    if (
-      !allowedMimeTypes.includes(f.type) &&
-      !allowedExtensions.includes(fileExtension)
-    ) {
-      toast({
-        title: t('Invalid image'),
-        description: t('Use PNG/JPEG/WEBP up to 2MB.'),
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (f.size > 2 * 1024 * 1024) {
-      toast({
-        title: t('File too large'),
-        description: t('Max size is 2MB.'),
-        variant: 'destructive',
-      });
+    const { valid, error } = validateImageFile(f);
+    if (!valid) {
+      toast({ title: t('Invalid image'), description: t(error || 'Invalid image'), variant: 'destructive' });
       return;
     }
 
@@ -172,6 +152,14 @@ export function ProfileSettingsDialog({
   };
 
   const handleSave = async () => {
+    if (containsProfanity(name) || containsProfanity(bio)) {
+      toast({
+        title: t('Validation Error'),
+        description: t('Please remove inappropriate content from name or bio.'),
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!db) return;
     setIsSaving(true);
     try {

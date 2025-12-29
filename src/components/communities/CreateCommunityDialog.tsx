@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
+import { containsProfanity } from '@/lib/moderation';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { addDoc, collection } from 'firebase/firestore';
 import { Loader2, Plus, Warehouse } from 'lucide-react';
@@ -41,6 +42,16 @@ export function CreateCommunityDialog({ trigger }: CreateCommunityDialogProps) {
 
   const handleCreate = async () => {
     if (!name.trim() || !user || !db) return;
+
+    if (containsProfanity(name) || containsProfanity(desc)) {
+      toast({
+        title: t('Content Warning'),
+        description: t('Name or description contains inappropriate words.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const now = getFinnishFormattedDate();
@@ -50,8 +61,8 @@ export function CreateCommunityDialog({ trigger }: CreateCommunityDialogProps) {
         description: desc.trim(),
         ownerId: user.uid,
         admins: [user.uid],
-        members: [user.uid], // Создатель сразу участник
-        roomIds: [], // Пустой список комнат
+        members: [user.uid], 
+        roomIds: [],
         createdAt: now,
         avatarURL: null,
       });
