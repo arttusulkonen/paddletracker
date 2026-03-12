@@ -1,3 +1,4 @@
+// src/components/rooms/CreateRoomDialog.tsx
 'use client';
 import ImageCropDialog from '@/components/ImageCropDialog';
 import {
@@ -91,6 +92,7 @@ interface NewMember {
   currentStreak?: number;
   highestStreak?: number;
   nemesisId?: string | null;
+  h2h?: Record<string, { wins: number; losses: number }>;
 }
 
 const NAME_MAX = 60;
@@ -357,15 +359,16 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       const finalMemberIds = new Set([user!.uid, ...selectedFriends]);
       const communityMembersToAdd: NewMember[] = [];
 
-      const derbyProps =
-        roomMode === 'derby'
-          ? {
-              badges: [],
-              currentStreak: 0,
-              highestStreak: 0,
-              nemesisId: null,
-            }
-          : {};
+      const getDerbyProps = () => {
+        if (roomMode !== 'derby') return {};
+        return {
+          badges: [],
+          currentStreak: 0,
+          highestStreak: 0,
+          nemesisId: null,
+          h2h: {},
+        };
+      };
 
       if (selectedCommunityId !== 'none') {
         const commDoc = await getDoc(
@@ -404,7 +407,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                     losses: 0,
                     date: now,
                     role: 'editor',
-                    ...derbyProps,
+                    ...getDerbyProps(),
                   });
                 }
               });
@@ -431,7 +434,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
             losses: 0,
             date: now,
             role: 'editor',
-            ...derbyProps,
+            ...getDerbyProps(),
           };
         })
         .filter((m): m is NewMember => m !== null);
@@ -448,7 +451,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
           losses: 0,
           date: now,
           role: 'admin',
-          ...derbyProps,
+          ...getDerbyProps(),
         },
         ...communityMembersToAdd,
         ...friendMembers,
@@ -458,7 +461,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       const adminIds = withSuperAdmins(user!.uid, superAdmins);
       const memberIdsArr = Array.from(finalMemberIds);
 
-      const docRef = await addDoc(collection(db, config.collections.rooms), {
+      const roomDataToSave = {
         name: roomName.trim(),
         description: roomDescription.trim(),
         avatarURL,
@@ -478,7 +481,15 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         joinRequests: [],
         communityId:
           selectedCommunityId !== 'none' ? selectedCommunityId : null,
-      });
+      };
+
+      console.log('=== ROOM CREATION SNAPSHOT ===');
+      console.log(JSON.stringify(roomDataToSave, null, 2));
+
+      const docRef = await addDoc(
+        collection(db, config.collections.rooms),
+        roomDataToSave,
+      );
 
       const batch = writeBatch(db);
 

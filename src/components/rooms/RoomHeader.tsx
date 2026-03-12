@@ -23,7 +23,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui';
-import { useAuth } from '@/contexts/AuthContext'; // <--- Импортируем хук авторизации
+import { useAuth } from '@/contexts/AuthContext';
 import type { Room, Member as RoomMember } from '@/lib/types';
 import {
 	Briefcase,
@@ -65,19 +65,18 @@ export function RoomHeader({
   onLeave,
 }: RoomHeaderProps) {
   const { t } = useTranslation();
-  const { userProfile } = useAuth(); // <--- Получаем профиль пользователя
+  const { userProfile } = useAuth();
 
   const mode = room.mode || 'office';
   const memberCount = room.memberIds?.length || 0;
 
-  // Проверяем, является ли пользователь "управляемым" (созданным тренером)
   const isManagedUser = !!userProfile?.managedBy;
 
   const topBountyMember = members?.reduce((prev, current) => {
     const prevStreak = prev?.currentStreak ?? 0;
     const currStreak = current?.currentStreak ?? 0;
     return prevStreak > currStreak ? prev : current;
-  }, members[0]);
+  }, members?.[0]);
 
   const showBounty =
     mode === 'derby' &&
@@ -87,7 +86,6 @@ export function RoomHeader({
     ? ((topBountyMember.currentStreak ?? 0) - 2) * 5
     : 0;
 
-  // Настройка темы и описания режима
   const getTheme = () => {
     switch (mode) {
       case 'professional':
@@ -228,10 +226,6 @@ export function RoomHeader({
                   </>
                 )}
 
-                {/* FIX: Скрываем кнопку Leave если:
-                  1. Пользователь создатель комнаты (isCreator)
-                  2. Пользователь управляется тренером (isManagedUser)
-                */}
                 {isMember &&
                   !isCreator &&
                   !room.isArchived &&
@@ -289,7 +283,6 @@ export function RoomHeader({
                 {room.description}
               </p>
             ) : (
-              // Если описания нет, показываем описание режима как fallback, чтобы не было пусто
               <p className='text-muted-foreground/70 text-sm leading-relaxed max-w-2xl italic'>
                 {theme.description}
               </p>

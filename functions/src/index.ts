@@ -1,3 +1,4 @@
+// functions/src/index.ts
 import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
@@ -543,14 +544,9 @@ export const aiSaveMatch = onCall(
           if (winnerMember.currentStreak > winnerMember.highestStreak) {
             winnerMember.highestStreak = winnerMember.currentStreak;
           }
-          if (
-            winnerMember.currentStreak >= 3 &&
-            !winnerMember.badges.includes('on_fire')
-          ) {
-            winnerMember.badges.push('on_fire');
-          }
 
           loserMember.currentStreak = 0;
+          loserMember.badges = [];
 
           winnerMember.h2h[loserId].wins += 1;
           loserMember.h2h[winnerId].losses += 1;
@@ -941,7 +937,7 @@ export const recordMatch = onCall(
     }
 
     const members = roomData.members || [];
-    const mode = (roomData.mode || 'office') as RoomMode | 'derby';
+    const mode: RoomMode = roomData.mode || 'office';
 
     const getOrAddMember = (uid: string, userData: any) => {
       const existingIndex = members.findIndex((m: any) => m.userId === uid);
@@ -1036,8 +1032,8 @@ export const recordMatch = onCall(
         currentG2 += d2_Global;
       }
 
-      const k1 = getDynamicK(baseK, p1MatchesPlayed, mode as RoomMode);
-      const k2 = getDynamicK(baseK, p2MatchesPlayed, mode as RoomMode);
+      const k1 = getDynamicK(baseK, p1MatchesPlayed, mode);
+      const k2 = getDynamicK(baseK, p2MatchesPlayed, mode);
 
       d1_Room = calcDeltaImport(
         oldRoom1,
@@ -1045,7 +1041,7 @@ export const recordMatch = onCall(
         score1,
         score2,
         false,
-        mode as RoomMode,
+        mode,
         k1,
       );
       d2_Room = calcDeltaImport(
@@ -1054,7 +1050,7 @@ export const recordMatch = onCall(
         score2,
         score1,
         false,
-        mode as RoomMode,
+        mode,
         k2,
       );
 
@@ -1088,6 +1084,8 @@ export const recordMatch = onCall(
 
         let baseWinnerDelta = isP1Winner ? d1_Room : d2_Room;
 
+        loserMember.badges = [];
+
         if (baseWinnerDelta > 0) {
           const winnerH2H = winnerMember.h2h[loserId];
           const totalH2H = winnerH2H.wins + winnerH2H.losses;
@@ -1118,12 +1116,6 @@ export const recordMatch = onCall(
         winnerMember.currentStreak += 1;
         if (winnerMember.currentStreak > winnerMember.highestStreak) {
           winnerMember.highestStreak = winnerMember.currentStreak;
-        }
-        if (
-          winnerMember.currentStreak >= 3 &&
-          !winnerMember.badges.includes('on_fire')
-        ) {
-          winnerMember.badges.push('on_fire');
         }
 
         loserMember.currentStreak = 0;

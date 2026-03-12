@@ -1,12 +1,8 @@
+// next.config.ts
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Добавляем этот параметр, чтобы зафиксировать корень проекта и убрать Warning
-  outputFileTracingRoot: __dirname, 
-  
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  outputFileTracingRoot: __dirname,
   images: {
     remotePatterns: [{ protocol: 'https', hostname: 'picsum.photos', pathname: '/**' }],
   },

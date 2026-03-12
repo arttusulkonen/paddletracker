@@ -50,13 +50,15 @@ export function MembersList({
   const [viewMode, setViewMode] = useState<ViewMode>('regular');
 
   const myNemesisId = useMemo(() => {
-    return members?.find((m: any) => m.userId === currentUser?.uid)?.nemesisId;
+    if (!Array.isArray(members)) {
+      return undefined;
+    }
+    return members.find((m: any) => m.userId === currentUser?.uid)?.nemesisId;
   }, [members, currentUser]);
 
   const computed = useMemo(() => {
     const arr = Array.isArray(members) ? members : [];
 
-    // FIX: Filter out coaches
     const playersOnly = arr.filter((p: any) => p.accountType !== 'coach');
 
     const base = playersOnly.map((p: any) => {
@@ -240,7 +242,6 @@ export function MembersList({
                           {p.name}
                         </a>
                       )}
-                      {/* Show visual indicator for creator, but keep them in list */}
                       {p.userId === room.creator && (
                         <TooltipProvider>
                           <Tooltip>
@@ -281,7 +282,6 @@ export function MembersList({
                       )}
                     </div>
 
-                    {/* Вывод бейджей и статусов Дерби-режима */}
                     {(isMyNemesis || isOnFire || isGiantSlayer) && (
                       <div className='flex items-center flex-wrap gap-1.5 mt-1.5'>
                         {isMyNemesis && (

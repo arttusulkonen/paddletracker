@@ -3,6 +3,8 @@
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import { RecordBlock } from '@/components/RecordBlock';
+import { DerbyFeed } from '@/components/rooms/DerbyFeed';
+import { DerbySimulator } from '@/components/rooms/DerbySimulator';
 import { MembersList } from '@/components/rooms/MembersList';
 import { RecentMatches } from '@/components/rooms/RecentMatches';
 import { RoomHeader } from '@/components/rooms/RoomHeader';
@@ -25,6 +27,7 @@ import {
 	ScrollArea,
 } from '@/components/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -103,7 +106,7 @@ export default function RoomPage() {
 
   const memberIdsSet = useMemo(
     () => new Set(room?.memberIds ?? []),
-    [room?.memberIds]
+    [room?.memberIds],
   );
 
   useEffect(() => {
@@ -140,7 +143,7 @@ export default function RoomPage() {
           | Season[]
           | undefined;
         setLatestSeason(history?.slice().reverse()[0] ?? null);
-      }
+      },
     );
     return () => unsubRoom();
   }, [user, roomId, config.collections.rooms, router, isGlobalAdmin]);
@@ -155,7 +158,7 @@ export default function RoomPage() {
     if (!user || accessDenied || !db) return;
     const roomsQ = query(
       collection(db, config.collections.rooms),
-      where('memberIds', 'array-contains', user.uid)
+      where('memberIds', 'array-contains', user.uid),
     );
     const unsub = onSnapshot(roomsQ, async (snap) => {
       const idsSet = new Set<string>();
@@ -177,27 +180,25 @@ export default function RoomPage() {
         Array.from(idsSet).map(async (uid) => {
           const profile = await getUserLite(uid);
           return profile && profile.uid === uid ? profile : null;
-        })
+        }),
       );
       setCoPlayers(loaded.filter((p): p is UserProfile => !!p));
     });
     return () => unsub();
   }, [user, config.collections.rooms, room?.memberIds, accessDenied]);
 
-  // FIX: Filter out coaches
   const friendsAll = useMemo(
     () =>
       friends
         .filter((p) => !memberIdsSet.has(p.uid) && p.accountType !== 'coach')
         .sort((a, b) =>
           (a.name ?? a.displayName ?? '').localeCompare(
-            b.name ?? b.displayName ?? ''
-          )
+            b.name ?? b.displayName ?? '',
+          ),
         ),
-    [friends, memberIdsSet]
+    [friends, memberIdsSet],
   );
 
-  // FIX: Filter out coaches
   const othersInSport = useMemo(() => {
     const friendSet = new Set(friends.map((f) => f.uid));
     return coPlayers
@@ -205,12 +206,12 @@ export default function RoomPage() {
         (p) =>
           !friendSet.has(p.uid) &&
           !memberIdsSet.has(p.uid) &&
-          p.accountType !== 'coach'
+          p.accountType !== 'coach',
       )
       .sort((a, b) =>
         (a.name ?? a.displayName ?? '').localeCompare(
-          b.name ?? b.displayName ?? ''
-        )
+          b.name ?? b.displayName ?? '',
+        ),
       );
   }, [coPlayers, friends, memberIdsSet]);
 
@@ -228,18 +229,18 @@ export default function RoomPage() {
 
   const isMember = useMemo(
     () => room?.memberIds?.includes(user?.uid ?? ''),
-    [user, room]
+    [user, room],
   );
 
   useEffect(() => {
     if (!user || !db || accessDenied) return;
     const q = query(
       collection(db, config.collections.matches),
-      where('roomId', '==', roomId)
+      where('roomId', '==', roomId),
     );
     const unsub = onSnapshot(q, (snap) => {
       const all = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() } as Match))
+        .map((d) => ({ id: d.id, ...d.data() }) as Match)
         .sort((a, b) => tsToMs(a.tsIso) - tsToMs(b.tsIso));
       setRawMatches(all);
     });
@@ -250,7 +251,7 @@ export default function RoomPage() {
     const fetchFriends = async () => {
       if (userProfile?.friends && userProfile.friends.length > 0) {
         const friendProfiles = await Friends.getMultipleUsersLite(
-          userProfile.friends
+          userProfile.friends,
         );
         setFriends(friendProfiles);
       } else {
@@ -302,7 +303,7 @@ export default function RoomPage() {
           } catch {
             return null;
           }
-        })
+        }),
       );
 
       const freshProfiles = new Map<string, UserProfile>();
@@ -318,10 +319,9 @@ export default function RoomPage() {
           const existing = existingMembersMap.get(uid);
 
           const displayName = profile
-            ? profile.name ?? profile.displayName ?? 'Unknown'
-            : existing?.name ?? 'Unknown';
+            ? (profile.name ?? profile.displayName ?? 'Unknown')
+            : (existing?.name ?? 'Unknown');
 
-          // FIX: Explicitly grab accountType
           const accountType =
             profile?.accountType || (existing as any)?.accountType || 'player';
 
@@ -332,7 +332,7 @@ export default function RoomPage() {
               photoURL: profile?.photoURL,
               globalElo: profile?.sports?.[sport]?.globalElo,
               rank: profile?.rank,
-              accountType, // Inject accountType
+              accountType,
             } as any;
           }
 
@@ -347,7 +347,7 @@ export default function RoomPage() {
             role: 'viewer',
             date: new Date().toISOString(),
             globalElo: profile?.sports?.[sport]?.globalElo ?? 1000,
-            accountType, // Inject accountType
+            accountType,
           } as any;
         });
 
@@ -409,7 +409,7 @@ export default function RoomPage() {
             score: `${youScore}-${oppScore}`,
           };
         }),
-    [recentMatches]
+    [recentMatches],
   );
 
   const regularPlayers = useMemo(() => {
@@ -499,10 +499,9 @@ export default function RoomPage() {
     });
   }, [members, rawMatches, seasonStarts, seasonRoomStarts, sport, last5Form]);
 
-  // FIX: Create a filtered list of members (players only) for components
   const playersOnlyMembers = useMemo(
     () => regularPlayers.filter((m: any) => m.accountType !== 'coach'),
-    [regularPlayers]
+    [regularPlayers],
   );
 
   const getSeasonEloSnapshots = useCallback(
@@ -511,7 +510,7 @@ export default function RoomPage() {
       const qs = query(
         collection(db, config.collections.matches),
         where('roomId', '==', roomId),
-        orderBy('tsIso', 'asc')
+        orderBy('tsIso', 'asc'),
       );
       const snap = await getDocs(qs);
       const firstSeen: Record<string, number> = {};
@@ -545,7 +544,7 @@ export default function RoomPage() {
       });
       return out;
     },
-    [config.collections.matches]
+    [config.collections.matches],
   );
 
   const handleFinishSeason = useCallback(async () => {
@@ -596,7 +595,7 @@ export default function RoomPage() {
       return;
     }
     const effectiveSelected = selectedFriends.filter(
-      (id) => !memberIdsSet.has(id)
+      (id) => !memberIdsSet.has(id),
     );
     if (effectiveSelected.length === 0) {
       toast({ title: t('Select friends to invite'), variant: 'destructive' });
@@ -622,7 +621,6 @@ export default function RoomPage() {
         const fromCo = coPlayers.find((p) => p.uid === uid);
         if (fromCo) return fromCo;
         const lite = await getUserLite(uid);
-        // FIX: Use Omit to prevent TS error about uid overwrite
         return lite
           ? ({ uid, ...(lite as Omit<typeof lite, 'uid'>) } as UserProfile)
           : null;
@@ -632,7 +630,7 @@ export default function RoomPage() {
         effectiveSelected.map(async (uid) => ({
           uid,
           profile: await getLite(uid),
-        }))
+        })),
       );
 
       const batch = writeBatch(db);
@@ -723,7 +721,7 @@ export default function RoomPage() {
 
   const hasPendingRequest = useMemo(
     () => room?.joinRequests?.includes(user?.uid ?? ''),
-    [user, room]
+    [user, room],
   );
 
   const showInviteSection = isMember && !latestSeason && !room?.isArchived;
@@ -738,7 +736,7 @@ export default function RoomPage() {
               <DialogTitle>{t('Private Room')}</DialogTitle>
               <DialogDescription>
                 {t(
-                  'This room is private. You will be redirected to the rooms list.'
+                  'This room is private. You will be redirected to the rooms list.',
                 )}
               </DialogDescription>
             </DialogHeader>
@@ -778,7 +776,6 @@ export default function RoomPage() {
           onLeave={handleLeaveRoom}
         />
 
-        {/* ALERTS SECTION */}
         <div className='space-y-4 mb-8'>
           {room.isArchived && (
             <Alert variant='destructive'>
@@ -813,7 +810,7 @@ export default function RoomPage() {
                 </AlertTitle>
                 <AlertDescription className='text-blue-700 dark:text-blue-300'>
                   {t(
-                    'This is a public room. Join to start recording matches and see your stats.'
+                    'This is a public room. Join to start recording matches and see your stats.',
                   )}
                 </AlertDescription>
               </Alert>
@@ -832,16 +829,13 @@ export default function RoomPage() {
           )}
         </div>
 
-        {/* MAIN LAYOUT GRID */}
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-8'>
-          {/* LEFT COLUMN: Players & Invites (4 cols) */}
           <div className='lg:col-span-4 space-y-6'>
             <Card className='shadow-sm border-0 bg-transparent sm:bg-card sm:border'>
               <CardHeader className='px-0 sm:px-6'>
                 <CardTitle>{t('Players')}</CardTitle>
               </CardHeader>
               <CardContent className='px-0 sm:px-6'>
-                {/* FIX: Pass filtered players to MembersList */}
                 <MembersList
                   members={playersOnlyMembers}
                   room={room}
@@ -883,8 +877,8 @@ export default function RoomPage() {
                                           ])
                                         : setSelectedFriends(
                                             selectedFriends.filter(
-                                              (id) => id !== p.uid
-                                            )
+                                              (id) => id !== p.uid,
+                                            ),
                                           )
                                     }
                                   />
@@ -926,8 +920,8 @@ export default function RoomPage() {
                                           ])
                                         : setSelectedFriends(
                                             selectedFriends.filter(
-                                              (id) => id !== p.uid
-                                            )
+                                              (id) => id !== p.uid,
+                                            ),
                                           )
                                     }
                                   />
@@ -970,12 +964,9 @@ export default function RoomPage() {
             </Card>
           </div>
 
-          {/* RIGHT COLUMN: Record -> Standings -> History (8 cols) */}
           <div className='lg:col-span-8 space-y-8'>
-            {/* 1. Record Block */}
             {isMember && !latestSeason && !room.isArchived && (
               <section>
-                {/* FIX: Pass filtered players to RecordBlock */}
                 <RecordBlock
                   members={playersOnlyMembers}
                   roomId={roomId}
@@ -990,8 +981,7 @@ export default function RoomPage() {
         </div>
 
         <div className='mt-16 mb-8 text-center text-sm text-muted-foreground'>
-          <section>
-            {/* FIX: Pass filtered players to StandingsTable */}
+          <section className='mb-8'>
             <StandingsTable
               players={playersOnlyMembers}
               latestSeason={latestSeason}
@@ -1000,8 +990,39 @@ export default function RoomPage() {
             />
           </section>
 
+          {room.mode === 'derby' && (
+            <DerbySimulator
+              roomId={roomId}
+              members={playersOnlyMembers}
+              sport={sport}
+            />
+          )}
+
           <section>
-            <RecentMatches matches={recentMatches} />
+            {room.mode === 'derby' ? (
+              <Tabs defaultValue='derby' className='w-full'>
+                <TabsList className='mb-6 grid w-full max-w-md mx-auto grid-cols-2'>
+                  <TabsTrigger value='derby'>{t('Derby Events')}</TabsTrigger>
+                  <TabsTrigger value='matches'>
+                    {t('Match History')}
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value='derby' className='mt-0 text-left'>
+                  <DerbyFeed
+                    room={room}
+                    members={playersOnlyMembers}
+                    matches={recentMatches}
+                  />
+                </TabsContent>
+                <TabsContent value='matches' className='mt-0 text-left'>
+                  <RecentMatches matches={recentMatches} />
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <div className='text-left'>
+                <RecentMatches matches={recentMatches} />
+              </div>
+            )}
           </section>
         </div>
       </div>

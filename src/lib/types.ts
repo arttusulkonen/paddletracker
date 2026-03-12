@@ -2,7 +2,7 @@
 
 // --- Enums & Unions ---
 export type Sport = 'pingpong' | 'tennis' | 'badminton';
-export type RoomMode = 'office' | 'professional' | 'arcade';
+export type RoomMode = 'office' | 'professional' | 'arcade' | 'derby';
 export type AccountType = 'player' | 'coach'; 
 
 // --- Config ---
