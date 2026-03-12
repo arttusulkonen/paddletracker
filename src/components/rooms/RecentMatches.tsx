@@ -1,4 +1,3 @@
-// src/components/rooms/RecentMatches.tsx
 'use client';
 
 import {
@@ -17,7 +16,7 @@ import {
 } from '@/components/ui';
 import type { Match } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
-import { ShieldCheck } from 'lucide-react';
+import { Flame, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -206,6 +205,9 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
                   const cg2 = snap?.p2.gained ?? 0;
                   const cl2 = snap?.p2.lost ?? 0;
 
+                  const isEpicGainP1 = roomDeltaP1 >= 30;
+                  const isEpicGainP2 = roomDeltaP2 >= 30;
+
                   return (
                     <TableRow key={m.id}>
                       <TableCell>
@@ -217,13 +219,17 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
                       </TableCell>
 
                       <TableCell>
-                        {roomDeltaP1 >= 0
-                          ? `+${Math.round(roomDeltaP1)}`
-                          : Math.round(roomDeltaP1)}{' '}
-                        |{' '}
-                        {roomDeltaP2 >= 0
-                          ? `+${Math.round(roomDeltaP2)}`
-                          : Math.round(roomDeltaP2)}
+                        <div className='flex items-center gap-1.5'>
+                          <span className={isEpicGainP1 ? 'text-orange-500 font-bold flex items-center gap-1' : ''}>
+                            {roomDeltaP1 >= 0 ? `+${Math.round(roomDeltaP1)}` : Math.round(roomDeltaP1)}
+                            {isEpicGainP1 && <Flame className='w-3 h-3 fill-current' />}
+                          </span>
+                          <span className='text-muted-foreground'>|</span>
+                          <span className={isEpicGainP2 ? 'text-orange-500 font-bold flex items-center gap-1' : ''}>
+                            {roomDeltaP2 >= 0 ? `+${Math.round(roomDeltaP2)}` : Math.round(roomDeltaP2)}
+                            {isEpicGainP2 && <Flame className='w-3 h-3 fill-current' />}
+                          </span>
+                        </div>
                       </TableCell>
 
                       <TableCell>

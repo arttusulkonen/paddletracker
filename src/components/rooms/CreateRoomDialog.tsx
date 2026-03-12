@@ -1,4 +1,3 @@
-// src/components/rooms/CreateRoomDialog.tsx
 'use client';
 import ImageCropDialog from '@/components/ImageCropDialog';
 import {
@@ -88,6 +87,10 @@ interface NewMember {
   losses: number;
   date: string;
   role: 'admin' | 'editor';
+  badges?: string[];
+  currentStreak?: number;
+  highestStreak?: number;
+  nemesisId?: string | null;
 }
 
 const NAME_MAX = 60;
@@ -107,7 +110,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const [roomDescription, setRoomDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [isRanked, setIsRanked] = useState(true);
-  const [roomMode, setRoomMode] = useState<RoomMode>('office');
+  const [roomMode, setRoomMode] = useState<RoomMode | 'derby'>('office');
 
   const [selectedCommunityId, setSelectedCommunityId] =
     useState<string>('none');
@@ -135,16 +138,16 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       if (!snap.exists()) return setFriends([]);
       const ids: string[] = snap.data().friends ?? [];
       const loaded = await Promise.all(
-        ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) }))
+        ids.map(async (uid) => ({ uid, ...(await getUserLite(uid)) })),
       );
       setFriends(
         (loaded.filter(Boolean) as UserProfile[])
-          .filter((p) => p.accountType !== 'coach') // FIX: Filter out coaches
+          .filter((p) => p.accountType !== 'coach')
           .sort((a, b) =>
             (a.name ?? a.displayName ?? '').localeCompare(
-              b.name ?? b.displayName ?? ''
-            )
-          )
+              b.name ?? b.displayName ?? '',
+            ),
+          ),
       );
     });
     return () => unsub();
@@ -154,7 +157,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     if (!user || !isOpen || !db) return;
     const qRooms = query(
       collection(db, config.collections.rooms),
-      where('memberIds', 'array-contains', user.uid)
+      where('memberIds', 'array-contains', user.uid),
     );
     const unsub = onSnapshot(qRooms, async (snap) => {
       const idsSet = new Set<string>();
@@ -167,16 +170,16 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         Array.from(idsSet).map(async (uid) => ({
           uid,
           ...(await getUserLite(uid)),
-        }))
+        })),
       );
       setCoPlayers(
         (loaded.filter(Boolean) as UserProfile[])
-          .filter((p) => p.accountType !== 'coach') // FIX: Filter out coaches
+          .filter((p) => p.accountType !== 'coach')
           .sort((a, b) =>
             (a.name ?? a.displayName ?? '').localeCompare(
-              b.name ?? b.displayName ?? ''
-            )
-          )
+              b.name ?? b.displayName ?? '',
+            ),
+          ),
       );
     });
     return () => unsub();
@@ -188,11 +191,11 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       try {
         const q = query(
           collection(db!, 'communities'),
-          where('admins', 'array-contains', user.uid)
+          where('admins', 'array-contains', user.uid),
         );
         const snap = await getDocs(q);
         const comms = snap.docs.map(
-          (d) => ({ id: d.id, ...d.data() } as Community)
+          (d) => ({ id: d.id, ...d.data() }) as Community,
         );
         setMyCommunities(comms);
       } catch (e) {
@@ -207,7 +210,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     const others = coPlayers.filter((p) => !friendSet.has(p.uid));
     const byName = (a: UserProfile, b: UserProfile) =>
       (a.name ?? a.displayName ?? '').localeCompare(
-        b.name ?? b.displayName ?? ''
+        b.name ?? b.displayName ?? '',
       );
     const friendsSorted = [...friends].sort(byName);
     const othersSorted = [...others].sort(byName);
@@ -231,16 +234,16 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         (p.email ?? '').toLowerCase().includes(q)
       );
     },
-    [search]
+    [search],
   );
 
   const filteredFriends = useMemo(
     () => friendsAll.filter(filterFn),
-    [friendsAll, filterFn]
+    [friendsAll, filterFn],
   );
   const filteredOthers = useMemo(
     () => othersInSport.filter(filterFn),
-    [othersInSport, filterFn]
+    [othersInSport, filterFn],
   );
 
   const toggleSelected = (uid: string, checked: boolean | string) => {
@@ -315,7 +318,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       });
       return false;
     }
-    
+
     return true;
   };
 
@@ -327,9 +330,9 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     return await new Promise<string>((resolve, reject) => {
       task.on(
         'state_changed',
-        null, // No progress tracking needed
+        null,
         (err) => reject(err),
-        async () => resolve(await getDownloadURL(task.snapshot.ref))
+        async () => resolve(await getDownloadURL(task.snapshot.ref)),
       );
     });
   };
@@ -347,15 +350,26 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       const getStartingRating = (globalElo: number) => {
         if (roomMode === 'arcade') return 0;
         if (roomMode === 'professional' && useGlobalElo) return globalElo;
+        if (roomMode === 'derby') return Math.round(500 + globalElo * 0.5);
         return 1000;
       };
 
       const finalMemberIds = new Set([user!.uid, ...selectedFriends]);
       const communityMembersToAdd: NewMember[] = [];
 
+      const derbyProps =
+        roomMode === 'derby'
+          ? {
+              badges: [],
+              currentStreak: 0,
+              highestStreak: 0,
+              nemesisId: null,
+            }
+          : {};
+
       if (selectedCommunityId !== 'none') {
         const commDoc = await getDoc(
-          doc(db, 'communities', selectedCommunityId)
+          doc(db, 'communities', selectedCommunityId),
         );
         if (commDoc.exists()) {
           const commData = commDoc.data() as Community;
@@ -369,7 +383,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
 
               const q = query(
                 collection(db, 'users'),
-                where(documentId(), 'in', chunk)
+                where(documentId(), 'in', chunk),
               );
 
               const snaps = await getDocs(q);
@@ -383,13 +397,14 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                     name: p.name || p.displayName || '',
                     email: p.email || '',
                     rating: getStartingRating(
-                      p.sports?.[sport]?.globalElo ?? 1000
+                      p.sports?.[sport]?.globalElo ?? 1000,
                     ),
                     globalElo: p.sports?.[sport]?.globalElo ?? 1000,
                     wins: 0,
                     losses: 0,
                     date: now,
                     role: 'editor',
+                    ...derbyProps,
                   });
                 }
               });
@@ -416,6 +431,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
             losses: 0,
             date: now,
             role: 'editor',
+            ...derbyProps,
           };
         })
         .filter((m): m is NewMember => m !== null);
@@ -432,6 +448,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
           losses: 0,
           date: now,
           role: 'admin',
+          ...derbyProps,
         },
         ...communityMembersToAdd,
         ...friendMembers,
@@ -523,16 +540,13 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
             </DialogTitle>
             <DialogDescription>
               {t(
-                'Configure your league settings. Choose wisely, as the Game Mode affects how ratings are calculated.'
+                'Configure your league settings. Choose wisely, as the Game Mode affects how ratings are calculated.',
               )}
             </DialogDescription>
           </DialogHeader>
 
-          {/* Main Content: Split View */}
           <div className='flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 bg-muted/5'>
-            {/* LEFT COLUMN: FORM (7 cols) */}
             <div className='lg:col-span-7 overflow-y-auto p-6 space-y-8 bg-background shadow-sm'>
-              {/* 1. Basic Info */}
               <section className='space-y-4'>
                 <h3 className='font-semibold text-lg flex items-center gap-2'>
                   <span className='bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs'>
@@ -595,7 +609,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
 
               <Separator />
 
-              {/* 2. Game Mode */}
               <section className='space-y-4'>
                 <h3 className='font-semibold text-lg flex items-center gap-2'>
                   <span className='bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs'>
@@ -607,17 +620,12 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   <RadioGroup
                     value={roomMode}
                     onValueChange={(v) => {
-                      setRoomMode(v as RoomMode);
+                      setRoomMode(v as RoomMode | 'derby');
                       if (v === 'arcade') setKFactor(0);
-                      else if (v === 'office') {
-                        setKFactor(32);
-                      } else {
-                        setKFactor(32);
-                      }
+                      else setKFactor(32);
                     }}
-                    className='grid grid-cols-1 sm:grid-cols-3 gap-4'
+                    className='grid grid-cols-1 sm:grid-cols-2 gap-4'
                   >
-                    {/* Office */}
                     <Label
                       htmlFor='mode-office'
                       className={`relative flex flex-col gap-2 rounded-xl border-2 p-4 cursor-pointer hover:bg-accent/50 transition-all ${
@@ -640,7 +648,30 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                       </div>
                     </Label>
 
-                    {/* Professional */}
+                    <Label
+                      htmlFor='mode-derby'
+                      className={`relative flex flex-col gap-2 rounded-xl border-2 p-4 cursor-pointer hover:bg-accent/50 transition-all ${
+                        roomMode === 'derby'
+                          ? 'border-red-500 bg-red-500/5'
+                          : 'border-muted'
+                      }`}
+                    >
+                      <RadioGroupItem
+                        value='derby'
+                        id='mode-derby'
+                        className='sr-only'
+                      />
+                      <Swords className='h-6 w-6 text-red-500' />
+                      <div>
+                        <div className='font-bold text-red-700 dark:text-red-400'>
+                          {t('Derby (Micro-League)')}
+                        </div>
+                        <div className='text-xs text-muted-foreground mt-1'>
+                          {t('For small groups. Bounties & Nemeses.')}
+                        </div>
+                      </div>
+                    </Label>
+
                     <Label
                       htmlFor='mode-pro'
                       className={`relative flex flex-col gap-2 rounded-xl border-2 p-4 cursor-pointer hover:bg-accent/50 transition-all ${
@@ -665,7 +696,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                       </div>
                     </Label>
 
-                    {/* Arcade */}
                     <Label
                       htmlFor='mode-arcade'
                       className={`relative flex flex-col gap-2 rounded-xl border-2 p-4 cursor-pointer hover:bg-accent/50 transition-all ${
@@ -691,7 +721,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                     </Label>
                   </RadioGroup>
 
-                  {/* PRO Settings */}
                   {roomMode === 'professional' && (
                     <div className='mt-4 p-4 rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 space-y-4 animate-in fade-in slide-in-from-top-2'>
                       <div className='flex items-center justify-between'>
@@ -701,7 +730,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                           </Label>
                           <p className='text-xs text-muted-foreground max-w-sm'>
                             {t(
-                              'If enabled, players start with their Global Rating (e.g. 1500) instead of 1000. Use this if you want to reflect existing skill levels immediately.'
+                              'If enabled, players start with their Global Rating (e.g. 1500) instead of 1000. Use this if you want to reflect existing skill levels immediately.',
                             )}
                           </p>
                         </div>
@@ -732,7 +761,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
 
               <Separator />
 
-              {/* 3. Players */}
               <section className='space-y-4'>
                 <h3 className='font-semibold text-lg flex items-center gap-2'>
                   <span className='bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs'>
@@ -741,7 +769,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   {t('Invite Players')}
                 </h3>
                 <div className='pl-8'>
-                  {/* Community Selector (Only if communities exist) */}
                   {myCommunities.length > 0 && (
                     <div className='mb-6 bg-muted/20 p-4 rounded-lg border'>
                       <Label className='mb-2 block font-semibold flex items-center gap-2'>
@@ -769,14 +796,13 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                       {selectedCommunityId !== 'none' && (
                         <p className='text-xs text-muted-foreground mt-2'>
                           {t(
-                            'All members of this community will be automatically added to the room.'
+                            'All members of this community will be automatically added to the room.',
                           )}
                         </p>
                       )}
                     </div>
                   )}
 
-                  {/* Standard Friend Selector (Always available if no community is active, or if user wants to mix) */}
                   {selectedCommunityId === 'none' && (
                     <>
                       <div className='relative mb-2'>
@@ -819,7 +845,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                                     {p.name ?? p.displayName}
                                   </span>
                                 </label>
-                              )
+                              ),
                             )}
                           </div>
                         ) : (
@@ -837,7 +863,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
               </section>
             </div>
 
-            {/* RIGHT COLUMN: KNOWLEDGE BASE (5 cols) */}
             <div className='lg:col-span-5 bg-background border-l overflow-y-auto p-8'>
               <div className='flex items-center gap-2 mb-6 pb-4 border-b'>
                 <BookOpen className='h-6 w-6 text-primary' />
@@ -855,9 +880,8 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                 type='single'
                 collapsible
                 className='w-full'
-                defaultValue='pro-details'
+                defaultValue='modes'
               >
-                {/* 1. Game Modes Explained */}
                 <AccordionItem
                   value='modes'
                   className='mb-4 border rounded-lg px-4 bg-muted/20'
@@ -871,7 +895,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   <AccordionContent className='text-sm text-muted-foreground space-y-4 pb-4'>
                     <p>
                       {t(
-                        'Choosing the right mode changes how the mathematical engine calculates points.'
+                        'Choosing the right mode changes how the mathematical engine calculates points.',
                       )}
                     </p>
 
@@ -881,22 +905,24 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                           <Briefcase className='h-4 w-4' />{' '}
                           {t('Office League (Casual)')}
                         </div>
-                        <p className='mb-2'>
-                          {t(
-                            'Designed for workplaces. It uses an "Inflationary System".'
-                          )}
-                        </p>
                         <ul className='list-disc pl-4 space-y-1 text-xs'>
                           <li>
-                            <strong>{t('Forgiving Losses:')}</strong>{' '}
                             {t(
-                              'When you lose, you only drop 80% of the calculated points. This injects points into the system, keeping morale high.'
+                              'Forgiving Losses: 80% point drop. Highly active players are rewarded.',
                             )}
                           </li>
+                        </ul>
+                      </div>
+
+                      <div className='p-3 bg-background rounded-md border border-red-200 dark:border-red-900'>
+                        <div className='font-bold text-foreground flex items-center gap-2 mb-1'>
+                          <Swords className='h-4 w-4 text-red-500' />{' '}
+                          {t('Derby (Micro-League)')}
+                        </div>
+                        <ul className='list-disc pl-4 space-y-1 text-xs'>
                           <li>
-                            <strong>{t('Ranking:')}</strong>{' '}
                             {t(
-                              'Based on "Adjusted Points" which rewards activity, not just raw skill. A player who plays 50 games can beat a "camper" who plays 5 games.'
+                              'Designed for 3-5 players. Points are awarded for breaking win streaks and defeating your historical "nemesis". Starts with a mix of Global ELO.',
                             )}
                           </li>
                         </ul>
@@ -907,21 +933,11 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                           <Medal className='h-4 w-4 text-amber-500' />{' '}
                           {t('Professional (Serious)')}
                         </div>
-                        <p className='mb-2'>
-                          {t(
-                            'For clubs and competitive groups. It uses a "Zero-Sum System".'
-                          )}
-                        </p>
                         <ul className='list-disc pl-4 space-y-1 text-xs'>
                           <li>
-                            <strong>{t('Strict Math:')}</strong>{' '}
                             {t(
-                              'If Winner gets +20, Loser gets -20. No points are created or destroyed.'
+                              'Zero-sum strict ELO. Highest number wins. For clubs.',
                             )}
-                          </li>
-                          <li>
-                            <strong>{t('Ranking:')}</strong>{' '}
-                            {t('Pure ELO Rating. The highest number wins.')}
                           </li>
                         </ul>
                       </div>
@@ -929,24 +945,17 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* 2. Professional Deep Dive */}
                 <AccordionItem
                   value='pro-details'
                   className='mb-4 border rounded-lg px-4 bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900'
                 >
                   <AccordionTrigger className='hover:no-underline py-4'>
                     <div className='flex items-center gap-3 font-semibold'>
-                      <Swords className='h-5 w-5 text-amber-600 dark:text-amber-500' />
+                      <Medal className='h-5 w-5 text-amber-600 dark:text-amber-500' />
                       {t('Professional Mode Details')}
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className='text-sm text-muted-foreground space-y-4 pb-4'>
-                    <p>
-                      {t(
-                        'Professional mode has specific rules to ensure fair competition among experienced players.'
-                      )}
-                    </p>
-
                     <div className='space-y-4'>
                       <div>
                         <h4 className='font-bold text-foreground text-xs uppercase tracking-wide mb-1'>
@@ -954,12 +963,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                         </h4>
                         <p>
                           {t(
-                            'By default, everyone in a new room starts at 1000 ELO. However, if you enable "Seeding", players will import their current "Global ELO" into this room.'
-                          )}
-                        </p>
-                        <p className='mt-2 text-xs italic bg-background p-2 rounded border'>
-                          {t(
-                            'Example: Imagine a Pro player (2000 ELO) joins a room with beginners. If he starts at 1000, he will steal unfair points from beginners. Seeding puts him at 2000 immediately to prevent this.'
+                            'By default, everyone in a new room starts at 1000 ELO. However, if you enable "Seeding", players will import their current "Global ELO" into this room.',
                           )}
                         </p>
                       </div>
@@ -972,16 +976,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                         </h4>
                         <p>
                           {t(
-                            'For the first 10 matches in a Professional room, the "K-Factor" (volatility) is DOUBLED.'
-                          )}
-                        </p>
-                        <ul className='list-disc pl-4 mt-2 space-y-1 text-xs'>
-                          <li>{t('Standard Match: +/- 20 points')}</li>
-                          <li>{t('Calibration Match: +/- 40 points')}</li>
-                        </ul>
-                        <p className='mt-2'>
-                          {t(
-                            'Why? This allows new players to reach their "real" rating very quickly, rather than grinding slowly from 1000.'
+                            'For the first 10 matches in a Professional room, the "K-Factor" (volatility) is DOUBLED.',
                           )}
                         </p>
                       </div>
@@ -989,7 +984,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* 3. Dual Rating System */}
                 <AccordionItem
                   value='elo-dual'
                   className='mb-4 border rounded-lg px-4 bg-muted/20'
@@ -1007,7 +1001,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                           {t('Global ELO')}
                         </div>
                         {t(
-                          'Your "Passport". Follows you everywhere. Never resets. Measures your lifetime skill.'
+                          'Your "Passport". Follows you everywhere. Never resets. Measures your lifetime skill.',
                         )}
                       </div>
                       <div className='flex-1 p-2 bg-background border rounded text-xs'>
@@ -1015,42 +1009,13 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                           {t('Room ELO')}
                         </div>
                         {t(
-                          'Your "Tournament Score". Specific to this room. Resets every season.'
+                          'Your "Tournament Score". Specific to this room. Resets every season.',
                         )}
                       </div>
-                    </div>
-
-                    <div>
-                      <h4 className='font-bold text-foreground text-xs uppercase tracking-wide mb-1'>
-                        {t('Why do they differ?')}
-                      </h4>
-                      <p>
-                        {t(
-                          'Even if you start with Seeding, your Room ELO and Global ELO will drift apart because:'
-                        )}
-                      </p>
-                      <ul className='list-disc pl-4 mt-1 space-y-1 text-xs'>
-                        <li>
-                          {t(
-                            'Room ELO has a "Calibration Phase" (moving 2x faster).'
-                          )}
-                        </li>
-                        <li>
-                          {t(
-                            'Office Mode rules (inflation) only apply to Room ELO.'
-                          )}
-                        </li>
-                        <li>
-                          {t(
-                            'Room ELO resets to 1000 (or Seed) when a new Season starts.'
-                          )}
-                        </li>
-                      </ul>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* 4. Season Winners */}
                 <AccordionItem
                   value='seasons'
                   className='mb-4 border rounded-lg px-4 bg-muted/20'
@@ -1064,7 +1029,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   <AccordionContent className='text-sm text-muted-foreground space-y-3 pb-4'>
                     <p>
                       {t(
-                        'When you click "Finish Season", the final standings are calculated. The winner depends on your Mode:'
+                        'When you click "Finish Season", the final standings are calculated. The winner depends on your Mode:',
                       )}
                     </p>
 
@@ -1076,7 +1041,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                             {t('Professional:')}
                           </span>{' '}
                           {t(
-                            'Highest Rating wins. If ratings are equal, Win % is the tie-breaker.'
+                            'Highest Rating wins. If ratings are equal, Win % is the tie-breaker.',
                           )}
                         </div>
                       </div>
@@ -1087,16 +1052,17 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                             {t('Office:')}
                           </span>{' '}
                           {t('Winner is decided by "Adjusted Points".')}
-                          <div className='text-xs bg-background p-1 border rounded mt-1 font-mono'>
-                            {t(
-                              'Score = (Rating - 1000) × √(Games Played / Avg Games)'
-                            )}
-                          </div>
-                          <div className='text-xs mt-1'>
-                            {t(
-                              'This means a player with lower rating who played 100 games can beat a player with higher rating who only played 2 games.'
-                            )}
-                          </div>
+                        </div>
+                      </div>
+                      <div className='flex items-start gap-2'>
+                        <Swords className='h-4 w-4 mt-0.5 text-red-500 shrink-0' />
+                        <div>
+                          <span className='font-bold text-foreground'>
+                            {t('Derby:')}
+                          </span>{' '}
+                          {t(
+                            'Highest Rating wins, but points swing heavily based on streaks and rivalries.',
+                          )}
                         </div>
                       </div>
                       <div className='flex items-start gap-2'>
