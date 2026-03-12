@@ -1,6 +1,5 @@
 // src/components/rooms/CreateRoomDialog.tsx
 'use client';
-
 import ImageCropDialog from '@/components/ImageCropDialog';
 import {
 	Accordion,
@@ -39,6 +38,7 @@ import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
 import { getUserLite } from '@/lib/friends';
+import { containsProfanity, validateImageFile } from '@/lib/moderation';
 import { getSuperAdminIds, withSuperAdmins } from '@/lib/superAdmins';
 import type { Community, RoomMode, UserProfile } from '@/lib/types';
 import { getFinnishFormattedDate } from '@/lib/utils';
@@ -92,7 +92,6 @@ interface NewMember {
 
 const NAME_MAX = 60;
 const DESC_MAX = 500;
-const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const ACCEPT_MIME = 'image/png,image/jpeg,image/webp';
 
 export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
@@ -259,19 +258,11 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     e.target.value = '';
     if (!f) return;
 
-    const allowedMimeTypes = ACCEPT_MIME.split(',');
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-    const fileExtension = f.name
-      .substring(f.name.lastIndexOf('.'))
-      .toLowerCase();
-    const isValidType =
-      allowedMimeTypes.includes(f.type) ||
-      allowedExtensions.includes(fileExtension);
-
-    if (!isValidType || f.size > AVATAR_MAX_BYTES) {
+    const { valid, error } = validateImageFile(f);
+    if (!valid) {
       toast({
         title: t('Invalid image'),
-        description: t('Use PNG/JPEG/WEBP under 2MB.'),
+        description: t(error || 'Invalid file'),
         variant: 'destructive',
       });
       return;
@@ -315,6 +306,16 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
       });
       return false;
     }
+
+    if (containsProfanity(name) || containsProfanity(roomDescription)) {
+      toast({
+        title: t('Content Warning'),
+        description: t('Name or description contains inappropriate words.'),
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
     return true;
   };
 

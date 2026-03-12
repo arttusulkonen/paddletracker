@@ -178,7 +178,7 @@ export function AiAssistant() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [playersList, setPlayersList] = useState<PlayerOption[]>([]);
   const [roomsList, setRoomsList] = useState<RoomOption[]>([]);
-  const functions = getFunctions(app ?? undefined, 'us-central1');
+  const functions = getFunctions(app ?? undefined, 'europe-west1');
   const { toast } = useToast();
 
   const suggestionChips = [

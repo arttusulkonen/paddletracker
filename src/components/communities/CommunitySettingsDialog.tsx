@@ -31,6 +31,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
+import { containsProfanity } from '@/lib/moderation';
 import type { Community, Room, UserProfile } from '@/lib/types';
 import {
 	arrayRemove,
@@ -205,6 +206,16 @@ export function CommunitySettingsDialog({
 
   const handleUpdateGeneral = async () => {
     if (!db) return;
+
+    if (containsProfanity(name) || containsProfanity(description)) {
+      toast({
+        title: t('Content Warning'),
+        description: t('Name or description contains inappropriate words.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       await updateDoc(doc(db, 'communities', community.id), {

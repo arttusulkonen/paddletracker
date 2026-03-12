@@ -303,7 +303,6 @@ export interface TournamentRoom {
   structure: string; // e.g. 'singleElimination'
   status: string;    // e.g. 'upcoming', 'ongoing', 'completed'
   
-  // FIX: Added missing properties based on usage
   bracket?: any; 
   description?: string;
   avatarURL?: string;
@@ -312,7 +311,6 @@ export interface TournamentRoom {
   champion?: { name: string; userId?: string } | null;
 }
 
-// Only kept if used elsewhere, but ideally redundant now if TournamentRoom is updated
 export interface Tournament  {
   id: string;
   name: string;
@@ -321,3 +319,35 @@ export interface Tournament  {
   bracket: any;
   [key: string]: any;
 };
+
+// --- Activity Feed ---
+export interface FeedItem {
+  id: string;
+  communityId: string;
+  type: string; // 'match_finished' | 'room_created' | 'friend_added' | 'ghost_claimed'
+  timestamp: any; // Firestore Timestamp or string
+  
+  // New Unified Structure
+  title?: string;
+  description?: string;
+  actorAvatars?: string[];
+  
+  // Legacy / Context fields
+  actorId?: string;
+  actorName?: string;
+  actorAvatar?: string | null;
+  targetId?: string;
+  targetName?: string;
+  content?: string;
+  sport?: Sport;
+  
+  metadata?: {
+    matchId?: string;
+    roomId?: string;
+    roomName?: string;
+    winner?: string;
+    winnerName?: string;
+    scores?: string;
+    [key: string]: any;
+  };
+}

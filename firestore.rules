@@ -56,10 +56,11 @@ service cloud.firestore {
         isSuperAdmin() || 
         isCoachOf(resource.data) 
         ||
-        // 3. НОВОЕ ПРАВИЛО: Разрешаем любому авторизованному юзеру обновлять ТОЛЬКО поле 'rooms'
-        // Это нужно, чтобы можно было добавлять id комнаты в список комнат другого игрока при приглашении
+        // 3. ЛОГИКА ДРУЗЕЙ И ПРИГЛАШЕНИЙ
+        // Разрешаем любому авторизованному пользователю обновлять ТОЛЬКО эти поля у других:
         (isSignedIn() && 
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rooms']));
+         request.resource.data.diff(resource.data).affectedKeys()
+         .hasOnly(['rooms', 'incomingRequests', 'outgoingRequests', 'friends']));
       
       allow delete: if isOwner(userId) || isSuperAdmin() || isCoachOf(resource.data);
     }
@@ -70,6 +71,13 @@ service cloud.firestore {
     match /communities/{communityId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
+
+      // Разрешаем чтение ленты
+      match /feed/{feedId} {
+        allow read: if isSignedIn();
+        // Писать в ленту может только сервер (Cloud Functions), клиентам запрещено
+        allow write: if false; 
+      }
     }
 
     // =========================================================

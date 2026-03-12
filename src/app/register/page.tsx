@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { app, auth, db, storage } from '@/lib/firebase';
+import { containsProfanity, validateImageFile } from '@/lib/moderation';
 import { getFinnishFormattedDate } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
@@ -65,7 +66,10 @@ export default function RegisterPage() {
       .string()
       .trim()
       .min(3, { message: t('Name must be at least 3 characters') })
-      .max(30, { message: t('Name must be at most 30 characters') }),
+      .max(30, { message: t('Name must be at most 30 characters') })
+      .refine((val) => !containsProfanity(val), {
+        message: t('Please choose an appropriate name'),
+      }),
     email: z
       .string()
       .trim()
@@ -137,17 +141,17 @@ export default function RegisterPage() {
   const pickAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     if (!f) return;
-    const fileExtension = f.name
-      .substring(f.name.lastIndexOf('.'))
-      .toLowerCase();
-    const isValidType =
-      ALLOWED_IMAGE_TYPES.includes(f.type) ||
-      ['.jpg', '.jpeg', '.png', '.webp'].includes(fileExtension);
-
-    if (!isValidType) {
-      toast({ title: t('Unsupported file type'), variant: 'destructive' });
+    
+    const { valid, error } = validateImageFile(f);
+    if (!valid) {
+      toast({ 
+        title: t('Unsupported file type'), 
+        description: t(error || 'Invalid file'),
+        variant: 'destructive' 
+      });
       return;
     }
+
     const src = URL.createObjectURL(f);
     setAvatarSrc(src);
     setCropOpen(true);
@@ -256,7 +260,7 @@ export default function RegisterPage() {
       if (ghostUser) {
         try {
           // 'app' checked above, so strictly typed now
-          const functions = getFunctions(app, 'us-central1');
+          const functions = getFunctions(app, 'europe-west1');
           const claimProfileFunc = httpsCallable(
             functions,
             'claimGhostProfile'

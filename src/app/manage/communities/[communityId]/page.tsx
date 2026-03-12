@@ -1,6 +1,7 @@
 // src/app/manage/communities/[communityId]/page.tsx
 'use client';
 
+import CommunityFeed from '@/components/communities/CommunityFeed';
 import { CommunitySettingsDialog } from '@/components/communities/CommunitySettingsDialog';
 import { CommunityWrap } from '@/components/communities/CommunityWrap';
 import { RoomCard } from '@/components/rooms/RoomCard';
@@ -47,10 +48,8 @@ export default function CommunityDetailsPage() {
   const [community, setCommunity] = useState<Community | null>(null);
   const [members, setMembers] = useState<UserProfile[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [feed, setFeed] = useState<any[]>([]); // State for feed
   const [loading, setLoading] = useState(true);
 
-  // Права на управление сообществом (Владелец или Админ)
   const canManage = useMemo(() => {
     if (!user || !community) return false;
     return (
@@ -74,7 +73,6 @@ export default function CommunityDetailsPage() {
         const commData = { id: snap.id, ...snap.data() } as Community;
         setCommunity(commData);
 
-        // Fetch Members
         if (commData.members && commData.members.length > 0) {
           const chunks = [];
           const memberIds = commData.members;
@@ -99,7 +97,6 @@ export default function CommunityDetailsPage() {
           setMembers([]);
         }
 
-        // Fetch Rooms
         if (commData.roomIds && commData.roomIds.length > 0) {
           const chunks = [];
           const rIds = commData.roomIds;
@@ -123,22 +120,6 @@ export default function CommunityDetailsPage() {
         } else {
           setRooms([]);
         }
-
-        // Fetch Feed (Placeholder logic - needs backend support)
-        // В реальном приложении здесь был бы запрос к коллекции 'events' или 'feed'
-        // фильтрующий по communityId
-        /*
-        const feedQ = query(
-            collection(db, 'community_feed'),
-            where('communityId', '==', communityId),
-            orderBy('createdAt', 'desc'),
-            limit(20)
-        );
-        const feedSnap = await getDocs(feedQ);
-        setFeed(feedSnap.docs.map(d => ({id: d.id, ...d.data()})));
-        */
-        setFeed([]); // Пока пусто
-
       } catch (error) {
         console.error(error);
       } finally {
@@ -154,7 +135,6 @@ export default function CommunityDetailsPage() {
     return u.sports?.[s]?.globalElo ?? u.globalElo ?? 1000;
   };
 
-  // Group members into Admins (Owner + Admins) and Players
   const { admins, players } = useMemo(() => {
     if (!community) return { admins: [], players: [] };
 
@@ -171,13 +151,11 @@ export default function CommunityDetailsPage() {
       }
     });
 
-    // Sort: Owner first, then other admins alphabetically
     adminsList.sort((a, b) => {
       if (a.uid === community.ownerId) return -1;
       if (b.uid === community.ownerId) return 1;
       return (a.name || '').localeCompare(b.name || '');
     });
-    // Sort players alphabetically
     playersList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     return { admins: adminsList, players: playersList };
@@ -247,7 +225,6 @@ export default function CommunityDetailsPage() {
 
   return (
     <div className='space-y-6'>
-      {/* Header */}
       <div className='flex flex-col gap-4'>
         <Link
           href='/manage/communities'
@@ -280,10 +257,7 @@ export default function CommunityDetailsPage() {
 
       <Tabs defaultValue='feed'>
         <TabsList>
-          {/* New Feed Tab - Only visible to admins/managers if you want, or everyone */}
-          <TabsTrigger value='feed'>
-             {t('Feed')}
-          </TabsTrigger>
+          <TabsTrigger value='feed'>{t('Feed')}</TabsTrigger>
           <TabsTrigger value='members'>
             {t('Members')} ({members.length})
           </TabsTrigger>
@@ -293,38 +267,20 @@ export default function CommunityDetailsPage() {
           <TabsTrigger value='stats'>{t('Wrapped')}</TabsTrigger>
         </TabsList>
 
-        {/* FEED TAB */}
         <TabsContent value='feed' className='mt-4'>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-primary" />
-                        {t('Community Activity')}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {feed.length === 0 ? (
-                        <div className='text-center py-12 text-muted-foreground border border-dashed rounded-lg bg-muted/10'>
-                            <Activity className='h-10 w-10 mx-auto mb-3 opacity-20' />
-                            <p>{t('No recent activity recorded.')}</p>
-                            <p className='text-xs mt-1'>{t('Match results and events will appear here.')}</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {/* Здесь будет рендеринг реальных событий, когда они будут писаться в БД */}
-                            {feed.map((event, i) => (
-                                <div key={i} className="p-3 border rounded-lg">
-                                    {/* Placeholder for event item */}
-                                    {JSON.stringify(event)}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <Activity className='h-5 w-5 text-primary' />
+                {t('Community Activity')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CommunityFeed />
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* Members Tab */}
         <TabsContent value='members' className='mt-4'>
           <Card>
             <CardHeader>
@@ -365,7 +321,6 @@ export default function CommunityDetailsPage() {
           </Card>
         </TabsContent>
 
-        {/* Rooms Tab */}
         <TabsContent value='rooms' className='mt-4'>
           {rooms.length === 0 ? (
             <div className='p-10 text-center text-muted-foreground border rounded-lg border-dashed bg-muted/10'>
@@ -384,7 +339,6 @@ export default function CommunityDetailsPage() {
           )}
         </TabsContent>
 
-        {/* Wrapped / Statistics Tab */}
         <TabsContent value='stats' className='mt-4'>
           <CommunityWrap community={community} />
         </TabsContent>
