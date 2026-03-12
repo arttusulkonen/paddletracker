@@ -23,7 +23,7 @@ import {
 } from '@/components/ui';
 import type { Room } from '@/lib/types';
 import type { User } from 'firebase/auth';
-import { Flame, ShieldCheck, Skull, Swords, Trash2, Users } from 'lucide-react';
+import { Flame, ShieldCheck, Skull, Trash2, Users } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -173,7 +173,6 @@ export function MembersList({
             const isMyNemesis = myNemesisId && myNemesisId === p.userId;
             const currentStreak = p.currentStreak ?? 0;
             const isOnFire = currentStreak >= 3;
-            const isGiantSlayer = p.badges?.includes('giant_slayer');
 
             let rightValueNode;
             if (viewMode === 'regular') {
@@ -282,7 +281,7 @@ export function MembersList({
                       )}
                     </div>
 
-                    {(isMyNemesis || isOnFire || isGiantSlayer) && (
+                    {(isMyNemesis || isOnFire) && (
                       <div className='flex items-center flex-wrap gap-1.5 mt-1.5'>
                         {isMyNemesis && (
                           <TooltipProvider>
@@ -310,21 +309,6 @@ export function MembersList({
                               </TooltipTrigger>
                               <TooltipContent>
                                 {t('On a winning streak!')}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        {isGiantSlayer && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className='flex items-center gap-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded text-[10px] font-bold border border-blue-500/20'>
-                                  <Swords className='w-3 h-3' />
-                                  {t('Giant Slayer')}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {t('Broke a massive win streak')}
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>

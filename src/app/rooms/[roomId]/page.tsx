@@ -990,7 +990,7 @@ export default function RoomPage() {
             />
           </section>
 
-          {room.mode === 'derby' && (
+          {(isCreator || isGlobalAdmin) && room.mode === 'derby' && (
             <DerbySimulator
               roomId={roomId}
               members={playersOnlyMembers}

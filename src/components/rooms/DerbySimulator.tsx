@@ -125,7 +125,7 @@ export function DerbySimulator({
       className='w-full mb-8 border-2 border-dashed border-primary/50 text-primary hover:bg-primary/10 transition-all'
     >
       <Sparkles className='mr-2 h-4 w-4' />
-      {isSimulating ? 'Generating Timeline...' : 'Simulate 100 Match Timeline'}
+      {isSimulating ? 'Generating Timeline...' : 'Simulate Match Timeline'}
     </Button>
   );
 }

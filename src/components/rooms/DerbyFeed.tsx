@@ -20,6 +20,7 @@ import {
 	Swords,
 	Target,
 	TrendingDown,
+	Zap,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,7 +36,62 @@ type NarrativeType =
   | 'NAIL_BITER'
   | 'GIANT_SLAYER'
   | 'UPSET'
-  | 'DOMINATION';
+  | 'DOMINATION'
+  | 'ROUTINE';
+
+// Генератор хэша для детерминированного рандома (чтобы фразы не менялись при ререндере)
+const getHash = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+};
+
+const pickRandom = (arr: string[], hash: number) => arr[hash % arr.length];
+
+// Вариативные пулы фраз
+const PHRASES = {
+  NAIL_BITER: [
+    '{{winner}} survived a sweaty match against {{loser}}',
+    'Absolute cinema! {{winner}} edged out {{loser}}',
+    '{{loser}} choked at the finish line against {{winner}}',
+    'Heart attack match! {{winner}} barely survived {{loser}}',
+    'Down to the wire! {{winner}} clutched against {{loser}}',
+  ],
+  FLAWLESS: [
+    '{{winner}} completely humiliated {{loser}}',
+    '{{winner}} gave a free lesson to {{loser}}',
+    '{{loser}} forgot how to hold a paddle against {{winner}}',
+    'Total annihilation by {{winner}} over {{loser}}',
+    '{{winner}} destroyed {{loser}} without breaking a sweat',
+  ],
+  UPSET: [
+    'Massive Upset! {{winner}} shocked the favorite {{loser}}',
+    '{{winner}} defied the math and broke {{loser}}',
+    'Nobody bet on {{winner}}, but they crushed {{loser}}',
+    'David vs Goliath! {{winner}} slayed the higher-ranked {{loser}}',
+  ],
+  GIANT_SLAYER: [
+    "{{winner}} claimed the massive bounty on {{loser}}'s head!",
+    'The streak is dead! {{winner}} dethroned {{loser}}',
+    "{{loser}}'s reign of terror was ended by {{winner}}",
+    'Jackpot! {{winner}} cashed in on {{loser}}',
+  ],
+  DOMINATION: [
+    '{{winner}} dominated {{loser}} from start to finish',
+    'Easy money for {{winner}} against {{loser}}',
+    '{{winner}} steamrolled through {{loser}}',
+    'No chance for {{loser}}, {{winner}} was too good',
+  ],
+  ROUTINE: [
+    '{{winner}} secured a solid win over {{loser}}',
+    'Another day, another victory for {{winner}} against {{loser}}',
+    '{{winner}} defeated {{loser}} in a standard matchup',
+    '{{winner}} outplayed {{loser}}',
+    'Business as usual: {{winner}} takes down {{loser}}',
+  ],
+};
 
 export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
   const { t } = useTranslation();
@@ -64,6 +120,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
     const events: {
       match: Match;
       type: NarrativeType;
+      phrase: string;
       winner: any;
       loser: any;
       delta: number;
@@ -100,26 +157,30 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       const loserOld = Number(loser.roomOldRating || 1000);
       const eloDiff = loserOld - winnerOld;
 
-      let type: NarrativeType | null = null;
+      let type: NarrativeType = 'ROUTINE';
 
       if (delta >= 25) {
         type = 'GIANT_SLAYER';
-      } else if (minScore <= 1 && maxScore >= 11) {
-        type = 'FLAWLESS';
-      } else if (scoreDiff <= 2 && maxScore > 11) {
-        type = 'NAIL_BITER';
       } else if (eloDiff >= 60) {
         type = 'UPSET';
-      } else if (delta >= 18) {
+      } else if (scoreDiff <= 2 && maxScore >= 11) {
+        // Потная катка (отрыв в 2 очка)
+        type = 'NAIL_BITER';
+      } else if (minScore <= 2 && maxScore >= 11) {
+        // Сухая или почти сухая победа
+        type = 'FLAWLESS';
+      } else if (delta >= 15) {
         type = 'DOMINATION';
       }
 
-      if (type) {
-        events.push({ match: m, type, winner, loser, delta });
-      }
+      const matchHash = getHash(m.id || String(Math.random()));
+      const phrase = pickRandom(PHRASES[type], matchHash);
+
+      events.push({ match: m, type, phrase, winner, loser, delta });
     });
 
-    return events.slice(0, 15);
+    // Возвращаем ВСЕ события, лимит снят
+    return events;
   }, [safeMatches]);
 
   if (room.mode !== 'derby') return null;
@@ -144,22 +205,36 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
   }
 
   const renderChronicleCard = (event: any) => {
-    const { match: m, type, winner, loser, delta } = event;
+    const { match: m, type, phrase, winner, loser, delta } = event;
     const scoreText = `${m.player1.scores} - ${m.player2.scores}`;
+    // Локализация с интерполяцией имен
+    const localizedText = t(phrase, {
+      winner: winner.name,
+      loser: loser.name,
+    });
 
     switch (type) {
       case 'FLAWLESS':
         return (
           <div className='bg-sky-500/10 border border-sky-500/20 rounded-lg p-3'>
-            <div className='flex items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-xs uppercase mb-1'>
-              <Target className='w-3.5 h-3.5' />
+            <div className='flex items-center gap-2 text-sky-600 dark:text-sky-400 font-bold text-[10px] uppercase mb-1'>
+              <Target className='w-3 h-3' />
               {t('Flawless Victory')}
             </div>
-            <div className='text-sm font-medium'>
-              <span className='text-foreground'>{winner.name}</span>{' '}
-              {t('shut out')}{' '}
-              <span className='text-muted-foreground'>{loser.name}</span>
-            </div>
+            <div
+              className='text-sm font-medium leading-tight'
+              dangerouslySetInnerHTML={{
+                __html: localizedText
+                  .replace(
+                    winner.name,
+                    `<span class="text-foreground font-bold">${winner.name}</span>`,
+                  )
+                  .replace(
+                    loser.name,
+                    `<span class="text-muted-foreground">${loser.name}</span>`,
+                  ),
+              }}
+            />
             <div className='flex items-center justify-between mt-2'>
               <span className='font-mono text-xs bg-background px-1.5 rounded border'>
                 {scoreText}
@@ -174,15 +249,24 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       case 'NAIL_BITER':
         return (
           <div className='bg-amber-500/10 border border-amber-500/20 rounded-lg p-3'>
-            <div className='flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase mb-1'>
-              <Droplet className='w-3.5 h-3.5' />
+            <div className='flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-[10px] uppercase mb-1'>
+              <Droplet className='w-3 h-3' />
               {t('Nail-Biter')}
             </div>
-            <div className='text-sm font-medium'>
-              <span className='text-foreground'>{winner.name}</span>{' '}
-              {t('survived against')}{' '}
-              <span className='text-muted-foreground'>{loser.name}</span>
-            </div>
+            <div
+              className='text-sm font-medium leading-tight'
+              dangerouslySetInnerHTML={{
+                __html: localizedText
+                  .replace(
+                    winner.name,
+                    `<span class="text-foreground font-bold">${winner.name}</span>`,
+                  )
+                  .replace(
+                    loser.name,
+                    `<span class="text-muted-foreground">${loser.name}</span>`,
+                  ),
+              }}
+            />
             <div className='flex items-center justify-between mt-2'>
               <span className='font-mono text-xs bg-background px-1.5 rounded border border-amber-500/30'>
                 {scoreText}
@@ -200,19 +284,26 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
             <div className='absolute -right-4 -top-4 opacity-10'>
               <Skull className='w-20 h-20 text-red-500' />
             </div>
-            <div className='flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-xs uppercase mb-1'>
-              <Swords className='w-3.5 h-3.5' />
+            <div className='flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-[10px] uppercase mb-1 relative z-10'>
+              <Swords className='w-3 h-3' />
               {t('Giant Slayer')}
             </div>
-            <div className='text-sm font-medium relative z-10'>
-              <span className='text-foreground'>{winner.name}</span>{' '}
-              {t('claimed the bounty on')}{' '}
-              <span className='text-muted-foreground line-through decoration-red-500/50'>
-                {loser.name}
-              </span>
-            </div>
+            <div
+              className='text-sm font-medium leading-tight relative z-10'
+              dangerouslySetInnerHTML={{
+                __html: localizedText
+                  .replace(
+                    winner.name,
+                    `<span class="text-foreground font-bold">${winner.name}</span>`,
+                  )
+                  .replace(
+                    loser.name,
+                    `<span class="text-muted-foreground line-through decoration-red-500/50">${loser.name}</span>`,
+                  ),
+              }}
+            />
             <div className='flex items-center justify-between mt-2 relative z-10'>
-              <span className='font-mono text-xs bg-background px-1.5 rounded border'>
+              <span className='font-mono text-xs bg-background px-1.5 rounded border border-red-500/30'>
                 {scoreText}
               </span>
               <span className='text-sm font-black text-red-600 bg-red-500/20 px-2 rounded'>
@@ -225,15 +316,24 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       case 'UPSET':
         return (
           <div className='bg-purple-500/10 border border-purple-500/20 rounded-lg p-3'>
-            <div className='flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold text-xs uppercase mb-1'>
-              <TrendingDown className='w-3.5 h-3.5' />
+            <div className='flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold text-[10px] uppercase mb-1'>
+              <TrendingDown className='w-3 h-3' />
               {t('Massive Upset')}
             </div>
-            <div className='text-sm font-medium'>
-              <span className='text-foreground'>{winner.name}</span>{' '}
-              {t('shocked the favorite')}{' '}
-              <span className='text-muted-foreground'>{loser.name}</span>
-            </div>
+            <div
+              className='text-sm font-medium leading-tight'
+              dangerouslySetInnerHTML={{
+                __html: localizedText
+                  .replace(
+                    winner.name,
+                    `<span class="text-foreground font-bold">${winner.name}</span>`,
+                  )
+                  .replace(
+                    loser.name,
+                    `<span class="text-muted-foreground">${loser.name}</span>`,
+                  ),
+              }}
+            />
             <div className='flex items-center justify-between mt-2'>
               <span className='font-mono text-xs bg-background px-1.5 rounded border'>
                 {scoreText}
@@ -245,20 +345,61 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
           </div>
         );
 
-      default:
+      case 'DOMINATION':
         return (
-          <div className='bg-muted/30 border border-border rounded-lg p-3'>
-            <div className='text-sm font-medium'>
-              <span className='text-foreground'>{winner.name}</span>{' '}
-              {t('defeated')}{' '}
-              <span className='text-muted-foreground'>{loser.name}</span>
+          <div className='bg-primary/5 border border-primary/20 rounded-lg p-3'>
+            <div className='flex items-center gap-2 text-primary font-bold text-[10px] uppercase mb-1'>
+              <Flame className='w-3 h-3' />
+              {t('Domination')}
             </div>
+            <div
+              className='text-sm font-medium leading-tight'
+              dangerouslySetInnerHTML={{
+                __html: localizedText
+                  .replace(
+                    winner.name,
+                    `<span class="text-foreground font-bold">${winner.name}</span>`,
+                  )
+                  .replace(
+                    loser.name,
+                    `<span class="text-muted-foreground">${loser.name}</span>`,
+                  ),
+              }}
+            />
             <div className='flex items-center justify-between mt-2'>
               <span className='font-mono text-xs bg-background px-1.5 rounded border'>
                 {scoreText}
               </span>
-              <span className='text-xs font-bold text-foreground'>
+              <span className='text-xs font-bold text-primary'>
                 +{Math.round(delta)}
+              </span>
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div className='bg-muted/30 border border-border rounded-lg p-3'>
+            <div
+              className='text-sm font-medium leading-tight'
+              dangerouslySetInnerHTML={{
+                __html: localizedText
+                  .replace(
+                    winner.name,
+                    `<span class="text-foreground font-bold">${winner.name}</span>`,
+                  )
+                  .replace(
+                    loser.name,
+                    `<span class="text-muted-foreground">${loser.name}</span>`,
+                  ),
+              }}
+            />
+            <div className='flex items-center justify-between mt-2'>
+              <span className='font-mono text-xs bg-background px-1.5 rounded border text-muted-foreground'>
+                {scoreText}
+              </span>
+              <span className='text-xs font-bold text-muted-foreground flex items-center gap-1'>
+                <Zap className='w-3 h-3' />+{Math.round(delta)}
               </span>
             </div>
           </div>
@@ -267,8 +408,9 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
   };
 
   return (
-    <div className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-8'>
-      <div className='space-y-6'>
+    <div className='grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8'>
+      {/* Левая колонка со стриками и заклятыми врагами */}
+      <div className='lg:col-span-5 space-y-6'>
         {bounties.length > 0 && (
           <Card className='border-orange-500/30 bg-orange-500/5 shadow-md'>
             <CardHeader className='pb-3'>
@@ -321,7 +463,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className='h-[200px] pr-4'>
+              <ScrollArea className='max-h-[300px] pr-4'>
                 <div className='space-y-3'>
                   {rivalries.map((r, idx) => (
                     <div
@@ -373,28 +515,35 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
         )}
       </div>
 
-      <Card className='border-border shadow-md h-full flex flex-col'>
-        <CardHeader className='pb-3 border-b bg-muted/20'>
-          <CardTitle className='text-lg font-bold flex items-center gap-2'>
-            <Swords className='w-5 h-5 text-primary' />
-            {t('Derby Chronicles')}
+      {/* Правая колонка с жесткой высотой для хроник */}
+      <Card className='lg:col-span-7 border-border shadow-md flex flex-col h-[600px]'>
+        <CardHeader className='pb-3 border-b bg-muted/20 flex-shrink-0'>
+          <CardTitle className='text-lg font-bold flex items-center justify-between'>
+            <div className='flex items-center gap-2'>
+              <Swords className='w-5 h-5 text-primary' />
+              {t('Derby Chronicles')}
+            </div>
+            <span className='text-xs font-normal text-muted-foreground bg-background px-2 py-1 rounded-full border'>
+              {chronicles.length} {t('Events')}
+            </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className='p-0 flex-1 relative min-h-[400px]'>
-          <ScrollArea className='absolute inset-0 p-4 h-[400px]'>
+
+        <CardContent className='p-0 flex-1 relative overflow-hidden'>
+          <ScrollArea className='h-full w-full p-4'>
             {chronicles.length === 0 ? (
               <div className='flex items-center justify-center h-full text-muted-foreground text-sm italic py-10'>
                 {t('No historical events recorded yet.')}
               </div>
             ) : (
-              <div className='space-y-4 pr-3'>
+              <div className='space-y-4 pr-3 pb-4'>
                 {chronicles.map((event) => (
                   <div
                     key={event.match.id}
                     className='relative pl-4 border-l-2 border-primary/20 pb-2'
                   >
                     <div className='absolute w-2 h-2 bg-primary rounded-full -left-[5px] top-1.5' />
-                    <div className='text-[10px] uppercase font-bold text-muted-foreground mb-1.5'>
+                    <div className='text-[10px] uppercase font-bold text-muted-foreground mb-1.5 tracking-wider'>
                       {safeFormatDate(
                         event.match.tsIso ?? event.match.timestamp,
                         'MMM d, HH:mm',

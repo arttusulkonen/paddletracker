@@ -1,3 +1,4 @@
+// src/components/rooms/StandingsTable.tsx
 'use client';
 
 import {
@@ -20,7 +21,7 @@ import {
 	TooltipTrigger,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
-import { Flame, Info, ShieldCheck, Swords } from 'lucide-react';
+import { Flame, Info, ShieldCheck } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,7 +49,6 @@ export function StandingsTable({
     latestSeason ? 'final' : 'regular',
   );
 
-  // FIX: Filter out coaches
   const activePlayers = useMemo(
     () => players.filter((p: any) => p.accountType !== 'coach'),
     [players],
@@ -375,20 +375,12 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
                         </TooltipProvider>
                       )}
                     </div>
-                    {((p.currentStreak && p.currentStreak >= 3) ||
-                      (p.badges && p.badges.includes('giant_slayer'))) && (
+                    {p.currentStreak && p.currentStreak >= 3 && (
                       <div className='flex gap-1 mt-1'>
-                        {p.currentStreak >= 3 && (
-                          <span className='text-[10px] bg-orange-500/10 text-orange-600 px-1 rounded flex items-center gap-0.5'>
-                            <Flame className='w-2.5 h-2.5 fill-current' />{' '}
-                            {p.currentStreak}
-                          </span>
-                        )}
-                        {p.badges?.includes('giant_slayer') && (
-                          <span className='text-[10px] bg-blue-500/10 text-blue-600 px-1 rounded flex items-center gap-0.5'>
-                            <Swords className='w-2.5 h-2.5' /> {t('Slayer')}
-                          </span>
-                        )}
+                        <span className='text-[10px] bg-orange-500/10 text-orange-600 px-1 rounded flex items-center gap-0.5'>
+                          <Flame className='w-2.5 h-2.5 fill-current' />{' '}
+                          {p.currentStreak}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -494,17 +486,13 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
       );
       const roomRating = Number(p.rating ?? 1000);
 
-      // FIXED: Strictly handle players with 0 matches.
       let totalAddedPoints = 0;
 
       if (matchesPlayed === 0) {
-        // If no matches played, net points MUST be 0, regardless of seeding
         totalAddedPoints = 0;
       } else if (typeof p.deltaRoom === 'number') {
-        // Use calculated delta if available
         totalAddedPoints = p.deltaRoom;
       } else {
-        // Fallback for Office mode where start is usually 1000
         totalAddedPoints = roomRating - 1000;
       }
 
@@ -540,7 +528,6 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
       adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM),
     }));
 
-    // Sorting logic matching season.ts
     withAdj.sort((a: any, b: any) => {
       const aPlayed = a.matchesPlayed > 0;
       const bPlayed = b.matchesPlayed > 0;
@@ -555,7 +542,6 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
         if (b.winRate !== a.winRate) return b.winRate - a.winRate;
         return b.matchesPlayed - a.matchesPlayed;
       } else {
-        // Office (default)
         if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
         if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
         return b.winRate - a.winRate;
@@ -573,7 +559,6 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
     { key: 'losses', label: 'L' },
     { key: 'roomRating', label: 'Rating' },
     { key: 'totalAddedPoints', label: 'Net Pts' },
-    // Show Adj Pts only for Office mode
     ...(roomMode === 'office' ? [{ key: 'adjPoints', label: 'Adj Pts' }] : []),
   ];
 
@@ -710,10 +695,9 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
 }
 
 function FinalStandings({ season, t, roomMode }: any) {
-  // FIX: activePlayers should include EVERYONE, including the creator.
   const data = useMemo(() => {
     const summary = Array.isArray(season?.summary) ? season.summary : [];
-    return summary; // No filtering
+    return summary;
   }, [season]);
 
   if (!data.length) {
