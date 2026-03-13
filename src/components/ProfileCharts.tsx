@@ -142,7 +142,7 @@ export const ProfileCharts: FC<ProfileChartsProps> = ({
                 <XAxis dataKey='label' tick={{ fontSize: 10, fill: 'currentColor', opacity: 0.5 }} axisLine={false} tickLine={false} dy={10} />
                 <YAxis tick={{ fontSize: 10, fill: 'currentColor', opacity: 0.5 }} axisLine={false} tickLine={false} dx={-10} />
                 <RechartTooltip cursor={{ fill: 'currentColor', opacity: 0.05 }} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', background: 'var(--background)' }} />
-                <Line type='monotone' dataKey='delta' stroke='hsl(var(--emerald-500))' strokeWidth={3} dot={{ r: 3, fill: 'hsl(var(--emerald-500))', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                <Line type='monotone' dataKey='delta' stroke='hsl(var(--chart-2))' strokeWidth={3} dot={{ r: 3, fill: 'hsl(var(--chart-2))', strokeWidth: 0 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
