@@ -87,7 +87,26 @@ type MatchupDraft = {
   games: GameData[];
 };
 
-// New internal component to handle a single matchup block
+// FIX: Centralized strict validation function
+export const isGameInvalid = (
+  game: any,
+  validateScore: (s1: number, s2: number) => { isValid: boolean },
+) => {
+  const s1 = String(game?.score1 ?? '').trim();
+  const s2 = String(game?.score2 ?? '').trim();
+
+  // Automatically invalid if fields are left completely empty
+  if (s1 === '' || s2 === '') return true;
+
+  const a = Number(s1);
+  const b = Number(s2);
+
+  if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
+
+  return !validateScore(a, b).isValid;
+};
+
+// internal component to handle a single matchup block
 function MatchupDraftBlock({
   matchup,
   members,
@@ -164,12 +183,10 @@ function MatchupDraftBlock({
   const isMatchupReady =
     matchup.player1Id && matchup.player2Id && matchup.games.length > 0;
 
-  const invalidGame = matchup.games.find(({ score1, score2 }: any) => {
-    const a = +score1;
-    const b = +score2;
-    if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
-    return !config.validateScore(a, b).isValid;
-  });
+  // Use the strict centralized validation
+  const invalidGame = matchup.games.find((g) =>
+    isGameInvalid(g, config.validateScore),
+  );
 
   const p1Name = members.find((m) => m.userId === matchup.player1Id)?.name;
   const p2Name = members.find((m) => m.userId === matchup.player2Id)?.name;
@@ -302,7 +319,6 @@ export function RecordBlock({
   const { sport, config } = useSport();
   const { toast } = useToast();
 
-  // FIX: Filter out coaches from playable members
   const playableMembers = members.filter((m: any) => m.accountType !== 'coach');
 
   const createInitialGame = useCallback(
@@ -312,7 +328,7 @@ export function RecordBlock({
         : ({ score1: '', score2: '', side1: 'left', side2: 'right' } as
             | PingPongMatchData
             | BadmintonMatchData),
-    [sport]
+    [sport],
   );
 
   const createInitialMatchup = useCallback(
@@ -322,24 +338,11 @@ export function RecordBlock({
       player2Id: '',
       games: [createInitialGame()],
     }),
-    [createInitialGame]
+    [createInitialGame],
   );
 
-  // Используем функцию-инициализатор для useState, чтобы избежать проблем с начальным рендером
-  // но также обновляем через useEffect при смене спорта
   const [matchupDrafts, setMatchupDrafts] = useState<MatchupDraft[]>(() => [
-    {
-      id: Date.now().toString(),
-      player1Id: '',
-      player2Id: '',
-      games: [
-        sport === 'tennis'
-          ? ({ score1: '', score2: '' } as TennisSetData)
-          : ({ score1: '', score2: '', side1: 'left', side2: 'right' } as
-              | PingPongMatchData
-              | BadmintonMatchData),
-      ],
-    },
+    createInitialMatchup(),
   ]);
   const [isRecording, setIsRecording] = useState(false);
 
@@ -357,7 +360,7 @@ export function RecordBlock({
 
   const updateMatchup = (updatedMatchup: MatchupDraft) => {
     setMatchupDrafts((prev) =>
-      prev.map((m) => (m.id === updatedMatchup.id ? updatedMatchup : m))
+      prev.map((m) => (m.id === updatedMatchup.id ? updatedMatchup : m)),
     );
   };
 
@@ -367,14 +370,14 @@ export function RecordBlock({
         m.player1Id &&
         m.player2Id &&
         m.player1Id !== m.player2Id &&
-        m.games.length > 0
+        m.games.length > 0,
     );
 
     if (validDrafts.length === 0) {
       toast({
         title: t('No valid matches to record'),
         description: t(
-          'Please select two different players and enter at least one game/set result for a matchup.'
+          'Please select two different players and enter at least one game/set result for a matchup.',
         ),
         variant: 'destructive',
       });
@@ -385,12 +388,9 @@ export function RecordBlock({
     let firstInvalidGame: GameData | undefined = undefined;
 
     for (const draft of validDrafts) {
-      const invalidGame = draft.games.find(({ score1, score2 }: any) => {
-        const a = +score1;
-        const b = +score2;
-        if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
-        return !config.validateScore(a, b).isValid;
-      });
+      const invalidGame = draft.games.find((g) =>
+        isGameInvalid(g, config.validateScore),
+      );
       if (invalidGame) {
         allGamesValid = false;
         firstInvalidGame = invalidGame;
@@ -401,7 +401,7 @@ export function RecordBlock({
     if (!allGamesValid) {
       const { message } = config.validateScore(
         +(firstInvalidGame as any).score1,
-        +(firstInvalidGame as any).score2
+        +(firstInvalidGame as any).score2,
       );
       toast({
         title: t('Check the score values in all matchups'),
@@ -420,7 +420,7 @@ export function RecordBlock({
         draft.player1Id,
         draft.player2Id,
         draft.games as any,
-        sport
+        sport,
       );
       if (success) successCount++;
     }
@@ -445,18 +445,15 @@ export function RecordBlock({
   };
 
   const totalGames = matchupDrafts.reduce((sum, m) => sum + m.games.length, 0);
+
+  // FIX: Accurate Ready check
   const totalMatchupsReady = matchupDrafts.filter(
     (m) =>
       m.player1Id &&
       m.player2Id &&
       m.player1Id !== m.player2Id &&
       m.games.length > 0 &&
-      !m.games.find(({ score1, score2 }: any) => {
-        const a = +score1;
-        const b = +score2;
-        if (isNaN(a) || isNaN(b) || a < 0 || b < 0 || a === b) return true;
-        return !config.validateScore(a, b).isValid;
-      })
+      !m.games.some((g) => isGameInvalid(g, config.validateScore)),
   ).length;
 
   return (
@@ -524,13 +521,13 @@ export function RecordBlock({
             <li>
               <strong>{t('Double Faults')}:</strong>{' '}
               {t(
-                'Two consecutive faults during a serve, resulting in the loss of the point.'
+                'Two consecutive faults during a serve, resulting in the loss of the point.',
               )}
             </li>
             <li>
               <strong>{t('Winners')}:</strong>{' '}
               {t(
-                'Shots that win the point outright, without the opponent touching the ball.'
+                'Shots that win the point outright, without the opponent touching the ball.',
               )}
             </li>
           </ul>
@@ -550,7 +547,7 @@ export function RecordBlock({
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {t(
-                    'This action will close the current season for this room. All standings will be finalized, and no new matches can be recorded for this season. This cannot be undone.'
+                    'This action will close the current season for this room. All standings will be finalized, and no new matches can be recorded for this season. This cannot be undone.',
                   )}
                 </AlertDialogDescription>
               </AlertDialogHeader>

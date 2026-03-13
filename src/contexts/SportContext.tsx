@@ -7,12 +7,12 @@ import TennisIcon from '@/icons/icon500-tennis.svg';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import React, {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
+	createContext,
+	ReactNode,
+	useCallback,
+	useContext,
+	useEffect,
+	useState,
 } from 'react';
 import { useAuth } from './AuthContext';
 
@@ -46,7 +46,7 @@ export const sportConfig: Record<Sport, SportConfig> = {
       <TableTennisIcon className='h-6 w-6 shrink-0 text-primary' aria-hidden />
     ),
     brandLogo: '/brand/logo500-pingpong-png.png',
-     brandIcon: '/brand/icon500-pingpong-png.png',
+    brandIcon: '/brand/icon500-pingpong-png.png',
     collections: {
       rooms: 'rooms-pingpong',
       matches: 'matches-pingpong',
@@ -60,7 +60,8 @@ export const sportConfig: Record<Sport, SportConfig> = {
     validateScore: (score1, score2) => {
       const hi = Math.max(score1, score2);
       const lo = Math.min(score1, score2);
-      const isValid = !(hi < 11 || (hi > 11 && hi - lo !== 2));
+      // FIX: Strict Ping-Pong rules (11 points, win by 2)
+      const isValid = (hi === 11 && hi - lo >= 2) || (hi > 11 && hi - lo === 2);
       return {
         isValid,
         message:
@@ -118,11 +119,12 @@ export const sportConfig: Record<Sport, SportConfig> = {
     validateScore: (score1, score2) => {
       const hi = Math.max(score1, score2);
       const lo = Math.min(score1, score2);
-      const isValid = hi >= 21 && hi - lo >= 2;
+      // FIX: Strict Badminton rules (21 points, win by 2, capped at 30)
+      const isValid = (hi === 21 && hi - lo >= 2) || (hi > 21 && hi < 30 && hi - lo === 2) || (hi === 30 && hi - lo >= 1);
       return {
         isValid,
         message:
-          'A badminton game is won by the first player to score 21 points with a 2-point margin.',
+          'A badminton game is won by the first player to score 21 points with a 2-point margin (capped at 30).',
       };
     },
   },

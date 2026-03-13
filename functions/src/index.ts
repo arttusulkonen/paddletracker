@@ -1,3 +1,4 @@
+// functions/src/index.ts
 import { googleAI } from '@genkit-ai/googleai';
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
@@ -12,15 +13,17 @@ import {
 } from 'firebase-functions/v2/https';
 import { genkit, z } from 'genkit';
 import { SPORT_COLLECTIONS } from './config';
-import { calculateDelta as calcDeltaImport, getDynamicK, RoomMode } from './lib/eloMath';
+import {
+	calculateDelta as calcDeltaImport,
+	getDynamicK,
+	RoomMode,
+} from './lib/eloMath';
 
 admin.initializeApp();
 const db = admin.firestore();
 const auth = admin.auth();
 const storage = admin.storage();
 
-// --- CONSTANTS ---
-// Used for permanentlyDeleteUser
 const collectionsToScan = {
   rooms: ['rooms-pingpong', 'rooms-tennis', 'rooms-badminton'],
   matches: ['matches-pingpong', 'matches-tennis', 'matches-badminton'],
@@ -31,7 +34,6 @@ const collectionsToScan = {
   ],
 };
 
-// --- INTERFACES ---
 interface Member {
   userId: string;
   name?: string;
@@ -52,8 +54,6 @@ interface Round {
   matches: MatchRef[];
 }
 
-// --- HELPER FUNCTIONS ---
-
 function levenshtein(a: string, b: string): number {
   const matrix: number[][] = [];
   for (let i = 0; i <= b.length; i++) matrix[i] = [i];
@@ -65,7 +65,7 @@ function levenshtein(a: string, b: string): number {
       } else {
         matrix[i][j] = Math.min(
           matrix[i - 1][j - 1] + 1,
-          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1),
         );
       }
     }
@@ -91,7 +91,7 @@ function getFinnishDate(dateObj: Date = new Date()): string {
     parts.find((p) => p.type === type)?.value || '00';
 
   return `${getPart('day')}.${getPart('month')}.${getPart('year')} ${getPart(
-    'hour'
+    'hour',
   )}.${getPart('minute')}.${getPart('second')}`;
 }
 
@@ -100,7 +100,7 @@ const calculateDelta = (
   rating2: number,
   score1: number,
   score2: number,
-  isGlobal: boolean
+  isGlobal: boolean,
 ) => {
   const K = 32;
   const result = score1 > score2 ? 1 : 0;
@@ -133,8 +133,6 @@ async function getSuperAdminIds(): Promise<string[]> {
   }
 }
 
-// --- AI CONFIG ---
-
 const ai = genkit({
   plugins: [
     googleAI({
@@ -143,8 +141,6 @@ const ai = genkit({
   ],
   model: 'googleai/gemini-2.0-flash',
 });
-
-// --- CALLABLE FUNCTIONS ---
 
 export const aiChat = onCall(
   { cors: true, region: 'europe-west1' },
@@ -205,7 +201,7 @@ export const aiChat = onCall(
                     player2Name: z.string(),
                     score1: z.number(),
                     score2: z.number(),
-                  })
+                  }),
                 ),
               })
               .optional(),
@@ -219,10 +215,10 @@ export const aiChat = onCall(
       logger.error('aiChat error:', error);
       throw new HttpsError(
         'internal',
-        error?.message || 'AI processing failed'
+        error?.message || 'AI processing failed',
       );
     }
-  }
+  },
 );
 
 export const aiSaveMatch = onCall(
@@ -230,7 +226,7 @@ export const aiSaveMatch = onCall(
     cors: true,
     timeoutSeconds: 540,
     memory: '512MiB',
-    region: 'europe-west1'
+    region: 'europe-west1',
   },
   async (request: CallableRequest) => {
     if (!request.auth) {
@@ -246,7 +242,7 @@ export const aiSaveMatch = onCall(
     if (matches.length > 400) {
       throw new HttpsError(
         'invalid-argument',
-        'Too many matches at once. Max 400.'
+        'Too many matches at once. Max 400.',
       );
     }
 
@@ -263,6 +259,7 @@ export const aiSaveMatch = onCall(
 
     const roomData = roomSnap.data() || {};
     const members: any[] = roomData.members || [];
+    const mode = (roomData.mode || 'office') as RoomMode | 'derby';
 
     const uniqueNames = new Set<string>();
     matches.forEach((m) => {
@@ -327,14 +324,14 @@ export const aiSaveMatch = onCall(
       if (foundDoc) {
         nameToUidMap.set(name, foundDoc.id);
       } else {
-         console.warn(`User not found for name: ${name}`);
+        console.warn(`User not found for name: ${name}`);
       }
     }
 
     const uniqueUids = Array.from(new Set(nameToUidMap.values()));
-    
+
     const userDocsRefs = uniqueUids.map((uid) =>
-      db.collection('users').doc(uid)
+      db.collection('users').doc(uid),
     );
 
     const userDocs =
@@ -350,19 +347,27 @@ export const aiSaveMatch = onCall(
       if (existingIndex !== -1) {
         return members[existingIndex];
       }
-      
-      const newMember = {
+
+      const newMember: any = {
         userId: uid,
         name: userData?.name || userData?.displayName || 'Unknown Player',
         email: userData?.email || '',
         rating: 1000,
         wins: 0,
         losses: 0,
-        role: 'viewer', 
+        role: 'viewer',
         date: new Date().toISOString(),
-        globalElo: userData?.sports?.[sport]?.globalElo ?? 1000
+        globalElo: userData?.sports?.[sport]?.globalElo ?? 1000,
       };
-      
+
+      if (mode === 'derby') {
+        newMember.currentStreak = 0;
+        newMember.highestStreak = 0;
+        newMember.badges = [];
+        newMember.h2h = {};
+        newMember.nemesisId = null;
+      }
+
       members.push(newMember);
       return newMember;
     };
@@ -393,7 +398,7 @@ export const aiSaveMatch = onCall(
     const initUser = (uid: string, nameForReport: string, memberObj: any) => {
       if (!userUpdates.has(uid)) {
         const globalData = userDataMap.get(uid) || {};
-        
+
         const gElo = globalData.sports?.[sport]?.globalElo ?? 1000;
         const rElo = memberObj?.rating ?? 1000;
 
@@ -421,12 +426,22 @@ export const aiSaveMatch = onCall(
         const p2Id = nameToUidMap.get(player2Name);
 
         if (!p1Id) {
-             console.error(`AI Match Error: Player 1 not found. Name: "${player1Name}"`);
-             throw new HttpsError('failed-precondition', `Could not find player: "${player1Name}". Please check the name spelling.`);
+          console.error(
+            `AI Match Error: Player 1 not found. Name: "${player1Name}"`,
+          );
+          throw new HttpsError(
+            'failed-precondition',
+            `Could not find player: "${player1Name}". Please check the name spelling.`,
+          );
         }
         if (!p2Id) {
-             console.error(`AI Match Error: Player 2 not found. Name: "${player2Name}"`);
-             throw new HttpsError('failed-precondition', `Could not find player: "${player2Name}". Please check the name spelling.`);
+          console.error(
+            `AI Match Error: Player 2 not found. Name: "${player2Name}"`,
+          );
+          throw new HttpsError(
+            'failed-precondition',
+            `Could not find player: "${player2Name}". Please check the name spelling.`,
+          );
         }
 
         const p1Data = userDataMap.get(p1Id) || {};
@@ -446,14 +461,14 @@ export const aiSaveMatch = onCall(
           p2State.currentGlobalElo,
           score1,
           score2,
-          true
+          true,
         );
         const d2_Global = calculateDelta(
           p2State.currentGlobalElo,
           p1State.currentGlobalElo,
           score2,
           score1,
-          true
+          true,
         );
 
         const d1_Room = calculateDelta(
@@ -461,20 +476,86 @@ export const aiSaveMatch = onCall(
           p2State.currentRoomElo,
           score1,
           score2,
-          false
+          false,
         );
         const d2_Room = calculateDelta(
           p2State.currentRoomElo,
           p1State.currentRoomElo,
           score2,
           score1,
-          false
+          false,
         );
+
+        let final_d1_Room = d1_Room;
+        let final_d2_Room = d2_Room;
+
+        if (mode === 'derby') {
+          p1Member.currentStreak = p1Member.currentStreak ?? 0;
+          p1Member.highestStreak = p1Member.highestStreak ?? 0;
+          p1Member.badges = p1Member.badges ?? [];
+          p1Member.h2h = p1Member.h2h ?? {};
+          p1Member.nemesisId = p1Member.nemesisId ?? null;
+
+          p2Member.currentStreak = p2Member.currentStreak ?? 0;
+          p2Member.highestStreak = p2Member.highestStreak ?? 0;
+          p2Member.badges = p2Member.badges ?? [];
+          p2Member.h2h = p2Member.h2h ?? {};
+          p2Member.nemesisId = p2Member.nemesisId ?? null;
+
+          p1Member.h2h[p2Id] = p1Member.h2h[p2Id] ?? { wins: 0, losses: 0 };
+          p2Member.h2h[p1Id] = p2Member.h2h[p1Id] ?? { wins: 0, losses: 0 };
+
+          const isP1Winner = score1 > score2;
+          const winnerId = isP1Winner ? p1Id : p2Id;
+          const loserId = isP1Winner ? p2Id : p1Id;
+          const winnerMember = isP1Winner ? p1Member : p2Member;
+          const loserMember = isP1Winner ? p2Member : p1Member;
+
+          let baseWinnerDelta = isP1Winner ? final_d1_Room : final_d2_Room;
+
+          if (baseWinnerDelta > 0) {
+            const winnerH2H = winnerMember.h2h[loserId];
+            const totalH2H = winnerH2H.wins + winnerH2H.losses;
+            const winRateH2H = totalH2H > 0 ? winnerH2H.wins / totalH2H : 0.5;
+
+            if (totalH2H >= 3 && winRateH2H <= 0.4) {
+              baseWinnerDelta = Math.round(baseWinnerDelta * 1.5);
+            }
+
+            if (loserMember.currentStreak >= 3) {
+              const bounty = (loserMember.currentStreak - 2) * 5;
+              baseWinnerDelta += bounty;
+
+              if (!winnerMember.badges.includes('giant_slayer')) {
+                winnerMember.badges.push('giant_slayer');
+              }
+            }
+          }
+
+          if (isP1Winner) {
+            final_d1_Room = baseWinnerDelta;
+            final_d2_Room = -baseWinnerDelta;
+          } else {
+            final_d2_Room = baseWinnerDelta;
+            final_d1_Room = -baseWinnerDelta;
+          }
+
+          winnerMember.currentStreak += 1;
+          if (winnerMember.currentStreak > winnerMember.highestStreak) {
+            winnerMember.highestStreak = winnerMember.currentStreak;
+          }
+
+          loserMember.currentStreak = 0;
+          loserMember.badges = [];
+
+          winnerMember.h2h[loserId].wins += 1;
+          loserMember.h2h[winnerId].losses += 1;
+        }
 
         const newGlobalG1 = p1State.currentGlobalElo + d1_Global;
         const newGlobalG2 = p2State.currentGlobalElo + d2_Global;
-        const newRoomR1 = p1State.currentRoomElo + d1_Room;
-        const newRoomR2 = p2State.currentRoomElo + d2_Room;
+        const newRoomR1 = p1State.currentRoomElo + final_d1_Room;
+        const newRoomR2 = p2State.currentRoomElo + final_d2_Room;
 
         p1State.currentGlobalElo = newGlobalG1;
         p2State.currentGlobalElo = newGlobalG2;
@@ -520,9 +601,9 @@ export const aiSaveMatch = onCall(
             oldRating: p1State.currentGlobalElo - d1_Global,
             newRating: newGlobalG1,
             addedPoints: d1_Global,
-            roomOldRating: p1State.currentRoomElo - d1_Room,
+            roomOldRating: p1State.currentRoomElo - final_d1_Room,
             roomNewRating: newRoomR1,
-            roomAddedPoints: d1_Room,
+            roomAddedPoints: final_d1_Room,
             side: 'left',
           },
           player2: {
@@ -531,11 +612,36 @@ export const aiSaveMatch = onCall(
             oldRating: p2State.currentGlobalElo - d2_Global,
             newRating: newGlobalG2,
             addedPoints: d2_Global,
-            roomOldRating: p2State.currentRoomElo - d2_Room,
+            roomOldRating: p2State.currentRoomElo - final_d2_Room,
             roomNewRating: newRoomR2,
-            roomAddedPoints: d2_Room,
+            roomAddedPoints: final_d2_Room,
             side: 'right',
           },
+        });
+      }
+
+      if (mode === 'derby') {
+        members.forEach((mem: any) => {
+          if (!mem.h2h) return;
+          let worstOpponent = null;
+          let lowestWinRate = 1.0;
+          let maxLosses = 0;
+          for (const oppId of Object.keys(mem.h2h)) {
+            const stats = mem.h2h[oppId];
+            const total = stats.wins + stats.losses;
+            if (total >= 3) {
+              const wr = stats.wins / total;
+              if (
+                wr < lowestWinRate ||
+                (wr === lowestWinRate && stats.losses > maxLosses)
+              ) {
+                lowestWinRate = wr;
+                maxLosses = stats.losses;
+                worstOpponent = oppId;
+              }
+            }
+          }
+          mem.nemesisId = lowestWinRate <= 0.4 ? worstOpponent : null;
         });
       }
 
@@ -563,11 +669,11 @@ export const aiSaveMatch = onCall(
 
       const currentMemberIds: string[] = roomData.memberIds || [];
       const updatedMemberIds = new Set(currentMemberIds);
-      members.forEach(m => updatedMemberIds.add(m.userId));
+      members.forEach((m) => updatedMemberIds.add(m.userId));
 
-      batch.update(roomRef, { 
-        members, 
-        memberIds: Array.from(updatedMemberIds) 
+      batch.update(roomRef, {
+        members,
+        memberIds: Array.from(updatedMemberIds),
       });
 
       await batch.commit();
@@ -598,14 +704,14 @@ export const aiSaveMatch = onCall(
     } catch (error: any) {
       logger.error('aiSaveMatch error:', error);
       if (error instanceof HttpsError) {
-          throw error;
+        throw error;
       }
       throw new HttpsError(
         'internal',
-        error?.message || 'Failed to save matches'
+        error?.message || 'Failed to save matches',
       );
     }
-  }
+  },
 );
 
 export const permanentlyDeleteUser = onCall(
@@ -662,7 +768,7 @@ export const permanentlyDeleteUser = onCall(
                   email: `deleted-${userIdToDelete}@deleted.com`,
                   photoURL: null,
                 }
-              : member
+              : member,
           );
           updates.memberIds = Array.isArray(data.memberIds)
             ? data.memberIds.filter((id: string) => id !== userIdToDelete)
@@ -703,12 +809,12 @@ export const permanentlyDeleteUser = onCall(
           const updates: { [key: string]: any } = {};
           if (Array.isArray(data.participants)) {
             updates.participants = data.participants.map((p: Participant) =>
-              p.userId === userIdToDelete ? { ...p, name: anonymizedName } : p
+              p.userId === userIdToDelete ? { ...p, name: anonymizedName } : p,
             );
           }
           if (Array.isArray(data.finalStats)) {
             updates.finalStats = data.finalStats.map((s: Participant) =>
-              s.userId === userIdToDelete ? { ...s, name: anonymizedName } : s
+              s.userId === userIdToDelete ? { ...s, name: anonymizedName } : s,
             );
           }
           if (data.champion?.userId === userIdToDelete) {
@@ -773,467 +879,610 @@ export const permanentlyDeleteUser = onCall(
       console.error('Error deleting user:', error);
       throw new HttpsError('internal', 'An error occurred during deletion.');
     }
-  }
+  },
 );
 
 export const recordMatch = onCall(
   { region: 'europe-west1' },
   async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'User must be logged in');
-  }
-
-  const { roomId, player1Id, player2Id, matches, sport } = request.data;
-
-  if (
-    !roomId ||
-    !player1Id ||
-    !player2Id ||
-    !matches ||
-    !Array.isArray(matches) ||
-    matches.length === 0
-  ) {
-    throw new HttpsError(
-      'invalid-argument',
-      'Missing required fields or matches array is empty'
-    );
-  }
-
-  const roomRef = db.collection(`rooms-${sport}`).doc(roomId);
-  const p1Ref = db.collection('users').doc(player1Id);
-  const p2Ref = db.collection('users').doc(player2Id);
-
-  const [roomSnap, p1Snap, p2Snap] = await Promise.all([
-    roomRef.get(),
-    p1Ref.get(),
-    p2Ref.get(),
-  ]);
-
-  if (!roomSnap.exists) throw new HttpsError('not-found', 'Room not found');
-
-  const roomData = roomSnap.data() || {};
-  const p1Data = p1Snap.exists ? p1Snap.data() || {} : {};
-  const p2Data = p2Snap.exists ? p2Snap.data() || {} : {};
-
-  const validMemberIds: string[] = roomData.memberIds || [];
-  
-  if (!validMemberIds.includes(player1Id)) {
-     throw new HttpsError('failed-precondition', `Player 1 (${player1Id}) is not in the room memberIds`);
-  }
-  if (!validMemberIds.includes(player2Id)) {
-     throw new HttpsError('failed-precondition', `Player 2 (${player2Id}) is not in the room memberIds`);
-  }
-
-  const members = roomData.members || [];
-  
-  const getOrAddMember = (uid: string, userData: any) => {
-    const existingIndex = members.findIndex((m: any) => m.userId === uid);
-    if (existingIndex !== -1) {
-      return members[existingIndex];
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'User must be logged in');
     }
 
-    const newMember = {
-      userId: uid,
-      name: userData.name || userData.displayName || 'Unknown Player',
-      email: userData.email || '',
-      rating: 1000,
-      wins: 0,
-      losses: 0,
-      role: 'viewer',
-      date: new Date().toISOString(),
-      globalElo: userData.sports?.[sport]?.globalElo ?? 1000
-    };
-    
-    members.push(newMember);
-    return newMember;
-  };
+    const { roomId, player1Id, player2Id, matches, sport } = request.data;
 
-  const member1 = getOrAddMember(player1Id, p1Data);
-  const member2 = getOrAddMember(player2Id, p2Data);
-
-  let currentG1 = p1Data.sports?.[sport]?.globalElo ?? 1000;
-  let currentG2 = p2Data.sports?.[sport]?.globalElo ?? 1000;
-
-  let currentRoom1 = member1.rating ?? 1000;
-  let currentRoom2 = member2.rating ?? 1000;
-
-  let totalWinsP1 = 0;
-  let totalWinsP2 = 0;
-
-  const tennisStatsP1 = { aces: 0, doubleFaults: 0, winners: 0 };
-  const tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
-
-  const mode: RoomMode = roomData.mode || 'office';
-  const baseK = typeof roomData.kFactor === 'number' ? roomData.kFactor : 32;
-  const isRankedRoom = roomData.isRanked !== false;
-
-  const batch = db.batch();
-  const startDate = new Date();
-
-  for (let i = 0; i < matches.length; i++) {
-    const game = matches[i];
-    const score1 = Number(game.score1);
-    const score2 = Number(game.score2);
-
-    const p1MatchesPlayed = (member1.wins ?? 0) + (member1.losses ?? 0) + i;
-    const p2MatchesPlayed = (member2.wins ?? 0) + (member2.losses ?? 0) + i;
-
-    const oldG1 = currentG1;
-    const oldG2 = currentG2;
-    const oldRoom1 = currentRoom1;
-    const oldRoom2 = currentRoom2;
-
-    let d1_Global = 0;
-    let d2_Global = 0;
-    let d1_Room = 0;
-    let d2_Room = 0;
-
-    if (isRankedRoom) {
-      d1_Global = calcDeltaImport(
-        oldG1,
-        oldG2,
-        score1,
-        score2,
-        true,
-        'professional',
-        32
+    if (
+      !roomId ||
+      !player1Id ||
+      !player2Id ||
+      !matches ||
+      !Array.isArray(matches) ||
+      matches.length === 0
+    ) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Missing required fields or matches array is empty',
       );
-      d2_Global = calcDeltaImport(
-        oldG2,
-        oldG1,
-        score2,
-        score1,
-        true,
-        'professional',
-        32
+    }
+
+    const roomRef = db.collection(`rooms-${sport}`).doc(roomId);
+    const p1Ref = db.collection('users').doc(player1Id);
+    const p2Ref = db.collection('users').doc(player2Id);
+
+    const [roomSnap, p1Snap, p2Snap] = await Promise.all([
+      roomRef.get(),
+      p1Ref.get(),
+      p2Ref.get(),
+    ]);
+
+    if (!roomSnap.exists) throw new HttpsError('not-found', 'Room not found');
+
+    const roomData = roomSnap.data() || {};
+    const p1Data = p1Snap.exists ? p1Snap.data() || {} : {};
+    const p2Data = p2Snap.exists ? p2Snap.data() || {} : {};
+
+    const validMemberIds: string[] = roomData.memberIds || [];
+
+    if (!validMemberIds.includes(player1Id)) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Player 1 (${player1Id}) is not in the room memberIds`,
       );
-
-      currentG1 += d1_Global;
-      currentG2 += d2_Global;
+    }
+    if (!validMemberIds.includes(player2Id)) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Player 2 (${player2Id}) is not in the room memberIds`,
+      );
     }
 
-    const k1 = getDynamicK(baseK, p1MatchesPlayed, mode);
-    const k2 = getDynamicK(baseK, p2MatchesPlayed, mode);
+    const members = roomData.members || [];
+    const mode = (roomData.mode as RoomMode | 'derby') || 'office';
 
-    d1_Room = calcDeltaImport(
-      oldRoom1,
-      oldRoom2,
-      score1,
-      score2,
-      false,
-      mode,
-      k1
-    );
-    d2_Room = calcDeltaImport(
-      oldRoom2,
-      oldRoom1,
-      score2,
-      score1,
-      false,
-      mode,
-      k2
-    );
+    const getOrAddMember = (uid: string, userData: any) => {
+      const existingIndex = members.findIndex((m: any) => m.userId === uid);
+      if (existingIndex !== -1) {
+        return members[existingIndex];
+      }
 
-    currentRoom1 += d1_Room;
-    currentRoom2 += d2_Room;
+      const newMember: any = {
+        userId: uid,
+        name: userData.name || userData.displayName || 'Unknown Player',
+        email: userData.email || '',
+        rating: 1000,
+        wins: 0,
+        losses: 0,
+        role: 'viewer',
+        date: new Date().toISOString(),
+        globalElo: userData.sports?.[sport]?.globalElo ?? 1000,
+      };
 
-    if (score1 > score2) totalWinsP1++;
-    else totalWinsP2++;
+      if (mode === 'derby') {
+        newMember.currentStreak = 0;
+        newMember.highestStreak = 0;
+        newMember.badges = [];
+        newMember.h2h = {};
+        newMember.nemesisId = null;
+      }
 
-    let player1Extra: any = {};
-    let player2Extra: any = {};
-
-    if (sport === 'tennis') {
-      const p1Aces = Number(game.aces1) || 0;
-      const p1Df = Number(game.doubleFaults1) || 0;
-      const p1Win = Number(game.winners1) || 0;
-
-      const p2Aces = Number(game.aces2) || 0;
-      const p2Df = Number(game.doubleFaults2) || 0;
-      const p2Win = Number(game.winners2) || 0;
-
-      player1Extra = { aces: p1Aces, doubleFaults: p1Df, winners: p1Win };
-      player2Extra = { aces: p2Aces, doubleFaults: p2Df, winners: p2Win };
-
-      tennisStatsP1.aces += p1Aces;
-      tennisStatsP1.doubleFaults += p1Df;
-      tennisStatsP1.winners += p1Win;
-      tennisStatsP2.aces += p2Aces;
-      tennisStatsP2.doubleFaults += p2Df;
-      tennisStatsP2.winners += p2Win;
-    } else {
-      player1Extra.side = game.side1 || 'left';
-      player2Extra.side = game.side2 || 'right';
-    }
-
-    const matchDate = new Date(startDate.getTime() + i * 1000);
-    const matchRef = db.collection(`matches-${sport}`).doc();
-
-    const p1Name = p1Data.name || p1Data.displayName || member1.name || 'Unknown';
-    const p2Name = p2Data.name || p2Data.displayName || member2.name || 'Unknown';
-
-    batch.set(matchRef, {
-      roomId,
-      player1Id,
-      player2Id,
-      players: [player1Id, player2Id],
-      isRanked: isRankedRoom,
-      createdAt: getFinnishDate(matchDate),
-      timestamp: getFinnishDate(matchDate),
-      tsIso: matchDate.toISOString(),
-      winner: score1 > score2 ? p1Name : p2Name,
-      player1: {
-        name: p1Name,
-        scores: score1,
-        oldRating: oldG1,
-        newRating: currentG1,
-        addedPoints: d1_Global,
-        roomOldRating: oldRoom1,
-        roomNewRating: currentRoom1,
-        roomAddedPoints: d1_Room,
-        side: 'left',
-        ...player1Extra,
-      },
-      player2: {
-        name: p2Name,
-        scores: score2,
-        oldRating: oldG2,
-        newRating: currentG2,
-        addedPoints: d2_Global,
-        roomOldRating: oldRoom2,
-        roomNewRating: currentRoom2,
-        roomAddedPoints: d2_Room,
-        side: 'right',
-        ...player2Extra,
-      },
-    });
-  }
-
-  member1.rating = currentRoom1;
-  member1.globalElo = currentG1;
-  member1.wins = (member1.wins || 0) + totalWinsP1;
-  member1.losses = (member1.losses || 0) + totalWinsP2;
-
-  member2.rating = currentRoom2;
-  member2.globalElo = currentG2;
-  member2.wins = (member2.wins || 0) + totalWinsP2;
-  member2.losses = (member2.losses || 0) + totalWinsP1;
-
-  batch.update(roomRef, { members: members });
-
-  const updateUserStats = (
-    ref: any,
-    newGlobalElo: number,
-    winsToAdd: number,
-    lossesToAdd: number,
-    tennisStats: any
-  ) => {
-    if (!ref) return;
-
-    const updateData: any = {
-      [`sports.${sport}.wins`]: admin.firestore.FieldValue.increment(winsToAdd),
-      [`sports.${sport}.losses`]:
-        admin.firestore.FieldValue.increment(lossesToAdd),
+      members.push(newMember);
+      return newMember;
     };
 
-    if (isRankedRoom) {
-      updateData[`sports.${sport}.globalElo`] = newGlobalElo;
-      updateData[`sports.${sport}.eloHistory`] =
-        admin.firestore.FieldValue.arrayUnion({
-          ts: new Date().toISOString(),
-          elo: newGlobalElo,
-        });
-    }
+    const member1 = getOrAddMember(player1Id, p1Data);
+    const member2 = getOrAddMember(player2Id, p2Data);
 
-    if (sport === 'tennis') {
-      updateData[`sports.tennis.aces`] = admin.firestore.FieldValue.increment(
-        tennisStats.aces
+    let currentG1 = p1Data.sports?.[sport]?.globalElo ?? 1000;
+    let currentG2 = p2Data.sports?.[sport]?.globalElo ?? 1000;
+
+    let currentRoom1 = member1.rating ?? 1000;
+    let currentRoom2 = member2.rating ?? 1000;
+
+    let totalWinsP1 = 0;
+    let totalWinsP2 = 0;
+
+    const tennisStatsP1 = { aces: 0, doubleFaults: 0, winners: 0 };
+    const tennisStatsP2 = { aces: 0, doubleFaults: 0, winners: 0 };
+
+    const baseK = typeof roomData.kFactor === 'number' ? roomData.kFactor : 32;
+    const isRankedRoom = roomData.isRanked !== false;
+
+    const batch = db.batch();
+    const startDate = new Date();
+
+    for (let i = 0; i < matches.length; i++) {
+      const game = matches[i];
+      const score1 = Number(game.score1);
+      const score2 = Number(game.score2);
+
+      const p1MatchesPlayed = (member1.wins ?? 0) + (member1.losses ?? 0) + i;
+      const p2MatchesPlayed = (member2.wins ?? 0) + (member2.losses ?? 0) + i;
+
+      const oldG1 = currentG1;
+      const oldG2 = currentG2;
+      const oldRoom1 = currentRoom1;
+      const oldRoom2 = currentRoom2;
+
+      let d1_Global = 0;
+      let d2_Global = 0;
+      let d1_Room = 0;
+      let d2_Room = 0;
+
+      if (isRankedRoom) {
+        d1_Global = calcDeltaImport(
+          oldG1,
+          oldG2,
+          score1,
+          score2,
+          true,
+          'professional',
+          32,
+        );
+        d2_Global = calcDeltaImport(
+          oldG2,
+          oldG1,
+          score2,
+          score1,
+          true,
+          'professional',
+          32,
+        );
+
+        currentG1 += d1_Global;
+        currentG2 += d2_Global;
+      }
+
+      const k1 = getDynamicK(baseK, p1MatchesPlayed, mode);
+      const k2 = getDynamicK(baseK, p2MatchesPlayed, mode);
+
+      d1_Room = calcDeltaImport(
+        oldRoom1,
+        oldRoom2,
+        score1,
+        score2,
+        false,
+        mode,
+        k1,
       );
-      updateData[`sports.tennis.doubleFaults`] =
-        admin.firestore.FieldValue.increment(tennisStats.doubleFaults);
-      updateData[`sports.tennis.winners`] =
-        admin.firestore.FieldValue.increment(tennisStats.winners);
+      d2_Room = calcDeltaImport(
+        oldRoom2,
+        oldRoom1,
+        score2,
+        score1,
+        false,
+        mode,
+        k2,
+      );
+
+      if (mode === 'derby') {
+        member1.currentStreak = member1.currentStreak ?? 0;
+        member1.highestStreak = member1.highestStreak ?? 0;
+        member1.badges = member1.badges ?? [];
+        member1.h2h = member1.h2h ?? {};
+        member1.nemesisId = member1.nemesisId ?? null;
+
+        member2.currentStreak = member2.currentStreak ?? 0;
+        member2.highestStreak = member2.highestStreak ?? 0;
+        member2.badges = member2.badges ?? [];
+        member2.h2h = member2.h2h ?? {};
+        member2.nemesisId = member2.nemesisId ?? null;
+
+        member1.h2h[player2Id] = member1.h2h[player2Id] ?? {
+          wins: 0,
+          losses: 0,
+        };
+        member2.h2h[player1Id] = member2.h2h[player1Id] ?? {
+          wins: 0,
+          losses: 0,
+        };
+
+        const isP1Winner = score1 > score2;
+        const winnerId = isP1Winner ? player1Id : player2Id;
+        const loserId = isP1Winner ? player2Id : player1Id;
+        const winnerMember = isP1Winner ? member1 : member2;
+        const loserMember = isP1Winner ? member2 : member1;
+
+        let baseWinnerDelta = isP1Winner ? d1_Room : d2_Room;
+
+        loserMember.badges = [];
+
+        if (baseWinnerDelta > 0) {
+          const winnerH2H = winnerMember.h2h[loserId];
+          const totalH2H = winnerH2H.wins + winnerH2H.losses;
+          const winRateH2H = totalH2H > 0 ? winnerH2H.wins / totalH2H : 0.5;
+
+          if (totalH2H >= 3 && winRateH2H <= 0.4) {
+            baseWinnerDelta = Math.round(baseWinnerDelta * 1.5);
+          }
+
+          if (loserMember.currentStreak >= 3) {
+            const bounty = (loserMember.currentStreak - 2) * 5;
+            baseWinnerDelta += bounty;
+
+            if (!winnerMember.badges.includes('giant_slayer')) {
+              winnerMember.badges.push('giant_slayer');
+            }
+          }
+        }
+
+        if (isP1Winner) {
+          d1_Room = baseWinnerDelta;
+          d2_Room = -baseWinnerDelta;
+        } else {
+          d2_Room = baseWinnerDelta;
+          d1_Room = -baseWinnerDelta;
+        }
+
+        winnerMember.currentStreak += 1;
+        if (winnerMember.currentStreak > winnerMember.highestStreak) {
+          winnerMember.highestStreak = winnerMember.currentStreak;
+        }
+
+        loserMember.currentStreak = 0;
+
+        winnerMember.h2h[loserId].wins += 1;
+        loserMember.h2h[winnerId].losses += 1;
+      }
+
+      currentRoom1 += d1_Room;
+      currentRoom2 += d2_Room;
+
+      if (score1 > score2) totalWinsP1++;
+      else totalWinsP2++;
+
+      let player1Extra: any = {};
+      let player2Extra: any = {};
+
+      if (sport === 'tennis') {
+        const p1Aces = Number(game.aces1) || 0;
+        const p1Df = Number(game.doubleFaults1) || 0;
+        const p1Win = Number(game.winners1) || 0;
+
+        const p2Aces = Number(game.aces2) || 0;
+        const p2Df = Number(game.doubleFaults2) || 0;
+        const p2Win = Number(game.winners2) || 0;
+
+        player1Extra = { aces: p1Aces, doubleFaults: p1Df, winners: p1Win };
+        player2Extra = { aces: p2Aces, doubleFaults: p2Df, winners: p2Win };
+
+        tennisStatsP1.aces += p1Aces;
+        tennisStatsP1.doubleFaults += p1Df;
+        tennisStatsP1.winners += p1Win;
+        tennisStatsP2.aces += p2Aces;
+        tennisStatsP2.doubleFaults += p2Df;
+        tennisStatsP2.winners += p2Win;
+      } else {
+        player1Extra.side = game.side1 || 'left';
+        player2Extra.side = game.side2 || 'right';
+      }
+
+      const matchDate = new Date(startDate.getTime() + i * 1000);
+      const matchRef = db.collection(`matches-${sport}`).doc();
+
+      const p1Name =
+        p1Data.name || p1Data.displayName || member1.name || 'Unknown';
+      const p2Name =
+        p2Data.name || p2Data.displayName || member2.name || 'Unknown';
+
+      batch.set(matchRef, {
+        roomId,
+        player1Id,
+        player2Id,
+        players: [player1Id, player2Id],
+        isRanked: isRankedRoom,
+        createdAt: getFinnishDate(matchDate),
+        timestamp: getFinnishDate(matchDate),
+        tsIso: matchDate.toISOString(),
+        winner: score1 > score2 ? p1Name : p2Name,
+        player1: {
+          name: p1Name,
+          scores: score1,
+          oldRating: oldG1,
+          newRating: currentG1,
+          addedPoints: d1_Global,
+          roomOldRating: oldRoom1,
+          roomNewRating: currentRoom1,
+          roomAddedPoints: d1_Room,
+          side: 'left',
+          ...player1Extra,
+        },
+        player2: {
+          name: p2Name,
+          scores: score2,
+          oldRating: oldG2,
+          newRating: currentG2,
+          addedPoints: d2_Global,
+          roomOldRating: oldRoom2,
+          roomNewRating: currentRoom2,
+          roomAddedPoints: d2_Room,
+          side: 'right',
+          ...player2Extra,
+        },
+      });
     }
 
-    batch.update(ref, updateData);
-  };
+    if (mode === 'derby') {
+      members.forEach((mem: any) => {
+        if (!mem.h2h) return;
+        let worstOpponent = null;
+        let lowestWinRate = 1.0;
+        let maxLosses = 0;
+        for (const oppId of Object.keys(mem.h2h)) {
+          const stats = mem.h2h[oppId];
+          const total = stats.wins + stats.losses;
+          if (total >= 3) {
+            const wr = stats.wins / total;
+            if (
+              wr < lowestWinRate ||
+              (wr === lowestWinRate && stats.losses > maxLosses)
+            ) {
+              lowestWinRate = wr;
+              maxLosses = stats.losses;
+              worstOpponent = oppId;
+            }
+          }
+        }
+        mem.nemesisId = lowestWinRate <= 0.4 ? worstOpponent : null;
+      });
+    }
 
-  if (p1Snap.exists) updateUserStats(p1Ref, currentG1, totalWinsP1, totalWinsP2, tennisStatsP1);
-  if (p2Snap.exists) updateUserStats(p2Ref, currentG2, totalWinsP2, totalWinsP1, tennisStatsP2);
+    member1.rating = currentRoom1;
+    member1.globalElo = currentG1;
+    member1.wins = (member1.wins || 0) + totalWinsP1;
+    member1.losses = (member1.losses || 0) + totalWinsP2;
 
-  await batch.commit();
+    member2.rating = currentRoom2;
+    member2.globalElo = currentG2;
+    member2.wins = (member2.wins || 0) + totalWinsP2;
+    member2.losses = (member2.losses || 0) + totalWinsP1;
 
-  return { success: true, gamesRecorded: matches.length };
-});
+    batch.update(roomRef, { members: members });
+
+    const updateUserStats = (
+      ref: any,
+      newGlobalElo: number,
+      winsToAdd: number,
+      lossesToAdd: number,
+      tennisStats: any,
+    ) => {
+      if (!ref) return;
+
+      const updateData: any = {
+        [`sports.${sport}.wins`]:
+          admin.firestore.FieldValue.increment(winsToAdd),
+        [`sports.${sport}.losses`]:
+          admin.firestore.FieldValue.increment(lossesToAdd),
+      };
+
+      if (isRankedRoom) {
+        updateData[`sports.${sport}.globalElo`] = newGlobalElo;
+        updateData[`sports.${sport}.eloHistory`] =
+          admin.firestore.FieldValue.arrayUnion({
+            ts: new Date().toISOString(),
+            elo: newGlobalElo,
+          });
+      }
+
+      if (sport === 'tennis') {
+        updateData[`sports.tennis.aces`] = admin.firestore.FieldValue.increment(
+          tennisStats.aces,
+        );
+        updateData[`sports.tennis.doubleFaults`] =
+          admin.firestore.FieldValue.increment(tennisStats.doubleFaults);
+        updateData[`sports.tennis.winners`] =
+          admin.firestore.FieldValue.increment(tennisStats.winners);
+      }
+
+      batch.update(ref, updateData);
+    };
+
+    if (p1Snap.exists)
+      updateUserStats(
+        p1Ref,
+        currentG1,
+        totalWinsP1,
+        totalWinsP2,
+        tennisStatsP1,
+      );
+    if (p2Snap.exists)
+      updateUserStats(
+        p2Ref,
+        currentG2,
+        totalWinsP2,
+        totalWinsP1,
+        tennisStatsP2,
+      );
+
+    await batch.commit();
+
+    return { success: true, gamesRecorded: matches.length };
+  },
+);
 
 export const claimGhostProfile = onCall(
   { region: 'europe-west1' },
   async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'User must be logged in');
-  }
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'User must be logged in');
+    }
 
-  const { ghostId } = request.data;
-  const newUserId = request.auth.uid;
+    const { ghostId } = request.data;
+    const newUserId = request.auth.uid;
 
-  if (!ghostId || typeof ghostId !== 'string') {
-    throw new HttpsError('invalid-argument', 'Missing or invalid ghostId');
-  }
+    if (!ghostId || typeof ghostId !== 'string') {
+      throw new HttpsError('invalid-argument', 'Missing or invalid ghostId');
+    }
 
-  const ghostDocRef = db.collection('users').doc(ghostId);
-  const ghostDoc = await ghostDocRef.get();
+    const ghostDocRef = db.collection('users').doc(ghostId);
+    const ghostDoc = await ghostDocRef.get();
 
-  if (!ghostDoc.exists) {
-    throw new HttpsError('not-found', 'Ghost profile not found');
-  }
+    if (!ghostDoc.exists) {
+      throw new HttpsError('not-found', 'Ghost profile not found');
+    }
 
-  const ghostData = ghostDoc.data();
+    const ghostData = ghostDoc.data();
 
-  if (ghostData?.isClaimed) {
-    throw new HttpsError('already-exists', 'Profile already claimed');
-  }
+    if (ghostData?.isClaimed) {
+      throw new HttpsError('already-exists', 'Profile already claimed');
+    }
 
-  const newUserRef = db.collection('users').doc(newUserId);
-  const newUserDoc = await newUserRef.get();
-  
-  if (!newUserDoc.exists) {
+    const newUserRef = db.collection('users').doc(newUserId);
+    const newUserDoc = await newUserRef.get();
+
+    if (!newUserDoc.exists) {
       throw new HttpsError('not-found', 'Your user profile does not exist yet');
-  }
+    }
 
-  const batch = db.batch();
-  
-  const updatesForNewUser: any = {
+    const batch = db.batch();
+
+    const updatesForNewUser: any = {
       claimedFrom: ghostId,
-      ghostId: ghostId, 
-      
+      ghostId: ghostId,
+
       globalElo: ghostData?.globalElo ?? 1000,
       matchesPlayed: ghostData?.matchesPlayed ?? 0,
       wins: ghostData?.wins ?? 0,
       losses: ghostData?.losses ?? 0,
-      
+
       eloHistory: ghostData?.eloHistory ?? [],
       friends: ghostData?.friends ?? [],
       rooms: ghostData?.rooms ?? [],
       achievements: ghostData?.achievements ?? [],
-  };
+    };
 
-  if (ghostData?.sports) {
+    if (ghostData?.sports) {
       for (const sportKey in ghostData.sports) {
-          const sData = ghostData.sports[sportKey];
-          updatesForNewUser[`sports.${sportKey}`] = sData;
+        const sData = ghostData.sports[sportKey];
+        updatesForNewUser[`sports.${sportKey}`] = sData;
       }
-  }
-  
-  if (ghostData?.managedBy) {
+    }
+
+    if (ghostData?.managedBy) {
       updatesForNewUser.managedBy = ghostData.managedBy;
-  }
+    }
 
-  batch.update(newUserRef, updatesForNewUser);
+    batch.update(newUserRef, updatesForNewUser);
 
-  batch.update(ghostDocRef, {
-    isClaimed: true,
-    claimedBy: newUserId,
-    claimedAt: new Date().toISOString(),
-    isGhost: false, 
-    isArchivedGhost: true,
-    migrationStatus: 'completed',
-    migratedTo: newUserId
-  });
+    batch.update(ghostDocRef, {
+      isClaimed: true,
+      claimedBy: newUserId,
+      claimedAt: new Date().toISOString(),
+      isGhost: false,
+      isArchivedGhost: true,
+      migrationStatus: 'completed',
+      migratedTo: newUserId,
+    });
 
-  let operationCount = 0;
-  const sports = ['pingpong', 'tennis', 'badminton'];
+    let operationCount = 0;
+    const sports = ['pingpong', 'tennis', 'badminton'];
 
-  try {
-    for (const sport of sports) {
-      const roomsRef = db.collection(`rooms-${sport}`);
-      const snapshot = await roomsRef.where('memberIds', 'array-contains', ghostId).get();
+    try {
+      for (const sport of sports) {
+        const roomsRef = db.collection(`rooms-${sport}`);
+        const snapshot = await roomsRef
+          .where('memberIds', 'array-contains', ghostId)
+          .get();
 
-      for (const doc of snapshot.docs) {
+        for (const doc of snapshot.docs) {
+          const data = doc.data();
+          const updates: any = {};
+
+          const newMemberIds = (data.memberIds || []).filter(
+            (id: string) => id !== ghostId,
+          );
+          if (!newMemberIds.includes(newUserId)) newMemberIds.push(newUserId);
+          updates.memberIds = newMemberIds;
+
+          if (Array.isArray(data.members)) {
+            updates.members = data.members.map((m: any) => {
+              if (m.userId === ghostId) return { ...m, userId: newUserId };
+              return m;
+            });
+          }
+
+          if (data.creator === ghostId) updates.creator = newUserId;
+
+          batch.update(doc.ref, updates);
+          operationCount++;
+        }
+      }
+
+      for (const sport of sports) {
+        const matchesRef = db.collection(`matches-${sport}`);
+        const snapshot = await matchesRef
+          .where('players', 'array-contains', ghostId)
+          .get();
+
+        for (const doc of snapshot.docs) {
+          const data = doc.data();
+          const updates: any = {};
+
+          const newPlayers = (data.players || []).filter(
+            (id: string) => id !== ghostId,
+          );
+          if (!newPlayers.includes(newUserId)) newPlayers.push(newUserId);
+          updates.players = newPlayers;
+
+          if (data.player1Id === ghostId) updates.player1Id = newUserId;
+          if (data.player2Id === ghostId) updates.player2Id = newUserId;
+
+          batch.update(doc.ref, updates);
+          operationCount++;
+        }
+      }
+
+      const communitiesRef = db.collection('communities');
+      const commSnapshot = await communitiesRef
+        .where('members', 'array-contains', ghostId)
+        .get();
+
+      for (const doc of commSnapshot.docs) {
         const data = doc.data();
         const updates: any = {};
 
-        const newMemberIds = (data.memberIds || []).filter((id: string) => id !== ghostId);
-        if (!newMemberIds.includes(newUserId)) newMemberIds.push(newUserId);
-        updates.memberIds = newMemberIds;
+        const newMembers = (data.members || []).filter(
+          (id: string) => id !== ghostId,
+        );
+        if (!newMembers.includes(newUserId)) newMembers.push(newUserId);
+        updates.members = newMembers;
 
-        if (Array.isArray(data.members)) {
-          updates.members = data.members.map((m: any) => {
-            if (m.userId === ghostId) return { ...m, userId: newUserId };
-            return m;
-          });
+        if (data.ownerId === ghostId) updates.ownerId = newUserId;
+
+        if (Array.isArray(data.admins) && data.admins.includes(ghostId)) {
+          const newAdmins = data.admins.filter((id: string) => id !== ghostId);
+          if (!newAdmins.includes(newUserId)) newAdmins.push(newUserId);
+          updates.admins = newAdmins;
         }
 
-        if (data.creator === ghostId) updates.creator = newUserId;
-
         batch.update(doc.ref, updates);
         operationCount++;
       }
+
+      await batch.commit();
+      return {
+        success: true,
+        migratedCount: operationCount,
+        message: 'Profile successfully merged',
+      };
+    } catch (error: any) {
+      console.error('Migration error:', error);
+      throw new HttpsError('internal', error.message);
     }
-
-    for (const sport of sports) {
-      const matchesRef = db.collection(`matches-${sport}`);
-      const snapshot = await matchesRef.where('players', 'array-contains', ghostId).get();
-
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
-        const updates: any = {};
-
-        const newPlayers = (data.players || []).filter((id: string) => id !== ghostId);
-        if (!newPlayers.includes(newUserId)) newPlayers.push(newUserId);
-        updates.players = newPlayers;
-
-        if (data.player1Id === ghostId) updates.player1Id = newUserId;
-        if (data.player2Id === ghostId) updates.player2Id = newUserId;
-
-        batch.update(doc.ref, updates);
-        operationCount++;
-      }
-    }
-
-    const communitiesRef = db.collection('communities');
-    const commSnapshot = await communitiesRef.where('members', 'array-contains', ghostId).get();
-
-    for (const doc of commSnapshot.docs) {
-      const data = doc.data();
-      const updates: any = {};
-
-      const newMembers = (data.members || []).filter((id: string) => id !== ghostId);
-      if (!newMembers.includes(newUserId)) newMembers.push(newUserId);
-      updates.members = newMembers;
-
-      if (data.ownerId === ghostId) updates.ownerId = newUserId;
-      
-      if (Array.isArray(data.admins) && data.admins.includes(ghostId)) {
-         const newAdmins = data.admins.filter((id: string) => id !== ghostId);
-         if (!newAdmins.includes(newUserId)) newAdmins.push(newUserId);
-         updates.admins = newAdmins;
-      }
-
-      batch.update(doc.ref, updates);
-      operationCount++;
-    }
-
-    await batch.commit();
-    return { success: true, migratedCount: operationCount, message: 'Profile successfully merged' };
-
-  } catch (error: any) {
-    console.error("Migration error:", error);
-    throw new HttpsError('internal', error.message);
-  }
-});
-
-// ============================================================================
-//                               COMMUNITY FEED TRIGGERS
-// ============================================================================
+  },
+);
 
 const addToCommunityFeed = async (communityIds: string[], eventData: any) => {
   if (!communityIds || communityIds.length === 0) return;
-  
+
   const uniqueIds = [...new Set(communityIds)];
   const batch = db.batch();
 
   uniqueIds.forEach((commId) => {
-    const ref = db.collection('communities').doc(commId).collection('feed').doc();
+    const ref = db
+      .collection('communities')
+      .doc(commId)
+      .collection('feed')
+      .doc();
     batch.set(ref, {
       ...eventData,
       id: ref.id,
@@ -1257,14 +1506,13 @@ const handleMatchCreated = async (event: any, sport: string) => {
   const [p1Snap, p2Snap, roomSnap] = await Promise.all([
     db.collection('users').doc(player1Id).get(),
     db.collection('users').doc(player2Id).get(),
-    db.collection(`rooms-${sport}`).doc(roomId).get()
+    db.collection(`rooms-${sport}`).doc(roomId).get(),
   ]);
 
   const p1 = p1Snap.data();
   const p2 = p2Snap.data();
   const room = roomSnap.data();
 
-  // Determine Names
   const p1Name = p1?.name || p1?.displayName || 'Unknown';
   const p2Name = p2?.name || p2?.displayName || 'Unknown';
 
@@ -1282,14 +1530,13 @@ const handleMatchCreated = async (event: any, sport: string) => {
   await addToCommunityFeed(targetCommunities, {
     type: 'match_finished',
     sport: sport,
-    
-    // CRITICAL: Explicitly adding actorId and targetId for UI links
+
     actorId: player1Id,
     targetId: player2Id,
 
     actorName: p1Name,
     targetName: p2Name,
-    
+
     title: `${p1Name} vs ${p2Name}`,
     description: `Score: ${match.player1?.scores} - ${match.player2?.scores}`,
     meta: {
@@ -1297,23 +1544,23 @@ const handleMatchCreated = async (event: any, sport: string) => {
       roomId: roomId,
       roomName: room?.name,
       winner: match.winner,
-      scores: `${match.player1?.scores} - ${match.player2?.scores}`
+      scores: `${match.player1?.scores} - ${match.player2?.scores}`,
     },
-    actorAvatars: [p1?.photoURL, p2?.photoURL].filter(Boolean)
+    actorAvatars: [p1?.photoURL, p2?.photoURL].filter(Boolean),
   });
 };
 
 export const onMatchCreatedPingPong = onDocumentCreated(
   { region: 'europe-west1', document: 'matches-pingpong/{matchId}' },
-  (e) => handleMatchCreated(e, 'pingpong')
+  (e) => handleMatchCreated(e, 'pingpong'),
 );
 export const onMatchCreatedTennis = onDocumentCreated(
   { region: 'europe-west1', document: 'matches-tennis/{matchId}' },
-  (e) => handleMatchCreated(e, 'tennis')
+  (e) => handleMatchCreated(e, 'tennis'),
 );
 export const onMatchCreatedBadminton = onDocumentCreated(
   { region: 'europe-west1', document: 'matches-badminton/{matchId}' },
-  (e) => handleMatchCreated(e, 'badminton')
+  (e) => handleMatchCreated(e, 'badminton'),
 );
 
 const handleRoomCreated = async (event: any, sport: string) => {
@@ -1327,9 +1574,9 @@ const handleRoomCreated = async (event: any, sport: string) => {
   const userSnap = await db.collection('users').doc(creatorId).get();
   const user = userSnap.data();
   const creatorName = user?.name || user?.displayName || 'Someone';
-  
+
   const targetCommunities: string[] = [];
-  
+
   if (room.communityId) {
     targetCommunities.push(room.communityId);
   } else if (user?.communityIds) {
@@ -1343,29 +1590,29 @@ const handleRoomCreated = async (event: any, sport: string) => {
     sport: sport,
     actorId: creatorId,
     actorName: creatorName,
-    
+
     title: `${creatorName} created a new room`,
     description: `Room "${room.name}" is now available.`,
     meta: {
       roomId: params.roomId,
       roomName: room.name,
-      mode: room.mode
+      mode: room.mode,
     },
-    actorAvatars: [user?.photoURL].filter(Boolean)
+    actorAvatars: [user?.photoURL].filter(Boolean),
   });
 };
 
 export const onRoomCreatedPingPong = onDocumentCreated(
   { region: 'europe-west1', document: 'rooms-pingpong/{roomId}' },
-  (e) => handleRoomCreated(e, 'pingpong')
+  (e) => handleRoomCreated(e, 'pingpong'),
 );
 export const onRoomCreatedTennis = onDocumentCreated(
   { region: 'europe-west1', document: 'rooms-tennis/{roomId}' },
-  (e) => handleRoomCreated(e, 'tennis')
+  (e) => handleRoomCreated(e, 'tennis'),
 );
 export const onRoomCreatedBadminton = onDocumentCreated(
   { region: 'europe-west1', document: 'rooms-badminton/{roomId}' },
-  (e) => handleRoomCreated(e, 'badminton')
+  (e) => handleRoomCreated(e, 'badminton'),
 );
 
 const handleRoomUpdated = async (event: any, sport: string) => {
@@ -1377,13 +1624,12 @@ const handleRoomUpdated = async (event: any, sport: string) => {
 
   const targetCommunities: string[] = [];
   if (after.communityId) targetCommunities.push(after.communityId);
-  
+
   if (targetCommunities.length === 0) return;
 
-  // A. Check for Season Finish
   const oldHistory = before.seasonHistory || [];
   const newHistory = after.seasonHistory || [];
-  
+
   if (newHistory.length > oldHistory.length) {
     const lastSeason = newHistory[newHistory.length - 1];
     await addToCommunityFeed(targetCommunities, {
@@ -1393,136 +1639,138 @@ const handleRoomUpdated = async (event: any, sport: string) => {
       description: `Winner: ${lastSeason.summary?.[0]?.name || 'Unknown'}`,
       meta: {
         roomId: roomId,
-        roomName: after.name
+        roomName: after.name,
       },
-      actorAvatars: [] 
+      actorAvatars: [],
     });
   }
 
-  // B. Check for New Members
   const oldMembers = new Set((before.memberIds || []) as string[]);
   const newMembers = (after.memberIds || []) as string[];
-  
-  const joinedUsers = newMembers.filter(uid => !oldMembers.has(uid));
-  
+
+  const joinedUsers = newMembers.filter((uid) => !oldMembers.has(uid));
+
   for (const userId of joinedUsers) {
     const userSnap = await db.collection('users').doc(userId).get();
     const userData = userSnap.data();
     const userName = userData?.name || userData?.displayName || 'Player';
-    
+
     await addToCommunityFeed(targetCommunities, {
       type: 'room_joined',
       sport: sport,
       actorId: userId,
       actorName: userName,
-      
+
       title: `${userName} joined ${after.name}`,
       description: `New challenger approaches!`,
       meta: {
         roomId: roomId,
-        roomName: after.name
+        roomName: after.name,
       },
-      actorAvatars: [userData?.photoURL].filter(Boolean)
+      actorAvatars: [userData?.photoURL].filter(Boolean),
     });
   }
 };
 
 export const onRoomUpdatedPingPong = onDocumentUpdated(
   { region: 'europe-west1', document: 'rooms-pingpong/{roomId}' },
-  (e) => handleRoomUpdated(e, 'pingpong')
+  (e) => handleRoomUpdated(e, 'pingpong'),
 );
 export const onRoomUpdatedTennis = onDocumentUpdated(
   { region: 'europe-west1', document: 'rooms-tennis/{roomId}' },
-  (e) => handleRoomUpdated(e, 'tennis')
+  (e) => handleRoomUpdated(e, 'tennis'),
 );
 export const onRoomUpdatedBadminton = onDocumentUpdated(
   { region: 'europe-west1', document: 'rooms-badminton/{roomId}' },
-  (e) => handleRoomUpdated(e, 'badminton')
+  (e) => handleRoomUpdated(e, 'badminton'),
 );
 
 export const onUserFriendsUpdated = onDocumentUpdated(
   { region: 'europe-west1', document: 'users/{userId}' },
   async (event) => {
-  const before = event.data?.before.data();
-  const after = event.data?.after.data();
-  
-  const oldFriends: string[] = before?.friends || [];
-  const newFriends: string[] = after?.friends || [];
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
 
-  if (newFriends.length <= oldFriends.length) return;
+    const oldFriends: string[] = before?.friends || [];
+    const newFriends: string[] = after?.friends || [];
 
-  const addedFriendIds = newFriends.filter(id => !oldFriends.includes(id));
-  if (addedFriendIds.length === 0) return;
+    if (newFriends.length <= oldFriends.length) return;
 
-  const actorId = event.params.userId;
-  const actorName = after?.name || after?.displayName || 'Unknown';
-  const communities: string[] = after?.communityIds || [];
+    const addedFriendIds = newFriends.filter((id) => !oldFriends.includes(id));
+    if (addedFriendIds.length === 0) return;
 
-  if (communities.length === 0) return;
+    const actorId = event.params.userId;
+    const actorName = after?.name || after?.displayName || 'Unknown';
+    const communities: string[] = after?.communityIds || [];
 
-  for (const friendId of addedFriendIds) {
-    const friendSnap = await db.collection('users').doc(friendId).get();
-    const friendData = friendSnap.data();
-    const friendName = friendData?.name || friendData?.displayName || 'Unknown';
+    if (communities.length === 0) return;
 
-    await addToCommunityFeed(communities, {
-      type: 'friend_added',
-      sport: 'global', 
-      
-      actorId: actorId,
-      actorName: actorName,
-      targetId: friendId,
-      targetName: friendName,
+    for (const friendId of addedFriendIds) {
+      const friendSnap = await db.collection('users').doc(friendId).get();
+      const friendData = friendSnap.data();
+      const friendName =
+        friendData?.name || friendData?.displayName || 'Unknown';
 
-      title: `${actorName} added a friend`,
-      description: `${actorName} is now friends with ${friendName}`,
-      meta: {
+      await addToCommunityFeed(communities, {
+        type: 'friend_added',
+        sport: 'global',
+
         actorId: actorId,
-        targetId: friendId
-      },
-      actorAvatars: [after?.photoURL, friendData?.photoURL].filter(Boolean)
-    });
-  }
-});
+        actorName: actorName,
+        targetId: friendId,
+        targetName: friendName,
+
+        title: `${actorName} added a friend`,
+        description: `${actorName} is now friends with ${friendName}`,
+        meta: {
+          actorId: actorId,
+          targetId: friendId,
+        },
+        actorAvatars: [after?.photoURL, friendData?.photoURL].filter(Boolean),
+      });
+    }
+  },
+);
 
 export const onGhostClaimed = onDocumentUpdated(
   { region: 'europe-west1', document: 'users/{userId}' },
   async (event) => {
-  const before = event.data?.before.data();
-  const after = event.data?.after.data();
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
 
-  if (!before?.isClaimed && after?.isClaimed) {
-    const communities: string[] = after?.communityIds || [];
-    if (communities.length === 0) return;
+    if (!before?.isClaimed && after?.isClaimed) {
+      const communities: string[] = after?.communityIds || [];
+      if (communities.length === 0) return;
 
-    const realUserId = after.claimedBy; 
-    const userName = after.name || after.displayName || 'Unknown';
+      const realUserId = after.claimedBy;
+      const userName = after.name || after.displayName || 'Unknown';
 
-    await addToCommunityFeed(communities, {
-      type: 'ghost_claimed',
-      sport: 'global',
-      actorId: event.params.userId,
-      actorName: userName,
-      
-      title: `New player joined!`,
-      description: `Profile "${userName}" has been claimed by a real user.`,
-      meta: {
-        ghostId: event.params.userId,
-        realUserId: realUserId
-      },
-      actorAvatars: [after.photoURL].filter(Boolean)
-    });
-  }
-});
+      await addToCommunityFeed(communities, {
+        type: 'ghost_claimed',
+        sport: 'global',
+        actorId: event.params.userId,
+        actorName: userName,
+
+        title: `New player joined!`,
+        description: `Profile "${userName}" has been claimed by a real user.`,
+        meta: {
+          ghostId: event.params.userId,
+          realUserId: realUserId,
+        },
+        actorAvatars: [after.photoURL].filter(Boolean),
+      });
+    }
+  },
+);
 
 export const aiContentCheck = onCall(
-  { region: 'europe-west1' }, 
+  { region: 'europe-west1' },
   async (request: CallableRequest) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Login required');
     }
 
-    const { text, context } = request.data; // context: 'room_name', 'bio', etc.
+    const { text, context } = request.data;
 
     try {
       const prompt = `
@@ -1560,5 +1808,5 @@ export const aiContentCheck = onCall(
         reason: 'Content check failed. Please try again later.',
       };
     }
-  }
+  },
 );

@@ -21,7 +21,7 @@ import {
 	TooltipTrigger,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
-import { Info, ShieldCheck } from 'lucide-react';
+import { Flame, Info, ShieldCheck } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -31,7 +31,7 @@ interface StandingsTableProps {
   players: any[];
   latestSeason: any;
   roomCreatorId: string;
-  roomMode?: 'professional' | 'arcade' | 'office';
+  roomMode?: 'professional' | 'arcade' | 'office' | 'derby';
 }
 
 type ViewMode = 'regular' | 'liveFinal' | 'final';
@@ -46,13 +46,12 @@ export function StandingsTable({
   const { sport } = useSport();
 
   const [viewMode, setViewMode] = useState<ViewMode>(
-    latestSeason ? 'final' : 'regular'
+    latestSeason ? 'final' : 'regular',
   );
 
-  // FIX: Filter out coaches
   const activePlayers = useMemo(
     () => players.filter((p: any) => p.accountType !== 'coach'),
-    [players]
+    [players],
   );
 
   const [sortConfig, setSortConfig] = useState<{
@@ -88,12 +87,16 @@ export function StandingsTable({
     if (viewMode === 'liveFinal') {
       if (roomMode === 'professional')
         return t(
-          'Projected Season Winner. Based on highest Rating (Strict ELO).'
+          'Projected Season Winner. Based on highest Rating (Strict ELO).',
         );
       if (roomMode === 'arcade')
         return t('Projected Season Winner. Based on Total Wins.');
+      if (roomMode === 'derby')
+        return t(
+          'Projected Season Winner. Based on highest Rating (with Derby bonuses).',
+        );
       return t(
-        'Projected Season Winner. Calculated using "Adjusted Points" which rewards high activity.'
+        'Projected Season Winner. Calculated using "Adjusted Points" which rewards high activity.',
       );
     }
 
@@ -102,14 +105,18 @@ export function StandingsTable({
 
     if (roomMode === 'arcade')
       return t(
-        'Arcade Standings: Just for fun! These stats do not affect global rank.'
+        'Arcade Standings: Just for fun! These stats do not affect global rank.',
       );
     if (roomMode === 'professional')
       return t(
-        'Professional Standings: Serious business. Strict ELO rules apply.'
+        'Professional Standings: Serious business. Strict ELO rules apply.',
+      );
+    if (roomMode === 'derby')
+      return t(
+        'Derby Standings: Micro-league where streaks and rivalries swing the points.',
       );
     return t(
-      'Office Standings: Casual competitive. Losses are slightly forgiven.'
+      'Office Standings: Casual competitive. Losses are slightly forgiven.',
     );
   };
 
@@ -347,24 +354,36 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
                   {i + 1}
                 </TableCell>
                 <TableCell>
-                  <a
-                    href={`/profile/${p.userId}`}
-                    className='hover:underline flex items-center gap-2 font-medium'
-                  >
-                    {p.name}
-                    {p.userId === creatorId && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <ShieldCheck className='h-3 w-3 text-primary' />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{t('Room Creator')}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                  <div className='flex flex-col'>
+                    <div className='flex items-center gap-2'>
+                      <a
+                        href={`/profile/${p.userId}`}
+                        className='hover:underline font-medium'
+                      >
+                        {p.name}
+                      </a>
+                      {p.userId === creatorId && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <ShieldCheck className='h-3 w-3 text-primary' />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{t('Room Creator')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                    {(p.currentStreak ?? 0) >= 3 && (
+                      <div className='flex gap-1 mt-1'>
+                        <span className='text-[10px] bg-orange-500/10 text-orange-600 px-1 rounded flex items-center gap-0.5'>
+                          <Flame className='w-2.5 h-2.5 fill-current' />{' '}
+                          {p.currentStreak}
+                        </span>
+                      </div>
                     )}
-                  </a>
+                  </div>
                 </TableCell>
                 <TableCell className='text-center font-bold text-primary'>
                   {p.ratingVisible ? Math.round(p.rating) : '—'}
@@ -459,26 +478,21 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
 
 function LiveFinalStandings({ players, t, roomMode }: any) {
   const rows = useMemo(() => {
-    // FIX: Removing 'players ?? []' fallback since 'players' is guaranteed by prop types usually
     const base = players.map((p: any) => {
       const matchesPlayed = Number(
         typeof p.totalMatches === 'number'
           ? p.totalMatches
-          : (p.wins ?? 0) + (p.losses ?? 0)
+          : (p.wins ?? 0) + (p.losses ?? 0),
       );
       const roomRating = Number(p.rating ?? 1000);
 
-      // FIXED: Strictly handle players with 0 matches.
       let totalAddedPoints = 0;
 
       if (matchesPlayed === 0) {
-        // If no matches played, net points MUST be 0, regardless of seeding
         totalAddedPoints = 0;
       } else if (typeof p.deltaRoom === 'number') {
-        // Use calculated delta if available
         totalAddedPoints = p.deltaRoom;
       } else {
-        // Fallback for Office mode where start is usually 1000
         totalAddedPoints = roomRating - 1000;
       }
 
@@ -499,7 +513,7 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
     const activePlayers = base.filter((p: any) => p.matchesPlayed > 0);
     const totalMatchesAll = activePlayers.reduce(
       (sum: number, r: any) => sum + r.matchesPlayed,
-      0
+      0,
     );
     const avgM =
       activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
@@ -514,13 +528,12 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
       adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM),
     }));
 
-    // Sorting logic matching season.ts
     withAdj.sort((a: any, b: any) => {
       const aPlayed = a.matchesPlayed > 0;
       const bPlayed = b.matchesPlayed > 0;
       if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
 
-      if (roomMode === 'professional') {
+      if (roomMode === 'professional' || roomMode === 'derby') {
         if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
         if (b.winRate !== a.winRate) return b.winRate - a.winRate;
         return b.wins - a.wins;
@@ -529,7 +542,6 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
         if (b.winRate !== a.winRate) return b.winRate - a.winRate;
         return b.matchesPlayed - a.matchesPlayed;
       } else {
-        // Office (default)
         if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
         if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
         return b.winRate - a.winRate;
@@ -547,7 +559,6 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
     { key: 'losses', label: 'L' },
     { key: 'roomRating', label: 'Rating' },
     { key: 'totalAddedPoints', label: 'Net Pts' },
-    // Show Adj Pts only for Office mode
     ...(roomMode === 'office' ? [{ key: 'adjPoints', label: 'Adj Pts' }] : []),
   ];
 
@@ -585,7 +596,9 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
               </TableCell>
               <TableCell
                 className={`text-center ${
-                  roomMode === 'professional' ? 'font-bold text-lg' : ''
+                  roomMode === 'professional' || roomMode === 'derby'
+                    ? 'font-bold text-lg'
+                    : ''
                 }`}
               >
                 {Math.round(r.roomRating)}
@@ -622,8 +635,24 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
             <li>
               <strong>{t('Why?')}:</strong>{' '}
               {t(
-                'Standard competitive rules. The highest ELO takes the crown.'
+                'Standard competitive rules. The highest ELO takes the crown.',
               )}
+            </li>
+          </ul>
+        ) : roomMode === 'derby' ? (
+          <ul className='list-disc pl-5 space-y-1 text-xs text-muted-foreground'>
+            <li>
+              <strong>{t('Main Criteria')}:</strong> {t('Highest Room Rating')}.
+            </li>
+            <li>
+              <strong>{t('Points Engine')}:</strong>{' '}
+              {t(
+                'Breaking win streaks (Bounties) and beating your historical nemesis grant massive multipliers.',
+              )}
+            </li>
+            <li>
+              <strong>{t('Tie-breakers')}:</strong> {t('Win Rate')} &rarr;{' '}
+              {t('Total Wins')}.
             </li>
           </ul>
         ) : roomMode === 'arcade' ? (
@@ -638,7 +667,7 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
             <li>
               <strong>{t('Why?')}:</strong>{' '}
               {t(
-                'Arcade mode is about playing a lot and winning a lot. Rating is secondary.'
+                'Arcade mode is about playing a lot and winning a lot. Rating is secondary.',
               )}
             </li>
           </ul>
@@ -655,7 +684,7 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
             <li>
               <strong>{t('Why?')}:</strong>{' '}
               {t(
-                'This system rewards both skill AND activity. A player with a lower rating who plays a lot can beat a player with a higher rating who rarely plays.'
+                'This system rewards both skill AND activity. A player with a lower rating who plays a lot can beat a player with a higher rating who rarely plays.',
               )}
             </li>
           </ul>
@@ -666,10 +695,9 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
 }
 
 function FinalStandings({ season, t, roomMode }: any) {
-  // FIX: activePlayers should include EVERYONE, including the creator.
   const data = useMemo(() => {
     const summary = Array.isArray(season?.summary) ? season.summary : [];
-    return summary; // No filtering
+    return summary;
   }, [season]);
 
   if (!data.length) {
@@ -703,10 +731,10 @@ function FinalStandings({ season, t, roomMode }: any) {
                 {r.place === 1
                   ? '🥇'
                   : r.place === 2
-                  ? '🥈'
-                  : r.place === 3
-                  ? '🥉'
-                  : r.place}
+                    ? '🥈'
+                    : r.place === 3
+                      ? '🥉'
+                      : r.place}
               </TableCell>
               <TableCell className='font-medium'>
                 <div className='flex flex-col'>
@@ -727,7 +755,7 @@ function FinalStandings({ season, t, roomMode }: any) {
               </TableCell>
               <TableCell
                 className={`text-center ${
-                  roomMode === 'professional'
+                  roomMode === 'professional' || roomMode === 'derby'
                     ? 'font-bold text-lg text-primary'
                     : 'text-muted-foreground'
                 }`}

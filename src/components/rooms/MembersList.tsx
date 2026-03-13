@@ -23,7 +23,7 @@ import {
 } from '@/components/ui';
 import type { Room } from '@/lib/types';
 import type { User } from 'firebase/auth';
-import { ShieldCheck, Trash2, Users } from 'lucide-react';
+import { Flame, ShieldCheck, Skull, Trash2, Users } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -49,10 +49,16 @@ export function MembersList({
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<ViewMode>('regular');
 
+  const myNemesisId = useMemo(() => {
+    if (!Array.isArray(members)) {
+      return undefined;
+    }
+    return members.find((m: any) => m.userId === currentUser?.uid)?.nemesisId;
+  }, [members, currentUser]);
+
   const computed = useMemo(() => {
     const arr = Array.isArray(members) ? members : [];
 
-    // FIX: Filter out coaches
     const playersOnly = arr.filter((p: any) => p.accountType !== 'coach');
 
     const base = playersOnly.map((p: any) => {
@@ -78,7 +84,7 @@ export function MembersList({
     const activePlayers = base.filter((p: any) => p.totalMatches > 0);
     const totalMatchesAll = activePlayers.reduce(
       (sum: number, r: any) => sum + r.totalMatches,
-      0
+      0,
     );
     const avgM =
       activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
@@ -164,6 +170,10 @@ export function MembersList({
           </div>
         ) : (
           sortedMembers.map((p, index) => {
+            const isMyNemesis = myNemesisId && myNemesisId === p.userId;
+            const currentStreak = p.currentStreak ?? 0;
+            const isOnFire = currentStreak >= 3;
+
             let rightValueNode;
             if (viewMode === 'regular') {
               rightValueNode = p.ratingVisible ? (
@@ -208,7 +218,9 @@ export function MembersList({
                     </div>
                   )}
 
-                  <Avatar className='h-10 w-10 border border-border'>
+                  <Avatar
+                    className={`h-10 w-10 border ${isOnFire ? 'border-orange-500 ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : 'border-border'}`}
+                  >
                     <AvatarImage src={p.photoURL || undefined} />
                     <AvatarFallback className='bg-primary/10 text-primary text-xs'>
                       {(p.name || '?').substring(0, 2).toUpperCase()}
@@ -229,7 +241,6 @@ export function MembersList({
                           {p.name}
                         </a>
                       )}
-                      {/* Show visual indicator for creator, but keep them in list */}
                       {p.userId === room.creator && (
                         <TooltipProvider>
                           <Tooltip>
@@ -244,7 +255,7 @@ export function MembersList({
                       )}
                     </div>
 
-                    <div className='text-xs text-muted-foreground truncate mt-1 flex items-center gap-2'>
+                    <div className='text-xs text-muted-foreground truncate mt-1.5 flex items-center gap-2'>
                       <span>
                         {t('W')}:{' '}
                         <span className='text-green-600 font-medium'>
@@ -269,6 +280,41 @@ export function MembersList({
                         </>
                       )}
                     </div>
+
+                    {(isMyNemesis || isOnFire) && (
+                      <div className='flex items-center flex-wrap gap-1.5 mt-1.5'>
+                        {isMyNemesis && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className='flex items-center gap-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded text-[10px] font-bold border border-purple-500/20'>
+                                  <Skull className='w-3 h-3' />
+                                  {t('Nemesis')}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('You struggle against this player')}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {isOnFire && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className='flex items-center gap-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded text-[10px] font-bold border border-orange-500/20'>
+                                  <Flame className='w-3 h-3 fill-current' />
+                                  {currentStreak} {t('Win Streak')}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t('On a winning streak!')}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -297,7 +343,7 @@ export function MembersList({
                             <AlertDialogDescription>
                               {t(
                                 'This action cannot be undone. This will permanently remove {{playerName}} from the room.',
-                                { playerName: p.name }
+                                { playerName: p.name },
                               )}
                             </AlertDialogDescription>
                           </AlertDialogHeader>

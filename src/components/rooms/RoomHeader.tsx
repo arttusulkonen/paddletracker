@@ -23,10 +23,11 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from '@/components/ui';
-import { useAuth } from '@/contexts/AuthContext'; // <--- Импортируем хук авторизации
+import { useAuth } from '@/contexts/AuthContext';
 import type { Room, Member as RoomMember } from '@/lib/types';
 import {
 	Briefcase,
+	Flame,
 	Gamepad2,
 	Globe,
 	HelpCircle,
@@ -35,6 +36,7 @@ import {
 	LogOut,
 	Medal,
 	Settings,
+	Swords,
 	Users,
 	X,
 } from 'lucide-react';
@@ -63,15 +65,27 @@ export function RoomHeader({
   onLeave,
 }: RoomHeaderProps) {
   const { t } = useTranslation();
-  const { userProfile } = useAuth(); // <--- Получаем профиль пользователя
+  const { userProfile } = useAuth();
 
   const mode = room.mode || 'office';
   const memberCount = room.memberIds?.length || 0;
 
-  // Проверяем, является ли пользователь "управляемым" (созданным тренером)
   const isManagedUser = !!userProfile?.managedBy;
 
-  // Настройка темы и описания режима
+  const topBountyMember = members?.reduce((prev, current) => {
+    const prevStreak = prev?.currentStreak ?? 0;
+    const currStreak = current?.currentStreak ?? 0;
+    return prevStreak > currStreak ? prev : current;
+  }, members?.[0]);
+
+  const showBounty =
+    mode === 'derby' &&
+    topBountyMember &&
+    (topBountyMember.currentStreak ?? 0) >= 3;
+  const bountyPoints = showBounty
+    ? ((topBountyMember.currentStreak ?? 0) - 2) * 5
+    : 0;
+
   const getTheme = () => {
     switch (mode) {
       case 'professional':
@@ -82,7 +96,7 @@ export function RoomHeader({
           icon: <Medal className='w-4 h-4' />,
           label: t('Professional'),
           description: t(
-            'Standard ELO rules apply. Every match counts towards your Global Ranking.'
+            'Standard ELO rules apply. Every match counts towards your Global Ranking.',
           ),
         };
       case 'arcade':
@@ -93,7 +107,18 @@ export function RoomHeader({
           icon: <Gamepad2 className='w-4 h-4' />,
           label: t('Arcade'),
           description: t(
-            'Matches in this room do NOT affect your Global ELO. Play for fun and experiment!'
+            'Matches in this room do NOT affect your Global ELO. Play for fun and experiment!',
+          ),
+        };
+      case 'derby':
+        return {
+          bg: 'bg-red-50/50 dark:bg-red-950/10',
+          border: 'border-red-200 dark:border-red-900',
+          iconColor: 'text-red-600 dark:text-red-500',
+          icon: <Swords className='w-4 h-4' />,
+          label: t('Derby'),
+          description: t(
+            'Micro-league. Points swing heavily based on breaking streaks and defeating your historical nemesis.',
           ),
         };
       default:
@@ -104,7 +129,7 @@ export function RoomHeader({
           icon: <Briefcase className='w-4 h-4' />,
           label: t('Office'),
           description: t(
-            'Losses are penalized less (inflated ELO) to keep office morale high. Global ELO is still affected.'
+            'Losses are penalized less (inflated ELO) to keep office morale high. Global ELO is still affected.',
           ),
         };
     }
@@ -201,45 +226,44 @@ export function RoomHeader({
                   </>
                 )}
 
-                {/* FIX: Скрываем кнопку Leave если:
-                  1. Пользователь создатель комнаты (isCreator)
-                  2. Пользователь управляется тренером (isManagedUser)
-                */}
-                {isMember && !isCreator && !room.isArchived && !isManagedUser && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='text-destructive hover:text-destructive'
-                      >
-                        <LogOut className='mr-2 h-4 w-4' />
-                        {t('Leave')}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          {t('Leave this room?')}
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {t(
-                            "You won't be able to record matches here anymore."
-                          )}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t('Stay')}</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={onLeave}
-                          className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                {isMember &&
+                  !isCreator &&
+                  !room.isArchived &&
+                  !isManagedUser && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          className='text-destructive hover:text-destructive'
                         >
-                          {t('Yes, Leave')}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
+                          <LogOut className='mr-2 h-4 w-4' />
+                          {t('Leave')}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {t('Leave this room?')}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {t(
+                              "You won't be able to record matches here anymore.",
+                            )}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{t('Stay')}</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={onLeave}
+                            className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                          >
+                            {t('Yes, Leave')}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
 
                 {isCreator && (
                   <Dialog>
@@ -259,10 +283,39 @@ export function RoomHeader({
                 {room.description}
               </p>
             ) : (
-              // Если описания нет, показываем описание режима как fallback, чтобы не было пусто
               <p className='text-muted-foreground/70 text-sm leading-relaxed max-w-2xl italic'>
                 {theme.description}
               </p>
+            )}
+
+            {showBounty && topBountyMember && (
+              <div className='mt-4 flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-lg p-3 max-w-2xl'>
+                <Avatar className='h-10 w-10 border-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]'>
+                  <AvatarImage src={topBountyMember.photoURL || undefined} />
+                  <AvatarFallback className='bg-red-100 text-red-700'>
+                    {(topBountyMember.name || '?')
+                      .substring(0, 2)
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className='text-sm font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5'>
+                    <Flame className='w-4 h-4 fill-current animate-pulse' />
+                    {t('Most Wanted')}
+                  </div>
+                  <div className='text-xs text-muted-foreground'>
+                    {t('Defeat')}{' '}
+                    <span className='font-semibold text-foreground'>
+                      {topBountyMember.name}
+                    </span>{' '}
+                    {t('to claim a')}{' '}
+                    <span className='font-bold text-red-500'>
+                      +{bountyPoints} ELO
+                    </span>{' '}
+                    {t('bounty!')}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

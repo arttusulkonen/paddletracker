@@ -2,8 +2,8 @@
 
 // --- Enums & Unions ---
 export type Sport = 'pingpong' | 'tennis' | 'badminton';
-export type RoomMode = 'office' | 'professional' | 'arcade';
-export type AccountType = 'player' | 'coach'; 
+export type RoomMode = 'office' | 'professional' | 'arcade' | 'derby';
+export type AccountType = 'player' | 'coach';
 
 // --- Config ---
 export interface AppConfig {
@@ -27,7 +27,7 @@ export interface Community {
 // --- Statistics & History ---
 export interface EloHistoryPoint {
   date?: string; // Legacy format or ISO
-  ts?: string;   // ISO format
+  ts?: string; // ISO format
   elo: number;
 }
 
@@ -36,12 +36,12 @@ export interface SportProfile {
   wins: number;
   losses: number;
   rank?: string;
-  
+
   // Tennis specific
   aces?: number;
   doubleFaults?: number;
   winners?: number;
-  
+
   eloHistory?: EloHistoryPoint[];
 }
 
@@ -81,16 +81,16 @@ export interface UserProfile {
   email?: string;
   name?: string;
   displayName?: string;
-  
+
   // Bio & Media
   bio?: string;
   photoURL?: string | null;
-  
+
   // Meta
   createdAt?: string;
   isPublic?: boolean;
   isDeleted?: boolean;
-  
+
   // Approvals (Legacy/Internal)
   approved?: boolean;
   approvedAt?: string;
@@ -105,28 +105,28 @@ export interface UserProfile {
   losses?: number;
   maxRating?: number;
   eloHistory?: EloHistoryPoint[]; // Legacy root history
-  
+
   // Relations
   rooms: string[];
   friends?: string[];
   incomingRequests?: string[];
   outgoingRequests?: string[];
   communityIds?: string[];
-  
+
   // Nested Data
   achievements?: Achievement[];
   sports?: {
     [key in Sport]?: SportProfile;
   };
   activeSport?: Sport;
-  
+
   // Roles & Ghost Accounts
   roles?: string[];
   accountType?: AccountType;
-  managedBy?: string;      // ID тренера, если это Ghost
-  isGhost?: boolean;       // Флаг призрачного игрока
-  isClaimed?: boolean;     // Был ли профиль захвачен реальным пользователем
-  claimedBy?: string;      // ID реального пользователя, захватившего профиль
+  managedBy?: string; // ID тренера, если это Ghost
+  isGhost?: boolean; // Флаг призрачного игрока
+  isClaimed?: boolean; // Был ли профиль захвачен реальным пользователем
+  claimedBy?: string; // ID реального пользователя, захватившего профиль
 }
 
 // --- Room Members ---
@@ -137,22 +137,28 @@ export interface Member {
   photoURL?: string | null;
   role: string; // 'admin' | 'editor' | 'member'
   date: string; // Join date
-  
+
   // Room Stats
   rating: number;
   wins: number;
   losses: number;
   maxRating?: number;
-  
+
   // Computed / Optional Stats
   totalMatches?: number;
   longestWinStreak?: number;
   currentStreak?: number;
   totalAddedPoints?: number;
   prevPlace?: number;
-  
+
   // Global context
   globalElo?: number;
+
+  // Derby Specific
+  badges?: string[];
+  highestStreak?: number;
+  nemesisId?: string | null;
+  h2h?: Record<string, { wins: number; losses: number }>;
 }
 
 // --- Seasons ---
@@ -190,31 +196,31 @@ export interface Room {
   sport?: Sport;
   mode?: RoomMode;
   avatarURL?: string;
-  
+
   // Creation
   creator: string; // DB field is 'creator'
   createdBy?: string; // Alias sometimes used in code
   creatorName?: string;
   createdAt: string;
   roomCreated?: string; // Legacy format
-  
+
   // Config
   isPublic: boolean;
   isRanked?: boolean;
   isArchived?: boolean;
   archivedAt?: string;
   kFactor?: number;
-  
+
   // Members & Access
   adminIds?: string[];
   memberIds: string[];
   members: Member[];
   joinRequests?: string[];
-  
+
   // Data
   seasonHistory?: Season[];
   rankHistories?: Record<string, RankHistoryPoint[]>; // userId -> history
-  
+
   // Communities
   communityId?: string | null;
   communityName?: string;
@@ -225,17 +231,17 @@ export interface MatchSide {
   name: string;
   scores: number;
   side?: 'left' | 'right';
-  
+
   // Global
   oldRating: number;
   newRating: number;
   addedPoints: number;
-  
+
   // Room
   roomOldRating: number;
   roomNewRating: number;
   roomAddedPoints: number;
-  
+
   // Tennis specific stats
   aces?: number;
   doubleFaults?: number;
@@ -245,28 +251,28 @@ export interface MatchSide {
 export interface Match {
   id: string;
   roomId: string;
-  
+
   // Timestamps
   createdAt?: string;
   timestamp?: string;
   tsIso?: string;
   playedAt?: string; // ISO when the match actually happened
-  
+
   // Config
   isRanked?: boolean;
-  
+
   // Tournament Context
   isTournament?: boolean;
   tournamentId?: string;
   tournamentName?: string;
   tournamentStage?: string;
   roundName?: string;
-  
+
   // Players
   players?: string[]; // Array of UIDs for querying
   player1Id: string;
   player2Id: string;
-  
+
   // Legacy / Flat fields
   player1Name?: string;
   player2Name?: string;
@@ -274,15 +280,15 @@ export interface Match {
   player2Score?: number;
   eloChangePlayer1?: number;
   eloChangePlayer2?: number;
-  
+
   // Detailed Data
   player1: MatchSide;
   player2: MatchSide;
-  
+
   // Result
   winner: string;
   winnerId?: string;
-  
+
   // Catch-all for very old legacy fields
   [key: string]: any;
 }
@@ -301,9 +307,9 @@ export interface TournamentRoom {
   startDate: string;
   endDate?: string;
   structure: string; // e.g. 'singleElimination'
-  status: string;    // e.g. 'upcoming', 'ongoing', 'completed'
-  
-  bracket?: any; 
+  status: string; // e.g. 'upcoming', 'ongoing', 'completed'
+
+  bracket?: any;
   description?: string;
   avatarURL?: string;
   participantsIds?: string[];
@@ -311,14 +317,14 @@ export interface TournamentRoom {
   champion?: { name: string; userId?: string } | null;
 }
 
-export interface Tournament  {
+export interface Tournament {
   id: string;
   name: string;
   description?: string;
   sport?: string;
   bracket: any;
   [key: string]: any;
-};
+}
 
 // --- Activity Feed ---
 export interface FeedItem {
@@ -326,12 +332,12 @@ export interface FeedItem {
   communityId: string;
   type: string; // 'match_finished' | 'room_created' | 'friend_added' | 'ghost_claimed'
   timestamp: any; // Firestore Timestamp or string
-  
+
   // New Unified Structure
   title?: string;
   description?: string;
   actorAvatars?: string[];
-  
+
   // Legacy / Context fields
   actorId?: string;
   actorName?: string;
@@ -340,7 +346,7 @@ export interface FeedItem {
   targetName?: string;
   content?: string;
   sport?: Sport;
-  
+
   metadata?: {
     matchId?: string;
     roomId?: string;

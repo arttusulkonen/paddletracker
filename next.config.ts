@@ -1,10 +1,8 @@
+// next.config.ts
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Убрали игнорирование ошибок. Теперь билд покажет, где есть проблемы.
-  typescript: {
-    // ignoreBuildErrors: false, // (по умолчанию false, строку можно просто удалить)
-  },
+  outputFileTracingRoot: __dirname,
   images: {
     remotePatterns: [{ protocol: 'https', hostname: 'picsum.photos', pathname: '/**' }],
   },
