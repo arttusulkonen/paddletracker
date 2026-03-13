@@ -111,7 +111,7 @@ const Dashboard = () => {
     [...thresholds].reverse().find((t) => t <= elo) || (elo < 1001 ? 0 : 1000);
   const progress = Math.min(
     100,
-    Math.max(0, ((elo - prevRankElo) / (nextRankElo - prevRankElo || 1)) * 100)
+    Math.max(0, ((elo - prevRankElo) / (nextRankElo - prevRankElo || 1)) * 100),
   );
 
   const isOrganizer =
@@ -128,7 +128,7 @@ const Dashboard = () => {
       if (userProfile.communityIds && userProfile.communityIds.length > 0) {
         try {
           const cDoc = await getDoc(
-            doc(db, 'communities', userProfile.communityIds[0])
+            doc(db, 'communities', userProfile.communityIds[0]),
           );
           if (cDoc.exists()) cName = cDoc.data().name;
         } catch {}
@@ -139,7 +139,7 @@ const Dashboard = () => {
           const q = query(
             collection(db, 'communities'),
             where('members', 'array-contains', user.uid),
-            limit(1)
+            limit(1),
           );
           const snap = await getDocs(q);
           if (!snap.empty) cName = snap.docs[0].data().name;
@@ -152,7 +152,7 @@ const Dashboard = () => {
           collection(db, config.collections.matches),
           where('players', 'array-contains', user.uid),
           orderBy('tsIso', 'desc'),
-          limit(1)
+          limit(1),
         );
         const matchSnap = await getDocs(matchesQuery);
 
@@ -160,7 +160,7 @@ const Dashboard = () => {
           const lastMatch = matchSnap.docs[0].data();
           if (lastMatch.roomId) {
             const roomDoc = await getDoc(
-              doc(db, config.collections.rooms, lastMatch.roomId)
+              doc(db, config.collections.rooms, lastMatch.roomId),
             );
             if (roomDoc.exists() && !roomDoc.data().isArchived) {
               setLastActiveRoom({
@@ -170,8 +170,7 @@ const Dashboard = () => {
             }
           }
         }
-      } catch {
-      }
+      } catch {}
     };
     fetchData();
   }, [user, userProfile, sport, config]);
@@ -223,9 +222,12 @@ const Dashboard = () => {
                 </div>
               )}
               <div className='flex items-center gap-2.5 text-muted-foreground font-medium mt-2'>
-                <span className="bg-muted/50 px-3 py-1 rounded-full text-xs">{rankLabel}</span>
+                <span className='bg-muted/50 px-3 py-1 rounded-full text-xs'>
+                  {rankLabel}
+                </span>
                 <span className='text-primary font-bold text-lg'>
-                  {elo.toFixed(0)} <span className="text-xs font-normal opacity-70">ELO</span>
+                  {elo.toFixed(0)}{' '}
+                  <span className='text-xs font-normal opacity-70'>ELO</span>
                 </span>
               </div>
             </div>
@@ -234,19 +236,26 @@ const Dashboard = () => {
           {!isNewPlayer && (
             <div className='flex-1 grid grid-cols-3 gap-6 w-full xl:w-auto xl:border-l xl:border-border/40 xl:pl-10'>
               <div className='flex flex-col items-center xl:items-start'>
-                <div className='text-4xl font-light tracking-tighter'>{matchesPlayed}</div>
+                <div className='text-4xl font-light tracking-tighter'>
+                  {matchesPlayed}
+                </div>
                 <div className='text-[10px] uppercase text-muted-foreground font-bold tracking-widest mt-1'>
                   {t('Matches')}
                 </div>
               </div>
               <div className='flex flex-col items-center xl:items-start'>
-                <div className='text-4xl font-light tracking-tighter text-emerald-500'>{wins}</div>
+                <div className='text-4xl font-light tracking-tighter text-emerald-500'>
+                  {wins}
+                </div>
                 <div className='text-[10px] uppercase text-emerald-500/70 font-bold tracking-widest mt-1'>
                   {t('Wins')}
                 </div>
               </div>
               <div className='flex flex-col items-center xl:items-start'>
-                <div className='text-4xl font-light tracking-tighter'>{winRate}<span className="text-xl">%</span></div>
+                <div className='text-4xl font-light tracking-tighter'>
+                  {winRate}
+                  <span className='text-xl'>%</span>
+                </div>
                 <div className='text-[10px] uppercase text-muted-foreground font-bold tracking-widest mt-1'>
                   {t('Win Rate')}
                 </div>
@@ -294,14 +303,19 @@ const Dashboard = () => {
           <div className='bg-black/5 dark:bg-white/5 px-8 py-4 border-t border-white/10 flex items-center justify-between text-xs font-medium text-muted-foreground backdrop-blur-3xl'>
             <div className='flex items-center gap-2'>
               <Target className='h-4 w-4' />
-              <span className="font-mono">{elo.toFixed(0)}</span>
+              <span className='font-mono'>{elo.toFixed(0)}</span>
             </div>
             <div className='flex-1 mx-6 max-w-2xl'>
-              <Progress value={progress} className='h-2.5 bg-black/5 dark:bg-white/10' />
+              <Progress
+                value={progress}
+                className='h-2.5 bg-black/5 dark:bg-white/10'
+              />
             </div>
             <div className='flex items-center gap-1.5'>
-              <span className="font-mono">{nextRankElo}</span>
-              <span className='opacity-50 uppercase tracking-widest text-[9px]'>({t('Next Rank')})</span>
+              <span className='font-mono'>{nextRankElo}</span>
+              <span className='opacity-50 uppercase tracking-widest text-[9px]'>
+                ({t('Next Rank')})
+              </span>
             </div>
           </div>
         )}
@@ -324,7 +338,9 @@ const Dashboard = () => {
                   <Play className='h-6 w-6 fill-current' />
                 </div>
                 <div>
-                  <div className='font-bold text-lg'>{t('Continue Playing')}</div>
+                  <div className='font-bold text-lg'>
+                    {t('Continue Playing')}
+                  </div>
                   <div className='text-sm text-muted-foreground mt-0.5'>
                     {t('Jump back into: {{room}}', {
                       room: lastActiveRoom.name,
@@ -332,7 +348,11 @@ const Dashboard = () => {
                   </div>
                 </div>
               </div>
-              <Button size='lg' className="rounded-full shadow-md font-semibold" asChild>
+              <Button
+                size='lg'
+                className='rounded-full shadow-md font-semibold'
+                asChild
+              >
                 <Link href={`/rooms/${lastActiveRoom.id}`}>
                   {t('Open Room')} <ArrowRight className='ml-2 h-4 w-4' />
                 </Link>
@@ -378,7 +398,7 @@ const LandingPage = () => {
     <div className='flex flex-col min-h-screen font-sans'>
       <main className='flex-1'>
         <section className='w-full py-20 md:py-32 lg:py-48 bg-gradient-to-b from-primary/10 to-transparent rounded-[3rem] mb-16 relative overflow-hidden'>
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-full bg-primary/5 blur-3xl rounded-full mix-blend-multiply pointer-events-none" />
+          <div className='absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-full bg-primary/5 blur-3xl rounded-full mix-blend-multiply pointer-events-none' />
           <div className='container px-4 md:px-6 relative z-10'>
             <div className='flex flex-col items-center space-y-6 text-center'>
               <div className='space-y-4'>
@@ -387,18 +407,25 @@ const LandingPage = () => {
                 </h1>
                 <p className='mx-auto max-w-[700px] text-muted-foreground md:text-xl lg:text-2xl leading-relaxed font-light'>
                   {t(
-                    'The ultimate platform for tracking matches, ELO ratings, and tournaments. Perfect for office leagues, sports clubs, and professional sections.'
+                    'The ultimate platform for tracking matches, ELO ratings, and tournaments. Perfect for office leagues, sports clubs, and professional sections.',
                   )}
                 </p>
               </div>
               <div className='space-x-4 pt-8'>
                 <Link href='/register'>
-                  <Button size='lg' className='h-14 px-10 shadow-2xl rounded-full text-lg font-semibold hover:scale-105 transition-transform'>
+                  <Button
+                    size='lg'
+                    className='h-14 px-10 shadow-2xl rounded-full text-lg font-semibold hover:scale-105 transition-transform'
+                  >
                     {t('Start for Free')}
                   </Button>
                 </Link>
                 <Link href='/login'>
-                  <Button variant='outline' size='lg' className='h-14 px-10 rounded-full text-lg font-semibold border-0 glass-panel hover:bg-white/80 dark:hover:bg-white/10 transition-all'>
+                  <Button
+                    variant='outline'
+                    size='lg'
+                    className='h-14 px-10 rounded-full text-lg font-semibold border-0 glass-panel hover:bg-white/80 dark:hover:bg-white/10 hover:text-foreground transition-all'
+                  >
                     {t('Login')}
                   </Button>
                 </Link>
@@ -416,58 +443,68 @@ const LandingPage = () => {
                 </h2>
                 <p className='max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-lg/relaxed xl:text-xl/relaxed font-light'>
                   {t(
-                    'Built to support any group size — from casual office rivalries to competitive sports sections.'
+                    'Built to support any group size — from casual office rivalries to competitive sports sections.',
                   )}
                 </p>
               </div>
             </div>
             <div className='mx-auto grid max-w-6xl items-stretch gap-8 lg:grid-cols-3'>
               <Card className='h-full border-0 glass-panel p-2 rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-2 transition-all duration-500'>
-                <CardHeader className="px-8 pt-8">
-                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <CardHeader className='px-8 pt-8'>
+                  <div className='h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4'>
                     <Building2 className='h-8 w-8 text-primary' />
                   </div>
-                  <CardTitle className="text-2xl">{t('Offices & Clubs')}</CardTitle>
-                  <CardDescription className="text-base mt-2">
+                  <CardTitle className='text-2xl'>
+                    {t('Offices & Clubs')}
+                  </CardTitle>
+                  <CardDescription className='text-base mt-2'>
                     {t('A home for your community.')}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="px-8 pb-8">
+                <CardContent className='px-8 pb-8'>
                   <p className='text-muted-foreground leading-relaxed font-light'>
                     {t(
-                      'Create a dedicated space for your "IT Dept" or "City Sports Club". Manage members, organize internal leagues, and keep history in one place.'
+                      'Create a dedicated space for your "IT Dept" or "City Sports Club". Manage members, organize internal leagues, and keep history in one place.',
                     )}
                   </p>
                 </CardContent>
               </Card>
               <Card className='h-full border-0 glass-panel p-2 rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-2 transition-all duration-500'>
-                <CardHeader className="px-8 pt-8">
-                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <CardHeader className='px-8 pt-8'>
+                  <div className='h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4'>
                     <Ghost className='h-8 w-8 text-primary' />
                   </div>
-                  <CardTitle className="text-2xl">{t('Ghost Players')}</CardTitle>
-                  <CardDescription className="text-base mt-2">{t('Seamless onboarding.')}</CardDescription>
+                  <CardTitle className='text-2xl'>
+                    {t('Ghost Players')}
+                  </CardTitle>
+                  <CardDescription className='text-base mt-2'>
+                    {t('Seamless onboarding.')}
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="px-8 pb-8">
+                <CardContent className='px-8 pb-8'>
                   <p className='text-muted-foreground leading-relaxed font-light'>
                     {t(
-                      'Add players even if they haven\'t registered yet. Track their stats immediately. They can "claim" their ghost profile and stats later when they join.'
+                      'Add players even if they haven\'t registered yet. Track their stats immediately. They can "claim" their ghost profile and stats later when they join.',
                     )}
                   </p>
                 </CardContent>
               </Card>
               <Card className='h-full border-0 glass-panel p-2 rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-2 transition-all duration-500'>
-                <CardHeader className="px-8 pt-8">
-                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <CardHeader className='px-8 pt-8'>
+                  <div className='h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4'>
                     <Trophy className='h-8 w-8 text-primary' />
                   </div>
-                  <CardTitle className="text-2xl">{t('Professional ELO')}</CardTitle>
-                  <CardDescription className="text-base mt-2">{t('Fair ranking system.')}</CardDescription>
+                  <CardTitle className='text-2xl'>
+                    {t('Professional ELO')}
+                  </CardTitle>
+                  <CardDescription className='text-base mt-2'>
+                    {t('Fair ranking system.')}
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="px-8 pb-8">
+                <CardContent className='px-8 pb-8'>
                   <p className='text-muted-foreground leading-relaxed font-light'>
                     {t(
-                      'We use advanced rating algorithms adapted for racket sports. Watch your progress from Rookie to Pro with detailed charts.'
+                      'We use advanced rating algorithms adapted for racket sports. Watch your progress from Rookie to Pro with detailed charts.',
                     )}
                   </p>
                 </CardContent>
@@ -477,7 +514,7 @@ const LandingPage = () => {
         </section>
 
         <section className='w-full py-20 md:py-32 glass-panel border-x-0 rounded-none relative overflow-hidden'>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 mix-blend-overlay" />
+          <div className='absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 mix-blend-overlay' />
           <div className='container px-4 md:px-6 relative z-10'>
             <div className='grid gap-16 lg:grid-cols-2 items-center max-w-6xl mx-auto'>
               <div className='space-y-6'>
@@ -486,45 +523,49 @@ const LandingPage = () => {
                 </h2>
                 <p className='text-muted-foreground text-lg md:text-xl font-light leading-relaxed'>
                   {t(
-                    'Different groups have different needs. Choose the mode that fits your atmosphere.'
+                    'Different groups have different needs. Choose the mode that fits your atmosphere.',
                   )}
                 </p>
                 <ul className='grid gap-8 mt-10'>
                   <li className='flex items-start gap-5'>
-                    <div className="p-3 bg-background shadow-md rounded-2xl ring-1 ring-black/5 dark:ring-white/10">
+                    <div className='p-3 bg-background shadow-md rounded-2xl ring-1 ring-black/5 dark:ring-white/10'>
                       <ShieldCheck className='h-6 w-6 text-primary' />
                     </div>
                     <div>
-                      <h3 className='font-bold text-xl mb-1'>{t('Professional')}</h3>
+                      <h3 className='font-bold text-xl mb-1'>
+                        {t('Professional')}
+                      </h3>
                       <p className='text-muted-foreground font-light'>
                         {t(
-                          'Strict rules, zero-sum ELO. Every point matters. For serious clubs.'
+                          'Strict rules, zero-sum ELO. Every point matters. For serious clubs.',
                         )}
                       </p>
                     </div>
                   </li>
                   <li className='flex items-start gap-5'>
-                    <div className="p-3 bg-background shadow-md rounded-2xl ring-1 ring-black/5 dark:ring-white/10">
+                    <div className='p-3 bg-background shadow-md rounded-2xl ring-1 ring-black/5 dark:ring-white/10'>
                       <Building2 className='h-6 w-6 text-primary' />
                     </div>
                     <div>
-                      <h3 className='font-bold text-xl mb-1'>{t('Office League')}</h3>
+                      <h3 className='font-bold text-xl mb-1'>
+                        {t('Office League')}
+                      </h3>
                       <p className='text-muted-foreground font-light'>
                         {t(
-                          'Inflationary ELO to encourage participation. Fun but competitive. Best for workplaces.'
+                          'Inflationary ELO to encourage participation. Fun but competitive. Best for workplaces.',
                         )}
                       </p>
                     </div>
                   </li>
                   <li className='flex items-start gap-5'>
-                    <div className="p-3 bg-background shadow-md rounded-2xl ring-1 ring-black/5 dark:ring-white/10">
+                    <div className='p-3 bg-background shadow-md rounded-2xl ring-1 ring-black/5 dark:ring-white/10'>
                       <Gamepad2 className='h-6 w-6 text-primary' />
                     </div>
                     <div>
                       <h3 className='font-bold text-xl mb-1'>{t('Arcade')}</h3>
                       <p className='text-muted-foreground font-light'>
                         {t(
-                          'Fast matches, simplified tracking. Just for fun, no rating pressure.'
+                          'Fast matches, simplified tracking. Just for fun, no rating pressure.',
                         )}
                       </p>
                     </div>
@@ -536,7 +577,7 @@ const LandingPage = () => {
                   <div className='absolute -inset-4 bg-gradient-to-r from-primary/30 to-purple-600/30 rounded-[3rem] blur-2xl opacity-50 group-hover:opacity-80 transition duration-1000 group-hover:duration-500'></div>
                   <div className='relative glass-panel bg-white/80 dark:bg-zinc-900/80 p-8 rounded-[2.5rem] border-0 shadow-2xl w-full transform group-hover:-translate-y-2 transition-transform duration-500'>
                     <div className='flex items-center gap-5 mb-8'>
-                      <div className="p-3 bg-primary/10 rounded-2xl">
+                      <div className='p-3 bg-primary/10 rounded-2xl'>
                         <Users className='h-8 w-8 text-primary' />
                       </div>
                       <div>
@@ -555,7 +596,9 @@ const LandingPage = () => {
                       </div>
                       <div className='flex justify-between items-center p-4 bg-primary/10 rounded-2xl ring-1 ring-primary/20 backdrop-blur-sm'>
                         <span className='font-bold text-primary'>Dmitry</span>
-                        <span className='font-bold text-2xl text-primary'>9</span>
+                        <span className='font-bold text-2xl text-primary'>
+                          9
+                        </span>
                       </div>
                     </div>
                     <div className='mt-8 flex justify-center'>
@@ -577,11 +620,14 @@ const LandingPage = () => {
             </h2>
             <p className='mx-auto max-w-[600px] text-muted-foreground md:text-2xl mb-10 font-light leading-relaxed'>
               {t(
-                'Join SmashLog today. Create your community and start tracking your path to victory.'
+                'Join SmashLog today. Create your community and start tracking your path to victory.',
               )}
             </p>
             <Link href='/register'>
-              <Button size='lg' className='h-16 px-12 text-xl rounded-full shadow-2xl hover:scale-105 transition-transform'>
+              <Button
+                size='lg'
+                className='h-16 px-12 text-xl rounded-full shadow-2xl hover:scale-105 transition-transform'
+              >
                 {t('Create Account')}
               </Button>
             </Link>

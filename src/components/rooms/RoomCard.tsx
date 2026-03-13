@@ -11,12 +11,6 @@ import {
 	CardTitle as CardTitleUI,
 	Card as CardUI,
 } from '@/components/ui/card';
-import {
-	TooltipContent as TooltipContentUI,
-	TooltipProvider as TooltipProviderUI,
-	TooltipTrigger as TooltipTriggerUI,
-	Tooltip as TooltipUI,
-} from '@/components/ui/tooltip';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { sportConfig } from '@/contexts/SportContext';
@@ -26,8 +20,6 @@ import {
 	CalendarDays,
 	CheckCircle2,
 	Crown,
-	Globe,
-	Lock,
 	Trophy,
 	Users,
 	Warehouse,
@@ -280,42 +272,6 @@ export const RoomCard: React.FC<RoomCardProps> = ({
         >
           <Link href={`${hrefBase}/${room.id}`}>{status.btnText}</Link>
         </ButtonUI>
-
-        <div className='absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
-          {room.isPublic ? (
-            <TooltipProviderUI delayDuration={0}>
-              <TooltipUI>
-                <TooltipTriggerUI>
-                  <div className='bg-background/80 p-1.5 rounded-full ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'>
-                    <Globe className='h-3.5 w-3.5 text-muted-foreground' />
-                  </div>
-                </TooltipTriggerUI>
-                <TooltipContentUI
-                  side='left'
-                  className='glass-panel border-0 text-xs font-semibold'
-                >
-                  <p>{t('Public Room')}</p>
-                </TooltipContentUI>
-              </TooltipUI>
-            </TooltipProviderUI>
-          ) : (
-            <TooltipProviderUI delayDuration={0}>
-              <TooltipUI>
-                <TooltipTriggerUI>
-                  <div className='bg-background/80 p-1.5 rounded-full ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'>
-                    <Lock className='h-3.5 w-3.5 text-muted-foreground' />
-                  </div>
-                </TooltipTriggerUI>
-                <TooltipContentUI
-                  side='left'
-                  className='glass-panel border-0 text-xs font-semibold'
-                >
-                  <p>{t('Private Room')}</p>
-                </TooltipContentUI>
-              </TooltipUI>
-            </TooltipProviderUI>
-          )}
-        </div>
       </CardFooterUI>
     </CardUI>
   );

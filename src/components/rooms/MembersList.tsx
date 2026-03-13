@@ -127,21 +127,24 @@ export function MembersList({
   const canRemovePlayers = isCreator || canManage;
 
   return (
-    <div>
-      <div className='mb-4 flex items-center justify-between'>
+    <div className='flex flex-col h-full'>
+      <div className='mb-4 flex flex-col md:flex-column md:items-left justify-between gap-4'>
         <h3 className='font-extrabold text-xl flex items-center gap-3 tracking-tight'>
-          <div className="bg-primary/10 p-2 rounded-xl">
-             <Users className='text-primary h-5 w-5' />
+          <div className='bg-primary/10 p-2 rounded-xl'>
+            <Users className='text-primary h-5 w-5' />
           </div>
-          {t('Members')} <span className="text-muted-foreground font-medium text-base ml-1">({sortedMembers.length})</span>
+          {t('Members')}{' '}
+          <span className='text-muted-foreground font-medium text-base ml-1'>
+            ({sortedMembers.length})
+          </span>
         </h3>
 
-        <div className='flex gap-1.5 bg-muted/30 p-1.5 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl'>
+        <div className='flex gap-1.5 bg-muted/30 p-1.5 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl w-full md:w-auto'>
           <Button
             size='sm'
             variant={viewMode === 'regular' ? 'default' : 'ghost'}
             onClick={() => setViewMode('regular')}
-            className='h-8 text-xs rounded-xl font-semibold px-4'
+            className='h-8 text-xs rounded-xl font-semibold px-4 flex-1 md:flex-none'
           >
             {t('Regular')}
           </Button>
@@ -149,7 +152,7 @@ export function MembersList({
             size='sm'
             variant={viewMode === 'liveFinal' ? 'default' : 'ghost'}
             onClick={() => setViewMode('liveFinal')}
-            className={`h-8 text-xs rounded-xl font-semibold px-4 ${
+            className={`h-8 text-xs rounded-xl font-semibold px-4 flex-1 md:flex-none ${
               viewMode === 'liveFinal'
                 ? 'bg-green-500/15 text-green-700 dark:text-green-400 hover:bg-green-500/25'
                 : ''
@@ -165,13 +168,13 @@ export function MembersList({
         </div>
       </div>
 
-      <ScrollArea className='h-[400px] w-full rounded-2xl border-0 ring-1 ring-black/5 dark:ring-white/10 bg-muted/10 shadow-inner p-2'>
+      <ScrollArea className='h-[400px] w-full rounded-2xl border-0 ring-1 ring-black/5 dark:ring-white/10 bg-muted/10 shadow-inner p-2 overflow-x-hidden'>
         {sortedMembers.length === 0 ? (
           <div className='flex items-center justify-center h-full text-muted-foreground text-sm font-light'>
             {t('No players yet.')}
           </div>
         ) : (
-          <div className="space-y-1.5 p-1">
+          <div className='space-y-1.5 p-1 pr-3'>
             {sortedMembers.map((p, index) => {
               const isMyNemesis = myNemesisId && myNemesisId === p.userId;
               const currentStreak = p.currentStreak ?? 0;
@@ -209,13 +212,19 @@ export function MembersList({
               return (
                 <div
                   key={p.userId}
-                  className='flex items-center justify-between p-3 bg-background hover:bg-background/80 rounded-xl transition-all group relative border border-transparent hover:border-border/50 hover:shadow-sm'
+                  className='flex items-center justify-between p-3 bg-background hover:bg-background/80 rounded-xl transition-all group relative border border-transparent hover:border-border/50 hover:shadow-sm w-full'
                 >
                   <div className='flex items-center gap-4 flex-grow min-w-0'>
                     {viewMode === 'liveFinal' && (
                       <div
-                        className={`w-6 text-center font-mono text-sm font-bold ${
-                          index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-400' : index === 2 ? 'text-amber-600' : 'text-muted-foreground/50'
+                        className={`w-6 text-center font-mono text-sm font-bold shrink-0 ${
+                          index === 0
+                            ? 'text-yellow-500'
+                            : index === 1
+                              ? 'text-slate-400'
+                              : index === 2
+                                ? 'text-amber-600'
+                                : 'text-muted-foreground/50'
                         }`}
                       >
                         {index + 1}
@@ -223,7 +232,7 @@ export function MembersList({
                     )}
 
                     <Avatar
-                      className={`h-11 w-11 transition-transform group-hover:scale-105 ${isOnFire ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : 'ring-1 ring-black/5 dark:ring-white/10'}`}
+                      className={`h-11 w-11 shrink-0 transition-transform group-hover:scale-105 ${isOnFire ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : 'ring-1 ring-black/5 dark:ring-white/10'}`}
                     >
                       <AvatarImage src={p.photoURL || undefined} />
                       <AvatarFallback className='bg-primary/10 text-primary font-medium'>
@@ -231,7 +240,7 @@ export function MembersList({
                       </AvatarFallback>
                     </Avatar>
 
-                    <div className='min-w-0 flex-1'>
+                    <div className='min-w-0 flex-1 overflow-hidden'>
                       <div className='font-semibold text-base leading-none flex items-center gap-2 truncate'>
                         {p.isDeleted ? (
                           <span className='truncate text-muted-foreground italic'>
@@ -251,7 +260,7 @@ export function MembersList({
                               <TooltipTrigger asChild>
                                 <ShieldCheck className='h-4 w-4 text-primary flex-shrink-0' />
                               </TooltipTrigger>
-                              <TooltipContent className="glass-panel border-0">
+                              <TooltipContent className='glass-panel border-0'>
                                 <span>{t('Room Creator')}</span>
                               </TooltipContent>
                             </Tooltip>
@@ -260,15 +269,19 @@ export function MembersList({
                       </div>
 
                       <div className='text-xs text-muted-foreground truncate mt-2 flex items-center gap-2.5 font-medium'>
-                        <span className="flex items-center gap-1">
-                          <span className="text-[10px] uppercase tracking-widest opacity-70">{t('W')}</span>
+                        <span className='flex items-center gap-1'>
+                          <span className='text-[10px] uppercase tracking-widest opacity-70'>
+                            {t('W')}
+                          </span>
                           <span className='text-emerald-500 font-bold'>
                             {p.wins}
                           </span>
                         </span>
                         <span className='opacity-30'>|</span>
-                        <span className="flex items-center gap-1">
-                          <span className="text-[10px] uppercase tracking-widest opacity-70">{t('L')}</span>
+                        <span className='flex items-center gap-1'>
+                          <span className='text-[10px] uppercase tracking-widest opacity-70'>
+                            {t('L')}
+                          </span>
                           <span className='text-red-500 font-bold'>
                             {p.losses}
                           </span>
@@ -277,9 +290,22 @@ export function MembersList({
                         {viewMode === 'liveFinal' && p.totalMatches > 0 && (
                           <>
                             <span className='opacity-30'>|</span>
-                            <span title={t('Net Points (Rating - 1000)')} className="flex items-center gap-1">
-                              <span className="text-[10px] uppercase tracking-widest opacity-70">Δ</span>
-                              <span className={p.totalAddedPoints > 0 ? "text-emerald-500 font-bold" : p.totalAddedPoints < 0 ? "text-red-500 font-bold" : "font-bold"}>
+                            <span
+                              title={t('Net Points (Rating - 1000)')}
+                              className='flex items-center gap-1'
+                            >
+                              <span className='text-[10px] uppercase tracking-widest opacity-70'>
+                                Δ
+                              </span>
+                              <span
+                                className={
+                                  p.totalAddedPoints > 0
+                                    ? 'text-emerald-500 font-bold'
+                                    : p.totalAddedPoints < 0
+                                      ? 'text-red-500 font-bold'
+                                      : 'font-bold'
+                                }
+                              >
                                 {p.totalAddedPoints > 0 ? '+' : ''}
                                 {Math.round(p.totalAddedPoints)}
                               </span>
@@ -299,7 +325,7 @@ export function MembersList({
                                     {t('Nemesis')}
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="glass-panel border-0">
+                                <TooltipContent className='glass-panel border-0'>
                                   {t('You struggle against this player')}
                                 </TooltipContent>
                               </Tooltip>
@@ -314,7 +340,7 @@ export function MembersList({
                                     {currentStreak} {t('Win Streak')}
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="glass-panel border-0">
+                                <TooltipContent className='glass-panel border-0'>
                                   {t('On a winning streak!')}
                                 </TooltipContent>
                               </Tooltip>
@@ -329,7 +355,7 @@ export function MembersList({
                                     {t('Giant Slayer')}
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="glass-panel border-0">
+                                <TooltipContent className='glass-panel border-0'>
                                   {t('Broke a massive win streak')}
                                 </TooltipContent>
                               </Tooltip>
@@ -340,8 +366,8 @@ export function MembersList({
                     </div>
                   </div>
 
-                  <div className='flex items-center gap-4 pl-3'>
-                    <div className='min-w-[60px] text-right flex justify-end'>
+                  <div className='flex items-center gap-3 pl-2 shrink-0'>
+                    <div className='min-w-[50px] text-right flex justify-end'>
                       {rightValueNode}
                     </div>
 
@@ -357,20 +383,22 @@ export function MembersList({
                               <Trash2 className='h-4 w-4' />
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent className="glass-panel border-0 sm:rounded-[2rem]">
+                          <AlertDialogContent className='glass-panel border-0 sm:rounded-[2rem]'>
                             <AlertDialogHeader>
-                              <AlertDialogTitle className="text-2xl">
+                              <AlertDialogTitle className='text-2xl'>
                                 {t('Are you sure?')}
                               </AlertDialogTitle>
-                              <AlertDialogDescription className="text-base text-muted-foreground">
+                              <AlertDialogDescription className='text-base text-muted-foreground'>
                                 {t(
                                   'This action cannot be undone. This will permanently remove {{playerName}} from the room.',
                                   { playerName: p.name },
                                 )}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
-                            <AlertDialogFooter className="mt-6 gap-3 sm:gap-0">
-                              <AlertDialogCancel className="rounded-xl h-12 text-base">{t('Cancel')}</AlertDialogCancel>
+                            <AlertDialogFooter className='mt-6 gap-3 sm:gap-0'>
+                              <AlertDialogCancel className='rounded-xl h-12 text-base'>
+                                {t('Cancel')}
+                              </AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => onRemovePlayer(p.userId)}
                                 className='bg-destructive hover:bg-destructive/90 rounded-xl h-12 text-base font-bold'

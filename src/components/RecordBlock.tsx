@@ -58,13 +58,17 @@ function PlayerSelect({
 }) {
   return (
     <div className='space-y-1.5 w-full'>
-      <Label className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1'>{label}</Label>
+      <Label className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1'>
+        {label}
+      </Label>
       <select
-        className='w-full h-11 border-0 rounded-xl bg-muted/50 px-3 font-semibold text-sm ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-primary/40 outline-none transition-all cursor-pointer'
+        className='w-full h-10 border-0 rounded-xl bg-muted/50 px-3 font-semibold text-sm ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-primary/40 outline-none transition-all cursor-pointer'
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value='' disabled>{t('Select player...')}</option>
+        <option value='' disabled>
+          {t('Select player...')}
+        </option>
         {list
           .filter((o) => !disabledIds.includes(o.userId))
           .map((o) => (
@@ -185,16 +189,17 @@ function MatchupDraftBlock({
   const p2Name = members.find((m) => m.userId === matchup.player2Id)?.name;
 
   let headerClass =
-    'flex items-center gap-3 font-extrabold text-lg p-4 rounded-t-[1.5rem] transition-colors';
-  
-  let wrapperClass = "shadow-lg border-0 ring-1 ring-black/5 dark:ring-white/10 rounded-[2rem] bg-card overflow-hidden transition-all duration-300";
+    'flex items-center gap-3 font-extrabold text-base p-3 rounded-t-2xl transition-colors';
+
+  let wrapperClass =
+    'shadow-sm border-0 ring-1 ring-black/5 dark:ring-white/10 rounded-2xl bg-card overflow-hidden transition-all duration-300';
 
   if (invalidGame) {
     headerClass += ' bg-amber-500/10 text-amber-700 dark:text-amber-400';
-    wrapperClass += " ring-amber-500/30";
+    wrapperClass += ' ring-amber-500/30';
   } else if (isMatchupReady) {
     headerClass += ' bg-primary/10 text-primary';
-    wrapperClass += " ring-primary/30 shadow-xl";
+    wrapperClass += ' ring-primary/30 shadow-md';
   } else {
     headerClass += ' bg-muted/50 text-muted-foreground';
   }
@@ -202,27 +207,29 @@ function MatchupDraftBlock({
   return (
     <Card className={wrapperClass}>
       <div className={headerClass}>
-        <div className="bg-background/50 p-2 rounded-xl backdrop-blur-md">
-           <User size={20} />
+        <div className='bg-background/50 p-1.5 rounded-lg backdrop-blur-md'>
+          <User size={16} />
         </div>
-        <span className='truncate flex-1 tracking-tight'>
-          {p1Name || t('Player 1')} <span className="text-sm font-medium opacity-50 mx-1">vs</span> {p2Name || t('Player 2')}
+        <span className='truncate flex-1 tracking-tight text-sm'>
+          {p1Name || t('Player 1')}{' '}
+          <span className='text-xs font-medium opacity-50 mx-1'>vs</span>{' '}
+          {p2Name || t('Player 2')}
         </span>
         {removable && (
           <Button
             variant='ghost'
             size='icon'
-            className='h-10 w-10 hover:bg-destructive/10 hover:text-destructive rounded-full transition-colors bg-background/50 backdrop-blur-md'
+            className='h-8 w-8 hover:bg-destructive/10 hover:text-destructive rounded-full transition-colors bg-background/50 backdrop-blur-md'
             onClick={onRemove}
             title={t('Remove Matchup')}
           >
-            <Trash2 className='h-5 w-5' />
+            <Trash2 className='h-4 w-4' />
           </Button>
         )}
       </div>
 
-      <CardContent className='p-6 space-y-6 bg-background/50 backdrop-blur-3xl'>
-        <div className='flex flex-col sm:flex-row gap-5 items-center relative z-10'>
+      <CardContent className='p-4 space-y-4 bg-background/50'>
+        <div className='flex flex-col sm:flex-row gap-3 items-center relative z-10'>
           <PlayerSelect
             label={t('Player 1')}
             value={matchup.player1Id}
@@ -230,8 +237,8 @@ function MatchupDraftBlock({
             list={listP1}
             t={t}
           />
-          <div className="hidden sm:flex mt-5 bg-muted/50 h-8 w-8 rounded-full items-center justify-center text-[10px] font-black text-muted-foreground shrink-0">
-             VS
+          <div className='hidden sm:flex mt-5 bg-muted/50 h-6 w-6 rounded-full items-center justify-center text-[9px] font-black text-muted-foreground shrink-0'>
+            VS
           </div>
           <PlayerSelect
             label={t('Player 2')}
@@ -242,11 +249,11 @@ function MatchupDraftBlock({
           />
         </div>
 
-        <div className='space-y-4 pt-6 border-t border-black/5 dark:border-white/5 relative z-10'>
-          <Label className='text-xs font-bold text-muted-foreground uppercase tracking-widest px-1'>
+        <div className='space-y-3 pt-4 border-t border-black/5 dark:border-white/5 relative z-10'>
+          <Label className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1'>
             {t(sport === 'tennis' ? 'Set Results' : 'Game Results')}
           </Label>
-          <div className='space-y-4'>
+          <div className='space-y-3'>
             {matchup.games.map((row, i) => {
               const rowProps = {
                 data: row as any,
@@ -291,10 +298,11 @@ function MatchupDraftBlock({
 
           <Button
             variant='outline'
-            className='flex items-center gap-2 w-full h-12 rounded-xl mt-6 border-dashed hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all font-semibold'
+            className='flex items-center gap-2 w-full h-10 rounded-xl mt-4 border-dashed hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all font-semibold text-xs'
             onClick={addGameRow}
           >
-            <Plus className="w-5 h-5" /> {sport === 'tennis' ? t('Add Set') : t('Add Game')}
+            <Plus className='w-4 h-4' />{' '}
+            {sport === 'tennis' ? t('Add Set') : t('Add Game')}
           </Button>
         </div>
       </CardContent>
@@ -457,22 +465,22 @@ export function RecordBlock({
   ).length;
 
   return (
-    <Card className='shadow-2xl border-0 rounded-[2rem] flex flex-col h-full glass-panel relative overflow-hidden mb-12'>
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent mix-blend-overlay pointer-events-none" />
-      
-      <CardHeader className="px-8 pt-8 pb-6 relative z-10">
-        <CardTitle className='flex items-center gap-3 text-3xl font-extrabold tracking-tight'>
-          <div className="bg-primary/10 p-3 rounded-2xl ring-1 ring-primary/20 shadow-sm">
-             <Sword className='text-primary h-7 w-7' /> 
+    <Card className='shadow-xl border-0 rounded-[2rem] flex flex-col h-full glass-panel relative overflow-hidden mb-12'>
+      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent mix-blend-overlay pointer-events-none' />
+
+      <CardHeader className='px-6 pt-6 pb-4 relative z-10'>
+        <CardTitle className='flex items-center gap-3 text-2xl font-extrabold tracking-tight'>
+          <div className='bg-primary/10 p-2.5 rounded-xl ring-1 ring-primary/20 shadow-sm'>
+            <Sword className='text-primary h-5 w-5' />
           </div>
           {t('Record Matches')}
         </CardTitle>
-        <CardDescription className="text-base font-light text-muted-foreground mt-2">
+        <CardDescription className='text-sm font-light text-muted-foreground mt-1'>
           {t('Record one or more matchups with their game/set results.')}
         </CardDescription>
       </CardHeader>
 
-      <CardContent className='px-4 sm:px-8 space-y-8 flex-grow relative z-10'>
+      <CardContent className='px-4 sm:px-6 space-y-6 flex-grow relative z-10'>
         {matchupDrafts.map((matchup) => (
           <MatchupDraftBlock
             key={matchup.id}
@@ -487,25 +495,28 @@ export function RecordBlock({
           />
         ))}
 
-        <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-6 mt-8 pt-6 border-t border-black/5 dark:border-white/5'>
+        <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-4 mt-6 pt-5 border-t border-black/5 dark:border-white/5'>
           <Button
             variant='outline'
-            className='flex items-center gap-2 h-14 rounded-2xl shadow-sm border-0 ring-1 ring-black/5 dark:ring-white/10 bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition-all font-semibold px-6 text-base'
+            className='flex items-center gap-2 h-12 rounded-xl shadow-sm border-0 ring-1 ring-black/5 dark:ring-white/10 bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition-all font-semibold px-5 text-sm'
             onClick={addMatchup}
             disabled={isRecording}
           >
-            <Plus className="w-5 h-5" /> {t('Add Matchup')}
+            <Plus className='w-4 h-4' /> {t('Add Matchup')}
           </Button>
-          <div className='flex flex-col items-center md:items-end gap-3 w-full md:w-auto'>
-            <span className='text-sm text-muted-foreground font-medium'>
+          <div className='flex flex-col items-center md:items-end gap-2 w-full md:w-auto'>
+            <span className='text-xs text-muted-foreground font-medium'>
               {t('Ready to record')}:{' '}
-              <strong className="text-foreground text-base px-1">
+              <strong className='text-foreground text-sm px-1'>
                 {totalMatchupsReady} / {matchupDrafts.length}
               </strong>{' '}
-              {t('matchups')} <span className="opacity-50">({totalGames} {t('games')})</span>
+              {t('matchups')}{' '}
+              <span className='opacity-50'>
+                ({totalGames} {t('games')})
+              </span>
             </span>
             <Button
-              className='w-full md:w-auto h-14 rounded-2xl px-10 text-base font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100'
+              className='w-full md:w-auto h-12 rounded-xl px-8 text-sm font-bold shadow-md hover:shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100'
               disabled={isRecording || totalMatchupsReady === 0}
               onClick={saveMatches}
             >
@@ -516,45 +527,68 @@ export function RecordBlock({
       </CardContent>
 
       {sport === 'tennis' && (
-        <CardFooter className='flex-col items-start gap-4 border-t border-black/5 dark:border-white/5 px-8 py-6 text-sm text-muted-foreground relative z-10'>
-          <p className='font-bold uppercase tracking-widest text-[10px]'>{t('Tennis Terms:')}</p>
-          <ul className='list-disc pl-5 space-y-2 font-medium'>
+        <CardFooter className='flex-col items-start gap-3 border-t border-black/5 dark:border-white/5 px-6 py-5 text-xs text-muted-foreground relative z-10'>
+          <p className='font-bold uppercase tracking-widest text-[9px]'>
+            {t('Tennis Terms:')}
+          </p>
+          <ul className='list-disc pl-5 space-y-1.5 font-medium'>
             <li>
-              <strong className="text-foreground">{t('Aces')}:</strong>{' '}
-              <span className="opacity-80">{t('Serves that result directly in a point.')}</span>
+              <strong className='text-foreground'>{t('Aces')}:</strong>{' '}
+              <span className='opacity-80'>
+                {t('Serves that result directly in a point.')}
+              </span>
             </li>
             <li>
-              <strong className="text-foreground">{t('Double Faults')}:</strong>{' '}
-              <span className="opacity-80">{t('Two consecutive faults during a serve, resulting in the loss of the point.')}</span>
+              <strong className='text-foreground'>{t('Double Faults')}:</strong>{' '}
+              <span className='opacity-80'>
+                {t(
+                  'Two consecutive faults during a serve, resulting in the loss of the point.',
+                )}
+              </span>
             </li>
             <li>
-              <strong className="text-foreground">{t('Winners')}:</strong>{' '}
-              <span className="opacity-80">{t('Shots that win the point outright, without the opponent touching the ball.')}</span>
+              <strong className='text-foreground'>{t('Winners')}:</strong>{' '}
+              <span className='opacity-80'>
+                {t(
+                  'Shots that win the point outright, without the opponent touching the ball.',
+                )}
+              </span>
             </li>
           </ul>
         </CardFooter>
       )}
 
       {(isCreator || isGlobalAdmin) && (
-        <CardFooter className='justify-end border-t border-black/5 dark:border-white/5 px-8 py-6 mt-auto relative z-10'>
+        <CardFooter className='justify-end border-t border-black/5 dark:border-white/5 px-6 py-5 mt-auto relative z-10'>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant='destructive' className="rounded-xl font-bold shadow-md hover:shadow-lg">{t('Finish Season')}</Button>
+              <Button
+                variant='destructive'
+                size='sm'
+                className='rounded-lg font-bold shadow-sm'
+              >
+                {t('Finish Season')}
+              </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="border-0 glass-panel rounded-[2rem] shadow-2xl">
+            <AlertDialogContent className='border-0 glass-panel rounded-[2rem] shadow-2xl'>
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-2xl font-extrabold tracking-tight">
+                <AlertDialogTitle className='text-xl font-extrabold tracking-tight'>
                   {t('Are you absolutely sure?')}
                 </AlertDialogTitle>
-                <AlertDialogDescription className="text-base font-medium">
+                <AlertDialogDescription className='text-sm font-medium'>
                   {t(
                     'This action will close the current season for this room. All standings will be finalized, and no new matches can be recorded for this season. This cannot be undone.',
                   )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter className="mt-6">
-                <AlertDialogCancel className="h-12 rounded-xl text-base border-0 ring-1 ring-black/5 dark:ring-white/10">{t('Cancel')}</AlertDialogCancel>
-                <AlertDialogAction onClick={onFinishSeason} className="h-12 rounded-xl text-base font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogFooter className='mt-4'>
+                <AlertDialogCancel className='h-10 rounded-xl text-sm border-0 ring-1 ring-black/5 dark:ring-white/10'>
+                  {t('Cancel')}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={onFinishSeason}
+                  className='h-10 rounded-xl text-sm font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                >
                   {t('Yes, Finish Season')}
                 </AlertDialogAction>
               </AlertDialogFooter>
