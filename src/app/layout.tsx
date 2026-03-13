@@ -5,13 +5,13 @@ import InstallPrompt from '@/components/pwa/InstallPrompt';
 import PWAInit from '@/components/pwa/PWAInit';
 import DynamicTitle from '@/components/seo/DynamicTitle';
 import type { Metadata, Viewport } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const inter = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
+  display: 'swap',
 });
 
 export const viewport: Viewport = {
@@ -19,8 +19,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0b0b0c' },
+    { media: '(prefers-color-scheme: light)', color: '#f2f2f7' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
   ],
 };
 
@@ -106,7 +106,7 @@ export default function RootLayout({
   return (
     <html lang='en' suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
+        className={`${inter.variable} font-sans antialiased flex flex-col min-h-screen bg-background text-foreground`}
       >
         <Providers>
           <PWAInit />
@@ -114,7 +114,6 @@ export default function RootLayout({
           <InstallPrompt />
           <AppGuard>
             {children}
-            {/* AiAssistant is now rendered inside AppGuard conditionally */}
           </AppGuard>
         </Providers>
       </body>

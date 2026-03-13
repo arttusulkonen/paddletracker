@@ -23,7 +23,7 @@ import {
 } from '@/components/ui';
 import type { Room } from '@/lib/types';
 import type { User } from 'firebase/auth';
-import { Flame, ShieldCheck, Skull, Trash2, Users } from 'lucide-react';
+import { Flame, ShieldCheck, Skull, Swords, Trash2, Users } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -128,18 +128,20 @@ export function MembersList({
 
   return (
     <div>
-      <div className='mb-2 flex items-center justify-between'>
-        <h3 className='font-semibold text-lg flex items-center gap-2'>
-          <Users className='text-primary' />
-          {t('Members')} ({sortedMembers.length})
+      <div className='mb-4 flex items-center justify-between'>
+        <h3 className='font-extrabold text-xl flex items-center gap-3 tracking-tight'>
+          <div className="bg-primary/10 p-2 rounded-xl">
+             <Users className='text-primary h-5 w-5' />
+          </div>
+          {t('Members')} <span className="text-muted-foreground font-medium text-base ml-1">({sortedMembers.length})</span>
         </h3>
 
-        <div className='flex gap-2 bg-muted/30 p-1 rounded-lg'>
+        <div className='flex gap-1.5 bg-muted/30 p-1.5 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl'>
           <Button
             size='sm'
             variant={viewMode === 'regular' ? 'default' : 'ghost'}
             onClick={() => setViewMode('regular')}
-            className='h-7 text-xs'
+            className='h-8 text-xs rounded-xl font-semibold px-4'
           >
             {t('Regular')}
           </Button>
@@ -147,13 +149,13 @@ export function MembersList({
             size='sm'
             variant={viewMode === 'liveFinal' ? 'default' : 'ghost'}
             onClick={() => setViewMode('liveFinal')}
-            className={`h-7 text-xs ${
+            className={`h-8 text-xs rounded-xl font-semibold px-4 ${
               viewMode === 'liveFinal'
-                ? 'bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800'
+                ? 'bg-green-500/15 text-green-700 dark:text-green-400 hover:bg-green-500/25'
                 : ''
             }`}
           >
-            <span className='inline-flex items-center gap-1'>
+            <span className='inline-flex items-center gap-1.5'>
               {viewMode === 'liveFinal' && (
                 <span className='inline-block h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse' />
               )}
@@ -163,207 +165,228 @@ export function MembersList({
         </div>
       </div>
 
-      <ScrollArea className='border rounded-md p-3 bg-background h-[400px] shadow-inner'>
+      <ScrollArea className='h-[400px] w-full rounded-2xl border-0 ring-1 ring-black/5 dark:ring-white/10 bg-muted/10 shadow-inner p-2'>
         {sortedMembers.length === 0 ? (
-          <div className='flex items-center justify-center h-full text-muted-foreground text-sm'>
+          <div className='flex items-center justify-center h-full text-muted-foreground text-sm font-light'>
             {t('No players yet.')}
           </div>
         ) : (
-          sortedMembers.map((p, index) => {
-            const isMyNemesis = myNemesisId && myNemesisId === p.userId;
-            const currentStreak = p.currentStreak ?? 0;
-            const isOnFire = currentStreak >= 3;
+          <div className="space-y-1.5 p-1">
+            {sortedMembers.map((p, index) => {
+              const isMyNemesis = myNemesisId && myNemesisId === p.userId;
+              const currentStreak = p.currentStreak ?? 0;
+              const isOnFire = currentStreak >= 3;
+              const isGiantSlayer = p.badges?.includes('giant_slayer');
 
-            let rightValueNode;
-            if (viewMode === 'regular') {
-              rightValueNode = p.ratingVisible ? (
-                <span className='text-primary font-bold'>
-                  {Math.round(p.roomRating)}
-                </span>
-              ) : (
-                <span className='text-muted-foreground'>—</span>
-              );
-            } else {
-              if (p.totalMatches === 0) {
-                rightValueNode = (
-                  <span className='text-muted-foreground'>—</span>
+              let rightValueNode;
+              if (viewMode === 'regular') {
+                rightValueNode = p.ratingVisible ? (
+                  <span className='text-primary font-black text-lg'>
+                    {Math.round(p.roomRating)}
+                  </span>
+                ) : (
+                  <span className='text-muted-foreground/50'>—</span>
                 );
               } else {
-                rightValueNode = (
-                  <div className='text-right'>
-                    <div className='font-bold text-green-700 text-sm'>
-                      {p.adjPointsLive.toFixed(1)}
+                if (p.totalMatches === 0) {
+                  rightValueNode = (
+                    <span className='text-muted-foreground/50'>—</span>
+                  );
+                } else {
+                  rightValueNode = (
+                    <div className='text-right'>
+                      <div className='font-black text-green-600 dark:text-green-400 text-lg'>
+                        {p.adjPointsLive.toFixed(1)}
+                      </div>
+                      <div className='text-[9px] uppercase tracking-widest font-bold text-muted-foreground'>
+                        {t('adj')}
+                      </div>
                     </div>
-                    <div className='text-[10px] text-muted-foreground'>
-                      {t('adj')}
-                    </div>
-                  </div>
-                );
+                  );
+                }
               }
-            }
 
-            return (
-              <div
-                key={p.userId}
-                className='flex items-center justify-between p-2 hover:bg-muted/50 rounded-md transition-colors group relative'
-              >
-                <div className='flex items-center gap-3 flex-grow min-w-0'>
-                  {viewMode === 'liveFinal' && (
-                    <div
-                      className={`w-5 text-center font-mono text-xs font-bold ${
-                        index < 3 ? 'text-amber-500' : 'text-muted-foreground'
-                      }`}
+              return (
+                <div
+                  key={p.userId}
+                  className='flex items-center justify-between p-3 bg-background hover:bg-background/80 rounded-xl transition-all group relative border border-transparent hover:border-border/50 hover:shadow-sm'
+                >
+                  <div className='flex items-center gap-4 flex-grow min-w-0'>
+                    {viewMode === 'liveFinal' && (
+                      <div
+                        className={`w-6 text-center font-mono text-sm font-bold ${
+                          index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-400' : index === 2 ? 'text-amber-600' : 'text-muted-foreground/50'
+                        }`}
+                      >
+                        {index + 1}
+                      </div>
+                    )}
+
+                    <Avatar
+                      className={`h-11 w-11 transition-transform group-hover:scale-105 ${isOnFire ? 'ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : 'ring-1 ring-black/5 dark:ring-white/10'}`}
                     >
-                      {index + 1}
-                    </div>
-                  )}
+                      <AvatarImage src={p.photoURL || undefined} />
+                      <AvatarFallback className='bg-primary/10 text-primary font-medium'>
+                        {(p.name || '?').substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  <Avatar
-                    className={`h-10 w-10 border ${isOnFire ? 'border-orange-500 ring-2 ring-orange-500 ring-offset-2 ring-offset-background' : 'border-border'}`}
-                  >
-                    <AvatarImage src={p.photoURL || undefined} />
-                    <AvatarFallback className='bg-primary/10 text-primary text-xs'>
-                      {(p.name || '?').substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <div className='min-w-0 flex-1'>
-                    <div className='font-medium text-sm leading-none flex items-center gap-1.5 truncate'>
-                      {p.isDeleted ? (
-                        <span className='truncate text-muted-foreground italic'>
-                          {p.name}
-                        </span>
-                      ) : (
-                        <a
-                          href={`/profile/${p.userId}`}
-                          className='hover:underline truncate hover:text-primary transition-colors'
-                        >
-                          {p.name}
-                        </a>
-                      )}
-                      {p.userId === room.creator && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <ShieldCheck className='h-3.5 w-3.5 text-primary flex-shrink-0' />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <span>{t('Room Creator')}</span>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
-
-                    <div className='text-xs text-muted-foreground truncate mt-1.5 flex items-center gap-2'>
-                      <span>
-                        {t('W')}:{' '}
-                        <span className='text-green-600 font-medium'>
-                          {p.wins}
-                        </span>
-                      </span>
-                      <span className='opacity-50'>/</span>
-                      <span>
-                        {t('L')}:{' '}
-                        <span className='text-red-600 font-medium'>
-                          {p.losses}
-                        </span>
-                      </span>
-
-                      {viewMode === 'liveFinal' && p.totalMatches > 0 && (
-                        <>
-                          <span className='opacity-50'>·</span>
-                          <span title={t('Net Points (Rating - 1000)')}>
-                            Δ {p.totalAddedPoints > 0 ? '+' : ''}
-                            {Math.round(p.totalAddedPoints)}
+                    <div className='min-w-0 flex-1'>
+                      <div className='font-semibold text-base leading-none flex items-center gap-2 truncate'>
+                        {p.isDeleted ? (
+                          <span className='truncate text-muted-foreground italic'>
+                            {p.name}
                           </span>
-                        </>
-                      )}
-                    </div>
-
-                    {(isMyNemesis || isOnFire) && (
-                      <div className='flex items-center flex-wrap gap-1.5 mt-1.5'>
-                        {isMyNemesis && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className='flex items-center gap-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded text-[10px] font-bold border border-purple-500/20'>
-                                  <Skull className='w-3 h-3' />
-                                  {t('Nemesis')}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {t('You struggle against this player')}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        ) : (
+                          <a
+                            href={`/profile/${p.userId}`}
+                            className='hover:text-primary transition-colors truncate'
+                          >
+                            {p.name}
+                          </a>
                         )}
-                        {isOnFire && (
-                          <TooltipProvider>
+                        {p.userId === room.creator && (
+                          <TooltipProvider delayDuration={0}>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className='flex items-center gap-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded text-[10px] font-bold border border-orange-500/20'>
-                                  <Flame className='w-3 h-3 fill-current' />
-                                  {currentStreak} {t('Win Streak')}
-                                </div>
+                                <ShieldCheck className='h-4 w-4 text-primary flex-shrink-0' />
                               </TooltipTrigger>
-                              <TooltipContent>
-                                {t('On a winning streak!')}
+                              <TooltipContent className="glass-panel border-0">
+                                <span>{t('Room Creator')}</span>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         )}
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                <div className='flex items-center gap-3 pl-2'>
-                  <div className='min-w-[60px] text-right flex justify-end'>
-                    {rightValueNode}
+                      <div className='text-xs text-muted-foreground truncate mt-2 flex items-center gap-2.5 font-medium'>
+                        <span className="flex items-center gap-1">
+                          <span className="text-[10px] uppercase tracking-widest opacity-70">{t('W')}</span>
+                          <span className='text-emerald-500 font-bold'>
+                            {p.wins}
+                          </span>
+                        </span>
+                        <span className='opacity-30'>|</span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-[10px] uppercase tracking-widest opacity-70">{t('L')}</span>
+                          <span className='text-red-500 font-bold'>
+                            {p.losses}
+                          </span>
+                        </span>
+
+                        {viewMode === 'liveFinal' && p.totalMatches > 0 && (
+                          <>
+                            <span className='opacity-30'>|</span>
+                            <span title={t('Net Points (Rating - 1000)')} className="flex items-center gap-1">
+                              <span className="text-[10px] uppercase tracking-widest opacity-70">Δ</span>
+                              <span className={p.totalAddedPoints > 0 ? "text-emerald-500 font-bold" : p.totalAddedPoints < 0 ? "text-red-500 font-bold" : "font-bold"}>
+                                {p.totalAddedPoints > 0 ? '+' : ''}
+                                {Math.round(p.totalAddedPoints)}
+                              </span>
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {(isMyNemesis || isOnFire || isGiantSlayer) && (
+                        <div className='flex items-center flex-wrap gap-2 mt-2.5'>
+                          {isMyNemesis && (
+                            <TooltipProvider delayDuration={0}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className='flex items-center gap-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ring-1 ring-purple-500/20'>
+                                    <Skull className='w-3 h-3' />
+                                    {t('Nemesis')}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="glass-panel border-0">
+                                  {t('You struggle against this player')}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {isOnFire && (
+                            <TooltipProvider delayDuration={0}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className='flex items-center gap-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ring-1 ring-orange-500/20'>
+                                    <Flame className='w-3 h-3 fill-current animate-pulse' />
+                                    {currentStreak} {t('Win Streak')}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="glass-panel border-0">
+                                  {t('On a winning streak!')}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {isGiantSlayer && (
+                            <TooltipProvider delayDuration={0}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className='flex items-center gap-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ring-1 ring-blue-500/20'>
+                                    <Swords className='w-3 h-3' />
+                                    {t('Giant Slayer')}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="glass-panel border-0">
+                                  {t('Broke a massive win streak')}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className='w-7 h-7 flex-shrink-0 flex items-center justify-center'>
-                    {canRemovePlayers && p.userId !== currentUser?.uid && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant='ghost'
-                            size='icon'
-                            className='h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive'
-                          >
-                            <Trash2 className='h-4 w-4' />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              {t('Are you sure?')}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t(
-                                'This action cannot be undone. This will permanently remove {{playerName}} from the room.',
-                                { playerName: p.name },
-                              )}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => onRemovePlayer(p.userId)}
-                              className='bg-destructive hover:bg-destructive/90'
+                  <div className='flex items-center gap-4 pl-3'>
+                    <div className='min-w-[60px] text-right flex justify-end'>
+                      {rightValueNode}
+                    </div>
+
+                    <div className='w-8 h-8 flex-shrink-0 flex items-center justify-center'>
+                      {canRemovePlayers && p.userId !== currentUser?.uid && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant='ghost'
+                              size='icon'
+                              className='h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive'
                             >
-                              {t('Remove')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
+                              <Trash2 className='h-4 w-4' />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="glass-panel border-0 sm:rounded-[2rem]">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-2xl">
+                                {t('Are you sure?')}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription className="text-base text-muted-foreground">
+                                {t(
+                                  'This action cannot be undone. This will permanently remove {{playerName}} from the room.',
+                                  { playerName: p.name },
+                                )}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="mt-6 gap-3 sm:gap-0">
+                              <AlertDialogCancel className="rounded-xl h-12 text-base">{t('Cancel')}</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => onRemovePlayer(p.userId)}
+                                className='bg-destructive hover:bg-destructive/90 rounded-xl h-12 text-base font-bold'
+                              >
+                                {t('Remove')}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </ScrollArea>
     </div>

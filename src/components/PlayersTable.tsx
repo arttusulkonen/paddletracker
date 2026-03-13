@@ -33,7 +33,13 @@ import {
 	query,
 	where,
 } from 'firebase/firestore';
-import { BarChartHorizontal, Building2, Percent, Shield } from 'lucide-react';
+import {
+	BarChartHorizontal,
+	Building2,
+	Percent,
+	Shield,
+	Trophy,
+} from 'lucide-react';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -72,10 +78,8 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         const q = query(
           collection(db, 'users'),
           where('isPublic', '==', true),
-          // We filter out coaches on the client side to avoid complex index requirements
-          // with the 'orderBy' clause below.
           orderBy(`sports.${sport}.globalElo`, 'desc'),
-          limit(100) // Increased limit to account for filtered coaches
+          limit(100),
         );
         const querySnapshot = await getDocs(q);
         const friends = new Set(userProfile?.friends || []);
@@ -85,7 +89,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         querySnapshot.forEach((d) => {
           const data = d.data() as UserProfile;
           if (data.isDeleted) return;
-          if (data.accountType === 'coach') return; // Filter out coaches
+          if (data.accountType === 'coach') return;
 
           const s = data.sports?.[sport];
 
@@ -101,7 +105,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
           });
         });
 
-        // Limit to 50 after filtering
         const limitedPlayers = rawPlayers.slice(0, 50);
 
         const userToCommunityMap: Record<string, string> = {};
@@ -118,7 +121,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
             if (!db) return;
             const communitiesQuery = query(
               collection(db, 'communities'),
-              where('members', 'array-contains-any', chunk)
+              where('members', 'array-contains-any', chunk),
             );
             const communitiesSnap = await getDocs(communitiesQuery);
 
@@ -135,7 +138,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
                 });
               }
             });
-          })
+          }),
         );
 
         const finalPlayers = limitedPlayers.map((p) => ({
@@ -171,7 +174,6 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
         const list: PlayerData[] = [];
         for (const friend of friendProfiles) {
-          // Filter out coaches from friends list in ranking
           if (friend.accountType === 'coach') continue;
 
           const s = friend.sports?.[sport] || {
@@ -209,7 +211,7 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
         const merged = selfEntry ? [selfEntry, ...list] : list;
 
         const dedup = Array.from(
-          new Map(merged.map((p) => [p.id, p])).values()
+          new Map(merged.map((p) => [p.id, p])).values(),
         ).sort((a, b) => b.globalElo - a.globalElo);
 
         setMyCirclesPlayers(dedup);
@@ -227,16 +229,16 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
 
   if (isOverallLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <div className='h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
-          <div className='h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
+      <Card className='border-0 rounded-[2.5rem] glass-panel shadow-xl'>
+        <CardHeader className='px-8 pt-8 pb-4'>
+          <div className='h-8 w-48 bg-muted rounded-xl animate-pulse' />
+          <div className='h-4 w-64 bg-muted rounded-xl animate-pulse mt-2' />
         </CardHeader>
-        <CardContent>
+        <CardContent className='px-8 pb-8'>
           <div className='space-y-4'>
-            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
-            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
-            <div className='h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
+            <div className='h-12 w-full bg-muted rounded-2xl animate-pulse' />
+            <div className='h-12 w-full bg-muted rounded-2xl animate-pulse' />
+            <div className='h-12 w-full bg-muted rounded-2xl animate-pulse' />
           </div>
         </CardContent>
       </Card>
@@ -244,35 +246,54 @@ const PlayersTable: React.FC<PlayersTableProps> = ({ sport }) => {
   }
 
   return (
-    <Card className='border-none shadow-md'>
-      <CardHeader>
-        <CardTitle>
-          {t('Leaderboard')} ({sportConfig[sport].name})
+    <Card className='border-0 rounded-[2.5rem] glass-panel shadow-2xl relative overflow-hidden group'>
+      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none' />
+      <CardHeader className='px-6 md:px-10 pt-8 md:pt-10 pb-6 relative z-10'>
+        <CardTitle className='text-3xl font-extrabold tracking-tight flex items-center gap-3'>
+          <div className='bg-primary/10 p-3 rounded-2xl ring-1 ring-primary/20 text-primary shadow-sm'>
+            <Trophy className='h-6 w-6' />
+          </div>
+          {t('Leaderboard')}{' '}
+          <span className='opacity-50 font-medium ml-1'>
+            ({sportConfig[sport].name})
+          </span>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className='text-base font-light text-muted-foreground mt-2'>
           {t(
-            'Global and "My Circles" ranking based on ELO in the selected sport.'
+            'Global and "My Circles" ranking based on ELO in the selected sport.',
           )}
         </CardDescription>
       </CardHeader>
-      <CardContent className='p-0 sm:p-6'>
+      <CardContent className='px-4 md:px-8 pb-8 relative z-10'>
         <Tabs defaultValue='circles' className='w-full'>
-          <div>
-            <TabsList className='grid w-full grid-cols-2 mb-4'>
-              <TabsTrigger value='global'>
+          <div className='mb-6 flex justify-center sm:justify-start'>
+            <TabsList className='grid w-full sm:w-auto grid-cols-2 p-1.5 bg-muted/30 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl h-auto'>
+              <TabsTrigger
+                value='global'
+                className='rounded-xl py-2.5 px-6 font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all text-sm'
+              >
                 <BarChartHorizontal className='mr-2 h-4 w-4' />
                 {t('Global')}
               </TabsTrigger>
-              <TabsTrigger value='circles'>
+              <TabsTrigger
+                value='circles'
+                className='rounded-xl py-2.5 px-6 font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all text-sm'
+              >
                 <Shield className='mr-2 h-4 w-4' />
                 {t('My Circles')}
               </TabsTrigger>
             </TabsList>
           </div>
-          <TabsContent value='circles' className='m-0'>
+          <TabsContent
+            value='circles'
+            className='m-0 animate-in fade-in duration-500'
+          >
             <PlayerList players={myCirclesPlayers} />
           </TabsContent>
-          <TabsContent value='global' className='m-0'>
+          <TabsContent
+            value='global'
+            className='m-0 animate-in fade-in duration-500'
+          >
             <PlayerList players={players} />
           </TabsContent>
         </Tabs>
@@ -286,9 +307,11 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
 
   if (players.length === 0) {
     return (
-      <div className='text-center py-10 text-muted-foreground'>
-        <p>{t('No players to show here yet.')}</p>
-        <p className='text-xs mt-2'>
+      <div className='text-center py-16 bg-background/40 backdrop-blur-sm rounded-[2rem] ring-1 ring-black/5 dark:ring-white/5'>
+        <p className='text-lg font-semibold text-foreground'>
+          {t('No players to show here yet.')}
+        </p>
+        <p className='text-sm mt-2 text-muted-foreground font-light'>
           {t('(Play some games to appear on the leaderboard!)')}
         </p>
       </div>
@@ -306,22 +329,28 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
   };
 
   return (
-    <div className='overflow-x-auto'>
+    <div className='overflow-x-auto bg-background/50 backdrop-blur-xl rounded-[2rem] ring-1 ring-black/5 dark:ring-white/10 shadow-inner p-2'>
       <Table>
         <TableHeader>
-          <TableRow className='hover:bg-transparent'>
-            <TableHead className='w-[10px] pl-4 text-center'>#</TableHead>
-            <TableHead>{t('Player')}</TableHead>
-            <TableHead className='hidden sm:table-cell'>
+          <TableRow className='hover:bg-transparent border-b-black/5 dark:border-b-white/5'>
+            <TableHead className='w-12 pl-6 text-center text-[10px] uppercase font-bold tracking-widest text-muted-foreground'>
+              #
+            </TableHead>
+            <TableHead className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground'>
+              {t('Player')}
+            </TableHead>
+            <TableHead className='hidden sm:table-cell text-[10px] uppercase font-bold tracking-widest text-muted-foreground'>
               {t('Community')}
             </TableHead>
-            <TableHead className='text-right'>{t('ELO')}</TableHead>
-            <TableHead className='text-right hidden sm:table-cell'>
+            <TableHead className='text-right text-[10px] uppercase font-bold tracking-widest text-muted-foreground'>
+              {t('ELO')}
+            </TableHead>
+            <TableHead className='text-right hidden sm:table-cell text-[10px] uppercase font-bold tracking-widest text-muted-foreground'>
               {t('W / L')}
             </TableHead>
-            <TableHead className='text-right pr-4'>
-              <div className='flex items-center justify-end gap-1'>
-                <Percent className='h-3 w-3' />
+            <TableHead className='text-right pr-6'>
+              <div className='flex items-center justify-end gap-1 opacity-50'>
+                <Percent className='h-3.5 w-3.5' />
               </div>
             </TableHead>
           </TableRow>
@@ -336,39 +365,44 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
             const winRate = matches > 0 ? (wins / matches) * 100 : 0;
 
             return (
-              <TableRow key={player.id} className='group'>
-                <TableCell className='pl-4 text-center text-muted-foreground text-xs'>
+              <TableRow
+                key={player.id}
+                className='group hover:bg-muted/30 border-b-black/5 dark:border-b-white/5 transition-colors cursor-pointer'
+              >
+                <TableCell className='pl-6 text-center font-mono font-medium text-muted-foreground'>
                   {index + 1}
                 </TableCell>
                 <TableCell>
                   <Link
                     href={`/profile/${player.id}`}
-                    className='flex items-center gap-3'
+                    className='flex items-center gap-4 py-2'
                   >
                     <div className='relative'>
-                      <Avatar className='h-8 w-8 sm:h-9 sm:w-9 border border-border'>
+                      <Avatar className='h-10 w-10 sm:h-12 sm:w-12 ring-1 ring-black/5 dark:ring-white/10 shadow-sm group-hover:scale-105 transition-transform'>
                         <AvatarImage src={player.photoURL || undefined} />
-                        <AvatarFallback>{player.name?.[0]}</AvatarFallback>
+                        <AvatarFallback className='bg-primary/10 text-primary font-semibold'>
+                          {player.name?.[0]}
+                        </AvatarFallback>
                       </Avatar>
                       {medalSrc && (
                         <img
                           src={medalSrc}
                           alt={rankLabel}
-                          className='absolute -bottom-1 -right-1 h-4 w-4 drop-shadow-sm'
+                          className='absolute -bottom-1.5 -right-1.5 h-5 w-5 drop-shadow-md'
                           title={rankLabel}
                         />
                       )}
                     </div>
                     <div className='flex flex-col'>
-                      <span className='font-medium text-sm flex items-center gap-1 group-hover:text-primary transition-colors'>
+                      <span className='font-bold text-base flex items-center gap-2 group-hover:text-primary transition-colors tracking-tight'>
                         {player.name}
                         {player.isSelf && (
-                          <span className='text-[10px] rounded px-1 py-0.5 bg-primary/10 text-primary font-bold'>
+                          <span className='text-[9px] rounded-full px-2 py-0.5 bg-primary text-primary-foreground font-black uppercase tracking-widest shadow-sm'>
                             {t('YOU')}
                           </span>
                         )}
                       </span>
-                      <span className='text-[10px] text-muted-foreground sm:hidden'>
+                      <span className='text-xs text-muted-foreground sm:hidden font-medium mt-0.5'>
                         {player.communityName}
                       </span>
                     </div>
@@ -377,25 +411,26 @@ const PlayerList = ({ players }: { players: PlayerData[] }) => {
 
                 <TableCell className='hidden sm:table-cell'>
                   {player.communityName ? (
-                    <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
-                      <Building2 className='h-3 w-3' />
+                    <div className='flex items-center gap-2 text-sm text-muted-foreground font-medium'>
+                      <Building2 className='h-3.5 w-3.5 opacity-50' />
                       <span>{player.communityName}</span>
                     </div>
                   ) : (
-                    <span className='text-muted-foreground/30 text-xs'>-</span>
+                    <span className='text-muted-foreground/30 text-sm'>-</span>
                   )}
                 </TableCell>
 
-                <TableCell className='text-right font-bold text-sm'>
+                <TableCell className='text-right font-black text-lg text-primary tracking-tight'>
                   {player.globalElo.toFixed(0)}
                 </TableCell>
 
-                <TableCell className='text-right text-xs text-muted-foreground hidden sm:table-cell'>
-                  <span className='text-green-600'>{player.wins}</span> /{' '}
+                <TableCell className='text-right text-sm font-bold hidden sm:table-cell'>
+                  <span className='text-emerald-500'>{player.wins}</span>{' '}
+                  <span className='opacity-30 px-0.5'>/</span>{' '}
                   <span className='text-red-500'>{player.losses}</span>
                 </TableCell>
 
-                <TableCell className='text-right pr-4 text-xs font-medium'>
+                <TableCell className='text-right pr-6 text-sm font-black'>
                   {winRate.toFixed(0)}%
                 </TableCell>
               </TableRow>

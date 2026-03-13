@@ -729,12 +729,12 @@ export default function RoomPage() {
   if (accessDenied) {
     return (
       <div className='fixed inset-0 z-50 flex items-center justify-center'>
-        <div className='absolute inset-0 backdrop-blur-sm bg-black/40' />
+        <div className='absolute inset-0 backdrop-blur-3xl bg-background/80' />
         <Dialog open>
-          <DialogContent className='sm:max-w-md'>
+          <DialogContent className='sm:max-w-md border-0 glass-panel shadow-2xl rounded-3xl'>
             <DialogHeader>
               <DialogTitle>{t('Private Room')}</DialogTitle>
-              <DialogDescription>
+              <DialogDescription className='text-muted-foreground'>
                 {t(
                   'This room is private. You will be redirected to the rooms list.',
                 )}
@@ -748,8 +748,10 @@ export default function RoomPage() {
 
   if (!hasMounted || isLoading || !room) {
     return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <div className='animate-spin h-16 w-16 rounded-full border-b-4 border-primary' />
+      <div className='flex items-center justify-center min-h-screen bg-background'>
+        <div className='animate-pulse flex flex-col items-center gap-6'>
+          <div className='h-16 w-16 rounded-full bg-primary/20 blur-sm'></div>
+        </div>
       </div>
     );
   }
@@ -759,7 +761,7 @@ export default function RoomPage() {
       <div className='container mx-auto py-8 px-4'>
         <Button
           variant='ghost'
-          className='mb-4 -ml-2 text-muted-foreground hover:text-foreground'
+          className='mb-4 -ml-2 text-muted-foreground hover:text-foreground rounded-full h-10 px-4 transition-colors'
           onClick={() => router.push('/rooms')}
         >
           <ArrowLeft className='mr-2 h-4 w-4' /> {t('Back to Rooms')}
@@ -776,9 +778,12 @@ export default function RoomPage() {
           onLeave={handleLeaveRoom}
         />
 
-        <div className='space-y-4 mb-8'>
+        <div className='space-y-4 mb-10'>
           {room.isArchived && (
-            <Alert variant='destructive'>
+            <Alert
+              variant='destructive'
+              className='rounded-2xl border-0 shadow-md'
+            >
               <Archive className='h-4 w-4' />
               <AlertTitle>{t('Archived Room')}</AlertTitle>
               <AlertDescription>
@@ -788,7 +793,7 @@ export default function RoomPage() {
           )}
 
           {!room.isArchived && latestSeason && (
-            <Alert className='border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20'>
+            <Alert className='border-0 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 rounded-2xl shadow-md ring-1 ring-amber-200 dark:ring-amber-900'>
               <Clock className='h-4 w-4 text-amber-600 dark:text-amber-500' />
               <AlertTitle className='text-amber-800 dark:text-amber-400'>
                 {t('Season Finished')}
@@ -803,7 +808,7 @@ export default function RoomPage() {
             room.isPublic &&
             !hasPendingRequest &&
             !room.isArchived && (
-              <Alert className='border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20'>
+              <Alert className='border-0 bg-blue-50 dark:bg-blue-950/20 text-blue-800 dark:text-blue-400 rounded-2xl shadow-md ring-1 ring-blue-200 dark:ring-blue-900'>
                 <Info className='h-4 w-4 text-blue-600 dark:text-blue-500' />
                 <AlertTitle className='text-blue-800 dark:text-blue-400'>
                   {t('Join to Play')}
@@ -817,7 +822,7 @@ export default function RoomPage() {
             )}
 
           {hasPendingRequest && (
-            <Alert className='border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/20'>
+            <Alert className='border-0 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-400 rounded-2xl shadow-md ring-1 ring-yellow-200 dark:ring-yellow-900'>
               <Lock className='h-4 w-4 text-yellow-600 dark:text-yellow-500' />
               <AlertTitle className='text-yellow-800 dark:text-yellow-400'>
                 {t('Request Pending')}
@@ -831,11 +836,13 @@ export default function RoomPage() {
 
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-8'>
           <div className='lg:col-span-4 space-y-6'>
-            <Card className='shadow-sm border-0 bg-transparent sm:bg-card sm:border'>
-              <CardHeader className='px-0 sm:px-6'>
-                <CardTitle>{t('Players')}</CardTitle>
+            <Card className='shadow-xl border-0 rounded-[2rem] bg-card glass-panel'>
+              <CardHeader className='px-6 pt-6 pb-2'>
+                <CardTitle className='text-xl font-bold'>
+                  {t('Players')}
+                </CardTitle>
               </CardHeader>
-              <CardContent className='px-0 sm:px-6'>
+              <CardContent className='px-6 pb-6'>
                 <MembersList
                   members={playersOnlyMembers}
                   room={room}
@@ -846,29 +853,32 @@ export default function RoomPage() {
                 />
 
                 {showInviteSection && (
-                  <div className='mt-6 pt-6 border-t'>
-                    <div className='flex items-center gap-2 mb-3'>
-                      <UserPlus className='h-4 w-4 text-muted-foreground' />
-                      <h4 className='font-semibold text-sm'>
+                  <div className='mt-8 pt-6 border-t border-border/40'>
+                    <div className='flex items-center gap-2 mb-4'>
+                      <div className='bg-primary/10 p-1.5 rounded-lg'>
+                        <UserPlus className='h-4 w-4 text-primary' />
+                      </div>
+                      <h4 className='font-bold text-base'>
                         {t('Invite Friends')}
                       </h4>
                     </div>
 
-                    <ScrollArea className='h-40 border rounded-lg bg-muted/30 p-2'>
+                    <ScrollArea className='h-[200px] border-0 ring-1 ring-black/5 dark:ring-white/10 rounded-2xl bg-muted/20 p-2 shadow-inner'>
                       {friendsAll.length + othersInSport.length > 0 ? (
-                        <div className='space-y-4'>
+                        <div className='space-y-5 p-1'>
                           {friendsAll.length > 0 && (
-                            <div className='space-y-1'>
-                              <div className='px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-wider'>
+                            <div className='space-y-2'>
+                              <div className='px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-widest'>
                                 {t('My Friends')}
                               </div>
                               {friendsAll.map((p) => (
                                 <label
                                   key={p.uid}
-                                  className='flex items-center gap-3 p-2 rounded-md hover:bg-background cursor-pointer transition-colors border border-transparent hover:border-border'
+                                  className='flex items-center gap-3 p-2.5 rounded-xl hover:bg-background cursor-pointer transition-colors border border-transparent hover:border-border/50 hover:shadow-sm'
                                 >
                                   <Checkbox
                                     checked={selectedFriends.includes(p.uid)}
+                                    className='rounded-full data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-muted-foreground/30'
                                     onCheckedChange={(v) =>
                                       v
                                         ? setSelectedFriends([
@@ -882,16 +892,16 @@ export default function RoomPage() {
                                           )
                                     }
                                   />
-                                  <div className='flex items-center gap-2 overflow-hidden'>
-                                    <Avatar className='h-6 w-6'>
+                                  <div className='flex items-center gap-3 overflow-hidden'>
+                                    <Avatar className='h-8 w-8 ring-1 ring-black/5 dark:ring-white/10'>
                                       <AvatarImage
                                         src={p.photoURL ?? undefined}
                                       />
-                                      <AvatarFallback>
+                                      <AvatarFallback className='bg-primary/10 text-primary text-xs'>
                                         {(p.name ?? '?')[0]}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span className='truncate text-sm font-medium'>
+                                    <span className='truncate text-sm font-semibold'>
                                       {p.name ?? p.displayName}
                                     </span>
                                   </div>
@@ -901,17 +911,18 @@ export default function RoomPage() {
                           )}
 
                           {othersInSport.length > 0 && (
-                            <div className='space-y-1'>
-                              <div className='px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-wider'>
+                            <div className='space-y-2'>
+                              <div className='px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-widest'>
                                 {t('Recent Opponents')}
                               </div>
                               {othersInSport.map((p) => (
                                 <label
                                   key={p.uid}
-                                  className='flex items-center gap-3 p-2 rounded-md hover:bg-background cursor-pointer transition-colors border border-transparent hover:border-border'
+                                  className='flex items-center gap-3 p-2.5 rounded-xl hover:bg-background cursor-pointer transition-colors border border-transparent hover:border-border/50 hover:shadow-sm'
                                 >
                                   <Checkbox
                                     checked={selectedFriends.includes(p.uid)}
+                                    className='rounded-full data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-muted-foreground/30'
                                     onCheckedChange={(v) =>
                                       v
                                         ? setSelectedFriends([
@@ -925,16 +936,16 @@ export default function RoomPage() {
                                           )
                                     }
                                   />
-                                  <div className='flex items-center gap-2 overflow-hidden'>
-                                    <Avatar className='h-6 w-6'>
+                                  <div className='flex items-center gap-3 overflow-hidden'>
+                                    <Avatar className='h-8 w-8 ring-1 ring-black/5 dark:ring-white/10'>
                                       <AvatarImage
                                         src={p.photoURL ?? undefined}
                                       />
-                                      <AvatarFallback>
+                                      <AvatarFallback className='bg-primary/10 text-primary text-xs'>
                                         {(p.name ?? '?')[0]}
                                       </AvatarFallback>
                                     </Avatar>
-                                    <span className='truncate text-sm font-medium'>
+                                    <span className='truncate text-sm font-semibold'>
                                       {p.name ?? p.displayName}
                                     </span>
                                   </div>
@@ -945,7 +956,7 @@ export default function RoomPage() {
                         </div>
                       ) : (
                         <div className='h-full flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4'>
-                          <UserPlus className='h-8 w-8 mb-2 opacity-20' />
+                          <UserPlus className='h-10 w-10 mb-3 opacity-20' />
                           <p>{t('No friends available to invite.')}</p>
                         </div>
                       )}
@@ -953,8 +964,7 @@ export default function RoomPage() {
                     <Button
                       onClick={handleInviteFriends}
                       disabled={isInviting || selectedFriends.length === 0}
-                      className='w-full mt-3'
-                      size='sm'
+                      className='w-full mt-4 h-12 rounded-xl text-base font-semibold shadow-md transition-all active:scale-[0.98]'
                     >
                       {isInviting ? t('Sending...') : t('Send Invites')}
                     </Button>
@@ -1001,20 +1011,34 @@ export default function RoomPage() {
           <section>
             {room.mode === 'derby' ? (
               <Tabs defaultValue='derby' className='w-full'>
-                <TabsList className='mb-6 grid w-full max-w-md mx-auto grid-cols-2'>
-                  <TabsTrigger value='derby'>{t('Derby Events')}</TabsTrigger>
-                  <TabsTrigger value='matches'>
+                <TabsList className='mb-8 grid w-full max-w-md mx-auto grid-cols-2 p-1.5 bg-muted/30 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl h-auto min-h-[3.5rem]'>
+                  <TabsTrigger
+                    value='derby'
+                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm whitespace-normal text-center data-[state=active]:bg-background data-[state=active]:shadow-md font-semibold transition-all'
+                  >
+                    {t('Derby Events')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value='matches'
+                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm whitespace-normal text-center data-[state=active]:bg-background data-[state=active]:shadow-md font-semibold transition-all'
+                  >
                     {t('Match History')}
                   </TabsTrigger>
                 </TabsList>
-                <TabsContent value='derby' className='mt-0 text-left'>
+                <TabsContent
+                  value='derby'
+                  className='mt-0 text-left animate-in fade-in duration-500'
+                >
                   <DerbyFeed
                     room={room}
                     members={playersOnlyMembers}
                     matches={recentMatches}
                   />
                 </TabsContent>
-                <TabsContent value='matches' className='mt-0 text-left'>
+                <TabsContent
+                  value='matches'
+                  className='mt-0 text-left animate-in fade-in duration-500'
+                >
                   <RecentMatches matches={recentMatches} />
                 </TabsContent>
               </Tabs>

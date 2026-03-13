@@ -69,10 +69,8 @@ export function ProfileHeader({
   
   const isCoach = targetProfile.accountType === 'coach' || targetProfile.roles?.includes('coach');
 
-  // Логика загрузки названия сообщества
   useEffect(() => {
     const fetchCommunity = async () => {
-      // 1. Сначала проверяем, есть ли ID в профиле (быстрый способ)
       if (targetProfile.communityIds && targetProfile.communityIds.length > 0) {
         try {
           const cDoc = await getDoc(doc(db!, 'communities', targetProfile.communityIds[0]));
@@ -85,10 +83,8 @@ export function ProfileHeader({
         }
       }
 
-      // 2. Если в профиле нет ID, ищем сообщество, где этот пользователь АДМИН (для тренеров)
-      // Это решает проблему, когда в User.communityIds пусто, но в Community.admins он есть
       try {
-				if (!db) return;
+        if (!db) return;
         const q = query(
           collection(db, 'communities'),
           where('admins', 'array-contains', targetProfile.uid),
@@ -105,58 +101,52 @@ export function ProfileHeader({
     fetchCommunity();
   }, [targetProfile.communityIds, targetProfile.uid]);
 
-  const theme = {
-    bg: 'bg-gradient-to-r from-slate-50 to-white dark:from-slate-950/50 dark:to-background',
-    border: 'border-slate-200 dark:border-slate-800',
-  };
-
   return (
-    <Card className={`mb-8 shadow-sm overflow-hidden border ${theme.border}`}>
-      <div className={`px-6 py-8 md:px-8 ${theme.bg}`}>
-        <div className='flex flex-col md:flex-row gap-8 items-start'>
+    <Card className='mb-10 shadow-2xl overflow-hidden border-0 rounded-[2.5rem] glass-panel relative'>
+      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent mix-blend-overlay pointer-events-none' />
+      <div className='absolute top-0 left-0 w-full h-1.5 opacity-80 bg-gradient-to-r from-primary to-purple-600' />
+      
+      <div className='relative px-6 py-10 md:px-12 z-10'>
+        <div className='flex flex-col md:flex-row gap-8 items-start md:items-center'>
           
-          {/* Avatar Area */}
           <div className='flex-shrink-0 relative group'>
-            <Avatar className='h-28 w-28 md:h-32 md:w-32 border-4 border-background shadow-md ring-1 ring-border/50'>
+            <Avatar className='h-28 w-28 md:h-36 md:w-36 ring-4 ring-white/40 dark:ring-black/20 shadow-2xl overflow-hidden bg-background/50 backdrop-blur-sm'>
               <AvatarImage
                 src={targetProfile.photoURL ?? undefined}
                 className='object-cover'
               />
-              <AvatarFallback className='text-4xl bg-muted text-muted-foreground'>
+              <AvatarFallback className='text-5xl font-light bg-transparent text-muted-foreground'>
                 {displayName[0]}
               </AvatarFallback>
             </Avatar>
             
-            {/* Medal Overlay (Only for Players) */}
             {medalSrc && !isCoach && (
-              <div className='absolute -bottom-2 -right-2 bg-background rounded-full p-1 shadow-sm border border-border md:hidden'>
+              <div className='absolute -bottom-2 -right-2 bg-background/80 backdrop-blur-md rounded-full p-1.5 shadow-lg ring-1 ring-black/5 dark:ring-white/10 md:hidden'>
                 <Image
                   src={medalSrc}
                   alt='Rank'
-                  width={32}
-                  height={32}
-                  className='w-8 h-8'
+                  width={40}
+                  height={40}
+                  className='w-10 h-10'
                 />
               </div>
             )}
           </div>
 
-          {/* Info Area */}
-          <div className='flex-grow space-y-4 min-w-0 w-full'>
-            <div className='flex flex-col md:flex-row md:items-start justify-between gap-4'>
-              <div className='space-y-1'>
+          <div className='flex-grow space-y-5 min-w-0 w-full'>
+            <div className='flex flex-col md:flex-row md:items-start justify-between gap-6'>
+              <div className='space-y-3'>
                 <div className='flex items-center gap-3 flex-wrap'>
-                  <h1 className='text-3xl md:text-4xl font-bold tracking-tight text-foreground truncate'>
+                  <h1 className='text-4xl md:text-5xl font-extrabold tracking-tight text-foreground truncate'>
                     {displayName}
                   </h1>
                   
-                  {/* Public/Private Badge */}
-                  <TooltipProvider>
+                  <TooltipProvider delayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Badge 
                           variant="outline" 
-                          className="gap-1.5 px-2 py-0.5 text-muted-foreground font-normal border-border/60 bg-background/50"
+                          className="gap-1.5 px-3 py-1 text-[10px] uppercase font-bold tracking-widest text-muted-foreground border-0 bg-background/50 backdrop-blur-md shadow-sm ring-1 ring-black/5 dark:ring-white/10"
                         >
                           {targetProfile.isPublic ? (
                             <>
@@ -171,7 +161,7 @@ export function ProfileHeader({
                           )}
                         </Badge>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent className="glass-panel border-0 font-medium">
                         {targetProfile.isPublic 
                           ? t('Visible to everyone') 
                           : t('Only visible to friends')}
@@ -179,42 +169,38 @@ export function ProfileHeader({
                     </Tooltip>
                   </TooltipProvider>
 
-                  {/* Community Badge (Now shown for EVERYONE including coaches) */}
                   {communityName && (
-                    <Badge variant="secondary" className="gap-1.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300 hover:bg-indigo-100 border border-indigo-100 dark:border-indigo-900">
+                    <Badge variant="outline" className="gap-1.5 px-3 py-1 text-[10px] uppercase font-bold tracking-widest bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-0 ring-1 ring-indigo-500/30">
                        <Warehouse className="w-3.5 h-3.5" />
-                       {communityName}
+                       <span className="truncate max-w-[150px]">{communityName}</span>
                     </Badge>
                   )}
 
-                  {/* Coach Badge */}
                   {isCoach && (
-                    <Badge className="bg-indigo-500 hover:bg-indigo-600 gap-1 text-white">
+                    <Badge className="bg-indigo-500 hover:bg-indigo-600 gap-1.5 text-white px-3 py-1 text-[10px] uppercase font-bold tracking-widest border-0 shadow-md">
                        <Briefcase className="w-3.5 h-3.5" /> {t('Organizer')}
                     </Badge>
                   )}
 
-                  {/* Manager Badge */}
                   {isManager && (
-                    <Badge variant="secondary" className="gap-1">
+                    <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-[10px] uppercase font-bold tracking-widest bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-0 ring-1 ring-emerald-500/30">
                        {t('Managed by You')}
                     </Badge>
                   )}
                 </div>
 
                 {targetProfile.bio && (
-                  <p className='text-muted-foreground text-sm leading-relaxed max-w-xl'>
+                  <p className='text-muted-foreground text-sm md:text-base font-light leading-relaxed max-w-2xl'>
                     {targetProfile.bio}
                   </p>
                 )}
               </div>
 
-              {/* Actions */}
-              <div className='flex items-center gap-2 flex-shrink-0'>
+              <div className='flex items-center gap-3 flex-shrink-0 mt-2 md:mt-0'>
                 {isSelf || isManager ? (
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant='outline' size='sm' className='gap-2'>
+                      <Button variant='outline' size='lg' className='gap-2 rounded-full h-12 border-0 bg-background/50 backdrop-blur-md shadow-sm ring-1 ring-black/5 dark:ring-white/10 hover:bg-background/80 transition-all font-semibold'>
                         <Edit className='h-4 w-4' />
                         <span className='hidden sm:inline'>{t('Edit Profile')}</span>
                       </Button>
@@ -228,49 +214,50 @@ export function ProfileHeader({
                   <>
                     {friendStatus === 'none' && (
                       <Button
-                        size='sm'
+                        size='lg'
                         onClick={() => handleFriendAction('add')}
-                        className='gap-2 shadow-sm'
+                        className='gap-2 rounded-full h-12 shadow-lg font-semibold px-6 hover:scale-105 transition-transform'
                       >
-                        <UserPlus className='h-4 w-4' /> {t('Add Friend')}
+                        <UserPlus className='h-5 w-5' /> {t('Add Friend')}
                       </Button>
                     )}
                     {friendStatus === 'outgoing' && (
                       <Button
-                        size='sm'
+                        size='lg'
                         variant='secondary'
                         onClick={() => handleFriendAction('cancel')}
-                        className='gap-2'
+                        className='gap-2 rounded-full h-12 font-semibold px-6'
                       >
-                        <X className='h-4 w-4' /> {t('Cancel Request')}
+                        <X className='h-5 w-5' /> {t('Cancel Request')}
                       </Button>
                     )}
                     {friendStatus === 'incoming' && (
                       <div className='flex gap-2'>
                         <Button
-                          size='sm'
-                          className='gap-2 bg-green-600 hover:bg-green-700 text-white'
+                          size='lg'
+                          className='gap-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full h-12 font-semibold px-6 shadow-lg hover:scale-105 transition-transform'
                           onClick={() => handleFriendAction('accept')}
                         >
-                          <Check className='h-4 w-4' /> {t('Accept')}
+                          <Check className='h-5 w-5' /> {t('Accept')}
                         </Button>
                         <Button
-                          size='sm'
-                          variant='ghost'
+                          size='icon'
+                          variant='outline'
+                          className="h-12 w-12 rounded-full border-0 bg-background/50 backdrop-blur-md shadow-sm ring-1 ring-black/5 dark:ring-white/10 hover:bg-destructive/10 hover:text-destructive transition-all"
                           onClick={() => handleFriendAction('remove')}
                         >
-                          <X className='h-4 w-4' />
+                          <X className='h-5 w-5' />
                         </Button>
                       </div>
                     )}
                     {friendStatus === 'friends' && (
                       <Button
-                        size='sm'
+                        size='lg'
                         variant='outline'
-                        className='gap-2 text-muted-foreground hover:text-destructive hover:border-destructive/50'
+                        className='gap-2 rounded-full h-12 font-semibold px-6 border-0 bg-background/50 backdrop-blur-md shadow-sm ring-1 ring-black/5 dark:ring-white/10 hover:bg-destructive/10 hover:text-destructive transition-all'
                         onClick={() => handleFriendAction('remove')}
                       >
-                        <UserMinus className='h-4 w-4' /> {t('Unfriend')}
+                        <UserMinus className='h-5 w-5' /> {t('Unfriend')}
                       </Button>
                     )}
                   </>
@@ -278,41 +265,45 @@ export function ProfileHeader({
               </div>
             </div>
 
-            <Separator className='bg-border/50' />
-
-            {/* Meta Stats Row - HIDE FOR COACHES */}
             {!isCoach && (
-              <div className='flex flex-wrap items-center gap-x-6 gap-y-3 text-sm'>
-                <div className='flex items-center gap-2'>
-                  {medalSrc ? (
-                    <Image
-                      src={medalSrc}
-                      alt={rank || 'Rank'}
-                      width={24}
-                      height={24}
-                      className='w-6 h-6'
-                    />
-                  ) : (
-                    <Trophy className='w-5 h-5 text-amber-500' />
-                  )}
-                  <div className='flex flex-col'>
-                    <span className='text-xs text-muted-foreground uppercase font-bold tracking-wider'>{t('Rank')}</span>
-                    <span className='font-semibold'>{rank || t('Unranked')}</span>
+              <>
+                <Separator className='bg-black/5 dark:bg-white/5 my-6' />
+                <div className='flex flex-wrap items-center gap-x-8 gap-y-4'>
+                  <div className='flex items-center gap-3'>
+                    {medalSrc ? (
+                      <div className="bg-background/50 p-2 rounded-xl backdrop-blur-sm ring-1 ring-black/5 dark:ring-white/10 shadow-sm">
+                        <Image
+                          src={medalSrc}
+                          alt={rank || 'Rank'}
+                          width={32}
+                          height={32}
+                          className='w-8 h-8'
+                        />
+                      </div>
+                    ) : (
+                      <div className="bg-primary/10 p-2.5 rounded-xl ring-1 ring-primary/20">
+                        <Trophy className='w-6 h-6 text-primary' />
+                      </div>
+                    )}
+                    <div className='flex flex-col'>
+                      <span className='text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-0.5'>{t('Rank')}</span>
+                      <span className='font-bold text-lg leading-none tracking-tight'>{rank || t('Unranked')}</span>
+                    </div>
+                  </div>
+
+                  <div className='w-px h-10 bg-black/10 dark:bg-white/10 hidden sm:block' />
+
+                  <div className='flex items-center gap-3'>
+                    <div className='p-2.5 bg-primary/10 rounded-xl ring-1 ring-primary/20 text-primary'>
+                      <Medal className='w-6 h-6' />
+                    </div>
+                    <div className='flex flex-col'>
+                      <span className='text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-0.5'>ELO</span>
+                      <span className='font-black text-2xl leading-none text-primary tracking-tight'>{elo.toFixed(0)}</span>
+                    </div>
                   </div>
                 </div>
-
-                <div className='w-px h-8 bg-border/50 hidden sm:block' />
-
-                <div className='flex items-center gap-2'>
-                  <div className='p-1.5 bg-primary/10 rounded-full text-primary'>
-                    <Medal className='w-4 h-4' />
-                  </div>
-                  <div className='flex flex-col'>
-                    <span className='text-xs text-muted-foreground uppercase font-bold tracking-wider'>ELO</span>
-                    <span className='font-semibold text-lg leading-none'>{elo}</span>
-                  </div>
-                </div>
-              </div>
+              </>
             )}
           </div>
         </div>

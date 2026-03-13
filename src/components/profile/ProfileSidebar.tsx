@@ -1,3 +1,4 @@
+// src/components/profile/ProfileSidebar.tsx
 'use client';
 
 import {
@@ -35,29 +36,31 @@ export function ProfileSidebar({
     targetProfile.roles?.includes('coach');
 
   return (
-    <div className='space-y-6'>
-      {/* Friends / Players Section */}
-      <Card>
-        <CardHeader className='pb-3'>
-          <CardTitle className='text-lg flex items-center gap-2'>
-            {isCoach ? (
-              <Briefcase className='h-5 w-5 text-primary' />
-            ) : (
-              <Users className='h-5 w-5 text-primary' />
-            )}
+    <div className='space-y-8'>
+      
+      <Card className="border-0 rounded-[2rem] glass-panel shadow-lg overflow-hidden">
+        <CardHeader className='pb-4 px-6 pt-6 border-b border-black/5 dark:border-white/5 bg-muted/20'>
+          <CardTitle className='text-lg font-extrabold tracking-tight flex items-center gap-3'>
+            <div className="bg-primary/10 p-2 rounded-xl text-primary">
+              {isCoach ? (
+                <Briefcase className='h-5 w-5' />
+              ) : (
+                <Users className='h-5 w-5' />
+              )}
+            </div>
             {isCoach ? t('Managed Players') : t('Friends')}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 pt-6 pb-6">
           <FriendsList targetProfile={targetProfile} />
           {!isCoach &&
             targetProfile.friends &&
             targetProfile.friends.length > 6 && (
               <Link
                 href={`/profile/${targetProfile.uid}/friends`}
-                className='mt-4 block'
+                className='mt-6 block'
               >
-                <Button variant='ghost' className='w-full text-xs'>
+                <Button variant='outline' className='w-full h-11 rounded-xl text-xs font-bold uppercase tracking-widest bg-background/50 border-0 ring-1 ring-black/5 dark:ring-white/10 shadow-sm hover:bg-background/80 transition-all'>
                   {t('View All Friends')}
                 </Button>
               </Link>
@@ -65,18 +68,18 @@ export function ProfileSidebar({
         </CardContent>
       </Card>
 
-      {/* Communities (Visible for everyone) */}
       <CommunitiesList targetUid={targetProfile.uid} />
 
-      {/* Rooms Section */}
-      <Card>
-        <CardHeader className='pb-3'>
-          <CardTitle className='text-lg flex items-center gap-2'>
-            <Trophy className='h-5 w-5 text-amber-500' />
+      <Card className="border-0 rounded-[2rem] glass-panel shadow-lg overflow-hidden">
+        <CardHeader className='pb-4 px-6 pt-6 border-b border-black/5 dark:border-white/5 bg-amber-500/5'>
+          <CardTitle className='text-lg font-extrabold tracking-tight flex items-center gap-3'>
+            <div className="bg-amber-500/10 p-2 rounded-xl text-amber-500">
+               <Trophy className='h-5 w-5' />
+            </div>
             {t('Active Rooms')}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6 pt-6 pb-6">
           <RoomsList
             targetUid={targetProfile.uid}
             onVisibleCountChange={setVisibleRoomsCount}
@@ -84,9 +87,9 @@ export function ProfileSidebar({
           {visibleRoomsCount > 0 && (
             <Link
               href={`/profile/${targetProfile.uid}/rooms`}
-              className='mt-4 block'
+              className='mt-6 block'
             >
-              <Button variant='ghost' className='w-full text-xs'>
+              <Button variant='outline' className='w-full h-11 rounded-xl text-xs font-bold uppercase tracking-widest bg-background/50 border-0 ring-1 ring-black/5 dark:ring-white/10 shadow-sm hover:bg-background/80 transition-all'>
                 {t('View All Rooms')}
               </Button>
             </Link>

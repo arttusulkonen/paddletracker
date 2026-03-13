@@ -81,20 +81,53 @@ const TennisStatsCard: FC<{
   t: (k: string) => string;
 }> = ({ stats, tennisStats, t }) => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <BarChart /> {t('Tennis Statistics (Ranked)')}
+    <Card className='border-0 rounded-[2rem] glass-panel shadow-lg overflow-hidden relative'>
+      <div className='absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent mix-blend-overlay pointer-events-none' />
+      <CardHeader className='px-8 pt-8 pb-4 relative z-10'>
+        <CardTitle className='flex items-center gap-3 text-2xl font-extrabold tracking-tight'>
+          <div className='bg-emerald-500/10 p-2.5 rounded-xl ring-1 ring-emerald-500/20 text-emerald-600 dark:text-emerald-400'>
+            <BarChart className='w-6 h-6' />
+          </div>
+          {t('Tennis Statistics')}
         </CardTitle>
       </CardHeader>
-      <CardContent className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm'>
+      <CardContent className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 text-sm px-8 pb-8 relative z-10'>
         <StatItem l={t('Sets Played')} v={stats.total} />
-        <StatItem l={t('Sets W / L')} v={`${stats.wins} / ${stats.losses}`} />
-        <StatItem l={t('Set Win Rate')} v={`${stats.winRate.toFixed(2)}%`} />
-        <StatItem l={t('Max Win Streak')} v={stats.maxWinStreak} />
-        <StatItem l={t('Games Won')} v={stats.pointsScored} />
-        <StatItem l={t('Games Lost')} v={stats.pointsConceded} />
-        <StatItem l={t('Game Difference')} v={stats.pointsDiff} />
+        <StatItem
+          l={t('Sets W / L')}
+          v={<span className='text-emerald-500 font-bold'>{stats.wins}</span>}
+          suffix={` / ${stats.losses}`}
+        />
+        <StatItem l={t('Set Win Rate')} v={`${stats.winRate.toFixed(1)}%`} />
+        <StatItem
+          l={t('Max Win Streak')}
+          v={
+            <span className='flex items-center gap-1 text-orange-500'>
+              <Flame className='w-3.5 h-3.5' />
+              {stats.maxWinStreak}
+            </span>
+          }
+        />
+        <StatItem
+          l={t('Games Won')}
+          v={<span className='text-emerald-500'>{stats.pointsScored}</span>}
+        />
+        <StatItem
+          l={t('Games Lost')}
+          v={<span className='text-red-500'>{stats.pointsConceded}</span>}
+        />
+        <StatItem
+          l={t('Game Diff')}
+          v={
+            <span
+              className={
+                stats.pointsDiff > 0 ? 'text-emerald-500' : 'text-red-500'
+              }
+            >
+              {stats.pointsDiff > 0 ? `+${stats.pointsDiff}` : stats.pointsDiff}
+            </span>
+          }
+        />
         <StatItem l={t('Aces')} v={tennisStats.aces} />
         <StatItem l={t('Double Faults')} v={tennisStats.doubleFaults} />
         <StatItem l={t('Winners')} v={tennisStats.winners} />
@@ -113,12 +146,19 @@ function StatCard({
   value: string | number;
 }) {
   return (
-    <Card>
-      <CardContent className='p-4 flex items-center gap-4'>
-        <Icon className='h-6 w-6 text-primary' />
-        <div>
-          <p className='text-sm text-muted-foreground'>{label}</p>
-          <p className='text-2xl font-semibold'>{value}</p>
+    <Card className='border-0 rounded-3xl glass-panel shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group'>
+      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+      <CardContent className='p-6 flex items-center gap-5 relative z-10'>
+        <div className='bg-primary/10 p-3.5 rounded-2xl ring-1 ring-primary/20 text-primary shadow-sm group-hover:scale-110 transition-transform duration-300 ease-out'>
+          <Icon className='h-6 w-6' />
+        </div>
+        <div className='flex flex-col gap-1'>
+          <p className='text-3xl font-black text-foreground tracking-tight leading-none'>
+            {value}
+          </p>
+          <p className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest'>
+            {label}
+          </p>
         </div>
       </CardContent>
     </Card>
@@ -135,45 +175,109 @@ function DetailedStatsCard({
   t: (key: string) => string;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <CornerUpLeft /> / <CornerUpRight />{' '}
-          {t('Detailed Statistics (Ranked)')}
+    <Card className='border-0 rounded-[2rem] glass-panel shadow-lg overflow-hidden relative'>
+      <div className='absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent mix-blend-overlay pointer-events-none' />
+      <CardHeader className='px-8 pt-8 pb-4 relative z-10'>
+        <CardTitle className='flex items-center gap-3 text-2xl font-extrabold tracking-tight'>
+          <div className='bg-blue-500/10 p-2.5 rounded-xl ring-1 ring-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center gap-1'>
+            <CornerUpLeft className='w-4 h-4' />{' '}
+            <CornerUpRight className='w-4 h-4' />
+          </div>
+          {t('Detailed Statistics')}
         </CardTitle>
       </CardHeader>
-      <CardContent className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm'>
+      <CardContent className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 px-8 pb-8 relative z-10'>
         <StatItem l={t('Matches')} v={stats.total} />
         <StatItem
           l={t('Wins / Losses')}
-          v={`${stats.wins} / ${stats.losses}`}
+          v={<span className='text-emerald-500 font-bold'>{stats.wins}</span>}
+          suffix={` / ${stats.losses}`}
         />
-        <StatItem l={t('Win Rate')} v={`${stats.winRate.toFixed(2)}%`} />
-        <StatItem l={t('Best Win Margin')} v={stats.bestWinMargin} />
-        <StatItem l={t('Worst Loss Margin')} v={stats.worstLossMargin} />
-        <StatItem l={t('Points Scored')} v={stats.pointsScored} />
-        <StatItem l={t('Points Conceded')} v={stats.pointsConceded} />
-        <StatItem l={t('Point Diff')} v={stats.pointsDiff} />
-        <StatItem l={t('Max Win Streak')} v={stats.maxWinStreak} />
-        <StatItem l={t('Max Loss Streak')} v={stats.maxLossStreak} />
+        <StatItem l={t('Win Rate')} v={`${stats.winRate.toFixed(1)}%`} />
+        <StatItem
+          l={t('Best Margin')}
+          v={<span className='text-emerald-500'>+{stats.bestWinMargin}</span>}
+        />
+        <StatItem
+          l={t('Worst Margin')}
+          v={<span className='text-red-500'>-{stats.worstLossMargin}</span>}
+        />
+        <StatItem
+          l={t('Points Scored')}
+          v={<span className='text-emerald-500'>{stats.pointsScored}</span>}
+        />
+        <StatItem
+          l={t('Points Lost')}
+          v={<span className='text-red-500'>{stats.pointsConceded}</span>}
+        />
+        <StatItem
+          l={t('Point Diff')}
+          v={
+            <span
+              className={
+                stats.pointsDiff > 0 ? 'text-emerald-500' : 'text-red-500'
+              }
+            >
+              {stats.pointsDiff > 0 ? `+${stats.pointsDiff}` : stats.pointsDiff}
+            </span>
+          }
+        />
+        <StatItem
+          l={t('Max Win Streak')}
+          v={
+            <span className='flex items-center gap-1 text-orange-500'>
+              <Flame className='w-3.5 h-3.5' />
+              {stats.maxWinStreak}
+            </span>
+          }
+        />
+        <StatItem
+          l={t('Max Loss Streak')}
+          v={<span className='text-red-500'>{stats.maxLossStreak}</span>}
+        />
         <StatItem
           l={t('Left Side W/L')}
-          v={`${side.leftSideWins} / ${side.leftSideLosses}`}
+          v={
+            <span className='text-emerald-500 font-bold'>
+              {side.leftSideWins}
+            </span>
+          }
+          suffix={` / ${side.leftSideLosses}`}
         />
         <StatItem
           l={t('Right Side W/L')}
-          v={`${side.rightSideWins} / ${side.rightSideLosses}`}
+          v={
+            <span className='text-emerald-500 font-bold'>
+              {side.rightSideWins}
+            </span>
+          }
+          suffix={` / ${side.rightSideLosses}`}
         />
       </CardContent>
     </Card>
   );
 }
 
-function StatItem({ l, v }: { l: string; v: React.ReactNode }) {
+function StatItem({
+  l,
+  v,
+  suffix,
+}: {
+  l: string;
+  v: React.ReactNode;
+  suffix?: string;
+}) {
   return (
-    <div>
-      <p className='font-semibold'>{l}</p>
-      {v}
+    <div className='flex flex-col gap-1.5 p-3 bg-background/40 backdrop-blur-sm rounded-2xl ring-1 ring-black/5 dark:ring-white/5 shadow-sm hover:shadow-md transition-shadow'>
+      <p className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-tight'>
+        {l}
+      </p>
+      <div className='text-2xl font-black tracking-tight flex items-baseline gap-1'>
+        {v}{' '}
+        <span className='text-base font-medium text-muted-foreground'>
+          {suffix}
+        </span>
+      </div>
     </div>
   );
 }
@@ -229,26 +333,47 @@ function MatchesTableCard({
   }, [matches, roomData, viewerProfile]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
+    <Card className='border-0 rounded-[2rem] glass-panel shadow-xl overflow-hidden mt-8'>
+      <CardHeader className='px-8 pt-8 pb-4'>
+        <CardTitle className='text-2xl font-extrabold tracking-tight'>
+          {title}
+        </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className='px-0 sm:px-8 pb-8'>
         {loading ? (
-          <div className='text-center py-8'>{t('Loading…')}</div>
+          <div className='flex flex-col items-center justify-center py-12'>
+            <div className='w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4' />
+            <div className='text-muted-foreground font-medium'>
+              {t('Loading…')}
+            </div>
+          </div>
         ) : visibleMatches.length === 0 ? (
-          <p className='text-center py-8'>{t('No visible matches found.')}</p>
+          <p className='text-center py-12 text-muted-foreground font-light'>
+            {t('No visible matches found.')}
+          </p>
         ) : (
-          <ScrollArea className='h-[400px]'>
+          <ScrollArea className='h-[400px] w-full'>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>{t('Date')}</TableHead>
-                  <TableHead>{t('Opponent / Event')}</TableHead>
-                  <TableHead>{t('Room')}</TableHead>
-                  <TableHead>{t('Score / Rank')}</TableHead>
-                  <TableHead>{t('Result')}</TableHead>
-                  <TableHead>{t('ELO Δ')}</TableHead>
+                <TableRow className='border-b-0 hover:bg-transparent'>
+                  <TableHead className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground'>
+                    {t('Date')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground'>
+                    {t('Opponent / Event')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground'>
+                    {t('Room')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground text-center'>
+                    {t('Score / Rank')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground text-center'>
+                    {t('Result')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase font-bold tracking-widest text-muted-foreground text-center'>
+                    {t('ELO Δ')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -256,7 +381,7 @@ function MatchesTableCard({
                   if (m.isTournamentReward) {
                     const date = safeFormatDate(
                       m.tsIso ?? m.timestamp ?? m.createdAt,
-                      'dd.MM.yyyy'
+                      'dd.MM.yyyy',
                     );
                     const eventName = m.player2?.name || t('Tournament');
                     const eloDelta = m.player1?.addedPoints || 0;
@@ -266,9 +391,9 @@ function MatchesTableCard({
                     return (
                       <TableRow
                         key={m.id}
-                        className='bg-yellow-50/50 hover:bg-yellow-50 dark:bg-yellow-900/10'
+                        className='bg-amber-500/10 hover:bg-amber-500/20 border-b-black/5 dark:border-b-white/5 transition-colors'
                       >
-                        <TableCell className='font-medium text-xs text-muted-foreground'>
+                        <TableCell className='font-medium text-xs text-muted-foreground whitespace-nowrap'>
                           {date}
                         </TableCell>
                         <TableCell className='font-bold flex items-center gap-2'>
@@ -278,16 +403,18 @@ function MatchesTableCard({
                         <TableCell>
                           <Badge
                             variant='secondary'
-                            className='bg-amber-100 text-amber-800 hover:bg-amber-200'
+                            className='bg-amber-500/20 text-amber-700 dark:text-amber-400 border-0 uppercase tracking-widest text-[9px] font-bold'
                           >
                             Tournament
                           </Badge>
                         </TableCell>
-                        <TableCell className='font-bold'>#{place}</TableCell>
-                        <TableCell className='text-amber-600 font-semibold'>
+                        <TableCell className='text-center font-black text-lg text-amber-600'>
+                          #{place}
+                        </TableCell>
+                        <TableCell className='text-center text-amber-600 font-bold uppercase tracking-wider text-xs'>
                           {t('Award')}
                         </TableCell>
-                        <TableCell className='text-green-600 font-bold'>
+                        <TableCell className='text-center text-emerald-500 font-black text-base'>
                           +{eloDelta}
                         </TableCell>
                       </TableRow>
@@ -297,7 +424,7 @@ function MatchesTableCard({
                   const isP1 = m.player1Id === meUid;
                   const date = safeFormatDate(
                     m.tsIso ?? m.timestamp ?? m.createdAt ?? m.playedAt,
-                    'dd.MM.yyyy HH:mm'
+                    'MMM d, HH:mm',
                   );
                   const opp = isP1 ? m.player2.name : m.player1.name;
                   const myScore = isP1 ? m.player1.scores : m.player2.scores;
@@ -308,42 +435,50 @@ function MatchesTableCard({
                   const win = myScore > theirScore;
                   const isRanked = m.isRanked !== false;
                   return (
-                    <TableRow key={m.id}>
-                      <TableCell className='text-xs text-muted-foreground'>
+                    <TableRow
+                      key={m.id}
+                      className='border-b-border/40 hover:bg-muted/30 transition-colors'
+                    >
+                      <TableCell className='text-xs font-medium text-muted-foreground whitespace-nowrap'>
                         {date}
                       </TableCell>
-                      <TableCell>{opp}</TableCell>
+                      <TableCell className='font-semibold text-sm'>
+                        {opp}
+                      </TableCell>
                       <TableCell>
                         {room ? (
-                          <Badge variant='outline' className='font-normal'>
+                          <Badge
+                            variant='outline'
+                            className='font-medium bg-background/50 border-0 ring-1 ring-black/5 dark:ring-white/10 px-2 py-0.5 rounded-md'
+                          >
                             {room.name}
                           </Badge>
                         ) : (
-                          <span className='text-muted-foreground text-xs'>
+                          <span className='text-muted-foreground/50 text-xs italic'>
                             N/A
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {myScore} – {theirScore}
+                      <TableCell className='text-center font-mono font-bold text-base bg-muted/10'>
+                        {myScore} <span className='opacity-30 px-1'>-</span>{' '}
+                        {theirScore}
+                      </TableCell>
+                      <TableCell className='text-center'>
+                        <Badge
+                          variant='outline'
+                          className={`border-0 uppercase tracking-widest text-[9px] font-bold px-2 py-0.5 ${win ? 'bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/30' : 'bg-red-500/10 text-red-600 ring-1 ring-red-500/30'}`}
+                        >
+                          {win ? t('Win') : t('Loss')}
+                        </Badge>
                       </TableCell>
                       <TableCell
-                        className={
-                          win
-                            ? 'text-green-600 font-medium'
-                            : 'text-destructive font-medium'
-                        }
-                      >
-                        {win ? t('Win') : t('Loss')}
-                      </TableCell>
-                      <TableCell
-                        className={
+                        className={`text-center font-mono text-sm ${
                           !isRanked
                             ? 'text-muted-foreground'
                             : eloΔ >= 0
-                            ? 'text-green-600 font-bold'
-                            : 'text-destructive font-bold'
-                        }
+                              ? 'text-emerald-500 font-bold'
+                              : 'text-red-500 font-bold'
+                        }`}
                       >
                         {isRanked ? (eloΔ > 0 ? `+${eloΔ}` : eloΔ) : '–'}
                       </TableCell>
@@ -371,7 +506,6 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   config,
   tennisStats,
   achievements,
-  // insights, // Мы вычислим их заново здесь, чтобы передать правильные данные
   opponents,
   perfData,
   monthlyData,
@@ -386,37 +520,27 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         : matches.filter(
             (m) =>
               (m.player1Id === meUid && m.player2Id === oppFilter) ||
-              (m.player2Id === meUid && m.player1Id === oppFilter)
+              (m.player2Id === meUid && m.player1Id === oppFilter),
           ),
-    [matches, oppFilter, meUid]
+    [matches, oppFilter, meUid],
   );
 
   const realMatches = useMemo(
     () => filteredMatchesAll.filter((m) => !m.isTournamentReward),
-    [filteredMatchesAll]
+    [filteredMatchesAll],
   );
 
   const filteredRanked = useMemo(
     () => realMatches.filter((m) => m.isRanked !== false),
-    [realMatches]
+    [realMatches],
   );
 
-  // --- ВАЖНО: Вычисляем инсайты здесь, передавая сырой массив матчей ---
   const derivedInsights = useMemo(
     () =>
-      buildInsights(
-        filteredRanked,
-        meUid,
-        stats, // Передаем уже вычисленные stats из пропсов, или можно вычислить заново
-        sideStats,
-        monthlyData,
-        t
-      ),
-    [filteredRanked, meUid, stats, sideStats, monthlyData, t]
+      buildInsights(filteredRanked, meUid, stats, sideStats, monthlyData, t),
+    [filteredRanked, meUid, stats, sideStats, monthlyData, t],
   );
-  // -------------------------------------------------------------------
 
-  // --- ЛОГИКА Win Rate Trend ---
   const winRateTrend = useMemo(() => {
     if (oppFilter === 'all') return null;
     const chronological = [...filteredRanked].sort((a, b) => {
@@ -453,7 +577,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
 
   const derivedStats = useMemo(
     () => computeStats(filteredRanked, meUid),
-    [filteredRanked, meUid]
+    [filteredRanked, meUid],
   );
   const derivedSideStats = useMemo(
     () =>
@@ -465,22 +589,22 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
             rightSideLosses: 0,
           }
         : computeSideStats(filteredRanked, meUid),
-    [filteredRanked, meUid, sport]
+    [filteredRanked, meUid, sport],
   );
   const derivedPieData = useMemo(
     () => [
       {
         name: t('Wins'),
         value: derivedStats.wins,
-        fill: 'hsl(var(--primary))',
+        fill: 'hsl(var(--emerald-500))',
       },
       {
         name: t('Losses'),
         value: derivedStats.losses,
-        fill: 'hsl(var(--destructive))',
+        fill: 'hsl(var(--red-500))',
       },
     ],
-    [derivedStats, t]
+    [derivedStats, t],
   );
   const derivedSidePieData = useMemo(
     () => [
@@ -495,7 +619,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         fill: 'hsl(var(--accent))',
       },
     ],
-    [derivedSideStats, t]
+    [derivedSideStats, t],
   );
   const derivedSidePieLossData = useMemo(
     () => [
@@ -510,28 +634,30 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         fill: 'hsl(var(--muted))',
       },
     ],
-    [derivedSideStats, t]
+    [derivedSideStats, t],
   );
   const derivedMonthly = useMemo(
     () => groupByMonth(filteredRanked, meUid),
-    [filteredRanked, meUid]
+    [filteredRanked, meUid],
   );
   const derivedOppStats = useMemo(
     () => opponentStats(filteredRanked, meUid),
-    [filteredRanked, meUid]
+    [filteredRanked, meUid],
   );
 
   const selectedOpponentName = opponents.find((o) => o.id === oppFilter)?.name;
 
   if (!canViewProfile) {
     return (
-      <Card>
-        <CardContent className='py-12 flex flex-col items-center justify-center text-center'>
-          <Lock className='h-12 w-12 text-muted-foreground mb-4' />
-          <h3 className='text-xl font-semibold'>
+      <Card className='border-0 rounded-[2.5rem] glass-panel shadow-xl mt-8'>
+        <CardContent className='py-20 flex flex-col items-center justify-center text-center'>
+          <div className='bg-background/80 p-6 rounded-full mb-6 ring-1 ring-black/5 dark:ring-white/10 shadow-sm'>
+            <Lock className='h-12 w-12 text-muted-foreground/50' />
+          </div>
+          <h3 className='text-3xl font-extrabold tracking-tight mb-2'>
             {t('This Profile is Private')}
           </h3>
-          <p className='text-muted-foreground mt-2'>
+          <p className='text-muted-foreground text-lg font-light'>
             {t('Add this player as a friend to view their stats.')}
           </p>
         </CardContent>
@@ -540,33 +666,8 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   }
 
   return (
-    <div className='space-y-6'>
-      {/* {playedSports.length > 1 && (
-        <Card>
-          <CardContent className='p-4'>
-            <div className='flex items-center gap-4'>
-              <Label className='font-semibold'>{t('Viewing Stats For:')}</Label>
-              <Select
-                value={sport}
-                onValueChange={(v) => onSportChange(v as Sport)}
-              >
-                <SelectTrigger className='w-auto'>
-                  <SelectValue placeholder={t('Select a sport')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {playedSports.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {sportConfig[s].name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-      )} */}
-
-      <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'>
+    <div className='space-y-8 mt-8'>
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6'>
         <StatCard
           icon={LineChartIcon}
           label={t('Current ELO')}
@@ -598,16 +699,27 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         sportMaxStreak={derivedStats.maxWinStreak}
       />
 
-      <div className='flex items-center gap-4'>
-        <span className='font-medium'>{t('Filter by Opponent')}:</span>
+      <div className='flex flex-col sm:flex-row sm:items-center gap-4 bg-muted/30 p-4 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl max-w-2xl'>
+        <span className='font-bold text-xs uppercase tracking-widest text-muted-foreground ml-2'>
+          {t('Filter by Opponent')}:
+        </span>
         <Select value={oppFilter} onValueChange={setOppFilter}>
-          <SelectTrigger className='w-64'>
+          <SelectTrigger className='w-full sm:w-64 h-12 rounded-xl bg-background border-0 ring-1 ring-black/5 dark:ring-white/10 shadow-sm font-semibold focus:ring-2 focus:ring-primary/40'>
             <SelectValue placeholder={t('All Opponents')} />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='all'>{t('All Opponents')}</SelectItem>
+          <SelectContent className='rounded-xl border-0 glass-panel shadow-xl'>
+            <SelectItem
+              value='all'
+              className='font-semibold cursor-pointer rounded-lg'
+            >
+              {t('All Opponents')}
+            </SelectItem>
             {opponents.map((o: any) => (
-              <SelectItem key={o.id} value={o.id}>
+              <SelectItem
+                key={o.id}
+                value={o.id}
+                className='cursor-pointer rounded-lg font-medium'
+              >
                 {o.name}
               </SelectItem>
             ))}
@@ -622,7 +734,6 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         <TennisStatsCard stats={derivedStats} tennisStats={tennisStats} t={t} />
       )}
 
-      {/* НОВЫЙ КОМПОНЕНТ РЕНДЕРИНГА */}
       <RankedInsights insights={derivedInsights} t={t} />
 
       <ProfileCharts

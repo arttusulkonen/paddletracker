@@ -1,7 +1,6 @@
 // src/components/AiAssistant.tsx
 'use client';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
@@ -77,44 +76,45 @@ type RoomOption = { id: string; name: string; mode?: string };
 
 const MatchResultSummary = ({ data, t }: { data: MatchResultData; t: any }) => {
   return (
-    <div className='mt-2 w-full bg-white dark:bg-slate-950 rounded-lg border shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2'>
-      <div className='bg-muted/50 p-2 border-b flex items-center gap-2'>
+    <div className='mt-3 w-full bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-2xl shadow-sm ring-1 ring-black/5 dark:ring-white/10 overflow-hidden animate-in fade-in slide-in-from-bottom-2'>
+      <div className='bg-muted/30 p-2.5 border-b border-black/5 dark:border-white/5 flex items-center gap-2'>
         <Trophy className='h-4 w-4 text-yellow-500' />
-        <span className='text-xs font-bold uppercase text-muted-foreground'>
+        <span className='text-xs font-bold uppercase tracking-widest text-muted-foreground'>
           {t('Match Results')}
         </span>
       </div>
-      <div className='divide-y'>
+      <div className='divide-y divide-black/5 dark:divide-white/5'>
         {data.updates.map((u, idx) => {
           const isPositive = u.eloDiff > 0;
           const isNeutral = u.eloDiff === 0;
-
-          const isEpicGain = u.eloDiff >= 25;
+          const isEpicGain = u.eloDiff >= 20; // Порог для эпика чуть снижен
 
           return (
             <div
               key={idx}
-              className={`p-2 flex items-center justify-between transition-colors ${isEpicGain ? 'bg-orange-500/5' : ''}`}
+              className={`p-3 flex items-center justify-between transition-colors ${
+                isEpicGain ? 'bg-orange-500/10' : 'hover:bg-muted/20'
+              }`}
             >
               <div className='flex flex-col'>
                 <span className='font-semibold text-sm flex items-center gap-1.5'>
                   {u.name}
                   {isEpicGain && (
                     <Flame
-                      className='w-3 h-3 text-orange-500 fill-current animate-pulse'
+                      className='w-3.5 h-3.5 text-orange-500 fill-current animate-pulse'
                       title={t('Epic Gain!')}
                     />
                   )}
                 </span>
 
                 {u.oldRank && u.newRank ? (
-                  <div className='flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5'>
+                  <div className='flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground mt-1'>
                     <span>#{u.oldRank}</span>
                     <ArrowRight size={10} />
                     <span
                       className={
                         u.newRank < u.oldRank
-                          ? 'text-green-600 font-bold'
+                          ? 'text-emerald-500 font-bold'
                           : u.newRank > u.oldRank
                             ? 'text-red-500'
                             : ''
@@ -128,33 +128,37 @@ const MatchResultSummary = ({ data, t }: { data: MatchResultData; t: any }) => {
 
               <div className='text-right'>
                 <div
-                  className={`font-bold text-sm flex items-center justify-end gap-0.5 ${
+                  className={`font-black text-sm flex items-center justify-end gap-0.5 ${
                     isEpicGain
                       ? 'text-orange-600 dark:text-orange-400'
                       : isPositive
-                        ? 'text-green-600'
+                        ? 'text-emerald-600 dark:text-emerald-400'
                         : isNeutral
-                          ? 'text-gray-500'
-                          : 'text-red-600'
+                          ? 'text-muted-foreground'
+                          : 'text-red-500'
                   }`}
                 >
                   {isPositive ? (
-                    <ArrowUp size={isEpicGain ? 14 : 12} />
+                    <ArrowUp size={isEpicGain ? 16 : 14} />
                   ) : isNeutral ? (
                     <Minus size={12} />
                   ) : (
-                    <ArrowDown size={12} />
+                    <ArrowDown size={14} />
                   )}
                   {u.eloDiff > 0
                     ? `+${Math.round(u.eloDiff)}`
                     : Math.round(u.eloDiff)}
                 </div>
-                <div className='text-[10px] text-muted-foreground leading-tight'>
+                <div className='text-[10px] font-medium text-muted-foreground leading-tight mt-0.5'>
                   {Math.round(u.newElo)} Global
                 </div>
                 {u.roomElo && (
                   <div
-                    className={`text-[10px] font-medium leading-tight ${isEpicGain ? 'text-orange-600/80 dark:text-orange-400/80' : 'text-blue-600/80 dark:text-blue-400'}`}
+                    className={`text-[10px] font-bold leading-tight mt-0.5 ${
+                      isEpicGain
+                        ? 'text-orange-600/80 dark:text-orange-400/80'
+                        : 'text-primary/80'
+                    }`}
                   >
                     {Math.round(u.roomElo)} Room
                   </div>
@@ -410,6 +414,9 @@ export function AiAssistant() {
     const room = roomsList.find((r) => r.id === roomId);
     const isDerby = room?.mode === 'derby';
 
+    let maxScoreOverall = 0;
+    let minScoreOverall = Infinity;
+
     drafts.forEach((d) => {
       const s1 = +d.score1;
       const s2 = +d.score2;
@@ -419,11 +426,14 @@ export function AiAssistant() {
       const w = s1 > s2 ? d.player1Name : d.player2Name;
       const l = s1 > s2 ? d.player2Name : d.player1Name;
 
+      maxScoreOverall = Math.max(maxScoreOverall, max);
+      minScoreOverall = Math.min(minScoreOverall, min);
+
       if (min <= 2 && max >= 11) {
         highlights.push(
           `🥶 **${w}** gave a free lesson to **${l}** (${max}-${min})`,
         );
-      } else if (diff <= 2 && max > 11) {
+      } else if (diff <= 2 && max >= 11) {
         highlights.push(
           `💦 Absolute cinema! **${w}** clutched against **${l}** (${max}-${min})`,
         );
@@ -432,16 +442,25 @@ export function AiAssistant() {
 
     if (isDerby) {
       updates.forEach((u) => {
-        if (u.eloDiff >= 25) {
+        if (u.eloDiff >= 20) {
           highlights.push(
             `💰 Jackpot! **${u.name}** claimed a massive bounty (+${Math.round(u.eloDiff)} ELO)!`,
           );
-        } else if (u.eloDiff <= -25) {
+        } else if (u.eloDiff <= -18) {
           highlights.push(
-            `💀 Ouch! **${u.name}** was dethroned and bled ${Math.round(u.eloDiff)} ELO.`,
+            `💀 Ouch! **${u.name}** took a heavy hit and bled ${Math.abs(Math.round(u.eloDiff))} ELO.`,
+          );
+        } else if (u.eloDiff > 10) {
+          highlights.push(
+            `⚔️ **${u.name}** is building momentum (+${Math.round(u.eloDiff)} ELO).`,
           );
         }
       });
+
+      // Дефолтный хайлайт, если ничего специфичного не подошло
+      if (highlights.length === 0) {
+        highlights.push(`⚔️ The Derby continues! Standings have shifted.`);
+      }
     } else {
       updates.forEach((u) => {
         if (u.eloDiff >= 15) {
@@ -520,42 +539,44 @@ export function AiAssistant() {
     <>
       <Button
         id='ai-assistant-trigger'
-        className='fixed bottom-6 right-6 h-12 w-12 md:h-14 md:w-14 rounded-full shadow-xl z-50 transition-transform hover:scale-110'
+        className='fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl z-50 transition-transform hover:scale-105 bg-primary/90 backdrop-blur-md border border-white/20'
         onClick={() => setIsOpen(!isOpen)}
       >
-        {isOpen ? <X /> : <Bot />}
+        {isOpen ? <X size={24} /> : <Bot size={24} />}
       </Button>
 
       {isOpen && (
-        <div className='fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200'>
-          <Card className='w-full max-w-5xl h-[100dvh] md:h-[90vh] flex flex-col shadow-2xl bg-background rounded-none md:rounded-xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200'>
-            <div className='p-3 md:p-4 border-b bg-primary text-primary-foreground flex items-center gap-3 shrink-0'>
-              <div className='bg-primary-foreground/20 p-1.5 md:p-2 rounded-full'>
-                <Bot size={18} />
+        <div className='fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/20 dark:bg-black/40 backdrop-blur-md p-0 md:p-6 animate-in fade-in duration-300'>
+          <div className='w-full max-w-[1280px] h-[100dvh] md:h-[90vh] md:max-h-[900px] flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.15)] bg-background/80 dark:bg-background/60 backdrop-blur-2xl rounded-none md:rounded-[2rem] overflow-hidden border-0 md:border border-white/20 dark:border-white/10 animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-300'>
+            {/* Header */}
+            <div className='p-4 border-b border-black/5 dark:border-white/5 bg-white/30 dark:bg-black/20 flex items-center gap-3 shrink-0 backdrop-blur-md'>
+              <div className='bg-primary/10 text-primary p-2 rounded-xl ring-1 ring-primary/20'>
+                <Bot size={20} />
               </div>
               <div>
-                <h3 className='font-bold text-sm md:text-base leading-none'>
+                <h3 className='font-bold text-base leading-none text-foreground'>
                   AI Referee ({t(sport)})
                 </h3>
-                <p className='text-[10px] md:text-xs opacity-80 mt-0.5 md:mt-1'>
+                <p className='text-xs font-medium text-muted-foreground mt-1'>
                   {t('Powered by Gemini 2.0')}
                 </p>
               </div>
               <Button
                 variant='ghost'
                 size='icon'
-                className='h-8 w-8 ml-auto text-primary-foreground hover:bg-primary/80 rounded-full'
+                className='h-9 w-9 ml-auto rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors'
                 onClick={() => setIsOpen(false)}
               >
-                <X className='h-4 w-4 md:h-5 md:w-5' />
+                <X className='h-5 w-5 text-muted-foreground' />
               </Button>
             </div>
 
+            {/* Messages Area */}
             <div
               ref={scrollRef}
-              className='flex-1 overflow-y-auto p-4 space-y-5 bg-slate-50 dark:bg-slate-900/50 flex flex-col items-center'
+              className='flex-1 overflow-y-auto p-4 md:p-6 space-y-6 flex flex-col items-center'
             >
-              <div className='w-full max-w-3xl space-y-5'>
+              <div className='w-full max-w-4xl space-y-6'>
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -564,15 +585,15 @@ export function AiAssistant() {
                     }`}
                   >
                     <div
-                      className={`w-full max-w-[92%] md:max-w-[85%] p-3 md:p-4 rounded-2xl text-sm shadow-sm ${
+                      className={`w-fit max-w-[95%] md:max-w-[85%] p-4 rounded-[1.5rem] shadow-sm text-sm md:text-base transition-all ${
                         msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-br-none ml-auto'
-                          : 'bg-white dark:bg-slate-800 border rounded-bl-none mr-auto'
+                          ? 'bg-primary text-primary-foreground rounded-br-sm ml-auto shadow-primary/20'
+                          : 'bg-white/60 dark:bg-white/5 border border-white/40 dark:border-white/10 backdrop-blur-md rounded-bl-sm mr-auto text-foreground'
                       }`}
                     >
                       {msg.text && (
                         <div
-                          className='whitespace-pre-line leading-relaxed text-sm md:text-base'
+                          className='whitespace-pre-line leading-relaxed font-medium'
                           dangerouslySetInnerHTML={{
                             __html: msg.text
                               .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -582,20 +603,20 @@ export function AiAssistant() {
                       )}
 
                       {msg.highlights && msg.highlights.length > 0 && (
-                        <div className='mt-3 bg-gradient-to-r from-orange-500/10 to-rose-500/10 border border-orange-500/20 rounded-xl p-3 space-y-2'>
-                          <div className='flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400'>
-                            <Sparkles className='w-3.5 h-3.5' />
-                            {t('Match Highlights')}
+                        <div className='mt-4 bg-gradient-to-r from-orange-500/10 to-rose-500/10 border border-orange-500/20 rounded-xl p-3.5 space-y-2.5 shadow-sm'>
+                          <div className='flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400'>
+                            <Sparkles className='w-4 h-4' />
+                            {t('Derby Highlights')}
                           </div>
-                          <ul className='space-y-1.5 text-sm'>
+                          <ul className='space-y-2 text-sm font-medium'>
                             {msg.highlights.map((hl, idx) => (
                               <li
                                 key={idx}
-                                className='leading-tight'
+                                className='leading-snug flex items-start gap-2'
                                 dangerouslySetInnerHTML={{
                                   __html: hl.replace(
                                     /\*\*(.*?)\*\*/g,
-                                    '<strong>$1</strong>',
+                                    '<strong class="text-foreground">$1</strong>',
                                   ),
                                 }}
                               />
@@ -605,7 +626,7 @@ export function AiAssistant() {
                       )}
 
                       {msg.drafts && (
-                        <div className='mt-3 w-full'>
+                        <div className='mt-4 w-full min-w-[280px] md:min-w-[400px]'>
                           <DraftsForm
                             initialDrafts={msg.drafts}
                             players={playersList}
@@ -620,7 +641,7 @@ export function AiAssistant() {
                         </div>
                       )}
                       {msg.results && (
-                        <div className='w-full mt-2'>
+                        <div className='w-full mt-3'>
                           <MatchResultSummary data={msg.results} t={t} />
                         </div>
                       )}
@@ -628,23 +649,24 @@ export function AiAssistant() {
                   </div>
                 ))}
                 {isProcessing && (
-                  <div className='flex items-center gap-2 text-muted-foreground text-xs ml-4'>
-                    <Loader2 className='animate-spin h-3.5 w-3.5' />
+                  <div className='flex items-center gap-2 text-muted-foreground text-sm font-medium ml-2'>
+                    <Loader2 className='animate-spin h-4 w-4' />
                     {t('Thinking...')}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className='flex flex-col border-t bg-background shrink-0 items-center w-full'>
-              <div className='flex gap-2 overflow-x-auto p-2 no-scrollbar border-b bg-muted/20 w-full justify-center'>
-                <div className='flex gap-2 max-w-3xl w-full px-2'>
+            {/* Input Area */}
+            <div className='flex flex-col border-t border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 backdrop-blur-md shrink-0 w-full'>
+              <div className='flex gap-2 overflow-x-auto p-3 no-scrollbar w-full justify-center'>
+                <div className='flex gap-2 max-w-4xl w-full px-2'>
                   {suggestionChips.map((chip) => (
                     <Button
                       key={chip.label}
                       variant='secondary'
                       size='sm'
-                      className='whitespace-nowrap text-[11px] md:text-xs h-7 rounded-full px-3'
+                      className='whitespace-nowrap text-xs h-8 rounded-full px-4 bg-white/60 dark:bg-white/10 hover:bg-white border border-white/40 dark:border-white/5 shadow-sm'
                       onClick={chip.action}
                       disabled={isProcessing}
                     >
@@ -654,8 +676,8 @@ export function AiAssistant() {
                 </div>
               </div>
 
-              <div className='p-3 md:p-4 w-full flex justify-center'>
-                <div className='w-full max-w-3xl flex gap-2 md:gap-3 items-end'>
+              <div className='p-4 w-full flex justify-center pb-6 md:pb-4'>
+                <div className='w-full max-w-4xl flex gap-3 items-end relative'>
                   <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -666,21 +688,21 @@ export function AiAssistant() {
                       }
                     }}
                     placeholder={t('Enter match result or ask stats...')}
-                    className='flex-1 min-h-[44px] max-h-[120px] p-3 text-sm border rounded-xl bg-muted/30 focus:bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-inner'
+                    className='flex-1 min-h-[52px] max-h-[150px] p-3.5 pr-14 text-sm md:text-base border-0 rounded-2xl bg-white/60 dark:bg-black/40 backdrop-blur-md resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all shadow-inner ring-1 ring-black/5 dark:ring-white/10'
                     autoFocus
                   />
                   <Button
                     size='icon'
                     onClick={() => sendMessage()}
                     disabled={isProcessing || !input.trim()}
-                    className='h-11 w-11 rounded-xl shrink-0 transition-all active:scale-95 shadow-sm'
+                    className='absolute right-2 bottom-2 h-9 w-9 rounded-xl shrink-0 transition-all active:scale-95 shadow-md bg-primary hover:bg-primary/90 text-white'
                   >
-                    <Send size={18} />
+                    <Send size={16} />
                   </Button>
                 </div>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       )}
     </>
@@ -797,36 +819,34 @@ function DraftsForm({
   };
 
   return (
-    <div className='w-full space-y-3 text-foreground flex flex-col items-center'>
-      <div className='bg-muted/30 p-3 rounded-xl border border-dashed w-full'>
-        <div className='space-y-1.5'>
-          <label className='text-[10px] font-bold text-muted-foreground uppercase tracking-wider'>
-            {t('Room')}
-          </label>
-          {rooms.length > 0 ? (
-            <select
-              className='w-full h-9 text-sm border rounded-lg bg-background px-2 focus:ring-1 focus:ring-primary/20 outline-none transition-all'
-              value={selectedRoom}
-              onChange={(e) => setSelectedRoom(e.target.value)}
-            >
-              <option value='' disabled>
-                {t('Select a room...')}
+    <div className='w-full space-y-3 text-foreground bg-white/40 dark:bg-black/20 p-4 rounded-2xl border border-white/20 dark:border-white/5'>
+      <div className='space-y-1.5'>
+        <label className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1'>
+          {t('Room')}
+        </label>
+        {rooms.length > 0 ? (
+          <select
+            className='w-full h-10 text-sm font-semibold border-0 rounded-xl bg-white/60 dark:bg-black/40 px-3 ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-primary/40 outline-none transition-all cursor-pointer'
+            value={selectedRoom}
+            onChange={(e) => setSelectedRoom(e.target.value)}
+          >
+            <option value='' disabled>
+              {t('Select a room...')}
+            </option>
+            {rooms.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} {r.mode === 'derby' ? '⚔️' : ''}
               </option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name} {r.mode === 'derby' ? '⚔️' : ''}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className='text-xs text-amber-600 font-medium p-2 bg-amber-50 rounded'>
-              {t('No active rooms found.')}
-            </div>
-          )}
-        </div>
+            ))}
+          </select>
+        ) : (
+          <div className='text-xs text-amber-600 font-medium p-2 bg-amber-50 rounded-xl'>
+            {t('No active rooms found.')}
+          </div>
+        )}
       </div>
 
-      <div className='space-y-3 w-full'>
+      <div className='space-y-3 w-full mt-4'>
         {drafts.map((draft, i) => {
           const warning = getScoreWarning(draft.score1, draft.score2, t);
           const newMatchup = isNewMatchup(i);
@@ -837,41 +857,41 @@ function DraftsForm({
           const p2Wins = score2 > score1;
 
           let cardClass =
-            'relative p-3 md:p-4 border rounded-xl bg-background shadow-sm transition-all group hover:border-primary/40';
+            'relative p-4 rounded-xl bg-white/50 dark:bg-black/20 ring-1 ring-black/5 dark:ring-white/5 shadow-sm transition-all group';
 
           if (warning) {
             cardClass =
-              'relative p-3 md:p-4 border rounded-xl bg-amber-50 dark:bg-amber-950/20 border-amber-500/50 group';
+              'relative p-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 ring-1 ring-amber-500/30 group';
           }
 
           let input1Class =
-            'h-10 w-16 text-center font-mono text-xl font-bold bg-muted/20 border-transparent focus:border-primary rounded-lg';
+            'h-12 w-16 text-center font-mono text-2xl font-black bg-background/50 border-0 ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-primary/40 rounded-xl transition-all';
           let input2Class =
-            'h-10 w-16 text-center font-mono text-xl font-bold bg-muted/20 border-transparent focus:border-primary rounded-lg';
+            'h-12 w-16 text-center font-mono text-2xl font-black bg-background/50 border-0 ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-primary/40 rounded-xl transition-all';
 
           if (p1Wins) {
             input1Class =
-              'h-10 w-16 text-center font-mono text-xl font-bold bg-green-100 dark:bg-green-900/40 border border-green-400 text-green-900 dark:text-green-100 rounded-lg shadow-sm';
+              'h-12 w-16 text-center font-mono text-2xl font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-0 ring-1 ring-emerald-500/40 rounded-xl shadow-sm transition-all';
           } else if (p2Wins) {
             input2Class =
-              'h-10 w-16 text-center font-mono text-xl font-bold bg-green-100 dark:bg-green-900/40 border border-green-400 text-green-900 dark:text-green-100 rounded-lg shadow-sm';
+              'h-12 w-16 text-center font-mono text-2xl font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-0 ring-1 ring-emerald-500/40 rounded-xl shadow-sm transition-all';
           }
 
           return (
             <div key={i} className='w-full'>
               {newMatchup && i > 0 && (
-                <div className='flex items-center gap-2 my-4 opacity-60'>
-                  <div className='h-px bg-border flex-1'></div>
-                  <span className='text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1'>
+                <div className='flex items-center gap-2 my-4 opacity-50'>
+                  <div className='h-px bg-foreground/20 flex-1'></div>
+                  <span className='text-[9px] font-bold uppercase tracking-widest flex items-center gap-1'>
                     <RefreshCw size={10} /> {t('New Matchup')}
                   </span>
-                  <div className='h-px bg-border flex-1'></div>
+                  <div className='h-px bg-foreground/20 flex-1'></div>
                 </div>
               )}
 
               <div className={cardClass}>
                 <div className='absolute top-0 left-0 right-0 flex justify-center'>
-                  <span className='bg-muted/80 px-2 py-0.5 rounded-b-md text-[9px] uppercase font-bold text-muted-foreground tracking-widest border-b border-x border-border/40'>
+                  <span className='bg-background/80 backdrop-blur-md px-2 py-0.5 rounded-b-md text-[8px] uppercase font-bold text-muted-foreground tracking-widest ring-1 ring-black/5 dark:ring-white/10 shadow-sm'>
                     {t('Game')} {i + 1}
                   </span>
                 </div>
@@ -884,22 +904,16 @@ function DraftsForm({
                 <div className='flex flex-col gap-3 pt-3'>
                   <div className='grid grid-cols-[1fr_auto_1fr] gap-2 items-center'>
                     <div className='flex flex-col'>
-                      <span className='text-[10px] text-muted-foreground mb-0.5 ml-1 uppercase font-bold tracking-wide'>
-                        {t('Player 1')}
-                      </span>
                       <PlayerSelect
                         value={draft.player1Name}
                         options={players}
                         onChange={(val) => updateDraft(i, 'player1Name', val)}
                       />
                     </div>
-                    <span className='text-xs font-black text-muted-foreground/50 mt-4 bg-muted/50 w-6 h-6 flex items-center justify-center rounded-full'>
+                    <span className='text-[10px] font-black text-muted-foreground/40 mt-1 bg-black/5 dark:bg-white/5 w-6 h-6 flex items-center justify-center rounded-full'>
                       VS
                     </span>
                     <div className='flex flex-col'>
-                      <span className='text-[10px] text-muted-foreground mb-0.5 ml-1 uppercase font-bold tracking-wide'>
-                        {t('Player 2')}
-                      </span>
                       <PlayerSelect
                         value={draft.player2Name}
                         options={players}
@@ -907,7 +921,7 @@ function DraftsForm({
                       />
                     </div>
                   </div>
-                  <div className='flex flex-col items-center bg-muted/10 p-3 rounded-lg border border-dashed'>
+                  <div className='flex flex-col items-center pt-2'>
                     <div className='flex justify-center gap-3 items-center'>
                       <Input
                         type='number'
@@ -917,7 +931,7 @@ function DraftsForm({
                           updateDraft(i, 'score1', +e.target.value)
                         }
                       />
-                      <span className='text-xl font-black text-muted-foreground/30 pb-0.5'>
+                      <span className='text-xl font-black text-muted-foreground/30'>
                         :
                       </span>
                       <Input
@@ -930,7 +944,7 @@ function DraftsForm({
                       />
                     </div>
                     {warning && (
-                      <div className='flex items-center gap-1 text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full text-[10px] mt-2 font-semibold animate-pulse border border-amber-200 dark:border-amber-800'>
+                      <div className='flex items-center gap-1 text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full text-[10px] mt-3 font-bold uppercase tracking-widest animate-pulse ring-1 ring-amber-500/20'>
                         <AlertTriangle size={12} /> {warning}
                       </div>
                     )}
@@ -943,17 +957,17 @@ function DraftsForm({
       </div>
 
       {drafts.length > 0 && (
-        <div className='flex gap-2 w-full mt-3 pt-3 border-t border-dashed'>
+        <div className='flex gap-2 w-full mt-4'>
           <Button
             variant='outline'
-            className='flex-1 h-10 text-sm rounded-lg'
+            className='flex-1 h-11 text-sm font-semibold rounded-xl bg-white/50 dark:bg-white/5 border-0 ring-1 ring-black/5 dark:ring-white/10 hover:bg-white dark:hover:bg-white/10'
             onClick={onCancel}
             disabled={loading}
           >
             {t('Cancel')}
           </Button>
           <Button
-            className='flex-[2] h-10 text-sm font-bold rounded-lg shadow-sm'
+            className='flex-[2] h-11 text-sm font-bold rounded-xl shadow-md bg-primary hover:bg-primary/90 text-primary-foreground'
             onClick={() => onSave(drafts, selectedRoom)}
             disabled={loading || !selectedRoom}
           >
@@ -962,7 +976,7 @@ function DraftsForm({
             ) : (
               <Check className='mr-2 h-4 w-4' />
             )}{' '}
-            {t('Confirm & Save All')}
+            {t('Confirm & Save')}
           </Button>
         </div>
       )}
@@ -988,10 +1002,10 @@ function PlayerSelect({
   return (
     <div className='w-full'>
       <select
-        className={`w-full h-9 text-sm border rounded-md bg-background px-2 truncate font-medium focus:ring-1 outline-none transition-all ${
+        className={`w-full h-10 text-sm font-semibold border-0 rounded-lg bg-white/60 dark:bg-black/40 px-2 truncate ring-1 outline-none transition-all cursor-pointer ${
           hasDuplicates
-            ? 'border-amber-500 focus:ring-amber-500/20'
-            : 'border-input focus:ring-primary/20'
+            ? 'ring-amber-500/50 focus:ring-amber-500 text-amber-700 dark:text-amber-400'
+            : 'ring-black/5 dark:ring-white/10 focus:ring-primary/40'
         }`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -1013,8 +1027,8 @@ function PlayerSelect({
         })}
       </select>
       {hasDuplicates && (
-        <div className='text-[9px] text-amber-600 mt-1 font-medium px-1'>
-          ⚠️ {t('Multiple players found. Check email.')}
+        <div className='text-[8px] uppercase tracking-widest font-bold text-amber-600 mt-1 px-1'>
+          ⚠️ {t('Multiple players found')}
         </div>
       )}
     </div>

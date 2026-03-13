@@ -1,3 +1,4 @@
+// src/components/rooms/RecentMatches.tsx
 'use client';
 
 import {
@@ -53,7 +54,7 @@ const roomDelta = (p: any): number => {
 export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
   const { t } = useTranslation();
   const [selectedPlayer, setSelectedPlayer] = useState<string>(
-    defaultPlayer ?? ''
+    defaultPlayer ?? '',
   );
 
   const allPlayers = useMemo(() => {
@@ -69,7 +70,7 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
     if (!selectedPlayer) return matches;
     return matches.filter(
       (m) =>
-        m.player1.name === selectedPlayer || m.player2.name === selectedPlayer
+        m.player1.name === selectedPlayer || m.player2.name === selectedPlayer,
     );
   }, [matches, selectedPlayer]);
 
@@ -115,24 +116,26 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
   }, [matches]);
 
   return (
-    <Card className='shadow-lg'>
-      <CardHeader className='gap-4'>
-        <div className='flex items-center justify-between flex-wrap gap-3'>
-          <CardTitle className='flex items-center gap-2'>
-            <ShieldCheck className='text-primary' />
+    <Card className='shadow-2xl border-0 rounded-[2rem] glass-panel overflow-hidden mb-12'>
+      <CardHeader className='px-8 pt-8 pb-4'>
+        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6'>
+          <CardTitle className='flex items-center gap-3 text-3xl font-extrabold tracking-tight'>
+            <div className='bg-primary/10 p-2.5 rounded-xl'>
+              <ShieldCheck className='text-primary h-6 w-6' />
+            </div>
             {t('Recent Matches')}
           </CardTitle>
 
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-3 bg-muted/30 p-2 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl'>
             <label
               htmlFor='player-filter'
-              className='text-sm text-muted-foreground'
+              className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground ml-2 hidden md:block'
             >
-              {t('Filter by Player')}
+              {t('Filter')}
             </label>
             <select
               id='player-filter'
-              className='h-9 rounded-md border bg-background px-3 text-sm'
+              className='h-10 rounded-xl border-0 bg-background px-4 text-sm font-semibold shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all'
               value={selectedPlayer}
               onChange={(e) => setSelectedPlayer(e.target.value)}
             >
@@ -148,6 +151,7 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
                 variant='outline'
                 size='sm'
                 onClick={() => setSelectedPlayer('')}
+                className='h-10 rounded-xl px-4 font-semibold hover:bg-destructive/10 hover:text-destructive hover:border-transparent transition-all'
               >
                 {t('Reset')}
               </Button>
@@ -155,7 +159,7 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
           </div>
         </div>
 
-        <div className='text-sm text-muted-foreground'>
+        <div className='text-sm text-muted-foreground font-medium mt-2'>
           {selectedPlayer
             ? t('{{count}} match(es) for {{player}}', {
                 count: filtered.length,
@@ -165,20 +169,42 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className='px-0 sm:px-8 pb-8'>
         {filtered.length ? (
-          <ScrollArea className='h-[800px]'>
+          <ScrollArea className='h-[800px] w-full'>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>{t('Players')}</TableHead>
-                  <TableHead>{t('Score')}</TableHead>
-                  <TableHead>{t('Room Δ')}</TableHead>
-                  <TableHead>{t('Elo Δ')}</TableHead>
-                  <TableHead>Gained (Δ) (Since joining room)</TableHead>
-                  <TableHead>Lost (Δ) (Since joining room)</TableHead>
-                  <TableHead>{t('Winner')}</TableHead>
-                  <TableHead>{t('Date')}</TableHead>
+                <TableRow className='border-b-0 hover:bg-transparent'>
+                  <TableHead className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground'>
+                    {t('Players')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground text-center'>
+                    {t('Score')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground text-center'>
+                    {t('Room Δ')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground text-center'>
+                    {t('Elo Δ')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground text-center'>
+                    Gained (Δ){' '}
+                    <span className='opacity-50 block text-[8px]'>
+                      (Since joining)
+                    </span>
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground text-center'>
+                    Lost (Δ){' '}
+                    <span className='opacity-50 block text-[8px]'>
+                      (Since joining)
+                    </span>
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground'>
+                    {t('Winner')}
+                  </TableHead>
+                  <TableHead className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground'>
+                    {t('Date')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,53 +234,104 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
                   const isEpicGainP1 = roomDeltaP1 >= 30;
                   const isEpicGainP2 = roomDeltaP2 >= 30;
 
+                  const isP1Winner = m.player1.scores > m.player2.scores;
+
                   return (
-                    <TableRow key={m.id}>
-                      <TableCell>
-                        {m.player1.name} – {m.player2.name}
+                    <TableRow
+                      key={m.id}
+                      className='border-b-border/40 hover:bg-muted/30 transition-colors'
+                    >
+                      <TableCell className='font-semibold text-sm whitespace-nowrap'>
+                        <span
+                          className={
+                            isP1Winner
+                              ? 'text-foreground'
+                              : 'text-muted-foreground'
+                          }
+                        >
+                          {m.player1.name}
+                        </span>
+                        <span className='mx-2 opacity-30 text-[10px]'>VS</span>
+                        <span
+                          className={
+                            !isP1Winner
+                              ? 'text-foreground'
+                              : 'text-muted-foreground'
+                          }
+                        >
+                          {m.player2.name}
+                        </span>
                       </TableCell>
 
-                      <TableCell>
-                        {m.player1.scores} – {m.player2.scores}
+                      <TableCell className='text-center font-mono font-bold text-base bg-muted/10'>
+                        {m.player1.scores}{' '}
+                        <span className='opacity-30 px-1'>-</span>{' '}
+                        {m.player2.scores}
                       </TableCell>
 
-                      <TableCell>
-                        <div className='flex items-center gap-1.5'>
-                          <span className={isEpicGainP1 ? 'text-orange-500 font-bold flex items-center gap-1' : ''}>
-                            {roomDeltaP1 >= 0 ? `+${Math.round(roomDeltaP1)}` : Math.round(roomDeltaP1)}
-                            {isEpicGainP1 && <Flame className='w-3 h-3 fill-current' />}
+                      <TableCell className='text-center'>
+                        <div className='flex items-center justify-center gap-1.5 font-mono text-sm'>
+                          <span
+                            className={
+                              isEpicGainP1
+                                ? 'text-orange-500 font-bold flex items-center gap-0.5 bg-orange-500/10 px-1.5 rounded'
+                                : roomDeltaP1 > 0
+                                  ? 'text-emerald-500'
+                                  : 'text-red-500 opacity-80'
+                            }
+                          >
+                            {roomDeltaP1 >= 0
+                              ? `+${Math.round(roomDeltaP1)}`
+                              : Math.round(roomDeltaP1)}
+                            {isEpicGainP1 && (
+                              <Flame className='w-3 h-3 fill-current animate-pulse' />
+                            )}
                           </span>
-                          <span className='text-muted-foreground'>|</span>
-                          <span className={isEpicGainP2 ? 'text-orange-500 font-bold flex items-center gap-1' : ''}>
-                            {roomDeltaP2 >= 0 ? `+${Math.round(roomDeltaP2)}` : Math.round(roomDeltaP2)}
-                            {isEpicGainP2 && <Flame className='w-3 h-3 fill-current' />}
+                          <span className='text-muted-foreground/30'>|</span>
+                          <span
+                            className={
+                              isEpicGainP2
+                                ? 'text-orange-500 font-bold flex items-center gap-0.5 bg-orange-500/10 px-1.5 rounded'
+                                : roomDeltaP2 > 0
+                                  ? 'text-emerald-500'
+                                  : 'text-red-500 opacity-80'
+                            }
+                          >
+                            {roomDeltaP2 >= 0
+                              ? `+${Math.round(roomDeltaP2)}`
+                              : Math.round(roomDeltaP2)}
+                            {isEpicGainP2 && (
+                              <Flame className='w-3 h-3 fill-current animate-pulse' />
+                            )}
                           </span>
                         </div>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className='text-center font-mono text-xs text-muted-foreground'>
                         {eloP1 >= 0 ? `+${eloP1}` : eloP1} |{' '}
                         {eloP2 >= 0 ? `+${eloP2}` : eloP2}
                       </TableCell>
 
-                      <TableCell className='text-green-600 font-medium'>
+                      <TableCell className='text-center text-emerald-500 font-mono text-xs'>
                         +{cg1} | +{cg2}
                       </TableCell>
 
-                      <TableCell className='text-red-600 font-medium'>
+                      <TableCell className='text-center text-red-500 font-mono text-xs opacity-80'>
                         -{cl1} | -{cl2}
                       </TableCell>
 
-                      <TableCell className='font-semibold'>
-                        {m.winner}
+                      <TableCell className='font-bold text-sm'>
+                        <span className='bg-primary/10 text-primary px-2.5 py-1 rounded-full'>
+                          {m.winner}
+                        </span>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className='text-xs text-muted-foreground whitespace-nowrap font-medium'>
                         {safeFormatDate(
                           (m as any).timestamp ??
                             (m as any).createdAt ??
                             (m as any).tsIso,
-                          'dd.MM.yyyy HH:mm:ss'
+                          'MMM d, HH:mm',
                         )}
                       </TableCell>
                     </TableRow>
@@ -264,11 +341,23 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
             </Table>
           </ScrollArea>
         ) : (
-          <p className='text-center py-8 text-muted-foreground'>
-            {selectedPlayer
-              ? t('No matches found for {{player}}', { player: selectedPlayer })
-              : t('No recent matches')}
-          </p>
+          <div className='flex flex-col items-center justify-center py-20 text-center'>
+            <div className='bg-muted/50 p-6 rounded-full mb-4 ring-1 ring-black/5 dark:ring-white/10'>
+              <ShieldCheck className='h-12 w-12 text-muted-foreground/50' />
+            </div>
+            <p className='text-lg font-semibold text-foreground mb-1'>
+              {selectedPlayer
+                ? t('No matches found for {{player}}', {
+                    player: selectedPlayer,
+                  })
+                : t('No recent matches')}
+            </p>
+            <p className='text-muted-foreground text-sm max-w-sm'>
+              {t(
+                'Matches recorded in this room will appear here in chronological order.',
+              )}
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

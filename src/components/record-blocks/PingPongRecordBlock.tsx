@@ -17,7 +17,7 @@ interface PingPongRowInputProps {
   onChange: (data: PingPongMatchData) => void;
   onRemove: () => void;
   removable: boolean;
-  matchIndex: number; // New prop for match index/counter
+  matchIndex: number;
 }
 
 export function PingPongRowInput({
@@ -45,39 +45,43 @@ export function PingPongRowInput({
   const p1Winner = !isNaN(score1) && !isNaN(score2) && score1 > score2;
   const p2Winner = !isNaN(score1) && !isNaN(score2) && score2 > score1;
 
-  // Conditional styling based on winner
   const baseClassName =
-    'grid grid-cols-2 gap-4 relative p-4 border rounded-lg bg-muted/50';
+    'grid grid-cols-2 gap-4 md:gap-6 relative p-4 md:p-6 border-0 ring-1 ring-black/5 dark:ring-white/10 rounded-2xl bg-white/40 dark:bg-black/20 backdrop-blur-sm shadow-sm transition-all hover:shadow-md';
 
-  const winnerClass = 'bg-green-100 dark:bg-green-900 border-green-400';
-  const neutralClass = 'bg-background';
+  const winnerClass =
+    'bg-emerald-500/10 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 ring-2 ring-emerald-500/40 border-0 shadow-inner';
+  const neutralClass =
+    'bg-background/80 border-0 ring-1 ring-black/5 dark:ring-white/10 focus:ring-primary/40 focus:ring-2 transition-all';
 
-  const input1ClassName = `text-center text-base font-bold ${
+  const input1ClassName = `text-center h-16 text-3xl font-mono font-black rounded-xl ${
     p1Winner ? winnerClass : neutralClass
   }`;
-  const input2ClassName = `text-center text-base font-bold ${
+  const input2ClassName = `text-center h-16 text-3xl font-mono font-black rounded-xl ${
     p2Winner ? winnerClass : neutralClass
   }`;
 
   return (
     <div className={baseClassName}>
-      <div className='flex justify-between items-center col-span-2 absolute top-0 left-0 right-0 p-2 border-b border-inherit rounded-t-lg'>
-        <Label className='font-semibold text-sm'>
+      <div className='flex justify-between items-center col-span-2 absolute top-0 left-0 right-0 py-1.5 px-4 border-b border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 rounded-t-2xl'>
+        <Label className='font-bold text-[10px] uppercase tracking-widest text-muted-foreground'>
           {t('Game')} {matchIndex + 1}
         </Label>
         {removable && (
           <Button
             variant='ghost'
             size='icon'
-            className='h-8 w-8 text-muted-foreground hover:text-destructive'
+            className='h-7 w-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-full transition-colors'
             onClick={onRemove}
           >
-            <Trash2 className='h-4 w-4' />
+            <Trash2 className='h-3.5 w-3.5' />
           </Button>
         )}
       </div>
-      <div className='space-y-2 pt-8'>
-        <Label>{t('P1 Score')}</Label>
+
+      <div className='space-y-3 pt-8'>
+        <Label className='text-xs font-semibold uppercase tracking-wider opacity-70 ml-1'>
+          {t('P1 Score')}
+        </Label>
         <Input
           type='number'
           placeholder='11'
@@ -85,19 +89,27 @@ export function PingPongRowInput({
           onChange={(e) => onChange({ ...data, score1: e.target.value })}
           className={input1ClassName}
         />
-        <Label className='mt-2'>{t('Side')}</Label>
-        <select
-          className='w-full border rounded p-2 bg-background'
-          value={side1}
-          onChange={(e) => handleSideChange(e.target.value as 'left' | 'right')}
-        >
-          <option value='left'>{t('Left')}</option>
-          <option value='right'>{t('Right')}</option>
-        </select>
+        <div className='pt-2'>
+          <Label className='text-[10px] font-bold uppercase tracking-widest opacity-50 ml-1'>
+            {t('Side')}
+          </Label>
+          <select
+            className='w-full mt-1.5 h-10 border-0 rounded-lg bg-background/50 px-3 text-sm font-medium ring-1 ring-black/5 dark:ring-white/10 outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer'
+            value={side1}
+            onChange={(e) =>
+              handleSideChange(e.target.value as 'left' | 'right')
+            }
+          >
+            <option value='left'>{t('Left')}</option>
+            <option value='right'>{t('Right')}</option>
+          </select>
+        </div>
       </div>
 
-      <div className='space-y-2 pt-8'>
-        <Label>{t('P2 Score')}</Label>
+      <div className='space-y-3 pt-8'>
+        <Label className='text-xs font-semibold uppercase tracking-wider opacity-70 ml-1'>
+          {t('P2 Score')}
+        </Label>
         <Input
           type='number'
           placeholder='11'
@@ -105,15 +117,19 @@ export function PingPongRowInput({
           onChange={(e) => onChange({ ...data, score2: e.target.value })}
           className={input2ClassName}
         />
-        <Label className='mt-2'>{t('Side')}</Label>
-        <select
-          className='w-full border rounded p-2 bg-muted'
-          value={side2}
-          disabled
-        >
-          <option value='left'>{t('Left')}</option>
-          <option value='right'>{t('Right')}</option>
-        </select>
+        <div className='pt-2'>
+          <Label className='text-[10px] font-bold uppercase tracking-widest opacity-50 ml-1'>
+            {t('Side')}
+          </Label>
+          <select
+            className='w-full mt-1.5 h-10 border-0 rounded-lg bg-muted/30 px-3 text-sm font-medium opacity-70 cursor-not-allowed'
+            value={side2}
+            disabled
+          >
+            <option value='left'>{t('Left')}</option>
+            <option value='right'>{t('Right')}</option>
+          </select>
+        </div>
       </div>
     </div>
   );
