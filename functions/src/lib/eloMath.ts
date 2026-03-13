@@ -1,6 +1,6 @@
 // functions/src/lib/eloMath.ts
 
-export type RoomMode = 'office' | 'professional' | 'arcade';
+export type RoomMode = 'office' | 'professional' | 'arcade' | 'derby';
 
 // Helper to determine Dynamic K-Factor
 // If player has < 10 matches in this room, use higher volatility (Placement matches)

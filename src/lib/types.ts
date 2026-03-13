@@ -93,8 +93,8 @@ export interface UserProfile {
 
   // Approvals (Legacy/Internal)
   approved?: boolean;
-  approvedAt?: string;
-  approvedBy?: string;
+  approvedAt?: string | null;
+  approvedBy?: string | null;
   approvalReason?: string;
 
   // Stats (Root level / Legacy)
