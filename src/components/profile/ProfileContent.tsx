@@ -596,12 +596,12 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
       {
         name: t('Wins'),
         value: derivedStats.wins,
-        fill: 'hsl(var(--emerald-500))',
+        fill: 'hsl(var(--chart-2))',
       },
       {
         name: t('Losses'),
         value: derivedStats.losses,
-        fill: 'hsl(var(--red-500))',
+        fill: 'hsl(var(--destructive))',
       },
     ],
     [derivedStats, t],
