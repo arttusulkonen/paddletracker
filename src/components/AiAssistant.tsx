@@ -414,9 +414,6 @@ export function AiAssistant() {
     const room = roomsList.find((r) => r.id === roomId);
     const isDerby = room?.mode === 'derby';
 
-    let maxScoreOverall = 0;
-    let minScoreOverall = Infinity;
-
     drafts.forEach((d) => {
       const s1 = +d.score1;
       const s2 = +d.score2;
@@ -425,9 +422,6 @@ export function AiAssistant() {
       const min = Math.min(s1, s2);
       const w = s1 > s2 ? d.player1Name : d.player2Name;
       const l = s1 > s2 ? d.player2Name : d.player1Name;
-
-      maxScoreOverall = Math.max(maxScoreOverall, max);
-      minScoreOverall = Math.min(minScoreOverall, min);
 
       if (min <= 2 && max >= 11) {
         highlights.push(
