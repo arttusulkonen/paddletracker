@@ -100,10 +100,9 @@ const MatchResultSummary = ({ data, t }: { data: MatchResultData; t: any }) => {
                 <span className='font-semibold text-sm flex items-center gap-1.5'>
                   {u.name}
                   {isEpicGain && (
-                    <Flame
-                      className='w-3.5 h-3.5 text-orange-500 fill-current animate-pulse'
-                      title={t('Epic Gain!')}
-                    />
+                     <span title={t('Epic Gain!')}>
+                      <Flame className='w-3.5 h-3.5 text-orange-500 fill-current animate-pulse' />
+                    </span>
                   )}
                 </span>
 
