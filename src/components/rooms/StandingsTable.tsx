@@ -375,7 +375,7 @@ function RegularStandings({ players, onSort, creatorId, sport, t }: any) {
                         </TooltipProvider>
                       )}
                     </div>
-                    {p.currentStreak && p.currentStreak >= 3 && (
+                    {(p.currentStreak ?? 0) >= 3 && (
                       <div className='flex gap-1 mt-1'>
                         <span className='text-[10px] bg-orange-500/10 text-orange-600 px-1 rounded flex items-center gap-0.5'>
                           <Flame className='w-2.5 h-2.5 fill-current' />{' '}

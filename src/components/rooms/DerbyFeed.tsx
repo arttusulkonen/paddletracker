@@ -42,7 +42,6 @@ type NarrativeType =
   | 'DOMINATION'
   | 'ROUTINE';
 
-// Генератор хэша для детерминированного рандома (чтобы фразы не менялись при ререндере)
 const getHash = (str: string) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -55,44 +54,78 @@ const pickRandom = (arr: string[], hash: number) => arr[hash % arr.length];
 
 const PHRASES = {
   NAIL_BITER: [
-    '{{winner}} survived a sweaty match against {{loser}}',
-    'Absolute cinema! {{winner}} edged out {{loser}}',
-    '{{loser}} choked at the finish line against {{winner}}',
-    'Heart attack match! {{winner}} barely survived {{loser}}',
-    'Down to the wire! {{winner}} clutched against {{loser}}',
+    '___WINNER___ survived a sweaty match against ___LOSER___',
+    'Absolute cinema! ___WINNER___ edged out ___LOSER___',
+    '___LOSER___ choked at the finish line against ___WINNER___',
+    'Heart attack match! ___WINNER___ barely survived ___LOSER___',
+    'Down to the wire! ___WINNER___ clutched against ___LOSER___',
   ],
   FLAWLESS: [
-    '{{winner}} completely humiliated {{loser}}',
-    '{{winner}} gave a free lesson to {{loser}}',
-    '{{loser}} forgot how to hold a paddle against {{winner}}',
-    'Total annihilation by {{winner}} over {{loser}}',
-    '{{winner}} destroyed {{loser}} without breaking a sweat',
+    '___WINNER___ completely humiliated ___LOSER___',
+    '___WINNER___ gave a free lesson to ___LOSER___',
+    '___LOSER___ forgot how to hold a paddle against ___WINNER___',
+    'Total annihilation by ___WINNER___ over ___LOSER___',
+    '___WINNER___ destroyed ___LOSER___ without breaking a sweat',
   ],
   UPSET: [
-    'Massive Upset! {{winner}} shocked the favorite {{loser}}',
-    '{{winner}} defied the math and broke {{loser}}',
-    'Nobody bet on {{winner}}, but they crushed {{loser}}',
-    'David vs Goliath! {{winner}} slayed the higher-ranked {{loser}}',
+    'Massive Upset! ___WINNER___ shocked the favorite ___LOSER___',
+    '___WINNER___ defied the math and broke ___LOSER___',
+    'Nobody bet on ___WINNER___, but they crushed ___LOSER___',
+    'David vs Goliath! ___WINNER___ slayed the higher-ranked ___LOSER___',
   ],
   GIANT_SLAYER: [
-    "{{winner}} claimed the massive bounty on {{loser}}'s head!",
-    'The streak is dead! {{winner}} dethroned {{loser}}',
-    "{{loser}}'s reign of terror was ended by {{winner}}",
-    'Jackpot! {{winner}} cashed in on {{loser}}',
+    "___WINNER___ claimed the massive bounty on ___LOSER___'s head!",
+    'The streak is dead! ___WINNER___ dethroned ___LOSER___',
+    "___LOSER___'s reign of terror was ended by ___WINNER___",
+    'Jackpot! ___WINNER___ cashed in on ___LOSER___',
   ],
   DOMINATION: [
-    '{{winner}} dominated {{loser}} from start to finish',
-    'Easy money for {{winner}} against {{loser}}',
-    '{{winner}} steamrolled through {{loser}}',
-    'No chance for {{loser}}, {{winner}} was too good',
+    '___WINNER___ dominated ___LOSER___ from start to finish',
+    'Easy money for ___WINNER___ against ___LOSER___',
+    '___WINNER___ steamrolled through ___LOSER___',
+    'No chance for ___LOSER___, ___WINNER___ was too good',
   ],
   ROUTINE: [
-    '{{winner}} secured a solid win over {{loser}}',
-    'Another day, another victory for {{winner}} against {{loser}}',
-    '{{winner}} defeated {{loser}} in a standard matchup',
-    '{{winner}} outplayed {{loser}}',
-    'Business as usual: {{winner}} takes down {{loser}}',
+    '___WINNER___ secured a solid win over ___LOSER___',
+    'Another day, another victory for ___WINNER___ against ___LOSER___',
+    '___WINNER___ defeated ___LOSER___ in a standard matchup',
+    '___WINNER___ outplayed ___LOSER___',
+    'Business as usual: ___WINNER___ takes down ___LOSER___',
   ],
+};
+
+const renderText = (
+  template: string,
+  winnerName: string,
+  loserName: string,
+  type: NarrativeType,
+) => {
+  const parts = template.split(/(___WINNER___|___LOSER___)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part === '___WINNER___') {
+          return (
+            <span key={i} className='text-foreground font-bold'>
+              {winnerName}
+            </span>
+          );
+        }
+        if (part === '___LOSER___') {
+          const loserClass =
+            type === 'GIANT_SLAYER'
+              ? 'text-muted-foreground line-through decoration-red-500/50'
+              : 'text-muted-foreground';
+          return (
+            <span key={i} className={loserClass}>
+              {loserName}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
 };
 
 export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
@@ -138,7 +171,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
     return list.sort((a, b) => a.winRate - b.winRate);
   }, [safeMembers]);
 
-  // Сбор статистики (Insights)
   const insights = useMemo(() => {
     let highestStreak = 0;
     let highestStreakPlayer: Member | null = null;
@@ -158,7 +190,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
     let mostFrequentMatchupNames = '';
 
     safeMatches.forEach((m) => {
-      // Ищем самый большой куш (ELO)
       const p1Delta =
         typeof m.player1?.roomAddedPoints === 'number'
           ? m.player1.roomAddedPoints
@@ -177,7 +208,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
         biggestHeistPlayer = m.player2;
       }
 
-      // Ищем самую частую пару
       const key = [m.player1Id, m.player2Id].sort().join('_');
       matchupCounts[key] = (matchupCounts[key] || 0) + 1;
       if (matchupCounts[key] > mostFrequentMatchupCount) {
@@ -283,10 +313,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
 
   const renderChronicleCard = (event: any) => {
     const { match: m, type, phrase, winner, loser, delta } = event;
-    const localizedText = t(phrase, {
-      winner: winner.name,
-      loser: loser.name,
-    });
+    const localizedText = t(phrase);
 
     const ScoreBadge = (
       <div className='flex items-center gap-1.5 font-mono text-xs bg-background px-2 py-0.5 rounded border text-muted-foreground'>
@@ -310,20 +337,9 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               <Target className='w-3 h-3' />
               {t('Flawless Victory')}
             </div>
-            <div
-              className='text-sm font-medium leading-tight'
-              dangerouslySetInnerHTML={{
-                __html: localizedText
-                  .replace(
-                    winner.name,
-                    `<span class="text-foreground font-bold">${winner.name}</span>`,
-                  )
-                  .replace(
-                    loser.name,
-                    `<span class="text-muted-foreground">${loser.name}</span>`,
-                  ),
-              }}
-            />
+            <div className='text-sm font-medium leading-tight'>
+              {renderText(localizedText, winner.name, loser.name, type)}
+            </div>
             <div className='flex items-center justify-between mt-2'>
               {ScoreBadge}
               <span className='text-xs font-bold text-sky-600'>
@@ -340,20 +356,9 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               <Droplet className='w-3 h-3' />
               {t('Nail-Biter')}
             </div>
-            <div
-              className='text-sm font-medium leading-tight'
-              dangerouslySetInnerHTML={{
-                __html: localizedText
-                  .replace(
-                    winner.name,
-                    `<span class="text-foreground font-bold">${winner.name}</span>`,
-                  )
-                  .replace(
-                    loser.name,
-                    `<span class="text-muted-foreground">${loser.name}</span>`,
-                  ),
-              }}
-            />
+            <div className='text-sm font-medium leading-tight'>
+              {renderText(localizedText, winner.name, loser.name, type)}
+            </div>
             <div className='flex items-center justify-between mt-2'>
               {ScoreBadge}
               <span className='text-xs font-bold text-amber-600'>
@@ -373,20 +378,9 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               <Swords className='w-3 h-3' />
               {t('Giant Slayer')}
             </div>
-            <div
-              className='text-sm font-medium leading-tight relative z-10'
-              dangerouslySetInnerHTML={{
-                __html: localizedText
-                  .replace(
-                    winner.name,
-                    `<span class="text-foreground font-bold">${winner.name}</span>`,
-                  )
-                  .replace(
-                    loser.name,
-                    `<span class="text-muted-foreground line-through decoration-red-500/50">${loser.name}</span>`,
-                  ),
-              }}
-            />
+            <div className='text-sm font-medium leading-tight relative z-10'>
+              {renderText(localizedText, winner.name, loser.name, type)}
+            </div>
             <div className='flex items-center justify-between mt-2 relative z-10'>
               {ScoreBadge}
               <span className='text-sm font-black text-red-600 bg-red-500/20 px-2 rounded'>
@@ -403,20 +397,9 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               <TrendingDown className='w-3 h-3' />
               {t('Massive Upset')}
             </div>
-            <div
-              className='text-sm font-medium leading-tight'
-              dangerouslySetInnerHTML={{
-                __html: localizedText
-                  .replace(
-                    winner.name,
-                    `<span class="text-foreground font-bold">${winner.name}</span>`,
-                  )
-                  .replace(
-                    loser.name,
-                    `<span class="text-muted-foreground">${loser.name}</span>`,
-                  ),
-              }}
-            />
+            <div className='text-sm font-medium leading-tight'>
+              {renderText(localizedText, winner.name, loser.name, type)}
+            </div>
             <div className='flex items-center justify-between mt-2'>
               {ScoreBadge}
               <span className='text-xs font-bold text-purple-600'>
@@ -433,20 +416,9 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               <Flame className='w-3 h-3' />
               {t('Domination')}
             </div>
-            <div
-              className='text-sm font-medium leading-tight'
-              dangerouslySetInnerHTML={{
-                __html: localizedText
-                  .replace(
-                    winner.name,
-                    `<span class="text-foreground font-bold">${winner.name}</span>`,
-                  )
-                  .replace(
-                    loser.name,
-                    `<span class="text-muted-foreground">${loser.name}</span>`,
-                  ),
-              }}
-            />
+            <div className='text-sm font-medium leading-tight'>
+              {renderText(localizedText, winner.name, loser.name, type)}
+            </div>
             <div className='flex items-center justify-between mt-2'>
               {ScoreBadge}
               <span className='text-xs font-bold text-primary'>
@@ -459,20 +431,9 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       default:
         return (
           <div className='bg-muted/30 border border-border rounded-lg p-3'>
-            <div
-              className='text-sm font-medium leading-tight'
-              dangerouslySetInnerHTML={{
-                __html: localizedText
-                  .replace(
-                    winner.name,
-                    `<span class="text-foreground font-bold">${winner.name}</span>`,
-                  )
-                  .replace(
-                    loser.name,
-                    `<span class="text-muted-foreground">${loser.name}</span>`,
-                  ),
-              }}
-            />
+            <div className='text-sm font-medium leading-tight'>
+              {renderText(localizedText, winner.name, loser.name, type)}
+            </div>
             <div className='flex items-center justify-between mt-2'>
               {ScoreBadge}
               <span className='text-xs font-bold text-muted-foreground flex items-center gap-1'>
@@ -487,7 +448,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
   return (
     <div className='grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8'>
       <div className='lg:col-span-5 space-y-6'>
-        {/* НОВЫЙ БЛОК: DERBY INSIGHTS */}
         {(insights.highestStreak > 0 || insights.biggestHeist > 0) && (
           <Card className='border-blue-500/30 bg-blue-500/5 shadow-md'>
             <CardHeader className='pb-3'>
@@ -555,7 +515,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
           </Card>
         )}
 
-        {/* ACTIVE BOUNTIES */}
         {bounties.length > 0 && (
           <Card className='border-orange-500/30 bg-orange-500/5 shadow-md'>
             <CardHeader className='pb-3'>
@@ -599,7 +558,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
           </Card>
         )}
 
-        {/* ACTIVE RIVALRIES */}
         {rivalries.length > 0 && (
           <Card className='border-purple-500/30 bg-purple-500/5 shadow-md'>
             <CardHeader className='pb-3'>
@@ -630,7 +588,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
                         </span>
                       </div>
 
-                      {/* Обновленный блок H2H статистики */}
                       <div className='flex-1 flex flex-col items-center text-center justify-center px-1'>
                         <span className='text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1'>
                           {t('H2H Record')}

@@ -12,7 +12,6 @@ import {
 	orderBy,
 	query,
 	Timestamp,
-	updateDoc,
 	where,
 	writeBatch,
 } from 'firebase/firestore';
@@ -61,7 +60,7 @@ interface PlayerSeason {
   totalAddedPoints: number;
   matches: { w: boolean; ts: Date }[];
   roomRating: number;
-  highestStreak?: number; // Для подтягивания серверного рекорда
+  highestStreak?: number;
 }
 
 export interface SeasonRow {
@@ -116,7 +115,6 @@ async function collectStats(
       if (!info) return;
 
       if (!map[id]) {
-        // Подтягиваем highestStreak из профиля участника комнаты, если он там есть
         const memberData = roomMembers.find((rm) => rm.userId === id);
 
         map[id] = {
@@ -166,7 +164,6 @@ async function collectStats(
       });
 
       const matchesPlayed = s.wins + s.losses;
-      // В Derby режиме серверный highestStreak точнее
       const finalStreak =
         mode === 'derby' && s.highestStreak !== undefined
           ? Math.max(max, s.highestStreak)
@@ -205,7 +202,6 @@ async function collectStats(
     if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
 
     if (mode === 'professional' || mode === 'derby') {
-      // ДОБАВЛЕН DERBY РЕЖИМ
       if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
       if (b.winRate !== a.winRate) return b.winRate - a.winRate;
       return b.wins - a.wins;
@@ -291,23 +287,18 @@ export async function finalizeSeason(
     mode,
   };
 
-  const batch = writeBatch(db);
-
-  // 1. Очистка параметров игроков для нового сезона
   const updatedMembers = roomMembers.map((m: any) => {
-    // В любом режиме базовые характеристики сбрасываются
     const resetMember = {
       ...m,
       wins: 0,
       losses: 0,
-      rating: 1000, // Рейтинг комнаты всегда начинается заново
+      rating: 1000,
       totalMatches: 0,
       deltaRoom: 0,
       avgPtsPerMatch: 0,
       last5Form: [],
     };
 
-    // Если это Derby, полностью сбрасываем локальные параметры
     if (mode === 'derby') {
       resetMember.currentStreak = 0;
       resetMember.highestStreak = 0;
@@ -319,18 +310,31 @@ export async function finalizeSeason(
     return resetMember;
   });
 
-  batch.update(roomRef, {
-    seasonHistory: arrayUnion(entry),
-    members: updatedMembers,
-  });
-
-  // 2. Раздача достижений
   let bestStreakPlayer: SeasonRow | null = null;
   if (mode === 'derby') {
     bestStreakPlayer = [...enrichedSummary].sort(
       (a, b) => (b.longestWinStreak || 0) - (a.longestWinStreak || 0),
     )[0];
   }
+
+  const batches: Promise<void>[] = [];
+  let currentBatch = writeBatch(db);
+  let opCount = 0;
+
+  const commitBatchIfFull = () => {
+    if (opCount >= 400) {
+      batches.push(currentBatch.commit());
+      currentBatch = writeBatch(db!);
+      opCount = 0;
+    }
+  };
+
+  currentBatch.update(roomRef, {
+    seasonHistory: arrayUnion(entry),
+    members: updatedMembers,
+  });
+  opCount++;
+  commitBatchIfFull();
 
   for (const r of enrichedSummary) {
     if (r.matchesPlayed === 0) continue;
@@ -357,14 +361,11 @@ export async function finalizeSeason(
       mode,
     };
 
-    const userUpdates: any = {
-      achievements: arrayUnion(achievement),
-    };
+    const achievementsToAdd = [achievement];
 
-    // Уникальные достижения Дерби
     if (mode === 'derby') {
       if (r.place === 1) {
-        userUpdates.achievements = arrayUnion(achievement, {
+        achievementsToAdd.push({
           type: 'derbyChampion',
           sport,
           dateFinished,
@@ -376,7 +377,7 @@ export async function finalizeSeason(
         bestStreakPlayer.userId === r.userId &&
         r.longestWinStreak >= 5
       ) {
-        userUpdates.achievements = arrayUnion(achievement, {
+        achievementsToAdd.push({
           type: 'derbyUnstoppable',
           sport,
           dateFinished,
@@ -387,18 +388,28 @@ export async function finalizeSeason(
     }
 
     const userRef = doc(db, 'users', r.userId);
-    batch.update(userRef, userUpdates);
+    currentBatch.update(userRef, {
+      achievements: arrayUnion(...achievementsToAdd),
+    });
+    opCount++;
+    commitBatchIfFull();
   }
 
-  // 3. Удаляем старые матчи
   const qsMatches = query(
     collection(db, config.matches),
     where('roomId', '==', roomId),
   );
   const snapMatches = await getDocs(qsMatches);
+
   snapMatches.docs.forEach((d) => {
-    batch.delete(d.ref);
+    currentBatch.delete(d.ref);
+    opCount++;
+    commitBatchIfFull();
   });
 
-  await batch.commit();
+  if (opCount > 0) {
+    batches.push(currentBatch.commit());
+  }
+
+  await Promise.all(batches);
 }

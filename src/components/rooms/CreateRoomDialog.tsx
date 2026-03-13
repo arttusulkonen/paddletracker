@@ -483,11 +483,6 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
           selectedCommunityId !== 'none' ? selectedCommunityId : null,
       };
 
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('=== ROOM CREATION SNAPSHOT ===');
-        console.log(JSON.stringify(roomDataToSave, null, 2));
-      }
-
       const docRef = await addDoc(
         collection(db, config.collections.rooms),
         roomDataToSave,
@@ -633,7 +628,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   <RadioGroup
                     value={roomMode}
                     onValueChange={(v) => {
-                      setRoomMode(v as RoomMode | 'derby');
+                      setRoomMode(v as RoomMode);
                       if (v === 'arcade') setKFactor(0);
                       else setKFactor(32);
                     }}
