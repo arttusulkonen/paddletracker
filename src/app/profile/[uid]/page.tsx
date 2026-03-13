@@ -48,7 +48,7 @@ function chunk<T>(arr: T[], n: number): T[][] {
 }
 
 async function loadAccessibleRooms(
-  viewerUid: string | null
+  viewerUid: string | null,
 ): Promise<RoomsMap> {
   const sports: Sport[] = ['pingpong', 'tennis', 'badminton'];
   const out: RoomsMap = { pingpong: [], tennis: [], badminton: [] };
@@ -57,10 +57,10 @@ async function loadAccessibleRooms(
 
   for (const s of sports) {
     const roomsColl = sportConfig[s].collections.rooms;
-    
+
     const qPublic = query(
       collection(db, roomsColl),
-      where('isPublic', '==', true)
+      where('isPublic', '==', true),
     );
     const dPublic = await getDocs(qPublic);
 
@@ -68,7 +68,7 @@ async function loadAccessibleRooms(
     if (viewerUid) {
       const qMember = query(
         collection(db, roomsColl),
-        where('memberIds', 'array-contains', viewerUid)
+        where('memberIds', 'array-contains', viewerUid),
       );
       dMember = await getDocs(qMember);
     }
@@ -107,8 +107,9 @@ export default function ProfileUidPage() {
 
   const isSelf = targetUid && user?.uid && targetUid === user.uid;
 
-  // Определение типа профиля
-  const isCoachProfile = targetProfile?.accountType === 'coach' || targetProfile?.roles?.includes('coach');
+  const isCoachProfile =
+    targetProfile?.accountType === 'coach' ||
+    targetProfile?.roles?.includes('coach');
 
   const playedSports = useMemo(() => {
     if (!targetProfile?.sports) return [];
@@ -116,7 +117,7 @@ export default function ProfileUidPage() {
       (s) =>
         (targetProfile.sports?.[s]?.wins ?? 0) +
           (targetProfile.sports?.[s]?.losses ?? 0) >
-        0
+        0,
     );
   }, [targetProfile]);
 
@@ -166,10 +167,9 @@ export default function ProfileUidPage() {
         return;
       }
 
-      // FIX: Use Omit to prevent TS error about overwriting 'uid'
       const data = snap.data() as Omit<UserProfile, 'uid'>;
       const profileData: UserProfile = { uid: targetUid, ...data };
-      
+
       setTargetProfile(profileData);
 
       const allMatches: Record<Sport, Match[]> = {
@@ -183,7 +183,8 @@ export default function ProfileUidPage() {
         : [];
 
       const _isManager = profileData.managedBy === user?.uid;
-      const canFetchAll = isGlobalAdmin || (user?.uid === targetUid) || _isManager;
+      const canFetchAll =
+        isGlobalAdmin || user?.uid === targetUid || _isManager;
 
       const accessibleRooms = canFetchAll
         ? null
@@ -197,13 +198,13 @@ export default function ProfileUidPage() {
         if (canFetchAll) {
           const qAll = query(
             collection(db, mColl),
-            where('players', 'array-contains', targetUid)
+            where('players', 'array-contains', targetUid),
           );
           const dsAll = await getDocs(qAll);
           if (!mountedRef.current) return;
 
           collected = dsAll.docs.map(
-            (d) => ({ id: d.id, ...(d.data() as any) } as Match)
+            (d) => ({ id: d.id, ...(d.data() as any) }) as Match,
           );
         } else {
           const roomIds = accessibleRooms?.[s] ?? [];
@@ -215,25 +216,25 @@ export default function ProfileUidPage() {
             const qPart = query(
               collection(db, mColl),
               where('players', 'array-contains', targetUid),
-              where('roomId', 'in', chunkIds)
+              where('roomId', 'in', chunkIds),
             );
             const dsPart = await getDocs(qPart);
             if (!mountedRef.current) return;
 
             collected = collected.concat(
               dsPart.docs.map(
-                (d) => ({ id: d.id, ...(d.data() as any) } as Match)
-              )
+                (d) => ({ id: d.id, ...(d.data() as any) }) as Match,
+              ),
             );
           }
         }
 
         collected.sort((a, b) => {
           const dateA = parseFlexDate(
-            a.tsIso ?? a.timestamp ?? a.createdAt ?? (a as any).playedAt
+            a.tsIso ?? a.timestamp ?? a.createdAt ?? (a as any).playedAt,
           ).getTime();
           const dateB = parseFlexDate(
-            b.tsIso ?? b.timestamp ?? b.createdAt ?? (b as any).playedAt
+            b.tsIso ?? b.timestamp ?? b.createdAt ?? (b as any).playedAt,
           ).getTime();
           return dateB - dateA;
         });
@@ -277,26 +278,26 @@ export default function ProfileUidPage() {
   }, [user, viewerProfile, targetUid, isSelf, targetProfile]);
 
   const handleFriendAction = async (
-    action: 'add' | 'cancel' | 'accept' | 'remove'
+    action: 'add' | 'cancel' | 'accept' | 'remove',
   ) => {
     if (!user) return;
     try {
       const actions = {
         add: () =>
           Friends.sendFriendRequest(user.uid, targetUid).then(() =>
-            setFriendStatus('outgoing')
+            setFriendStatus('outgoing'),
           ),
         cancel: () =>
           Friends.cancelRequest(user.uid, targetUid).then(() =>
-            setFriendStatus('none')
+            setFriendStatus('none'),
           ),
         accept: () =>
           Friends.acceptRequest(user.uid, targetUid).then(() =>
-            setFriendStatus('friends')
+            setFriendStatus('friends'),
           ),
         remove: () =>
           Friends.unfriend(user.uid, targetUid).then(() =>
-            setFriendStatus('none')
+            setFriendStatus('none'),
           ),
       };
       await actions[action]();
@@ -323,16 +324,16 @@ export default function ProfileUidPage() {
       elo < 1001
         ? 'Ping-Pong Padawan'
         : elo < 1100
-        ? 'Table-Tennis Trainee'
-        : elo < 1200
-        ? 'Racket Rookie'
-        : elo < 1400
-        ? 'Paddle Prodigy'
-        : elo < 1800
-        ? 'Spin Sensei'
-        : elo < 2000
-        ? 'Smash Samurai'
-        : 'Ping-Pong Paladin';
+          ? 'Table-Tennis Trainee'
+          : elo < 1200
+            ? 'Racket Rookie'
+            : elo < 1400
+              ? 'Paddle Prodigy'
+              : elo < 1800
+                ? 'Spin Sensei'
+                : elo < 2000
+                  ? 'Smash Samurai'
+                  : 'Ping-Pong Paladin';
 
     return { rankLabel: t(key), medalSrc: medalMap[key] };
   }, [viewedSport, targetProfile, t]);
@@ -359,7 +360,7 @@ export default function ProfileUidPage() {
       stats,
       sideStats,
       monthlyData,
-      t
+      t,
     );
 
     const oppStats = opponentStats(rankedMatches, targetProfile.uid);
@@ -369,7 +370,7 @@ export default function ProfileUidPage() {
             rankedMatches,
             targetProfile.uid,
             targetProfile,
-            'tennis'
+            'tennis',
           )
         : null;
     const sportProfile = targetProfile.sports?.[viewedSport];
@@ -426,7 +427,7 @@ export default function ProfileUidPage() {
               const me = isP1 ? m.player1 : m.player2;
               const opp = isP1 ? m.player2 : m.player1;
               const d = parseFlexDate(
-                m.tsIso ?? m.timestamp ?? m.createdAt ?? (m as any).playedAt
+                m.tsIso ?? m.timestamp ?? m.createdAt ?? (m as any).playedAt,
               );
               return {
                 label: d.toLocaleDateString(),
@@ -476,8 +477,10 @@ export default function ProfileUidPage() {
 
   if (loading || !targetProfile) {
     return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <div className='animate-spin h-16 w-16 rounded-full border-b-4 border-primary' />
+      <div className='flex items-center justify-center min-h-screen bg-background'>
+        <div className='animate-pulse flex flex-col items-center gap-6'>
+          <div className='h-16 w-16 rounded-full bg-primary/20 blur-sm'></div>
+        </div>
       </div>
     );
   }
@@ -487,7 +490,7 @@ export default function ProfileUidPage() {
     sport: sportConfig[sportKeyForEmpty as Sport].name,
   });
   const emptySelfDesc = t(
-    'Browse available rooms for this sport or create your own and start collecting stats!'
+    'Browse available rooms for this sport or create your own and start collecting stats!',
   );
   const emptyOtherTitle = t('This player has no matches in {{sport}}', {
     sport: sportConfig[sportKeyForEmpty as Sport].name,
@@ -495,7 +498,7 @@ export default function ProfileUidPage() {
   const emptyOtherDesc = t('Invite them to a room and start playing together!');
 
   return (
-    <section className='container mx-auto py-8 space-y-8 animate-in fade-in duration-500'>
+    <section className='container mx-auto py-10 space-y-10 animate-in fade-in duration-700'>
       <ProfileHeader
         targetProfile={targetProfile}
         friendStatus={friendStatus}
@@ -506,16 +509,16 @@ export default function ProfileUidPage() {
         rank={rankLabel}
         medalSrc={medalSrc}
       />
-      
+
       {isCoachProfile ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-           <div className="lg:col-span-12">
-              <CoachDashboard profile={targetProfile} isSelf={!!isSelf} />
-           </div>
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
+          <div className='lg:col-span-12'>
+            <CoachDashboard profile={targetProfile} isSelf={!!isSelf} />
+          </div>
         </div>
       ) : (
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
-          <div className='lg:col-span-8 xl:col-span-9 space-y-6'>
+          <div className='lg:col-span-8 xl:col-span-9 space-y-8'>
             {playedSports.length === 0 ? (
               <NewPlayerCard isSelf={!!isSelf} profile={targetProfile} />
             ) : (
@@ -551,23 +554,30 @@ export default function ProfileUidPage() {
                     monthlyData={sportSpecificData.monthlyData}
                   />
                 ) : (
-                  <Card className='border-dashed'>
-                    <CardContent className='py-12 flex flex-col items-center justify-center text-center'>
-                      <div className='bg-muted rounded-full p-4 mb-4'>
-                        <Rocket className='h-8 w-8 text-muted-foreground' />
+                  <Card className='border-0 glass-panel shadow-xl rounded-[2.5rem] relative overflow-hidden'>
+                    <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent mix-blend-overlay' />
+                    <CardContent className='py-20 flex flex-col items-center justify-center text-center relative z-10'>
+                      <div className='bg-primary/10 rounded-full p-6 mb-6 ring-1 ring-primary/20'>
+                        <Rocket className='h-10 w-10 text-primary' />
                       </div>
-                      <h3 className='text-xl font-semibold'>
+                      <h3 className='text-3xl font-extrabold tracking-tight mb-3'>
                         {isSelf ? emptySelfTitle : emptyOtherTitle}
                       </h3>
-                      <p className='text-muted-foreground mt-2 max-w-sm mx-auto'>
+                      <p className='text-muted-foreground text-lg max-w-md mx-auto font-light'>
                         {isSelf ? emptySelfDesc : emptyOtherDesc}
                       </p>
                       {isSelf && (
-                        <div className='flex gap-3 mt-6'>
-                          <Button asChild>
+                        <div className='flex gap-4 mt-8'>
+                          <Button
+                            asChild
+                            size='lg'
+                            className='rounded-full font-semibold shadow-md'
+                          >
                             <Link href='/rooms'>{t('Browse Rooms')}</Link>
                           </Button>
-                          <CreateRoomDialog onSuccess={fetchProfileAndMatches} />
+                          <CreateRoomDialog
+                            onSuccess={fetchProfileAndMatches}
+                          />
                         </div>
                       )}
                     </CardContent>
@@ -578,10 +588,14 @@ export default function ProfileUidPage() {
           </div>
           <div className='lg:col-span-4 xl:col-span-3'>
             {!canView && (
-              <Card>
-                <CardContent className='py-8 flex flex-col items-center text-center text-muted-foreground'>
-                  <Lock className='h-10 w-10 mb-3 opacity-50' />
-                  <p>{t('Stats are hidden')}</p>
+              <Card className='border-0 glass-panel shadow-xl rounded-3xl mb-8'>
+                <CardContent className='py-12 flex flex-col items-center text-center text-muted-foreground'>
+                  <div className='bg-background/80 p-4 rounded-full mb-4 shadow-sm'>
+                    <Lock className='h-8 w-8 text-muted-foreground/50' />
+                  </div>
+                  <p className='font-medium text-sm uppercase tracking-widest opacity-70'>
+                    {t('Stats are hidden')}
+                  </p>
                 </CardContent>
               </Card>
             )}

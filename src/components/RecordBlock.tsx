@@ -41,7 +41,6 @@ import {
 	TennisSetData,
 } from './record-blocks/TennisRecordBlock';
 
-// Helper component moved/updated
 function PlayerSelect({
   label,
   value,
@@ -58,14 +57,18 @@ function PlayerSelect({
   disabledIds?: string[];
 }) {
   return (
-    <div className='space-y-2 w-full'>
-      <Label>{label}</Label>
+    <div className='space-y-1.5 w-full'>
+      <Label className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1'>
+        {label}
+      </Label>
       <select
-        className='w-full border rounded p-2 bg-input'
+        className='w-full h-10 border-0 rounded-xl bg-muted/50 px-3 font-semibold text-sm ring-1 ring-black/5 dark:ring-white/10 focus:ring-2 focus:ring-primary/40 outline-none transition-all cursor-pointer'
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value=''>{t('Select')}</option>
+        <option value='' disabled>
+          {t('Select player...')}
+        </option>
         {list
           .filter((o) => !disabledIds.includes(o.userId))
           .map((o) => (
@@ -78,7 +81,6 @@ function PlayerSelect({
   );
 }
 
-// New Types
 type GameData = PingPongMatchData | TennisSetData | BadmintonMatchData;
 type MatchupDraft = {
   id: string;
@@ -87,7 +89,6 @@ type MatchupDraft = {
   games: GameData[];
 };
 
-// FIX: Centralized strict validation function
 export const isGameInvalid = (
   game: any,
   validateScore: (s1: number, s2: number) => { isValid: boolean },
@@ -95,7 +96,6 @@ export const isGameInvalid = (
   const s1 = String(game?.score1 ?? '').trim();
   const s2 = String(game?.score2 ?? '').trim();
 
-  // Automatically invalid if fields are left completely empty
   if (s1 === '' || s2 === '') return true;
 
   const a = Number(s1);
@@ -106,7 +106,6 @@ export const isGameInvalid = (
   return !validateScore(a, b).isValid;
 };
 
-// internal component to handle a single matchup block
 function MatchupDraftBlock({
   matchup,
   members,
@@ -146,7 +145,6 @@ function MatchupDraftBlock({
 
     const lastSide1 =
       (lastGame as PingPongMatchData | BadmintonMatchData)?.side1 || 'left';
-    // Alternate sides for pingpong/badminton to simplify input
     const newSide1 = lastSide1 === 'left' ? 'right' : 'left';
     const newSide2 = newSide1 === 'left' ? 'right' : 'left';
 
@@ -183,7 +181,6 @@ function MatchupDraftBlock({
   const isMatchupReady =
     matchup.player1Id && matchup.player2Id && matchup.games.length > 0;
 
-  // Use the strict centralized validation
   const invalidGame = matchup.games.find((g) =>
     isGameInvalid(g, config.validateScore),
   );
@@ -192,29 +189,37 @@ function MatchupDraftBlock({
   const p2Name = members.find((m) => m.userId === matchup.player2Id)?.name;
 
   let headerClass =
-    'flex items-center gap-2 font-bold text-lg p-2 rounded-t-lg transition-colors';
+    'flex items-center gap-3 font-extrabold text-base p-3 rounded-t-2xl transition-colors';
+
+  let wrapperClass =
+    'shadow-sm border-0 ring-1 ring-black/5 dark:ring-white/10 rounded-2xl bg-card overflow-hidden transition-all duration-300';
+
   if (invalidGame) {
-    headerClass +=
-      ' bg-amber-100 dark:bg-amber-950/20 text-amber-600 border-b border-amber-300';
+    headerClass += ' bg-amber-500/10 text-amber-700 dark:text-amber-400';
+    wrapperClass += ' ring-amber-500/30';
   } else if (isMatchupReady) {
-    headerClass +=
-      ' bg-primary/5 dark:bg-primary/10 text-primary border-b border-primary/20';
+    headerClass += ' bg-primary/10 text-primary';
+    wrapperClass += ' ring-primary/30 shadow-md';
   } else {
-    headerClass += ' bg-muted text-muted-foreground border-b border-border';
+    headerClass += ' bg-muted/50 text-muted-foreground';
   }
 
   return (
-    <Card className='shadow-lg border-2'>
+    <Card className={wrapperClass}>
       <div className={headerClass}>
-        <User size={18} />
-        <span className='truncate flex-1'>
-          {p1Name || t('Player 1')} vs {p2Name || t('Player 2')}
+        <div className='bg-background/50 p-1.5 rounded-lg backdrop-blur-md'>
+          <User size={16} />
+        </div>
+        <span className='truncate flex-1 tracking-tight text-sm'>
+          {p1Name || t('Player 1')}{' '}
+          <span className='text-xs font-medium opacity-50 mx-1'>vs</span>{' '}
+          {p2Name || t('Player 2')}
         </span>
         {removable && (
           <Button
             variant='ghost'
             size='icon'
-            className='h-8 w-8 hover:text-destructive'
+            className='h-8 w-8 hover:bg-destructive/10 hover:text-destructive rounded-full transition-colors bg-background/50 backdrop-blur-md'
             onClick={onRemove}
             title={t('Remove Matchup')}
           >
@@ -223,8 +228,8 @@ function MatchupDraftBlock({
         )}
       </div>
 
-      <CardContent className='p-4 space-y-4'>
-        <div className='flex flex-col sm:flex-row gap-4 items-end'>
+      <CardContent className='p-4 space-y-4 bg-background/50'>
+        <div className='flex flex-col sm:flex-row gap-3 items-center relative z-10'>
           <PlayerSelect
             label={t('Player 1')}
             value={matchup.player1Id}
@@ -232,6 +237,9 @@ function MatchupDraftBlock({
             list={listP1}
             t={t}
           />
+          <div className='hidden sm:flex mt-5 bg-muted/50 h-6 w-6 rounded-full items-center justify-center text-[9px] font-black text-muted-foreground shrink-0'>
+            VS
+          </div>
           <PlayerSelect
             label={t('Player 2')}
             value={matchup.player2Id}
@@ -241,11 +249,11 @@ function MatchupDraftBlock({
           />
         </div>
 
-        <div className='space-y-3 pt-4 border-t mt-4'>
-          <Label className='font-semibold text-muted-foreground'>
+        <div className='space-y-3 pt-4 border-t border-black/5 dark:border-white/5 relative z-10'>
+          <Label className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1'>
             {t(sport === 'tennis' ? 'Set Results' : 'Game Results')}
           </Label>
-          <div className='space-y-4'>
+          <div className='space-y-3'>
             {matchup.games.map((row, i) => {
               const rowProps = {
                 data: row as any,
@@ -290,10 +298,11 @@ function MatchupDraftBlock({
 
           <Button
             variant='outline'
-            className='flex items-center gap-2 w-full mt-4'
+            className='flex items-center gap-2 w-full h-10 rounded-xl mt-4 border-dashed hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all font-semibold text-xs'
             onClick={addGameRow}
           >
-            <Plus /> {sport === 'tennis' ? t('Add Set') : t('Add Game')}
+            <Plus className='w-4 h-4' />{' '}
+            {sport === 'tennis' ? t('Add Set') : t('Add Game')}
           </Button>
         </div>
       </CardContent>
@@ -446,7 +455,6 @@ export function RecordBlock({
 
   const totalGames = matchupDrafts.reduce((sum, m) => sum + m.games.length, 0);
 
-  // FIX: Accurate Ready check
   const totalMatchupsReady = matchupDrafts.filter(
     (m) =>
       m.player1Id &&
@@ -457,17 +465,22 @@ export function RecordBlock({
   ).length;
 
   return (
-    <Card className='shadow-md flex flex-col h-full'>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <Sword className='text-accent' /> {t('Record Matches')}
+    <Card className='shadow-xl border-0 rounded-[2rem] flex flex-col h-full glass-panel relative overflow-hidden mb-12'>
+      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent mix-blend-overlay pointer-events-none' />
+
+      <CardHeader className='px-6 pt-6 pb-4 relative z-10'>
+        <CardTitle className='flex items-center gap-3 text-2xl font-extrabold tracking-tight'>
+          <div className='bg-primary/10 p-2.5 rounded-xl ring-1 ring-primary/20 shadow-sm'>
+            <Sword className='text-primary h-5 w-5' />
+          </div>
+          {t('Record Matches')}
         </CardTitle>
-        <CardDescription>
+        <CardDescription className='text-sm font-light text-muted-foreground mt-1'>
           {t('Record one or more matchups with their game/set results.')}
         </CardDescription>
       </CardHeader>
 
-      <CardContent className='space-y-6 flex-grow'>
+      <CardContent className='px-4 sm:px-6 space-y-6 flex-grow relative z-10'>
         {matchupDrafts.map((matchup) => (
           <MatchupDraftBlock
             key={matchup.id}
@@ -482,25 +495,28 @@ export function RecordBlock({
           />
         ))}
 
-        <div className='flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-4 pt-4 border-t'>
+        <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-4 mt-6 pt-5 border-t border-black/5 dark:border-white/5'>
           <Button
             variant='outline'
-            className='flex items-center gap-2'
+            className='flex items-center gap-2 h-12 rounded-xl shadow-sm border-0 ring-1 ring-black/5 dark:ring-white/10 bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition-all font-semibold px-5 text-sm'
             onClick={addMatchup}
             disabled={isRecording}
           >
-            <Plus /> {t('Add Matchup')}
+            <Plus className='w-4 h-4' /> {t('Add Matchup')}
           </Button>
-          <div className='flex flex-col items-end gap-2'>
-            <span className='text-sm text-muted-foreground'>
+          <div className='flex flex-col items-center md:items-end gap-2 w-full md:w-auto'>
+            <span className='text-xs text-muted-foreground font-medium'>
               {t('Ready to record')}:{' '}
-              <strong>
+              <strong className='text-foreground text-sm px-1'>
                 {totalMatchupsReady} / {matchupDrafts.length}
               </strong>{' '}
-              {t('matchups')} ({totalGames} {t('games')})
+              {t('matchups')}{' '}
+              <span className='opacity-50'>
+                ({totalGames} {t('games')})
+              </span>
             </span>
             <Button
-              className='w-full sm:w-auto sm:max-w-xs'
+              className='w-full md:w-auto h-12 rounded-xl px-8 text-sm font-bold shadow-md hover:shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100'
               disabled={isRecording || totalMatchupsReady === 0}
               onClick={saveMatches}
             >
@@ -511,49 +527,68 @@ export function RecordBlock({
       </CardContent>
 
       {sport === 'tennis' && (
-        <CardFooter className='flex-col items-start gap-4 border-t pt-4 text-xs text-muted-foreground'>
-          <p className='font-semibold'>{t('Tennis Terms:')}</p>
-          <ul className='list-disc pl-5 space-y-1'>
+        <CardFooter className='flex-col items-start gap-3 border-t border-black/5 dark:border-white/5 px-6 py-5 text-xs text-muted-foreground relative z-10'>
+          <p className='font-bold uppercase tracking-widest text-[9px]'>
+            {t('Tennis Terms:')}
+          </p>
+          <ul className='list-disc pl-5 space-y-1.5 font-medium'>
             <li>
-              <strong>{t('Aces')}:</strong>{' '}
-              {t('Serves that result directly in a point.')}
+              <strong className='text-foreground'>{t('Aces')}:</strong>{' '}
+              <span className='opacity-80'>
+                {t('Serves that result directly in a point.')}
+              </span>
             </li>
             <li>
-              <strong>{t('Double Faults')}:</strong>{' '}
-              {t(
-                'Two consecutive faults during a serve, resulting in the loss of the point.',
-              )}
+              <strong className='text-foreground'>{t('Double Faults')}:</strong>{' '}
+              <span className='opacity-80'>
+                {t(
+                  'Two consecutive faults during a serve, resulting in the loss of the point.',
+                )}
+              </span>
             </li>
             <li>
-              <strong>{t('Winners')}:</strong>{' '}
-              {t(
-                'Shots that win the point outright, without the opponent touching the ball.',
-              )}
+              <strong className='text-foreground'>{t('Winners')}:</strong>{' '}
+              <span className='opacity-80'>
+                {t(
+                  'Shots that win the point outright, without the opponent touching the ball.',
+                )}
+              </span>
             </li>
           </ul>
         </CardFooter>
       )}
 
       {(isCreator || isGlobalAdmin) && (
-        <CardFooter className='justify-end border-t pt-4 mt-auto'>
+        <CardFooter className='justify-end border-t border-black/5 dark:border-white/5 px-6 py-5 mt-auto relative z-10'>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant='destructive'>{t('Finish Season')}</Button>
+              <Button
+                variant='destructive'
+                size='sm'
+                className='rounded-lg font-bold shadow-sm'
+              >
+                {t('Finish Season')}
+              </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent className='border-0 glass-panel rounded-[2rem] shadow-2xl'>
               <AlertDialogHeader>
-                <AlertDialogTitle>
+                <AlertDialogTitle className='text-xl font-extrabold tracking-tight'>
                   {t('Are you absolutely sure?')}
                 </AlertDialogTitle>
-                <AlertDialogDescription>
+                <AlertDialogDescription className='text-sm font-medium'>
                   {t(
                     'This action will close the current season for this room. All standings will be finalized, and no new matches can be recorded for this season. This cannot be undone.',
                   )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
-                <AlertDialogAction onClick={onFinishSeason}>
+              <AlertDialogFooter className='mt-4'>
+                <AlertDialogCancel className='h-10 rounded-xl text-sm border-0 ring-1 ring-black/5 dark:ring-white/10'>
+                  {t('Cancel')}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={onFinishSeason}
+                  className='h-10 rounded-xl text-sm font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                >
                   {t('Yes, Finish Season')}
                 </AlertDialogAction>
               </AlertDialogFooter>

@@ -1,3 +1,4 @@
+// src/components/rooms/RoomCard.tsx
 'use client';
 
 import { Badge as BadgeUI } from '@/components/ui/badge';
@@ -10,12 +11,6 @@ import {
 	CardTitle as CardTitleUI,
 	Card as CardUI,
 } from '@/components/ui/card';
-import {
-	TooltipContent as TooltipContentUI,
-	TooltipProvider as TooltipProviderUI,
-	TooltipTrigger as TooltipTriggerUI,
-	Tooltip as TooltipUI,
-} from '@/components/ui/tooltip';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { sportConfig } from '@/contexts/SportContext';
@@ -25,8 +20,6 @@ import {
 	CalendarDays,
 	CheckCircle2,
 	Crown,
-	Globe,
-	Lock,
 	Trophy,
 	Users,
 	Warehouse,
@@ -49,32 +42,27 @@ interface RoomCardProps {
   hrefBase?: string;
 }
 
-// --- СПЕЦИАЛЬНЫЙ ПАРСЕР ДЛЯ getFinnishDate ---
 const parseFinnishDate = (val: string | number | undefined | null): Date => {
   if (!val) return new Date();
 
-  // 1. Если это уже timestamp (число)
   if (typeof val === 'number') return new Date(val);
 
-  // 2. Если это объект Firestore Timestamp
   if (typeof val === 'object' && 'toDate' in (val as any)) {
     return (val as any).toDate();
   }
 
   const str = String(val).trim();
 
-  // 3. Формат "DD.MM.YYYY HH.MM.SS" (как в вашей функции)
-  // или "DD.MM.YYYY"
   const parts = str.split(' ');
   const datePart = parts[0];
   const timePart = parts[1] || '00.00.00';
 
-  const d = datePart.split('.'); // [DD, MM, YYYY]
-  const t = timePart.split('.'); // [HH, MM, SS]
+  const d = datePart.split('.');
+  const t = timePart.split('.');
 
   if (d.length === 3) {
     const day = parseInt(d[0], 10);
-    const month = parseInt(d[1], 10) - 1; // Месяцы в JS от 0
+    const month = parseInt(d[1], 10) - 1;
     const year = parseInt(d[2], 10);
 
     const hours = parseInt(t[0] || '0', 10);
@@ -85,7 +73,6 @@ const parseFinnishDate = (val: string | number | undefined | null): Date => {
     if (!isNaN(result.getTime())) return result;
   }
 
-  // 4. Фолбэк на стандартный ISO
   const iso = new Date(str);
   if (!isNaN(iso.getTime())) return iso;
 
@@ -105,7 +92,6 @@ export const RoomCard: React.FC<RoomCardProps> = ({
   const sportIcon = sportConfig[room.sport || 'pingpong'].icon;
   const memberCount = room.memberIds?.length || 0;
 
-  // Используем наш парсер
   const createdDate = parseFinnishDate(room.createdAt || room.roomCreated);
 
   const getRoomStatus = () => {
@@ -114,7 +100,6 @@ export const RoomCard: React.FC<RoomCardProps> = ({
         label: t('Archived'),
         icon: <Archive className='h-3 w-3' />,
         style: 'opacity-70 grayscale',
-        badge: 'outline',
         btnText: t('View History'),
         btnVariant: 'secondary',
       };
@@ -123,8 +108,8 @@ export const RoomCard: React.FC<RoomCardProps> = ({
       return {
         label: t('Season Finished'),
         icon: <CheckCircle2 className='h-3 w-3' />,
-        style: 'border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/10',
-        badge: 'secondary',
+        style:
+          'bg-amber-50/50 dark:bg-amber-950/10 ring-1 ring-amber-200 dark:ring-amber-900',
         btnText: t('View Results'),
         btnVariant: 'outline',
       };
@@ -132,8 +117,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
     return {
       label: null,
       icon: null,
-      style: 'hover:border-primary/50 hover:shadow-lg',
-      badge: 'default',
+      style: 'hover:scale-[1.02] hover:shadow-2xl',
       btnText: isMember ? t('Enter Room') : t('View Details'),
       btnVariant: isMember ? 'default' : 'secondary',
     };
@@ -147,19 +131,25 @@ export const RoomCard: React.FC<RoomCardProps> = ({
         return {
           label: t('Pro'),
           color:
-            'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
+            'bg-amber-500/10 text-amber-700 dark:text-amber-400 ring-1 ring-amber-500/30',
         };
       case 'arcade':
         return {
           label: t('Arcade'),
           color:
-            'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+            'bg-purple-500/10 text-purple-700 dark:text-purple-400 ring-1 ring-purple-500/30',
+        };
+      case 'derby':
+        return {
+          label: t('Derby'),
+          color:
+            'bg-red-500/10 text-red-700 dark:text-red-400 ring-1 ring-red-500/30',
         };
       default:
         return {
           label: t('Club'),
           color:
-            'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+            'bg-slate-500/10 text-slate-700 dark:text-slate-300 ring-1 ring-slate-500/30',
         };
     }
   };
@@ -167,20 +157,25 @@ export const RoomCard: React.FC<RoomCardProps> = ({
 
   return (
     <CardUI
-      className={`flex flex-col h-full transition-all duration-300 border-t-4 ${status.style} group`}
+      className={`flex flex-col h-full transition-all duration-500 border-0 rounded-[2rem] glass-panel ${status.style} group overflow-hidden relative`}
     >
-      <CardHeaderUI className='pb-3 relative'>
-        <div className='flex justify-between items-start mb-3'>
+      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
+
+      <CardHeaderUI className='pb-4 relative z-10 px-6 pt-6'>
+        <div className='flex justify-between items-start mb-4'>
           <div className='flex flex-wrap gap-2'>
             <BadgeUI
               variant='outline'
-              className={`text-[10px] uppercase font-bold tracking-wider border ${mode.color}`}
+              className={`text-[9px] uppercase font-bold tracking-widest border-0 ${mode.color} px-2.5 py-0.5 rounded-full`}
             >
               {mode.label}
             </BadgeUI>
 
             {status.label && (
-              <BadgeUI variant='secondary' className='text-[10px] gap-1'>
+              <BadgeUI
+                variant='secondary'
+                className='text-[9px] gap-1 px-2.5 py-0.5 rounded-full border-0 bg-background/50 backdrop-blur-md shadow-sm uppercase tracking-widest font-bold'
+              >
                 {status.icon} {status.label}
               </BadgeUI>
             )}
@@ -188,55 +183,56 @@ export const RoomCard: React.FC<RoomCardProps> = ({
             {room.communityName && (
               <BadgeUI
                 variant='outline'
-                className='text-[10px] gap-1 bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900'
+                className='text-[9px] gap-1 px-2.5 py-0.5 rounded-full border-0 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 ring-1 ring-indigo-500/30 uppercase tracking-widest font-bold'
               >
                 <Warehouse className='h-3 w-3' />
-                <span className='truncate max-w-[120px]'>
+                <span className='truncate max-w-[100px]'>
                   {room.communityName}
                 </span>
               </BadgeUI>
             )}
           </div>
 
-          <div className='text-muted-foreground/50 group-hover:text-primary transition-colors'>
+          <div className='text-muted-foreground/30 group-hover:text-primary transition-colors bg-background/50 p-2 rounded-xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-sm'>
             {sportIcon}
           </div>
         </div>
 
-        <CardTitleUI className='text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors'>
-          <Link href={`${hrefBase}/${room.id}`} className='hover:underline'>
+        <CardTitleUI className='text-2xl font-extrabold tracking-tight leading-tight line-clamp-1 group-hover:text-primary transition-colors'>
+          <Link
+            href={`${hrefBase}/${room.id}`}
+            className='before:absolute before:inset-0'
+          >
             {room.name}
           </Link>
         </CardTitleUI>
 
-        <CardDescriptionUI className='flex items-center gap-1 text-xs'>
-          <span>{t('by')}</span>
-          <span className='font-medium text-foreground'>
+        <CardDescriptionUI className='flex items-center gap-1.5 text-xs mt-1.5'>
+          <span className='font-light opacity-70'>{t('by')}</span>
+          <span className='font-semibold text-foreground/80'>
             {room.creatorName || t('Unknown')}
           </span>
           {room.creator === user?.uid && (
-            <Crown className='h-3 w-3 text-amber-500' />
+            <Crown className='h-3.5 w-3.5 text-amber-500' />
           )}
         </CardDescriptionUI>
       </CardHeaderUI>
 
-      <CardContentUI className='flex-grow space-y-4'>
-        <div className='grid grid-cols-2 gap-2'>
-          <div className='bg-muted/40 p-2 rounded-md flex flex-col items-center justify-center border border-transparent group-hover:border-border transition-colors'>
-            <div className='flex items-center gap-1.5 text-muted-foreground text-[10px] uppercase font-bold tracking-wider'>
-              <Users className='h-3 w-3' /> {t('Members')}
+      <CardContentUI className='flex-grow space-y-5 relative z-10 px-6'>
+        <div className='grid grid-cols-2 gap-3'>
+          <div className='bg-background/40 backdrop-blur-md p-3 rounded-2xl flex flex-col items-center justify-center ring-1 ring-black/5 dark:ring-white/5 group-hover:ring-primary/20 transition-colors shadow-sm'>
+            <div className='flex items-center gap-1.5 text-muted-foreground text-[9px] uppercase font-bold tracking-widest'>
+              <Users className='h-3.5 w-3.5' /> {t('Members')}
             </div>
-            <span className='text-lg font-bold'>{memberCount}</span>
+            <span className='text-2xl font-black mt-1'>{memberCount}</span>
           </div>
-          <div className='bg-muted/40 p-2 rounded-md flex flex-col items-center justify-center border border-transparent group-hover:border-border transition-colors'>
-            <div className='flex items-center gap-1.5 text-muted-foreground text-[10px] uppercase font-bold tracking-wider'>
-              <CalendarDays className='h-3 w-3' /> {t('Created')}
+          <div className='bg-background/40 backdrop-blur-md p-3 rounded-2xl flex flex-col items-center justify-center ring-1 ring-black/5 dark:ring-white/5 group-hover:ring-primary/20 transition-colors shadow-sm'>
+            <div className='flex items-center gap-1.5 text-muted-foreground text-[9px] uppercase font-bold tracking-widest'>
+              <CalendarDays className='h-3.5 w-3.5' /> {t('Created')}
             </div>
-            {/* Using toLocaleDateString ensures localized format like 25.12.2025 */}
-            <span className='text-xs font-medium mt-1'>
+            <span className='text-sm font-semibold mt-2'>
               {createdDate.toLocaleDateString(undefined, {
                 month: 'short',
-                year: 'numeric',
                 day: 'numeric',
               })}
             </span>
@@ -244,64 +240,38 @@ export const RoomCard: React.FC<RoomCardProps> = ({
         </div>
 
         {isMember && (
-          <div className='pt-3 border-t flex items-center justify-between text-sm'>
-            <div className='flex items-center gap-2'>
-              <div className='p-1 bg-primary/10 rounded-full text-primary'>
-                <Trophy className='h-3 w-3' />
+          <div className='pt-4 border-t border-border/40 flex items-center justify-between text-sm'>
+            <div className='flex items-center gap-3'>
+              <div className='p-2 bg-primary/10 rounded-xl text-primary ring-1 ring-primary/20'>
+                <Trophy className='h-4 w-4' />
               </div>
               <div className='flex flex-col leading-none'>
-                <span className='text-[10px] text-muted-foreground font-bold uppercase'>
+                <span className='text-[9px] text-muted-foreground font-bold uppercase tracking-widest mb-1'>
                   Rating
                 </span>
-                <span className='font-bold'>
+                <span className='font-black text-lg'>
                   {Math.round(myRating || 1000)}
                 </span>
               </div>
             </div>
             <div className='text-right leading-none'>
-              <span className='block text-[10px] text-muted-foreground font-bold uppercase'>
+              <span className='block text-[9px] text-muted-foreground font-bold uppercase tracking-widest mb-1'>
                 {t('Matches')}
               </span>
-              <span className='font-bold'>{myMatches || 0}</span>
+              <span className='font-black text-lg'>{myMatches || 0}</span>
             </div>
           </div>
         )}
       </CardContentUI>
 
-      <CardFooterUI className='pt-2 pb-4'>
+      <CardFooterUI className='pt-2 pb-6 px-6 relative z-10'>
         <ButtonUI
           asChild
-          className='w-full shadow-sm'
+          className={`w-full rounded-xl h-12 font-bold shadow-md transition-all ${status.btnVariant === 'default' ? 'hover:shadow-lg active:scale-[0.98]' : ''}`}
           variant={status.btnVariant as any}
         >
           <Link href={`${hrefBase}/${room.id}`}>{status.btnText}</Link>
         </ButtonUI>
-
-        <div className='absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity'>
-          {room.isPublic ? (
-            <TooltipProviderUI>
-              <TooltipUI>
-                <TooltipTriggerUI>
-                  <Globe className='h-3 w-3 text-muted-foreground' />
-                </TooltipTriggerUI>
-                <TooltipContentUI side='left'>
-                  <p>{t('Public Room')}</p>
-                </TooltipContentUI>
-              </TooltipUI>
-            </TooltipProviderUI>
-          ) : (
-            <TooltipProviderUI>
-              <TooltipUI>
-                <TooltipTriggerUI>
-                  <Lock className='h-3 w-3 text-muted-foreground' />
-                </TooltipTriggerUI>
-                <TooltipContentUI side='left'>
-                  <p>{t('Private Room')}</p>
-                </TooltipContentUI>
-              </TooltipUI>
-            </TooltipProviderUI>
-          )}
-        </div>
       </CardFooterUI>
     </CardUI>
   );
