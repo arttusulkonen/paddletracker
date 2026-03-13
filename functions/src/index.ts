@@ -937,7 +937,7 @@ export const recordMatch = onCall(
     }
 
     const members = roomData.members || [];
-    const mode: RoomMode = roomData.mode || 'office';
+    const mode = (roomData.mode as RoomMode | 'derby') || 'office';
 
     const getOrAddMember = (uid: string, userData: any) => {
       const existingIndex = members.findIndex((m: any) => m.userId === uid);

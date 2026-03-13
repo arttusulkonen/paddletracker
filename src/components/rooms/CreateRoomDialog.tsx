@@ -112,7 +112,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
   const [roomDescription, setRoomDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [isRanked, setIsRanked] = useState(true);
-  const [roomMode, setRoomMode] = useState<RoomMode | 'derby'>('office');
+  const [roomMode, setRoomMode] = useState<RoomMode>('office');
 
   const [selectedCommunityId, setSelectedCommunityId] =
     useState<string>('none');
@@ -483,8 +483,10 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
           selectedCommunityId !== 'none' ? selectedCommunityId : null,
       };
 
-      console.log('=== ROOM CREATION SNAPSHOT ===');
-      console.log(JSON.stringify(roomDataToSave, null, 2));
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('=== ROOM CREATION SNAPSHOT ===');
+        console.log(JSON.stringify(roomDataToSave, null, 2));
+      }
 
       const docRef = await addDoc(
         collection(db, config.collections.rooms),
