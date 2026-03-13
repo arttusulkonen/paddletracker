@@ -14,6 +14,7 @@ import {
 	Timestamp,
 	updateDoc,
 	where,
+	writeBatch,
 } from 'firebase/firestore';
 import type { RoomMode } from './types';
 
@@ -30,7 +31,7 @@ const toDate = (v: string | Timestamp): Date => {
         +dateParts[0],
         +timeParts[0],
         +timeParts[1],
-        +timeParts[2] || 0
+        +timeParts[2] || 0,
       );
     }
     return new Date(v);
@@ -60,6 +61,7 @@ interface PlayerSeason {
   totalAddedPoints: number;
   matches: { w: boolean; ts: Date }[];
   roomRating: number;
+  highestStreak?: number; // Для подтягивания серверного рекорда
 }
 
 export interface SeasonRow {
@@ -86,7 +88,8 @@ const adjFactor = (ratio: number): number => {
 async function collectStats(
   roomId: string,
   matchesCollectionName: string,
-  mode: RoomMode
+  mode: RoomMode,
+  roomMembers: any[],
 ): Promise<SeasonRow[]> {
   if (!db) return [];
 
@@ -94,8 +97,8 @@ async function collectStats(
     query(
       collection(db, matchesCollectionName),
       where('roomId', '==', roomId),
-      orderBy('tsIso', 'asc')
-    )
+      orderBy('tsIso', 'asc'),
+    ),
   );
 
   if (snap.empty) return [];
@@ -113,6 +116,9 @@ async function collectStats(
       if (!info) return;
 
       if (!map[id]) {
+        // Подтягиваем highestStreak из профиля участника комнаты, если он там есть
+        const memberData = roomMembers.find((rm) => rm.userId === id);
+
         map[id] = {
           userId: id,
           name: info.name ?? 'Unknown',
@@ -121,6 +127,7 @@ async function collectStats(
           totalAddedPoints: 0,
           matches: [],
           roomRating: pickRoomRating(info),
+          highestStreak: memberData?.highestStreak,
         };
       }
       const rec = map[id];
@@ -144,7 +151,7 @@ async function collectStats(
   const rows: Omit<SeasonRow, 'place' | 'adjPoints'>[] = Object.values(map).map(
     (s) => {
       const ordered = [...s.matches].sort(
-        (a, b) => a.ts.getTime() - b.ts.getTime()
+        (a, b) => a.ts.getTime() - b.ts.getTime(),
       );
 
       let cur = 0,
@@ -159,6 +166,11 @@ async function collectStats(
       });
 
       const matchesPlayed = s.wins + s.losses;
+      // В Derby режиме серверный highestStreak точнее
+      const finalStreak =
+        mode === 'derby' && s.highestStreak !== undefined
+          ? Math.max(max, s.highestStreak)
+          : max;
 
       return {
         userId: s.userId,
@@ -168,10 +180,10 @@ async function collectStats(
         losses: s.losses,
         winRate: matchesPlayed > 0 ? (s.wins / matchesPlayed) * 100 : 0,
         totalAddedPoints: s.totalAddedPoints,
-        longestWinStreak: max,
+        longestWinStreak: finalStreak,
         roomRating: s.roomRating,
       };
-    }
+    },
   );
 
   const totalMatchesAll = rows.reduce((sum, r) => sum + r.matchesPlayed, 0);
@@ -192,7 +204,8 @@ async function collectStats(
     const bPlayed = b.matchesPlayed > 0;
     if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
 
-    if (mode === 'professional') {
+    if (mode === 'professional' || mode === 'derby') {
+      // ДОБАВЛЕН DERBY РЕЖИМ
       if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
       if (b.winRate !== a.winRate) return b.winRate - a.winRate;
       return b.wins - a.wins;
@@ -214,7 +227,7 @@ async function collectStats(
 
 async function getLastMatchFinishDateFinnish(
   roomId: string,
-  matchesCollectionName: string
+  matchesCollectionName: string,
 ): Promise<string> {
   if (!db) return getFinnishFormattedDate();
 
@@ -222,7 +235,7 @@ async function getLastMatchFinishDateFinnish(
     collection(db, matchesCollectionName),
     where('roomId', '==', roomId),
     orderBy('tsIso', 'desc'),
-    limit(1)
+    limit(1),
   );
   const snap = await getDocs(qs);
   if (snap.empty) {
@@ -233,10 +246,9 @@ async function getLastMatchFinishDateFinnish(
     m?.tsIso != null
       ? new Date(m.tsIso)
       : m?.timestamp
-      ? toDate(m.timestamp)
-      : new Date();
-  
-  // FIX: Use local helper instead of getFinnishFormattedDate(dt)
+        ? toDate(m.timestamp)
+        : new Date();
+
   return formatDate(dt);
 }
 
@@ -244,7 +256,7 @@ export async function finalizeSeason(
   roomId: string,
   snapshots: Record<string, { start: number; end: number }>,
   config: SportConfig['collections'],
-  sport: Sport
+  sport: Sport,
 ): Promise<void> {
   if (!db) return;
 
@@ -253,8 +265,9 @@ export async function finalizeSeason(
   if (!roomSnap.exists()) return;
   const roomData = roomSnap.data() as any;
   const mode = roomData.mode || 'office';
+  const roomMembers = roomData.members || [];
 
-  const summary = await collectStats(roomId, config.matches, mode);
+  const summary = await collectStats(roomId, config.matches, mode, roomMembers);
   if (!summary.length) return;
 
   const enrichedSummary: SeasonRow[] = summary.map((r) => ({
@@ -265,7 +278,7 @@ export async function finalizeSeason(
 
   const dateFinished = await getLastMatchFinishDateFinnish(
     roomId,
-    config.matches
+    config.matches,
   );
 
   const entry = {
@@ -278,20 +291,51 @@ export async function finalizeSeason(
     mode,
   };
 
-  const updatedMembers = (roomData.members ?? []).map((m: any) => {
-    const row = enrichedSummary.find((r) => r.userId === m.userId);
-    return row
-      ? { ...m, wins: row.wins, losses: row.losses, rating: row.roomRating }
-      : m;
+  const batch = writeBatch(db);
+
+  // 1. Очистка параметров игроков для нового сезона
+  const updatedMembers = roomMembers.map((m: any) => {
+    // В любом режиме базовые характеристики сбрасываются
+    const resetMember = {
+      ...m,
+      wins: 0,
+      losses: 0,
+      rating: 1000, // Рейтинг комнаты всегда начинается заново
+      totalMatches: 0,
+      deltaRoom: 0,
+      avgPtsPerMatch: 0,
+      last5Form: [],
+    };
+
+    // Если это Derby, полностью сбрасываем локальные параметры
+    if (mode === 'derby') {
+      resetMember.currentStreak = 0;
+      resetMember.highestStreak = 0;
+      resetMember.badges = [];
+      resetMember.nemesisId = null;
+      resetMember.h2h = {};
+    }
+
+    return resetMember;
   });
 
-  await updateDoc(roomRef, {
+  batch.update(roomRef, {
     seasonHistory: arrayUnion(entry),
     members: updatedMembers,
   });
 
+  // 2. Раздача достижений
+  let bestStreakPlayer: SeasonRow | null = null;
+  if (mode === 'derby') {
+    bestStreakPlayer = [...enrichedSummary].sort(
+      (a, b) => (b.longestWinStreak || 0) - (a.longestWinStreak || 0),
+    )[0];
+  }
+
   for (const r of enrichedSummary) {
-    const achievement = {
+    if (r.matchesPlayed === 0) continue;
+
+    const achievement: any = {
       type: 'seasonFinish',
       sport,
       roomId,
@@ -313,10 +357,48 @@ export async function finalizeSeason(
       mode,
     };
 
-    if (db) {
-      await updateDoc(doc(db, 'users', r.userId), {
-        achievements: arrayUnion(achievement),
-      });
+    const userUpdates: any = {
+      achievements: arrayUnion(achievement),
+    };
+
+    // Уникальные достижения Дерби
+    if (mode === 'derby') {
+      if (r.place === 1) {
+        userUpdates.achievements = arrayUnion(achievement, {
+          type: 'derbyChampion',
+          sport,
+          dateFinished,
+          roomName: roomData.name ?? '',
+        });
+      }
+      if (
+        bestStreakPlayer &&
+        bestStreakPlayer.userId === r.userId &&
+        r.longestWinStreak >= 5
+      ) {
+        userUpdates.achievements = arrayUnion(achievement, {
+          type: 'derbyUnstoppable',
+          sport,
+          dateFinished,
+          roomName: roomData.name ?? '',
+          longestWinStreak: r.longestWinStreak,
+        });
+      }
     }
+
+    const userRef = doc(db, 'users', r.userId);
+    batch.update(userRef, userUpdates);
   }
+
+  // 3. Удаляем старые матчи
+  const qsMatches = query(
+    collection(db, config.matches),
+    where('roomId', '==', roomId),
+  );
+  const snapMatches = await getDocs(qsMatches);
+  snapMatches.docs.forEach((d) => {
+    batch.delete(d.ref);
+  });
+
+  await batch.commit();
 }

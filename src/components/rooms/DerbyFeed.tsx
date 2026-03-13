@@ -14,12 +14,15 @@ import {
 import type { Match, Member, Room } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
 import {
+	Coins,
 	Droplet,
 	Flame,
+	LineChart,
 	Skull,
 	Swords,
 	Target,
 	TrendingDown,
+	Trophy,
 	Zap,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -50,7 +53,6 @@ const getHash = (str: string) => {
 
 const pickRandom = (arr: string[], hash: number) => arr[hash % arr.length];
 
-// Вариативные пулы фраз
 const PHRASES = {
   NAIL_BITER: [
     '{{winner}} survived a sweaty match against {{loser}}',
@@ -106,15 +108,93 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
   }, [safeMembers]);
 
   const rivalries = useMemo(() => {
-    const list: { victim: Member; nemesis: Member }[] = [];
+    const list: {
+      victim: Member;
+      nemesis: Member;
+      wins: number;
+      losses: number;
+      winRate: number;
+    }[] = [];
+
     safeMembers.forEach((m) => {
       if (m.nemesisId) {
         const nemesis = safeMembers.find((n) => n.userId === m.nemesisId);
-        if (nemesis) list.push({ victim: m, nemesis });
+        const h2hStats = m.h2h?.[m.nemesisId];
+
+        if (nemesis && h2hStats) {
+          const total = h2hStats.wins + h2hStats.losses;
+          const winRate =
+            total > 0 ? Math.round((h2hStats.wins / total) * 100) : 0;
+          list.push({
+            victim: m,
+            nemesis,
+            wins: h2hStats.wins,
+            losses: h2hStats.losses,
+            winRate,
+          });
+        }
       }
     });
-    return list;
+    return list.sort((a, b) => a.winRate - b.winRate);
   }, [safeMembers]);
+
+  // Сбор статистики (Insights)
+  const insights = useMemo(() => {
+    let highestStreak = 0;
+    let highestStreakPlayer: Member | null = null;
+
+    safeMembers.forEach((m) => {
+      if ((m.highestStreak ?? 0) > highestStreak) {
+        highestStreak = m.highestStreak ?? 0;
+        highestStreakPlayer = m;
+      }
+    });
+
+    let biggestHeist = 0;
+    let biggestHeistPlayer: any = null;
+
+    const matchupCounts: Record<string, number> = {};
+    let mostFrequentMatchupCount = 0;
+    let mostFrequentMatchupNames = '';
+
+    safeMatches.forEach((m) => {
+      // Ищем самый большой куш (ELO)
+      const p1Delta =
+        typeof m.player1?.roomAddedPoints === 'number'
+          ? m.player1.roomAddedPoints
+          : 0;
+      const p2Delta =
+        typeof m.player2?.roomAddedPoints === 'number'
+          ? m.player2.roomAddedPoints
+          : 0;
+
+      if (p1Delta > biggestHeist) {
+        biggestHeist = p1Delta;
+        biggestHeistPlayer = m.player1;
+      }
+      if (p2Delta > biggestHeist) {
+        biggestHeist = p2Delta;
+        biggestHeistPlayer = m.player2;
+      }
+
+      // Ищем самую частую пару
+      const key = [m.player1Id, m.player2Id].sort().join('_');
+      matchupCounts[key] = (matchupCounts[key] || 0) + 1;
+      if (matchupCounts[key] > mostFrequentMatchupCount) {
+        mostFrequentMatchupCount = matchupCounts[key];
+        mostFrequentMatchupNames = `${m.player1.name} & ${m.player2.name}`;
+      }
+    });
+
+    return {
+      highestStreak,
+      highestStreakPlayer,
+      biggestHeist,
+      biggestHeistPlayer,
+      mostFrequentMatchupCount,
+      mostFrequentMatchupNames,
+    };
+  }, [safeMembers, safeMatches]);
 
   const chronicles = useMemo(() => {
     const events: {
@@ -164,10 +244,8 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       } else if (eloDiff >= 60) {
         type = 'UPSET';
       } else if (scoreDiff <= 2 && maxScore >= 11) {
-        // Потная катка (отрыв в 2 очка)
         type = 'NAIL_BITER';
       } else if (minScore <= 2 && maxScore >= 11) {
-        // Сухая или почти сухая победа
         type = 'FLAWLESS';
       } else if (delta >= 15) {
         type = 'DOMINATION';
@@ -179,7 +257,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       events.push({ match: m, type, phrase, winner, loser, delta });
     });
 
-    // Возвращаем ВСЕ события, лимит снят
     return events;
   }, [safeMatches]);
 
@@ -206,12 +283,24 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
 
   const renderChronicleCard = (event: any) => {
     const { match: m, type, phrase, winner, loser, delta } = event;
-    const scoreText = `${m.player1.scores} - ${m.player2.scores}`;
-    // Локализация с интерполяцией имен
     const localizedText = t(phrase, {
       winner: winner.name,
       loser: loser.name,
     });
+
+    const ScoreBadge = (
+      <div className='flex items-center gap-1.5 font-mono text-xs bg-background px-2 py-0.5 rounded border text-muted-foreground'>
+        <span className='font-semibold text-foreground truncate max-w-[80px]'>
+          {m.player1.name}
+        </span>
+        <span>
+          {m.player1.scores} - {m.player2.scores}
+        </span>
+        <span className='font-semibold text-foreground truncate max-w-[80px]'>
+          {m.player2.name}
+        </span>
+      </div>
+    );
 
     switch (type) {
       case 'FLAWLESS':
@@ -236,9 +325,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               }}
             />
             <div className='flex items-center justify-between mt-2'>
-              <span className='font-mono text-xs bg-background px-1.5 rounded border'>
-                {scoreText}
-              </span>
+              {ScoreBadge}
               <span className='text-xs font-bold text-sky-600'>
                 +{Math.round(delta)}
               </span>
@@ -268,9 +355,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               }}
             />
             <div className='flex items-center justify-between mt-2'>
-              <span className='font-mono text-xs bg-background px-1.5 rounded border border-amber-500/30'>
-                {scoreText}
-              </span>
+              {ScoreBadge}
               <span className='text-xs font-bold text-amber-600'>
                 +{Math.round(delta)}
               </span>
@@ -303,9 +388,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               }}
             />
             <div className='flex items-center justify-between mt-2 relative z-10'>
-              <span className='font-mono text-xs bg-background px-1.5 rounded border border-red-500/30'>
-                {scoreText}
-              </span>
+              {ScoreBadge}
               <span className='text-sm font-black text-red-600 bg-red-500/20 px-2 rounded'>
                 +{Math.round(delta)} ELO
               </span>
@@ -335,9 +418,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               }}
             />
             <div className='flex items-center justify-between mt-2'>
-              <span className='font-mono text-xs bg-background px-1.5 rounded border'>
-                {scoreText}
-              </span>
+              {ScoreBadge}
               <span className='text-xs font-bold text-purple-600'>
                 +{Math.round(delta)}
               </span>
@@ -367,9 +448,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               }}
             />
             <div className='flex items-center justify-between mt-2'>
-              <span className='font-mono text-xs bg-background px-1.5 rounded border'>
-                {scoreText}
-              </span>
+              {ScoreBadge}
               <span className='text-xs font-bold text-primary'>
                 +{Math.round(delta)}
               </span>
@@ -395,9 +474,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
               }}
             />
             <div className='flex items-center justify-between mt-2'>
-              <span className='font-mono text-xs bg-background px-1.5 rounded border text-muted-foreground'>
-                {scoreText}
-              </span>
+              {ScoreBadge}
               <span className='text-xs font-bold text-muted-foreground flex items-center gap-1'>
                 <Zap className='w-3 h-3' />+{Math.round(delta)}
               </span>
@@ -409,8 +486,76 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
 
   return (
     <div className='grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8'>
-      {/* Левая колонка со стриками и заклятыми врагами */}
       <div className='lg:col-span-5 space-y-6'>
+        {/* НОВЫЙ БЛОК: DERBY INSIGHTS */}
+        {(insights.highestStreak > 0 || insights.biggestHeist > 0) && (
+          <Card className='border-blue-500/30 bg-blue-500/5 shadow-md'>
+            <CardHeader className='pb-3'>
+              <CardTitle className='text-lg font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2'>
+                <LineChart className='w-5 h-5' />
+                {t('Arena Insights')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-3'>
+              {insights.highestStreakPlayer && insights.highestStreak > 0 && (
+                <div className='flex items-center justify-between bg-background border border-blue-500/20 rounded-lg p-3'>
+                  <div className='flex items-center gap-2 text-sm font-medium'>
+                    <Trophy className='w-4 h-4 text-yellow-500' />
+                    <span className='text-muted-foreground'>
+                      {t('All-Time Streak')}:
+                    </span>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <span className='font-bold'>
+                      {insights.highestStreakPlayer.name}
+                    </span>
+                    <span className='bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded text-xs font-bold'>
+                      {insights.highestStreak} 🔥
+                    </span>
+                  </div>
+                </div>
+              )}
+              {insights.biggestHeistPlayer && insights.biggestHeist > 0 && (
+                <div className='flex items-center justify-between bg-background border border-blue-500/20 rounded-lg p-3'>
+                  <div className='flex items-center gap-2 text-sm font-medium'>
+                    <Coins className='w-4 h-4 text-emerald-500' />
+                    <span className='text-muted-foreground'>
+                      {t('Biggest Heist')}:
+                    </span>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <span className='font-bold'>
+                      {insights.biggestHeistPlayer.name}
+                    </span>
+                    <span className='bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded text-xs font-bold'>
+                      +{Math.round(insights.biggestHeist)} ELO
+                    </span>
+                  </div>
+                </div>
+              )}
+              {insights.mostFrequentMatchupCount > 0 && (
+                <div className='flex items-center justify-between bg-background border border-blue-500/20 rounded-lg p-3'>
+                  <div className='flex items-center gap-2 text-sm font-medium'>
+                    <Swords className='w-4 h-4 text-rose-500' />
+                    <span className='text-muted-foreground'>
+                      {t('Most Clashes')}:
+                    </span>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <span className='font-bold text-xs'>
+                      {insights.mostFrequentMatchupNames}
+                    </span>
+                    <span className='bg-rose-500/20 text-rose-600 px-2 py-0.5 rounded text-xs font-bold'>
+                      {insights.mostFrequentMatchupCount} {t('Games')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ACTIVE BOUNTIES */}
         {bounties.length > 0 && (
           <Card className='border-orange-500/30 bg-orange-500/5 shadow-md'>
             <CardHeader className='pb-3'>
@@ -454,6 +599,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
           </Card>
         )}
 
+        {/* ACTIVE RIVALRIES */}
         {rivalries.length > 0 && (
           <Card className='border-purple-500/30 bg-purple-500/5 shadow-md'>
             <CardHeader className='pb-3'>
@@ -468,9 +614,9 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
                   {rivalries.map((r, idx) => (
                     <div
                       key={idx}
-                      className='flex items-center gap-4 bg-background border border-purple-500/20 rounded-lg p-3'
+                      className='flex items-center gap-2 bg-background border border-purple-500/20 rounded-lg p-3'
                     >
-                      <div className='flex flex-col items-center w-12 text-center'>
+                      <div className='flex flex-col items-center w-14 text-center'>
                         <Avatar className='h-8 w-8 mb-1 border border-border grayscale'>
                           <AvatarImage src={r.victim.photoURL || undefined} />
                           <AvatarFallback className='text-[10px]'>
@@ -484,16 +630,26 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
                         </span>
                       </div>
 
-                      <div className='flex-1 flex flex-col items-center text-center'>
-                        <span className='text-xs font-bold text-purple-500 uppercase tracking-wider bg-purple-500/10 px-2 py-0.5 rounded-full'>
-                          {t('Fears')}
+                      {/* Обновленный блок H2H статистики */}
+                      <div className='flex-1 flex flex-col items-center text-center justify-center px-1'>
+                        <span className='text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1'>
+                          {t('H2H Record')}
                         </span>
-                        <div className='w-full h-px bg-purple-500/20 my-2 relative'>
-                          <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rotate-45 border-t border-r border-purple-500/40 bg-background' />
+                        <div className='flex items-center gap-2 text-sm font-black'>
+                          <span className='text-red-500' title={t('Wins')}>
+                            {r.wins}
+                          </span>
+                          <span className='text-muted-foreground/30'>-</span>
+                          <span className='text-green-500' title={t('Losses')}>
+                            {r.losses}
+                          </span>
                         </div>
+                        <span className='text-[9px] font-semibold text-purple-600 dark:text-purple-400 mt-1 bg-purple-500/10 px-2 py-0.5 rounded-full'>
+                          {r.winRate}% {t('Win')}
+                        </span>
                       </div>
 
-                      <div className='flex flex-col items-center w-12 text-center'>
+                      <div className='flex flex-col items-center w-14 text-center'>
                         <Avatar className='h-8 w-8 mb-1 border-2 border-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.4)]'>
                           <AvatarImage src={r.nemesis.photoURL || undefined} />
                           <AvatarFallback className='text-[10px] bg-purple-100 text-purple-700'>
@@ -515,7 +671,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
         )}
       </div>
 
-      {/* Правая колонка с жесткой высотой для хроник */}
       <Card className='lg:col-span-7 border-border shadow-md flex flex-col h-[600px]'>
         <CardHeader className='pb-3 border-b bg-muted/20 flex-shrink-0'>
           <CardTitle className='text-lg font-bold flex items-center justify-between'>
