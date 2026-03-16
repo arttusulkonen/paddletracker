@@ -10,10 +10,9 @@ import {
 } from '@/components/ui';
 import {
 	Activity,
-	BarChart as BarChartIcon,
 	LineChart as LineChartIcon,
 	PieChart as PieChartIcon,
-	TrendingUp
+	TrendingUp,
 } from 'lucide-react';
 import React from 'react';
 import {
@@ -234,7 +233,7 @@ export default function ProfileCharts({
               paddingAngle={5}
               stroke='none'
             >
-              {data.map((entry, index) => (
+              {data.map((_, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={colorSet[index % colorSet.length]}
@@ -480,8 +479,12 @@ export default function ProfileCharts({
                           ? 'hsl(var(--chart-2))'
                           : 'hsl(var(--destructive))'
                       }
-                      // Скругление: если победа — скругляем верх, если проигрыш — низ
-                      radius={entry.result === 1 ? [4, 4, 0, 0] : [0, 0, 4, 4]}
+                      // Добавляем as any, чтобы TS не ругался на массив
+                      radius={
+                        (entry.result === 1
+                          ? [4, 4, 0, 0]
+                          : [0, 0, 4, 4]) as any
+                      }
                     />
                   ))}
                 </Bar>

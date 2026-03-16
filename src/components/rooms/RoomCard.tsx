@@ -162,12 +162,11 @@ export const RoomCard: React.FC<RoomCardProps> = ({
     <CardUI
       className={`flex flex-col h-full transition-all duration-500 border-0 rounded-[2rem] glass-panel ${status.style} ${status.isActive ? 'group' : ''} overflow-hidden relative`}
     >
-      {/* Мягкий градиент на фоне для неактивных комнат, чтобы они выглядели "завершенными" */}
       {!status.isActive && (
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-muted/50 via-transparent to-transparent pointer-events-none" />
       )}
       
-      {/* Градиент при ховере для активных комнат */}
+   
       {status.isActive && (
         <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none' />
       )}

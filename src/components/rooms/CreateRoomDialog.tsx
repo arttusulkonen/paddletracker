@@ -57,7 +57,6 @@ import {
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import {
-	Badge,
 	BookOpen,
 	Briefcase,
 	Gamepad2,
@@ -69,7 +68,6 @@ import {
 	Search,
 	Swords,
 	Trophy,
-	Users,
 	Warehouse,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';

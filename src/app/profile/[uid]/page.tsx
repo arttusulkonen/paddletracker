@@ -16,15 +16,7 @@ import { db } from '@/lib/firebase';
 import * as Friends from '@/lib/friends';
 import type { Match, UserProfile } from '@/lib/types';
 import { parseFlexDate } from '@/lib/utils/date';
-import {
-	buildInsights,
-	computeSideStats,
-	computeStats,
-	computeTennisStats,
-	groupByMonth,
-	medalMap,
-	opponentStats,
-} from '@/lib/utils/profileUtils';
+import { computeTennisStats, medalMap } from '@/lib/utils/profileUtils';
 import {
 	collection,
 	doc,
@@ -33,7 +25,7 @@ import {
 	query,
 	where,
 } from 'firebase/firestore';
-import { Lock, Rocket } from 'lucide-react';
+import { Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -52,12 +44,10 @@ async function loadAccessibleRooms(
 ): Promise<RoomsMap> {
   const sports: Sport[] = ['pingpong', 'tennis', 'badminton'];
   const out: RoomsMap = { pingpong: [], tennis: [], badminton: [] };
-
   if (!db) return out;
 
   for (const s of sports) {
     const roomsColl = sportConfig[s].collections.rooms;
-
     const qPublic = query(
       collection(db, roomsColl),
       where('isPublic', '==', true),
@@ -76,7 +66,6 @@ async function loadAccessibleRooms(
     const ids = new Set<string>();
     dPublic.forEach((d) => ids.add(d.id));
     dMember?.forEach((d: any) => ids.add(d.id));
-
     out[s] = Array.from(ids);
   }
   return out;
@@ -85,8 +74,7 @@ async function loadAccessibleRooms(
 export default function ProfileUidPage() {
   const { t } = useTranslation();
   const params = useParams();
-  const rawUid = (params as any)?.uid as string | string[] | undefined;
-  const targetUid = Array.isArray(rawUid) ? rawUid[0] : rawUid || '';
+  const targetUid = (params?.uid as string) || '';
   const router = useRouter();
   const { user, userProfile: viewerProfile, isGlobalAdmin } = useAuth();
   const { sport: selectedSport } = useSport();
@@ -106,11 +94,9 @@ export default function ProfileUidPage() {
   const [viewedSport, setViewedSport] = useState<Sport | null>(null);
 
   const isSelf = targetUid && user?.uid && targetUid === user.uid;
-
   const isCoachProfile =
     targetProfile?.accountType === 'coach' ||
     targetProfile?.roles?.includes('coach');
-
   const playedSports = useMemo(() => {
     if (!targetProfile?.sports) return [];
     return (Object.keys(targetProfile.sports) as Sport[]).filter(
@@ -122,7 +108,6 @@ export default function ProfileUidPage() {
   }, [targetProfile]);
 
   const isManager = targetProfile?.managedBy === user?.uid;
-
   const canView =
     isGlobalAdmin ||
     isSelf ||
@@ -132,11 +117,12 @@ export default function ProfileUidPage() {
 
   useEffect(() => {
     if (!targetProfile) return;
-    const fromCtx = selectedSport as Sport | undefined;
-    const fromProfile =
-      (targetProfile.activeSport as Sport | undefined) || undefined;
-    const firstPlayed = playedSports[0];
-    setViewedSport(fromCtx || fromProfile || firstPlayed || 'pingpong');
+    setViewedSport(
+      selectedSport ||
+        targetProfile.activeSport ||
+        playedSports[0] ||
+        'pingpong',
+    );
   }, [targetProfile, selectedSport, playedSports]);
 
   const mountedRef = useRef(true);
@@ -153,7 +139,6 @@ export default function ProfileUidPage() {
       setLoadingMatches(false);
       return;
     }
-
     setLoading(true);
     setLoadingMatches(true);
 
@@ -167,9 +152,10 @@ export default function ProfileUidPage() {
         return;
       }
 
-      const data = snap.data() as Omit<UserProfile, 'uid'>;
-      const profileData: UserProfile = { uid: targetUid, ...data };
-
+      const profileData: UserProfile = {
+        uid: targetUid,
+        ...(snap.data() as any),
+      };
       setTargetProfile(profileData);
 
       const allMatches: Record<Sport, Match[]> = {
@@ -177,41 +163,29 @@ export default function ProfileUidPage() {
         tennis: [],
         badminton: [],
       };
-
       const sportsToFetch: Sport[] = profileData.sports
         ? (Object.keys(profileData.sports) as Sport[])
         : [];
-
-      const _isManager = profileData.managedBy === user?.uid;
-      const canFetchAll =
-        isGlobalAdmin || user?.uid === targetUid || _isManager;
-
-      const accessibleRooms = canFetchAll
-        ? null
-        : await loadAccessibleRooms(user?.uid ?? null);
-      if (!mountedRef.current) return;
+      const accessibleRooms =
+        isGlobalAdmin || isSelf || profileData.managedBy === user?.uid
+          ? null
+          : await loadAccessibleRooms(user?.uid ?? null);
 
       for (const s of sportsToFetch) {
         const mColl = sportConfig[s].collections.matches;
         let collected: Match[] = [];
 
-        if (canFetchAll) {
+        if (!accessibleRooms) {
           const qAll = query(
             collection(db, mColl),
             where('players', 'array-contains', targetUid),
           );
           const dsAll = await getDocs(qAll);
-          if (!mountedRef.current) return;
-
           collected = dsAll.docs.map(
-            (d) => ({ id: d.id, ...(d.data() as any) }) as Match,
+            (d) => ({ id: d.id, ...d.data() }) as Match,
           );
         } else {
-          const roomIds = accessibleRooms?.[s] ?? [];
-          if (roomIds.length === 0) {
-            allMatches[s] = [];
-            continue;
-          }
+          const roomIds = accessibleRooms[s] || [];
           for (const chunkIds of chunk(roomIds, 10)) {
             const qPart = query(
               collection(db, mColl),
@@ -219,45 +193,29 @@ export default function ProfileUidPage() {
               where('roomId', 'in', chunkIds),
             );
             const dsPart = await getDocs(qPart);
-            if (!mountedRef.current) return;
-
             collected = collected.concat(
-              dsPart.docs.map(
-                (d) => ({ id: d.id, ...(d.data() as any) }) as Match,
-              ),
+              dsPart.docs.map((d) => ({ id: d.id, ...d.data() }) as Match),
             );
           }
         }
-
-        collected.sort((a, b) => {
-          const dateA = parseFlexDate(
-            a.tsIso ?? a.timestamp ?? a.createdAt ?? (a as any).playedAt,
-          ).getTime();
-          const dateB = parseFlexDate(
-            b.tsIso ?? b.timestamp ?? b.createdAt ?? (b as any).playedAt,
-          ).getTime();
-          return dateB - dateA;
-        });
-
+        collected.sort(
+          (a, b) =>
+            parseFlexDate(b.tsIso || b.timestamp).getTime() -
+            parseFlexDate(a.tsIso || a.timestamp).getTime(),
+        );
         allMatches[s] = collected;
       }
 
-      if (!mountedRef.current) return;
-      setMatchesBySport(allMatches);
+      if (mountedRef.current) setMatchesBySport(allMatches);
     } catch (e) {
-      console.error('Failed to load profile/matches', e);
-      toast({
-        title: t('Error'),
-        description: t('Failed to load profile data. Please try again.'),
-        variant: 'destructive',
-      });
+      console.error(e);
     } finally {
       if (mountedRef.current) {
         setLoading(false);
         setLoadingMatches(false);
       }
     }
-  }, [targetUid, router, t, toast, isGlobalAdmin, user?.uid]);
+  }, [targetUid, router, t, isGlobalAdmin, isSelf, user?.uid, toast]);
 
   useEffect(() => {
     fetchProfileAndMatches();
@@ -271,99 +229,40 @@ export default function ProfileUidPage() {
         setFriendStatus('outgoing');
       else if (viewerProfile.incomingRequests?.includes(targetUid))
         setFriendStatus('incoming');
-      else if (targetProfile?.managedBy === user.uid)
-        setFriendStatus('friends');
       else setFriendStatus('none');
     }
-  }, [user, viewerProfile, targetUid, isSelf, targetProfile]);
+  }, [user, viewerProfile, targetUid, isSelf]);
 
   const handleFriendAction = async (
     action: 'add' | 'cancel' | 'accept' | 'remove',
   ) => {
     if (!user) return;
-    try {
-      const actions = {
-        add: () =>
-          Friends.sendFriendRequest(user.uid, targetUid).then(() =>
-            setFriendStatus('outgoing'),
-          ),
-        cancel: () =>
-          Friends.cancelRequest(user.uid, targetUid).then(() =>
-            setFriendStatus('none'),
-          ),
-        accept: () =>
-          Friends.acceptRequest(user.uid, targetUid).then(() =>
-            setFriendStatus('friends'),
-          ),
-        remove: () =>
-          Friends.unfriend(user.uid, targetUid).then(() =>
-            setFriendStatus('none'),
-          ),
-      };
-      await actions[action]();
-      toast({ title: t('Success!') });
-    } catch {
-      toast({
-        title: t('Error'),
-        description: t('Something went wrong'),
-        variant: 'destructive',
-      });
-    }
+    const actions = {
+      add: () =>
+        Friends.sendFriendRequest(user.uid, targetUid).then(() =>
+          setFriendStatus('outgoing'),
+        ),
+      cancel: () =>
+        Friends.cancelRequest(user.uid, targetUid).then(() =>
+          setFriendStatus('none'),
+        ),
+      accept: () =>
+        Friends.acceptRequest(user.uid, targetUid).then(() =>
+          setFriendStatus('friends'),
+        ),
+      remove: () =>
+        Friends.unfriend(user.uid, targetUid).then(() =>
+          setFriendStatus('none'),
+        ),
+    };
+    await actions[action]();
   };
-
-  const { rankLabel, medalSrc } = useMemo(() => {
-    if (!viewedSport || !targetProfile?.sports?.[viewedSport]) {
-      return {
-        rankLabel: null as string | null,
-        medalSrc: null as string | null,
-      };
-    }
-    const elo = targetProfile.sports[viewedSport]?.globalElo ?? 1000;
-
-    const key =
-      elo < 1001
-        ? 'Ping-Pong Padawan'
-        : elo < 1100
-          ? 'Table-Tennis Trainee'
-          : elo < 1200
-            ? 'Racket Rookie'
-            : elo < 1400
-              ? 'Paddle Prodigy'
-              : elo < 1800
-                ? 'Spin Sensei'
-                : elo < 2000
-                  ? 'Smash Samurai'
-                  : 'Ping-Pong Paladin';
-
-    return { rankLabel: t(key), medalSrc: medalMap[key] };
-  }, [viewedSport, targetProfile, t]);
 
   const sportSpecificData = useMemo(() => {
     if (!viewedSport || !targetProfile) return null;
     const matches = matchesBySport[viewedSport] ?? [];
-    const rankedMatches = matches.filter((match) => match.isRanked !== false);
-    const stats = computeStats(rankedMatches, targetProfile.uid);
-    const sideStats =
-      viewedSport === 'tennis'
-        ? {
-            leftSideWins: 0,
-            leftSideLosses: 0,
-            rightSideWins: 0,
-            rightSideLosses: 0,
-          }
-        : computeSideStats(rankedMatches, targetProfile.uid);
-    const monthlyData = groupByMonth(rankedMatches, targetProfile.uid);
-
-    const insights = buildInsights(
-      rankedMatches,
-      targetProfile.uid,
-      stats,
-      sideStats,
-      monthlyData,
-      t,
-    );
-
-    const oppStats = opponentStats(rankedMatches, targetProfile.uid);
+    const rankedMatches = matches.filter((m) => m.isRanked !== false);
+    const sportProfile = targetProfile.sports?.[viewedSport];
     const tennisStats =
       viewedSport === 'tennis'
         ? computeTennisStats(
@@ -373,49 +272,14 @@ export default function ProfileUidPage() {
             'tennis',
           )
         : null;
-    const sportProfile = targetProfile.sports?.[viewedSport];
 
     const opponentsMap = new Map<string, string>();
-    for (const m of matches) {
+    matches.forEach((m) => {
       const isP1 = m.player1Id === targetProfile.uid;
       const oppId = isP1 ? m.player2Id : m.player1Id;
       const oppName = isP1 ? m.player2.name : m.player1.name;
-      if (oppId && !opponentsMap.has(oppId)) opponentsMap.set(oppId, oppName);
-    }
-    const opponents = Array.from(opponentsMap, ([id, name]) => ({ id, name }));
-
-    const pieData = [
-      { name: t('Wins'), value: stats.wins, fill: 'hsl(var(--primary))' },
-      {
-        name: t('Losses'),
-        value: stats.losses,
-        fill: 'hsl(var(--destructive))',
-      },
-    ];
-    const sidePieData = [
-      {
-        name: t('Left Wins'),
-        value: sideStats.leftSideWins,
-        fill: 'hsl(var(--primary))',
-      },
-      {
-        name: t('Right Wins'),
-        value: sideStats.rightSideWins,
-        fill: 'hsl(var(--accent))',
-      },
-    ];
-    const sidePieLossData = [
-      {
-        name: t('Left Losses'),
-        value: sideStats.leftSideLosses,
-        fill: 'hsl(var(--destructive))',
-      },
-      {
-        name: t('Right Losses'),
-        value: sideStats.rightSideLosses,
-        fill: 'hsl(var(--muted))',
-      },
-    ];
+      if (oppId) opponentsMap.set(oppId, oppName);
+    });
 
     const perfData =
       rankedMatches.length > 0
@@ -426,9 +290,7 @@ export default function ProfileUidPage() {
               const isP1 = m.player1Id === targetProfile.uid;
               const me = isP1 ? m.player1 : m.player2;
               const opp = isP1 ? m.player2 : m.player1;
-              const d = parseFlexDate(
-                m.tsIso ?? m.timestamp ?? m.createdAt ?? (m as any).playedAt,
-              );
+              const d = parseFlexDate(m.tsIso || m.timestamp);
               return {
                 label: d.toLocaleDateString(),
                 ts: d.getTime(),
@@ -454,48 +316,41 @@ export default function ProfileUidPage() {
           ];
 
     return {
-      stats,
-      sideStats,
       matches,
-      monthlyData,
-      insights,
-      oppStats,
       tennisStats,
       sportProfile,
-      opponents,
-      pieData,
-      sidePieData,
-      sidePieLossData,
+      opponents: Array.from(opponentsMap, ([id, name]) => ({ id, name })),
       perfData,
     };
-  }, [viewedSport, matchesBySport, targetProfile, t]);
+  }, [viewedSport, matchesBySport, targetProfile]);
 
-  const hasMatchesInViewed = useMemo(() => {
-    if (!viewedSport) return false;
-    return (matchesBySport[viewedSport]?.length ?? 0) > 0;
-  }, [viewedSport, matchesBySport]);
+  const { rankLabel, medalSrc } = useMemo(() => {
+    if (!viewedSport || !targetProfile?.sports?.[viewedSport])
+      return { rankLabel: null, medalSrc: null };
+    const elo = targetProfile.sports[viewedSport]?.globalElo ?? 1000;
+    const key =
+      elo < 1001
+        ? 'Ping-Pong Padawan'
+        : elo < 1100
+          ? 'Table-Tennis Trainee'
+          : elo < 1200
+            ? 'Racket Rookie'
+            : elo < 1400
+              ? 'Paddle Prodigy'
+              : elo < 1800
+                ? 'Spin Sensei'
+                : elo < 2000
+                  ? 'Smash Samurai'
+                  : 'Ping-Pong Paladin';
+    return { rankLabel: t(key), medalSrc: medalMap[key] };
+  }, [viewedSport, targetProfile, t]);
 
-  if (loading || !targetProfile) {
+  if (loading || !targetProfile)
     return (
       <div className='flex items-center justify-center min-h-screen bg-background'>
-        <div className='animate-pulse flex flex-col items-center gap-6'>
-          <div className='h-16 w-16 rounded-full bg-primary/20 blur-sm'></div>
-        </div>
+        <div className='animate-pulse h-16 w-16 rounded-full bg-primary/20 blur-sm' />
       </div>
     );
-  }
-
-  const sportKeyForEmpty = viewedSport ?? selectedSport ?? 'pingpong';
-  const emptySelfTitle = t('No matches yet in {{sport}}', {
-    sport: sportConfig[sportKeyForEmpty as Sport].name,
-  });
-  const emptySelfDesc = t(
-    'Browse available rooms for this sport or create your own and start collecting stats!',
-  );
-  const emptyOtherTitle = t('This player has no matches in {{sport}}', {
-    sport: sportConfig[sportKeyForEmpty as Sport].name,
-  });
-  const emptyOtherDesc = t('Invite them to a room and start playing together!');
 
   return (
     <section className='container mx-auto py-10 space-y-10 animate-in fade-in duration-700'>
@@ -509,13 +364,8 @@ export default function ProfileUidPage() {
         rank={rankLabel}
         medalSrc={medalSrc}
       />
-
       {isCoachProfile ? (
-        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
-          <div className='lg:col-span-12'>
-            <CoachDashboard profile={targetProfile} isSelf={!!isSelf} />
-          </div>
-        </div>
+        <CoachDashboard profile={targetProfile} isSelf={!!isSelf} />
       ) : (
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
           <div className='lg:col-span-8 xl:col-span-9 space-y-8'>
@@ -524,55 +374,34 @@ export default function ProfileUidPage() {
             ) : (
               <>
                 <OverallStatsCard profile={targetProfile} />
-                {viewedSport &&
-                canView &&
-                hasMatchesInViewed &&
-                sportSpecificData ? (
+                {viewedSport && canView && sportSpecificData ? (
                   <ProfileContent
                     key={viewedSport}
                     canViewProfile={canView}
                     sport={viewedSport}
-                    playedSports={playedSports}
-                    onSportChange={setViewedSport}
-                    stats={sportSpecificData.stats}
                     sportProfile={sportSpecificData.sportProfile}
-                    sideStats={sportSpecificData.sideStats}
                     matches={sportSpecificData.matches}
                     loadingMatches={loadingMatches}
                     meUid={targetProfile.uid}
                     config={sportConfig[viewedSport]}
-                    oppStats={sportSpecificData.oppStats}
                     opponents={sportSpecificData.opponents}
                     targetProfile={targetProfile}
                     tennisStats={sportSpecificData.tennisStats}
                     achievements={targetProfile.achievements ?? []}
-                    pieData={sportSpecificData.pieData}
-                    sidePieData={sportSpecificData.sidePieData}
-                    sidePieLossData={sportSpecificData.sidePieLossData}
-                    insights={sportSpecificData.insights}
                     perfData={sportSpecificData.perfData}
-                    monthlyData={sportSpecificData.monthlyData}
                   />
                 ) : (
                   <Card className='border-0 glass-panel shadow-xl rounded-[2.5rem] relative overflow-hidden'>
-                    <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent mix-blend-overlay' />
                     <CardContent className='py-20 flex flex-col items-center justify-center text-center relative z-10'>
-                      <div className='bg-primary/10 rounded-full p-6 mb-6 ring-1 ring-primary/20'>
-                        <Rocket className='h-10 w-10 text-primary' />
-                      </div>
-                      <h3 className='text-3xl font-extrabold tracking-tight mb-3'>
-                        {isSelf ? emptySelfTitle : emptyOtherTitle}
+                      <Rocket className='h-10 w-10 text-primary mb-6' />
+                      <h3 className='text-3xl font-extrabold mb-3'>
+                        {isSelf
+                          ? t('No matches yet')
+                          : t('This player has no matches')}
                       </h3>
-                      <p className='text-muted-foreground text-lg max-w-md mx-auto font-light'>
-                        {isSelf ? emptySelfDesc : emptyOtherDesc}
-                      </p>
                       {isSelf && (
                         <div className='flex gap-4 mt-8'>
-                          <Button
-                            asChild
-                            size='lg'
-                            className='rounded-full font-semibold shadow-md'
-                          >
+                          <Button asChild size='lg'>
                             <Link href='/rooms'>{t('Browse Rooms')}</Link>
                           </Button>
                           <CreateRoomDialog
@@ -587,18 +416,6 @@ export default function ProfileUidPage() {
             )}
           </div>
           <div className='lg:col-span-4 xl:col-span-3'>
-            {!canView && (
-              <Card className='border-0 glass-panel shadow-xl rounded-3xl mb-8'>
-                <CardContent className='py-12 flex flex-col items-center text-center text-muted-foreground'>
-                  <div className='bg-background/80 p-4 rounded-full mb-4 shadow-sm'>
-                    <Lock className='h-8 w-8 text-muted-foreground/50' />
-                  </div>
-                  <p className='font-medium text-sm uppercase tracking-widest opacity-70'>
-                    {t('Stats are hidden')}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
             <ProfileSidebar
               canViewProfile={canView}
               targetProfile={targetProfile}

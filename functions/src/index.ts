@@ -1819,7 +1819,7 @@ export const processDerbySprints = onSchedule(
     region: 'europe-west1',
     timeoutSeconds: 300,
   },
-  async (event) => {
+  async () => {
     const nowIso = new Date().toISOString();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     const nowMs = Date.now();
@@ -1828,7 +1828,7 @@ export const processDerbySprints = onSchedule(
 
     for (const collectionName of collectionsToScan.rooms) {
       if (!collectionName) continue;
-      
+
       const sport = collectionName.split('-')[1];
       if (!sport) continue;
 
@@ -1842,7 +1842,7 @@ export const processDerbySprints = onSchedule(
 
       for (const roomDoc of snapshot.docs) {
         if (!roomDoc.exists) continue;
-        
+
         const room = roomDoc.data();
         if (!room) continue;
 
@@ -1861,16 +1861,23 @@ export const processDerbySprints = onSchedule(
           continue;
         }
 
-        logger.info(`Processing Sprint End for room: ${room.name} (${roomDoc.id})`);
+        logger.info(
+          `Processing Sprint End for room: ${room.name} (${roomDoc.id})`,
+        );
 
         const members = room.members || [];
         if (members.length === 0) continue;
 
-        const sortedByRating = [...members].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        const sortedByRating = [...members].sort(
+          (a, b) => (b.rating || 0) - (a.rating || 0),
+        );
         const champion = sortedByRating[0];
 
-        const sortedByStreak = [...members].sort((a, b) => (b.highestStreak || 0) - (a.highestStreak || 0));
-        const unstoppable = sortedByStreak[0]?.highestStreak >= 3 ? sortedByStreak[0] : null;
+        const sortedByStreak = [...members].sort(
+          (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
+        );
+        const unstoppable =
+          sortedByStreak[0]?.highestStreak >= 5 ? sortedByStreak[0] : null;
 
         const hallOfFame = room.hallOfFame || [];
         const batch = db.batch();
@@ -1889,6 +1896,13 @@ export const processDerbySprints = onSchedule(
             };
             hallOfFame.push(entry);
           }
+
+          // Coerce existing values to numbers to prevent NaN/sorting issues
+          entry.championships = Number(entry.championships) || 0;
+          entry.streaksBroken = Number(entry.streaksBroken) || 0;
+          entry.maxStreakEver = Number(entry.maxStreakEver) || 0;
+          entry.totalDerbyWins = Number(entry.totalDerbyWins) || 0;
+
           return entry;
         };
 
@@ -1928,14 +1942,16 @@ export const processDerbySprints = onSchedule(
 
           const hof = getOrCreateHof(m.userId, m.name);
           if (hof) {
-            const slayersCount = m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
+            const slayersCount =
+              m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
             hof.streaksBroken += slayersCount;
 
-            if ((m.highestStreak || 0) > hof.maxStreakEver) {
-              hof.maxStreakEver = m.highestStreak || 0;
+            const currentHighest = Number(m.highestStreak) || 0;
+            if (currentHighest > hof.maxStreakEver) {
+              hof.maxStreakEver = currentHighest;
             }
 
-            hof.totalDerbyWins = m.wins || 0;
+            hof.totalDerbyWins = Number(m.wins) || 0;
           }
 
           const currentElo = m.rating || 1000;
@@ -1947,14 +1963,20 @@ export const processDerbySprints = onSchedule(
         });
 
         if (room.communityId) {
-          const feedRef = db.collection('communities').doc(room.communityId).collection('feed').doc();
+          const feedRef = db
+            .collection('communities')
+            .doc(room.communityId)
+            .collection('feed')
+            .doc();
           batch.set(feedRef, {
             id: feedRef.id,
             communityId: room.communityId,
             type: 'season_finished',
             sport: sport,
             title: `Derby Sprint Finished: ${room.name || 'Unknown'}`,
-            description: champion ? `🏆 ${champion.name} won the sprint!` : 'The sprint has concluded.',
+            description: champion
+              ? `🏆 ${champion.name} won the sprint!`
+              : 'The sprint has concluded.',
             createdAt: nowIso,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             meta: {
@@ -1978,7 +2000,7 @@ export const processDerbySprints = onSchedule(
         logger.info(`Successfully processed sprint for room ${roomDoc.id}`);
       }
     }
-    
+
     logger.info('Derby Sprints processing completed.');
-  }
+  },
 );

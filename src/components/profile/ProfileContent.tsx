@@ -28,13 +28,9 @@ import { Sport, SportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Match, Room, UserProfile } from '@/lib/types';
 import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
-import {
-	computeSideStats,
-	computeStats,
-	groupByMonth,
-	opponentStats,
-} from '@/lib/utils/profileUtils';
+import { computeSideStats, computeStats } from '@/lib/utils/profileUtils';
 import { doc, getDoc } from 'firebase/firestore';
+import { TFunction } from 'i18next';
 import {
 	Activity,
 	AlertTriangle,
@@ -58,26 +54,16 @@ import { useTranslation } from 'react-i18next';
 interface ProfileContentProps {
   canViewProfile: boolean;
   sport: Sport;
-  playedSports: Sport[];
-  onSportChange: (sport: Sport) => void;
-  stats: any;
   sportProfile: any;
-  sideStats: any;
-  pieData: any[];
-  sidePieData: any[];
-  sidePieLossData: any[];
-  insights: any[];
-  perfData: any[];
-  monthlyData: any[];
   opponents: { id: string; name: string }[];
   matches: Match[];
   loadingMatches: boolean;
-  meUid: string; // ID профиля, который мы сейчас смотрим
+  meUid: string;
   config: SportConfig;
-  oppStats: any[];
   targetProfile: UserProfile;
   tennisStats: any | null;
   achievements: any[];
+  perfData: any[];
 }
 
 const TennisStatsCard: FC<{
@@ -499,14 +485,13 @@ function MatchesTableCard({
   );
 }
 
-// Умная аналитика, которая учитывает, чей профиль мы смотрим
 const generateSmartAnalytics = (
   matches: Match[],
   targetUid: string,
   oppFilter: string,
   isSelf: boolean,
   playerName: string,
-  t: any,
+  t: TFunction,
 ): InsightItem[] => {
   const insights: InsightItem[] = [];
 
@@ -533,13 +518,23 @@ const generateSmartAnalytics = (
         color: 'text-emerald-500',
         bg: 'bg-emerald-500/10 ring-emerald-500/20',
         title: t('Hot Streak'),
-        description: isSelf
-          ? t(
-              `You've won <b>${recentWins} of your last ${recent.length}</b> matches. Your momentum is peaking right now!`,
-            )
-          : t(
-              `<b>${playerName}</b> has won <b>${recentWins} of their last ${recent.length}</b> matches. Their momentum is peaking right now!`,
-            ),
+        description: isSelf ? (
+          <span>
+            {t('You have won')}{' '}
+            <strong>
+              {recentWins} {t('of the last')} {recent.length}
+            </strong>{' '}
+            {t('matches. Your momentum is peaking right now!')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('has won')}{' '}
+            <strong>
+              {recentWins} {t('of the last')} {recent.length}
+            </strong>{' '}
+            {t('matches. Their momentum is peaking right now!')}
+          </span>
+        ),
       });
     } else if (recentWins <= Math.floor(recent.length * 0.3)) {
       insights.push({
@@ -547,13 +542,23 @@ const generateSmartAnalytics = (
         color: 'text-red-500',
         bg: 'bg-red-500/10 ring-red-500/20',
         title: t('Rough Patch'),
-        description: isSelf
-          ? t(
-              `You've only won <b>${recentWins} of your last ${recent.length}</b> matches. Time to take a breath and refocus.`,
-            )
-          : t(
-              `<b>${playerName}</b> has only won <b>${recentWins} of their last ${recent.length}</b> matches. They are currently struggling.`,
-            ),
+        description: isSelf ? (
+          <span>
+            {t('You have only won')}{' '}
+            <strong>
+              {recentWins} {t('of the last')} {recent.length}
+            </strong>{' '}
+            {t('matches. Time to take a breath and refocus.')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('has only won')}{' '}
+            <strong>
+              {recentWins} {t('of the last')} {recent.length}
+            </strong>{' '}
+            {t('matches. They are currently struggling.')}
+          </span>
+        ),
       });
     } else {
       insights.push({
@@ -561,13 +566,23 @@ const generateSmartAnalytics = (
         color: 'text-amber-500',
         bg: 'bg-amber-500/10 ring-amber-500/20',
         title: t('Inconsistent Form'),
-        description: isSelf
-          ? t(
-              `Your recent results are mixed (<b>${recentWins}W - ${recent.length - recentWins}L</b>). Try to find a stable rhythm.`,
-            )
-          : t(
-              `<b>${playerName}</b>'s recent results are mixed (<b>${recentWins}W - ${recent.length - recentWins}L</b>).`,
-            ),
+        description: isSelf ? (
+          <span>
+            {t('Your recent results are mixed')} (
+            <strong>
+              {recentWins}W - {recent.length - recentWins}L
+            </strong>
+            ). {t('Try to find a stable rhythm.')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('has mixed recent results')} (
+            <strong>
+              {recentWins}W - {recent.length - recentWins}L
+            </strong>
+            ).
+          </span>
+        ),
       });
     }
   }
@@ -601,13 +616,19 @@ const generateSmartAnalytics = (
         color: 'text-blue-500',
         bg: 'bg-blue-500/10 ring-blue-500/20',
         title: t('Clutch Player'),
-        description: isSelf
-          ? t(
-              `You thrive under pressure, winning <b>${(clutchRate * 100).toFixed(0)}%</b> of your close games (2-point diff).`,
-            )
-          : t(
-              `<b>${playerName}</b> thrives under pressure, winning <b>${(clutchRate * 100).toFixed(0)}%</b> of their close games.`,
-            ),
+        description: isSelf ? (
+          <span>
+            {t('You thrive under pressure, winning')}{' '}
+            <strong>{(clutchRate * 100).toFixed(0)}%</strong>{' '}
+            {t('of your close games (2-point diff).')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('thrives under pressure, winning')}{' '}
+            <strong>{(clutchRate * 100).toFixed(0)}%</strong>{' '}
+            {t('of their close games.')}
+          </span>
+        ),
       });
     } else if (clutchRate <= 0.4) {
       insights.push({
@@ -615,13 +636,24 @@ const generateSmartAnalytics = (
         color: 'text-orange-500',
         bg: 'bg-orange-500/10 ring-orange-500/20',
         title: t('Late-Game Pressure'),
-        description: isSelf
-          ? t(
-              `You tend to lose tight games (won only <b>${closeWins} of ${closeMatches}</b>). Focus on staying calm when tied.`,
-            )
-          : t(
-              `<b>${playerName}</b> tends to lose tight games (won only <b>${closeWins} of ${closeMatches}</b>).`,
-            ),
+        description: isSelf ? (
+          <span>
+            {t('You tend to lose tight games (won only')}{' '}
+            <strong>
+              {closeWins} {t('of')} {closeMatches}
+            </strong>
+            ). {t('Focus on staying calm when tied.')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong>{' '}
+            {t('tends to lose tight games (won only')}{' '}
+            <strong>
+              {closeWins} {t('of')} {closeMatches}
+            </strong>
+            ).
+          </span>
+        ),
       });
     }
   }
@@ -637,13 +669,25 @@ const generateSmartAnalytics = (
         color: 'text-purple-500',
         bg: 'bg-purple-500/10 ring-purple-500/20',
         title: t('Total Dominance'),
-        description: isSelf
-          ? t(
-              `You dominate this matchup with a <b>${winRate.toFixed(0)}%</b> win rate. When you win, you win by an average of <b>${avgMargin} points</b>.`,
-            )
-          : t(
-              `<b>${playerName}</b> dominates this matchup with a <b>${winRate.toFixed(0)}%</b> win rate, winning by an average of <b>${avgMargin} points</b>.`,
-            ),
+        description: isSelf ? (
+          <span>
+            {t('You dominate this matchup with a')}{' '}
+            <strong>{winRate.toFixed(0)}%</strong>{' '}
+            {t('win rate. When you win, you win by an average of')}{' '}
+            <strong>
+              {avgMargin} {t('points.')}
+            </strong>
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('dominates this matchup with a')}{' '}
+            <strong>{winRate.toFixed(0)}%</strong>{' '}
+            {t('win rate, winning by an average of')}{' '}
+            <strong>
+              {avgMargin} {t('points.')}
+            </strong>
+          </span>
+        ),
       });
     } else if (winRate <= 30) {
       insights.push({
@@ -651,13 +695,20 @@ const generateSmartAnalytics = (
         color: 'text-rose-500',
         bg: 'bg-rose-500/10 ring-rose-500/20',
         title: t('Tough Matchup'),
-        description: isSelf
-          ? t(
-              `You struggle here (<b>${winRate.toFixed(0)}%</b> win rate). You need a completely new tactical approach against this opponent.`,
-            )
-          : t(
-              `<b>${playerName}</b> struggles here (<b>${winRate.toFixed(0)}%</b> win rate). This is a tough matchup for them.`,
-            ),
+        description: isSelf ? (
+          <span>
+            {t('You struggle here')} (<strong>{winRate.toFixed(0)}%</strong>{' '}
+            {t(
+              'win rate). You need a completely new tactical approach against this opponent.',
+            )}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('struggles here')} (
+            <strong>{winRate.toFixed(0)}%</strong>{' '}
+            {t('win rate). This is a tough matchup for them.')}
+          </span>
+        ),
       });
     } else {
       insights.push({
@@ -665,13 +716,18 @@ const generateSmartAnalytics = (
         color: 'text-sky-500',
         bg: 'bg-sky-500/10 ring-sky-500/20',
         title: t('Even Rivalry'),
-        description: isSelf
-          ? t(
-              `This is a highly competitive matchup. Your win rate is <b>${winRate.toFixed(0)}%</b>. Every point counts!`,
-            )
-          : t(
-              `This is a highly competitive matchup. <b>${playerName}</b>'s win rate is <b>${winRate.toFixed(0)}%</b>.`,
-            ),
+        description: isSelf ? (
+          <span>
+            {t('This is a highly competitive matchup. Your win rate is')}{' '}
+            <strong>{winRate.toFixed(0)}%</strong>. {t('Every point counts!')}
+          </span>
+        ) : (
+          <span>
+            {t('This is a highly competitive matchup.')}{' '}
+            <strong>{playerName}&apos;s</strong> {t('win rate is')}{' '}
+            <strong>{winRate.toFixed(0)}%</strong>.
+          </span>
+        ),
       });
     }
   }
@@ -682,9 +738,7 @@ const generateSmartAnalytics = (
 export const ProfileContent: React.FC<ProfileContentProps> = ({
   canViewProfile,
   sport,
-  stats,
   sportProfile,
-  sideStats,
   matches,
   loadingMatches,
   meUid,
@@ -693,14 +747,12 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   achievements,
   opponents,
   perfData,
-  monthlyData,
-  targetProfile, // Получаем из пропсов
+  targetProfile,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth(); // Берем текущего пользователя
+  const { user } = useAuth();
   const [oppFilter, setOppFilter] = useState('all');
 
-  // Определяем, смотрим ли мы свой профиль
   const isSelf = user?.uid === targetProfile.uid;
   const playerName =
     targetProfile.displayName || targetProfile.name || t('Player');
@@ -727,7 +779,6 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
     [realMatches],
   );
 
-  // Передаем isSelf и playerName в генератор
   const derivedInsights = useMemo(
     () =>
       generateSmartAnalytics(
@@ -736,7 +787,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         oppFilter,
         isSelf,
         playerName,
-        t,
+        t as unknown as TFunction,
       ),
     [filteredRanked, meUid, oppFilter, isSelf, playerName, t],
   );
@@ -836,14 +887,6 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
     ],
     [derivedSideStats, t],
   );
-  const derivedMonthly = useMemo(
-    () => groupByMonth(filteredRanked, meUid),
-    [filteredRanked, meUid],
-  );
-  const derivedOppStats = useMemo(
-    () => opponentStats(filteredRanked, meUid),
-    [filteredRanked, meUid],
-  );
 
   const selectedOpponentName = opponents.find((o) => o.id === oppFilter)?.name;
 
@@ -937,14 +980,11 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
       <RankedInsights insights={derivedInsights} t={t} />
 
       <ProfileCharts
-        t={t}
+        t={t as unknown as TFunction}
         pieData={derivedPieData}
         sidePieData={derivedSidePieData}
         sidePieLossData={derivedSidePieLossData}
         perfData={perfData as any}
-        monthlyData={derivedMonthly as any}
-        oppStats={derivedOppStats as any}
-        compact={false}
         winRateTrend={winRateTrend}
         selectedOpponentName={selectedOpponentName}
       />

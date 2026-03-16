@@ -1,14 +1,14 @@
 // src/components/RankedInsights.tsx
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { BrainCircuit, Sparkles } from 'lucide-react';
-import { FC } from 'react';
+import React, { FC } from 'react';
 
 export type InsightItem = {
   icon: any;
   color: string;
   bg: string;
   title: string;
-  description: string;
+  description: React.ReactNode; // Changed from string to ReactNode
 };
 
 interface RankedInsightsProps {
@@ -21,7 +21,6 @@ export const RankedInsights: FC<RankedInsightsProps> = ({ insights, t }) => {
 
   return (
     <Card className='border-0 rounded-[2.5rem] glass-panel shadow-2xl overflow-hidden relative mt-10'>
-      {/* AI Glow Effect */}
       <div className='absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none animate-pulse' />
       <div
         className='absolute -bottom-24 -left-24 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl pointer-events-none animate-pulse'
@@ -65,10 +64,9 @@ export const RankedInsights: FC<RankedInsightsProps> = ({ insights, t }) => {
                   {item.title}
                 </p>
               </div>
-              <div
-                className='text-sm text-muted-foreground font-medium leading-relaxed'
-                dangerouslySetInnerHTML={{ __html: item.description }}
-              />
+              <div className='text-sm text-muted-foreground font-medium leading-relaxed'>
+                {item.description}
+              </div>
             </div>
           ))}
         </div>
