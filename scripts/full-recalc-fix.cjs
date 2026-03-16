@@ -4,7 +4,6 @@ const admin = require('firebase-admin');
 const path = require('path');
 
 // 1. Инициализация
-// Убедитесь, что файл serviceAccountKey.json лежит рядом с package.json или в папке корня
 const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
 const serviceAccount = require(serviceAccountPath);
 
@@ -13,19 +12,17 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
-const BATCH_LIMIT = 400; // Безопасный лимит
+const BATCH_LIMIT = 400;
 const START_ELO = 1000;
 const K_FACTOR = 32;
 
 // --- Helpers ---
 
-// Расчет ELO
 function calculateElo(ratingA, ratingB, actualScoreA) {
   const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
   return Math.round(ratingA + K_FACTOR * (actualScoreA - expectedA));
 }
 
-// Парсинг даты
 function parseDate(val) {
   if (!val) return new Date(0);
   if (typeof val === 'object' && val.toDate) return val.toDate();
@@ -51,9 +48,9 @@ function parseDate(val) {
 function formatFinnish(date) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${pad(date.getDate())}.${pad(
-    date.getMonth() + 1
+    date.getMonth() + 1,
   )}.${date.getFullYear()} ${pad(date.getHours())}.${pad(
-    date.getMinutes()
+    date.getMinutes(),
   )}.${pad(date.getSeconds())}`;
 }
 
@@ -102,7 +99,7 @@ async function processSport(sport) {
     return;
   }
 
-  // 2. Сортировка (Критично!)
+  // 2. Сортировка
   matches = matches
     .map((m) => ({
       ...m,
@@ -279,20 +276,20 @@ async function processSport(sport) {
 
     await writer.update(roomRef, {
       members: updatedMembers,
-      // Сбрасываем историю сезонов, чтобы можно было завершить заново
+      // Удаляем историю сезонов и флаг архивации, чтобы открыть комнаты заново
       seasonHistory: admin.firestore.FieldValue.delete(),
+      isArchived: admin.firestore.FieldValue.delete(),
     });
   }
   await writer.flush();
   console.log(`✅ Rooms updated.`);
 
-  // 6. Обновляем ПОЛЬЗОВАТЕЛЕЙ (с проверкой существования и очисткой ачивок)
+  // 6. Обновляем ПОЛЬЗОВАТЕЛЕЙ
   console.log('🔄 Updating Users...');
 
   const allUserIds = Array.from(userStats.keys());
-  const existingUsersData = new Map(); // uid -> { achievements: [] }
+  const existingUsersData = new Map();
 
-  // Проверяем существование и загружаем старые ачивки пачками
   const chunkSize = 100;
   for (let i = 0; i < allUserIds.length; i += chunkSize) {
     const chunk = allUserIds.slice(i, i + chunkSize);
@@ -302,8 +299,6 @@ async function processSport(sport) {
     snaps.forEach((snap) => {
       if (snap.exists) {
         existingUsersData.set(snap.id, snap.data());
-      } else {
-        console.warn(`⚠️ Skipped missing user: ${snap.id}`);
       }
     });
   }
@@ -313,12 +308,11 @@ async function processSport(sport) {
 
     const currentUserData = existingUsersData.get(uid);
 
-    // Фильтруем ачивки: удаляем ачивки текущего спорта, оставляем остальные
     const currentAchievements = Array.isArray(currentUserData.achievements)
       ? currentUserData.achievements
       : [];
     const keptAchievements = currentAchievements.filter(
-      (a) => a.sport !== sport
+      (a) => a.sport !== sport,
     );
 
     const userRef = db.collection('users').doc(uid);
@@ -327,7 +321,6 @@ async function processSport(sport) {
       [`sports.${sport}.wins`]: stats.wins,
       [`sports.${sport}.losses`]: stats.losses,
       [`sports.${sport}.eloHistory`]: stats.eloHistory,
-      // Перезаписываем массив ачивок очищенной версией
       achievements: keptAchievements,
     };
 
@@ -339,7 +332,6 @@ async function processSport(sport) {
 
 async function main() {
   try {
-    // Можно добавить сюда 'tennis', 'badminton' если нужно
     const sports = ['pingpong'];
 
     for (const sport of sports) {

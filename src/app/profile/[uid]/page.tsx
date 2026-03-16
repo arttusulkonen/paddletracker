@@ -3,7 +3,6 @@
 
 import { CoachDashboard } from '@/components/profile/CoachDashboard';
 import { NewPlayerCard } from '@/components/profile/NewPlayerCard';
-import { OverallStatsCard } from '@/components/profile/OverallStatsCard';
 import { ProfileContent } from '@/components/profile/ProfileContent';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
@@ -367,13 +366,12 @@ export default function ProfileUidPage() {
       {isCoachProfile ? (
         <CoachDashboard profile={targetProfile} isSelf={!!isSelf} />
       ) : (
-        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start'>
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-8'>
           <div className='lg:col-span-8 xl:col-span-9 space-y-8'>
             {playedSports.length === 0 ? (
               <NewPlayerCard isSelf={!!isSelf} profile={targetProfile} />
             ) : (
               <>
-                <OverallStatsCard profile={targetProfile} />
                 {viewedSport && canView && sportSpecificData ? (
                   <ProfileContent
                     key={viewedSport}

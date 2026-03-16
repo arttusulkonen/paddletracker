@@ -151,7 +151,6 @@ export default function AchievementsPanel({
     };
   });
 
-  // НОВЫЕ АЧИВКИ ДЕРБИ
   const derbyChampions = getAchievementsByType(achievements, 'derbyChampion');
   const derbyUnstoppables = getAchievementsByType(
     achievements,
@@ -251,8 +250,8 @@ export default function AchievementsPanel({
   });
 
   return (
-    <Card className='border-0 rounded-[2rem] glass-panel shadow-lg overflow-hidden relative'>
-      <div className='absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent mix-blend-overlay pointer-events-none' />
+    <Card className='border-0 rounded-[2rem] glass-panel shadow-lg relative'>
+      <div className='absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent mix-blend-overlay pointer-events-none rounded-[2rem]' />
       <CardHeader className='px-8 pt-8 pb-4 relative z-10'>
         <CardTitle className='text-2xl font-extrabold tracking-tight flex items-center gap-3'>
           <div className='bg-yellow-500/10 p-2.5 rounded-xl ring-1 ring-yellow-500/20 text-yellow-600 dark:text-yellow-500'>
@@ -317,7 +316,7 @@ const Row: React.FC<{ title: string; items: any[] }> = ({ title, items }) => (
             </TooltipTrigger>
             <TooltipContent
               side='top'
-              className='glass-panel border-0 text-xs font-medium'
+              className='glass-panel border-0 text-xs font-medium z-50'
             >
               <div style={{ whiteSpace: 'pre-wrap' }}>{it.tooltip}</div>
             </TooltipContent>

@@ -47,7 +47,7 @@ service cloud.firestore {
       );
       
       allow update: if 
-        // 1. Владелец может обновлять свой профиль (кроме защищенных полей)
+        // 1. Владелец может обновлять свой профиль
         (isOwner(userId) && 
          !request.resource.data.diff(resource.data).affectedKeys()
           .hasAny(['claimedFrom', 'ghostId', 'managedBy'])) 
@@ -56,11 +56,10 @@ service cloud.firestore {
         isSuperAdmin() || 
         isCoachOf(resource.data) 
         ||
-        // 3. ЛОГИКА ДРУЗЕЙ И ПРИГЛАШЕНИЙ
-        // Разрешаем любому авторизованному пользователю обновлять ТОЛЬКО эти поля у других:
+        // 3. Разрешаем обновлять комнаты, друзей И АЧИВКИ (для финала сезона)
         (isSignedIn() && 
          request.resource.data.diff(resource.data).affectedKeys()
-         .hasOnly(['rooms', 'incomingRequests', 'outgoingRequests', 'friends']));
+         .hasOnly(['rooms', 'incomingRequests', 'outgoingRequests', 'friends', 'achievements']));
       
       allow delete: if isOwner(userId) || isSuperAdmin() || isCoachOf(resource.data);
     }
@@ -72,10 +71,8 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
 
-      // Разрешаем чтение ленты
       match /feed/{feedId} {
         allow read: if isSignedIn();
-        // Писать в ленту может только сервер (Cloud Functions), клиентам запрещено
         allow write: if false; 
       }
     }
@@ -86,36 +83,30 @@ service cloud.firestore {
     match /rooms-pingpong/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      
       allow update: if 
         isRoomAdmin(resource.data) || 
         (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
           .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
-          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
     match /rooms-tennis/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      
       allow update: if 
         isRoomAdmin(resource.data) || 
         (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
           .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
-          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
     match /rooms-badminton/{roomId} {
       allow read: if isSignedIn() || resource.data.isPublic == true;
       allow create: if isSignedIn();
-      
       allow update: if 
         isRoomAdmin(resource.data) || 
         (isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys()
           .hasAny(['creator', 'createdBy', 'adminIds', 'kFactor', 'mode', 'isRanked']));
-          
       allow delete: if isRoomAdmin(resource.data) || isSuperAdmin();
     }
 
@@ -124,17 +115,17 @@ service cloud.firestore {
     // =========================================================
     match /matches-pingpong/{matchId} {
       allow read: if isSignedIn();
-      allow write: if false; 
+      allow write: if isSignedIn(); // Открыто для записи результатов
     }
 
     match /matches-tennis/{matchId} {
       allow read: if isSignedIn();
-      allow write: if false; 
+      allow write: if isSignedIn(); // Открыто для записи результатов
     }
 
     match /matches-badminton/{matchId} {
       allow read: if isSignedIn();
-      allow write: if false; 
+      allow write: if isSignedIn(); // Открыто для записи результатов
     }
 
     // =========================================================
@@ -143,11 +134,9 @@ service cloud.firestore {
     match /tournaments-pingpong/{tournamentId} {
       allow read, write: if isSignedIn();
     }
-    
     match /tournaments-tennis/{tournamentId} {
       allow read, write: if isSignedIn();
     }
-    
     match /tournaments-badminton/{tournamentId} {
       allow read, write: if isSignedIn();
     }

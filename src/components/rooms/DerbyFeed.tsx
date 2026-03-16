@@ -594,7 +594,7 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
                   {rivalries.map((r, idx) => (
                     <div
                       key={idx}
-                      className='flex items-center gap-3 bg-background/60 backdrop-blur-md ring-1 ring-purple-500/20 rounded-2xl p-4 shadow-sm'
+                      className='flex items-center justify-between bg-background/60 backdrop-blur-md ring-1 ring-blue-500/20 rounded-2xl p-3.5 shadow-sm'
                     >
                       <div className='flex flex-col items-center w-[60px] text-center'>
                         <Avatar className='h-10 w-10 mb-2 ring-1 ring-black/5 dark:ring-white/10 grayscale opacity-70'>
@@ -684,9 +684,6 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
                     key={event.match.id}
                     className='relative pl-8 pb-2 group'
                   >
-                    <div className='absolute w-6 h-6 bg-background rounded-full -left-2 top-0 flex items-center justify-center ring-2 ring-primary/20 shadow-sm group-hover:scale-110 transition-transform'>
-                      <div className='w-2.5 h-2.5 bg-primary rounded-full' />
-                    </div>
                     <div className='text-[9px] uppercase font-bold text-muted-foreground mb-2 tracking-widest ml-1'>
                       {safeFormatDate(
                         event.match.tsIso ?? event.match.timestamp,

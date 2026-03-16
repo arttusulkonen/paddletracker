@@ -238,6 +238,10 @@ export interface Room {
   // Communities
   communityId?: string | null;
   communityName?: string;
+
+	sprintCount?: number; // Total number of sprints completed in derby mode
+
+	sprintStartTs?: string; // ISO timestamp when the current sprint started
 }
 
 // --- Matches ---

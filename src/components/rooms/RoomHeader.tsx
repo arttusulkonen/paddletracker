@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Room, Member as RoomMember } from '@/lib/types';
 import {
 	Briefcase,
+	Clock,
 	Flame,
 	Gamepad2,
 	Globe,
@@ -38,7 +39,9 @@ import {
 	Swords,
 	Users,
 	X,
+	Zap,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RoomSettingsDialog } from './RoomSettings';
 
@@ -68,8 +71,37 @@ export function RoomHeader({
 
   const mode = room.mode || 'office';
   const memberCount = room.memberIds?.length || 0;
-
   const isManagedUser = !!userProfile?.managedBy;
+
+  // --- Логика Таймера Спринта ---
+  const [timeLeft, setTimeLeft] = useState<string>('');
+
+  useEffect(() => {
+    if (mode !== 'derby' || !room.sprintStartTs) return;
+
+    const interval = setInterval(() => {
+      const durationWeeks = (room as any).sprintDurationWeeks || 1;
+      const endTs =
+        room.sprintStartTs! + durationWeeks * 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const diff = endTs - now;
+
+      if (diff <= 0) {
+        setTimeLeft(t('Finalizing...'));
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const mins = Math.floor((diff / (1000 * 60)) % 60);
+
+      setTimeLeft(
+        `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`,
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [room.sprintStartTs, mode, t]);
 
   const topBountyMember = members?.reduce((prev, current) => {
     const prevStreak = prev?.currentStreak ?? 0;
@@ -204,9 +236,7 @@ export function RoomHeader({
                       </>
                     )}
                   </div>
-
                   <div className='w-1.5 h-1.5 rounded-full bg-muted-foreground/30' />
-
                   <div className='flex items-center gap-2'>
                     <Users className='w-4 h-4 opacity-70' />
                     <span className='font-mono text-base'>{memberCount}</span>
@@ -310,33 +340,57 @@ export function RoomHeader({
               </p>
             )}
 
-            {showBounty && topBountyMember && (
-              <div className='mt-8 flex items-center gap-4 bg-background/40 backdrop-blur-md ring-1 ring-red-500/20 rounded-2xl p-4 max-w-2xl shadow-sm'>
-                <Avatar className='h-12 w-12 ring-2 ring-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]'>
-                  <AvatarImage src={topBountyMember.photoURL || undefined} />
-                  <AvatarFallback className='bg-red-500/10 text-red-600 font-bold'>
-                    {(topBountyMember.name || '?')
-                      .substring(0, 2)
-                      .toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className='text-base font-extrabold text-red-600 dark:text-red-400 flex items-center gap-2 tracking-tight'>
-                    <Flame className='w-5 h-5 fill-current animate-pulse' />
-                    {t('Most Wanted')}
+            {/* --- DERBY INFO SECTION (Sprint & Bounty) --- */}
+            {mode === 'derby' && (
+              <div className='mt-8 flex flex-wrap gap-4'>
+                {/* Sprint Timer Block */}
+                <div className='flex items-center gap-4 bg-background/40 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-2xl p-4 min-w-[280px] shadow-sm'>
+                  <div className='h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary relative'>
+                    <Zap className='w-6 h-6 fill-current' />
+                    <span className='absolute -top-1 -right-1 flex h-3 w-3'>
+                      <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75'></span>
+                      <span className='relative inline-flex rounded-full h-3 w-3 bg-primary'></span>
+                    </span>
                   </div>
-                  <div className='text-sm text-muted-foreground mt-0.5'>
-                    {t('Defeat')}{' '}
-                    <span className='font-bold text-foreground'>
-                      {topBountyMember.name}
-                    </span>{' '}
-                    {t('to claim a')}{' '}
-                    <span className='font-black text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded'>
-                      +{bountyPoints} ELO
-                    </span>{' '}
-                    {t('bounty!')}
+                  <div>
+                    <div className='text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-0.5 flex items-center gap-1.5'>
+                      Sprint #{(room as any).sprintCount || 0 + 1}
+                      <span className='text-primary opacity-100'>• LIVE</span>
+                    </div>
+                    <div className='text-lg font-black tracking-tight flex items-center gap-2'>
+                      <Clock className='w-4 h-4 text-muted-foreground' />
+                      {timeLeft || '--:--'}
+                    </div>
                   </div>
                 </div>
+
+                {/* Bounty Block */}
+                {showBounty && topBountyMember && (
+                  <div className='flex items-center gap-4 bg-red-500/5 backdrop-blur-md ring-1 ring-red-500/20 rounded-2xl p-4 min-w-[280px] shadow-sm animate-in fade-in slide-in-from-left-4 duration-500'>
+                    <Avatar className='h-12 w-12 ring-2 ring-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]'>
+                      <AvatarImage
+                        src={topBountyMember.photoURL || undefined}
+                      />
+                      <AvatarFallback className='bg-red-500/10 text-red-600 font-bold'>
+                        {(topBountyMember.name || '?')
+                          .substring(0, 2)
+                          .toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className='text-[10px] uppercase font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5 tracking-widest mb-0.5'>
+                        <Flame className='w-3 h-3 fill-current' />
+                        {t('Most Wanted')}
+                      </div>
+                      <div className='text-sm font-bold text-foreground'>
+                        {t('Defeat')} {topBountyMember.name}{' '}
+                        <span className='text-red-500'>
+                          +{bountyPoints} ELO
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
