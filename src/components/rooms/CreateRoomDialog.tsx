@@ -57,6 +57,7 @@ import {
 } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import {
+	Badge,
 	BookOpen,
 	Briefcase,
 	Gamepad2,
@@ -68,6 +69,7 @@ import {
 	Search,
 	Swords,
 	Trophy,
+	Users,
 	Warehouse,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -120,6 +122,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
 
   const [kFactor, setKFactor] = useState(32);
   const [useGlobalElo, setUseGlobalElo] = useState(false);
+  const [sprintDuration, setSprintDuration] = useState<number>(2); // 2 weeks default for derby
 
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
@@ -292,6 +295,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
     setRoomMode('office');
     setKFactor(32);
     setUseGlobalElo(false);
+    setSprintDuration(2);
     setSelectedFriends([]);
     setSearch('');
     setAvatarSrc(null);
@@ -474,10 +478,12 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
         mode: roomMode,
         kFactor: roomMode === 'arcade' ? 0 : kFactor,
         useGlobalElo: roomMode === 'professional' ? useGlobalElo : false,
+        sprintDuration: roomMode === 'derby' ? sprintDuration : null,
         memberIds: memberIdsArr,
         adminIds,
         isArchived: false,
         seasonHistory: [],
+        hallOfFame: [], // Initialize empty Hall of Fame for Derby
         joinRequests: [],
         communityId:
           selectedCommunityId !== 'none' ? selectedCommunityId : null,
@@ -675,7 +681,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                           {t('Derby (Micro-League)')}
                         </div>
                         <div className='text-xs text-muted-foreground mt-1'>
-                          {t('For small groups. Bounties & Nemeses.')}
+                          {t('For small groups. Bounties & Auto-Seasons.')}
                         </div>
                       </div>
                     </Label>
@@ -729,14 +735,45 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                     </Label>
                   </RadioGroup>
 
+                  {/* Settings for Derby Mode */}
+                  {roomMode === 'derby' && (
+                    <div className='mt-4 p-4 rounded-lg border border-dashed border-red-500/30 bg-red-500/5 space-y-4 animate-in fade-in slide-in-from-top-2'>
+                      <div className='space-y-2'>
+                        <Label className='text-base font-semibold text-red-900 dark:text-red-300'>
+                          {t('Auto-Sprint Duration')}
+                        </Label>
+                        <p className='text-xs text-red-800/70 dark:text-red-200/70 max-w-sm'>
+                          {t('Derby uses automated seasons (Sprints). At the end of each sprint, top players receive achievements, and ELO undergoes a "Soft Reset" (pulled 25% closer to 1000).')}
+                        </p>
+                      </div>
+                      <div className='space-y-2 pt-2'>
+                        <div className='flex justify-between items-end'>
+                          <Label className='text-xs'>{t('Duration in Weeks')}</Label>
+                          <span className='font-mono text-xs border border-red-500/30 px-2 py-0.5 rounded bg-background text-red-700 dark:text-red-400 font-bold'>
+                            {sprintDuration} {sprintDuration === 1 ? t('Week') : t('Weeks')}
+                          </span>
+                        </div>
+                        <Slider
+                          min={1}
+                          max={4}
+                          step={1}
+                          value={[sprintDuration]}
+                          onValueChange={(v) => setSprintDuration(v[0])}
+                          className="[&_[role=slider]]:bg-red-500 [&_[role=slider]]:border-red-600 [&_[role=track]]:bg-red-500/20 [&>span:first-child]:bg-red-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Settings for Professional Mode */}
                   {roomMode === 'professional' && (
                     <div className='mt-4 p-4 rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 space-y-4 animate-in fade-in slide-in-from-top-2'>
                       <div className='flex items-center justify-between'>
                         <div className='space-y-0.5'>
-                          <Label className='text-base font-semibold'>
+                          <Label className='text-base font-semibold text-amber-900 dark:text-amber-300'>
                             {t('Seed from Global ELO')}
                           </Label>
-                          <p className='text-xs text-muted-foreground max-w-sm'>
+                          <p className='text-xs text-amber-800/70 dark:text-amber-200/70 max-w-sm'>
                             {t(
                               'If enabled, players start with their Global Rating (e.g. 1500) instead of 1000. Use this if you want to reflect existing skill levels immediately.',
                             )}
@@ -745,12 +782,13 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                         <Switch
                           checked={useGlobalElo}
                           onCheckedChange={setUseGlobalElo}
+                          className="data-[state=checked]:bg-amber-500"
                         />
                       </div>
                       <div className='space-y-2 pt-2'>
-                        <div className='flex justify-between'>
-                          <Label>{t('K-Factor (Volatility)')}</Label>
-                          <span className='font-mono text-xs border px-1 rounded bg-background'>
+                        <div className='flex justify-between items-end'>
+                          <Label className='text-xs text-amber-900 dark:text-amber-300'>{t('K-Factor (Volatility)')}</Label>
+                          <span className='font-mono text-xs border border-amber-500/30 px-2 py-0.5 rounded bg-background text-amber-700 dark:text-amber-400 font-bold'>
                             K={kFactor}
                           </span>
                         </div>
@@ -760,6 +798,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                           step={4}
                           value={[kFactor]}
                           onValueChange={(v) => setKFactor(v[0])}
+                          className="[&_[role=slider]]:bg-amber-500 [&_[role=slider]]:border-amber-600 [&_[role=track]]:bg-amber-500/20 [&>span:first-child]:bg-amber-500"
                         />
                       </div>
                     </div>
@@ -933,6 +972,9 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                               'Designed for 3-5 players. Points are awarded for breaking win streaks and defeating your historical "nemesis". Starts with a mix of Global ELO.',
                             )}
                           </li>
+                          <li>
+                            <strong className="text-red-600 dark:text-red-400">{t('Auto-Sprints:')}</strong> {t('Every X weeks, top players get achievements and ELO goes through a "Soft Reset" (pulled 25% to 1000) to keep the ladder fresh.')}
+                          </li>
                         </ul>
                       </div>
 
@@ -1037,7 +1079,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                   <AccordionContent className='text-sm text-muted-foreground space-y-3 pb-4'>
                     <p>
                       {t(
-                        'When you click "Finish Season", the final standings are calculated. The winner depends on your Mode:',
+                        'When you click "Finish Season" (or a Derby Sprint ends), the final standings are calculated. The winner depends on your Mode:',
                       )}
                     </p>
 
@@ -1069,7 +1111,7 @@ export function CreateRoomDialog({ onSuccess }: CreateRoomDialogProps) {
                             {t('Derby:')}
                           </span>{' '}
                           {t(
-                            'Highest Rating wins, but points swing heavily based on streaks and rivalries.',
+                            'Highest Rating wins, but points swing heavily based on streaks and rivalries. Triggers a Soft Reset on Sprint end.',
                           )}
                         </div>
                       </div>

@@ -4,6 +4,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import { RecordBlock } from '@/components/RecordBlock';
 import { DerbyFeed } from '@/components/rooms/DerbyFeed';
+import { DerbyHallOfFame } from '@/components/rooms/DerbyHallOfFame';
 import { DerbySimulator } from '@/components/rooms/DerbySimulator';
 import { MembersList } from '@/components/rooms/MembersList';
 import { RecentMatches } from '@/components/rooms/RecentMatches';
@@ -1011,12 +1012,18 @@ export default function RoomPage() {
           <section>
             {room.mode === 'derby' ? (
               <Tabs defaultValue='derby' className='w-full'>
-                <TabsList className='mb-8 grid w-full max-w-md mx-auto grid-cols-2 p-1.5 bg-muted/30 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl h-auto min-h-[3.5rem]'>
+                <TabsList className='mb-8 grid w-full max-w-2xl mx-auto grid-cols-3 p-1.5 bg-muted/30 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl h-auto min-h-[3.5rem]'>
                   <TabsTrigger
                     value='derby'
                     className='rounded-xl h-auto py-2.5 text-xs sm:text-sm whitespace-normal text-center data-[state=active]:bg-background data-[state=active]:shadow-md font-semibold transition-all'
                   >
                     {t('Derby Events')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value='hof'
+                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm whitespace-normal text-center data-[state=active]:bg-background data-[state=active]:shadow-md font-semibold transition-all'
+                  >
+                    {t('Hall of Fame')}
                   </TabsTrigger>
                   <TabsTrigger
                     value='matches'
@@ -1034,6 +1041,12 @@ export default function RoomPage() {
                     members={playersOnlyMembers}
                     matches={recentMatches}
                   />
+                </TabsContent>
+                <TabsContent
+                  value='hof'
+                  className='mt-0 text-left animate-in fade-in duration-500'
+                >
+                  <DerbyHallOfFame room={room} />
                 </TabsContent>
                 <TabsContent
                   value='matches'
