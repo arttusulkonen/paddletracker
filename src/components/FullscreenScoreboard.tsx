@@ -444,6 +444,7 @@ export const FullscreenScoreboard = ({
                 }
               }}
               className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer'
+              aria-label={t('Room')}
             >
               <option value='' disabled>
                 {t('Select Room')}
@@ -461,6 +462,7 @@ export const FullscreenScoreboard = ({
                 onChange={(e) => setPlayerLId(e.target.value)}
                 disabled={!selectedRoom}
                 className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                aria-label={t('Player Left')}
               >
                 <option value='' disabled>
                   {t('Select Player Left')}
@@ -482,6 +484,7 @@ export const FullscreenScoreboard = ({
                 onChange={(e) => setPlayerRId(e.target.value)}
                 disabled={!selectedRoom}
                 className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                aria-label={t('Player Right')}
               >
                 <option value='' disabled>
                   {t('Select Player Right')}
