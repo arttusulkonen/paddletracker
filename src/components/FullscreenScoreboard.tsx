@@ -159,14 +159,42 @@ export const FullscreenScoreboard = ({
     return member ? member.name : 'Player R';
   }, [selectedRoom, playerRId]);
 
-  const checkWinCondition = useCallback((l: number, r: number) => {
-    if (l >= 11 || r >= 11) {
-      if (Math.abs(l - r) >= 2) {
-        return true;
+  const { config } = useSport();
+
+  const checkWinCondition = useCallback(
+    (l: number, r: number) => {
+      // Prefer sport-specific validation when available
+      if (config && typeof config === 'object') {
+        const validator = (config as any).validateScore;
+
+        if (typeof validator === 'function') {
+          const result = validator(l, r);
+
+          // If the validator returns a boolean, treat it as "match finished"
+          if (typeof result === 'boolean') {
+            return result;
+          }
+
+          // If the validator returns an object with an `isValid` flag, use it
+          if (result && typeof result === 'object' && 'isValid' in result) {
+            const isValid = (result as any).isValid;
+            if (typeof isValid === 'boolean') {
+              return isValid;
+            }
+          }
+        }
       }
-    }
-    return false;
-  }, []);
+
+      // Fallback: default ping-pong style rule (first to 11, win by 2)
+      if (l >= 11 || r >= 11) {
+        if (Math.abs(l - r) >= 2) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [config],
+  );
 
   const formatTime = (seconds: number) => {
     if (seconds === null || seconds === undefined) return '00:00';
