@@ -1,7 +1,7 @@
-// src/app/page.tsx
 'use client';
 
 import { ControlPanel } from '@/components/ControlPanel';
+import { FullscreenScoreboard } from '@/components/FullscreenScoreboard';
 import LiveFeed from '@/components/LiveFeed';
 import PlayersTable from '@/components/PlayersTable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -93,6 +93,7 @@ const Dashboard = () => {
     (Room & { id: string }) | null
   >(null);
   const [communityName, setCommunityName] = useState<string | null>(null);
+  const [isScoreboardOpen, setIsScoreboardOpen] = useState(false);
 
   const sportProfile = userProfile?.sports?.[sport];
   const wins = sportProfile?.wins ?? 0;
@@ -162,11 +163,14 @@ const Dashboard = () => {
             const roomDoc = await getDoc(
               doc(db, config.collections.rooms, lastMatch.roomId),
             );
-            if (roomDoc.exists() && !roomDoc.data().isArchived) {
-              setLastActiveRoom({
-                id: roomDoc.id,
-                ...roomDoc.data(),
-              } as Room & { id: string });
+            if (roomDoc.exists()) {
+              const rData = roomDoc.data();
+              if (rData.isArchived !== true && rData.isArchived !== 'true') {
+                setLastActiveRoom({
+                  id: roomDoc.id,
+                  ...rData,
+                } as Room & { id: string });
+              }
             }
           }
         }
@@ -185,6 +189,13 @@ const Dashboard = () => {
 
   return (
     <div className='animate-in fade-in duration-700 space-y-8'>
+      {isScoreboardOpen && (
+        <FullscreenScoreboard
+          onClose={() => setIsScoreboardOpen(false)}
+          lastActiveRoom={lastActiveRoom}
+        />
+      )}
+
       <Card className='border-0 shadow-2xl rounded-[2.5rem] overflow-hidden glass-panel relative'>
         <div
           className={`absolute top-0 left-0 w-full h-1.5 opacity-80 bg-gradient-to-r ${config.theme.gradientFrom} ${config.theme.gradientTo}`}
@@ -263,38 +274,50 @@ const Dashboard = () => {
             </div>
           )}
 
-          <div className='flex flex-col sm:flex-row gap-4 w-full xl:w-auto xl:ml-auto min-w-[240px]'>
-            <Button
-              size='lg'
-              className='w-full rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all gap-2 h-14 text-base font-semibold'
-              onClick={handleRecordMatch}
-            >
-              <Rocket size={20} /> {t('Record Match')}
-            </Button>
+          <div className='flex flex-col sm:flex-row gap-4 w-full xl:w-auto xl:ml-auto min-w-[340px]'>
+            <div className='flex flex-col gap-3 w-full'>
+              <div className='flex gap-3 w-full'>
+                <Button
+                  size='lg'
+                  className='flex-1 rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all gap-2 h-14 text-base font-semibold'
+                  onClick={handleRecordMatch}
+                >
+                  <Rocket size={20} /> {t('Record Match')}
+                </Button>
+                <Button
+                  size='lg'
+                  variant='secondary'
+                  className='flex-1 rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all gap-2 h-14 text-base font-semibold bg-primary/10 text-primary hover:bg-primary/20'
+                  onClick={() => setIsScoreboardOpen(true)}
+                >
+                  <Gamepad2 size={20} /> {t('Live Scoreboard')}
+                </Button>
+              </div>
 
-            <div className='flex gap-3'>
-              {!isNewPlayer && (
+              <div className='flex gap-3'>
+                {!isNewPlayer && (
+                  <Button
+                    variant='outline'
+                    className='flex-1 gap-2 rounded-full h-14 bg-white/40 dark:bg-black/40 backdrop-blur-md border-0 ring-1 ring-black/5 dark:ring-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:text-black hover:-translate-y-0.5 hover:shadow-xl transition-all'
+                    asChild
+                  >
+                    <Link href='/wrap'>
+                      <History size={20} /> {t('Wrap')}
+                    </Link>
+                  </Button>
+                )}
+
                 <Button
                   variant='outline'
-                  className='flex-1 gap-2 rounded-full h-14 bg-white/40 dark:bg-black/40 backdrop-blur-md border-0 ring-1 ring-black/5 dark:ring-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:text-black hover:-translate-y-0.5 hover:shadow-xl transition-all'
+                  size='icon'
                   asChild
+                  className='aspect-square rounded-full h-14 w-14 bg-white/40 dark:bg-black/40 backdrop-blur-md border-0 ring-1 ring-black/5 dark:ring-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:text-black hover:-translate-y-0.5 hover:shadow-xl transition-all'
                 >
-                  <Link href='/wrap'>
-                    <History size={20} /> {t('Wrap')}
+                  <Link href={`/profile/${user?.uid}`}>
+                    <User size={20} />
                   </Link>
                 </Button>
-              )}
-
-              <Button
-                variant='outline'
-                size='icon'
-                asChild
-                className='aspect-square rounded-full h-14 w-14 bg-white/40 dark:bg-black/40 backdrop-blur-md border-0 ring-1 ring-black/5 dark:ring-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:text-black hover:-translate-y-0.5 hover:shadow-xl transition-all'
-              >
-                <Link href={`/profile/${user?.uid}`}>
-                  <User size={20} />
-                </Link>
-              </Button>
+              </div>
             </div>
           </div>
         </div>
