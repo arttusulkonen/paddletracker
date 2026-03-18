@@ -9,7 +9,7 @@ Smashlog goes beyond simple scorekeeping. It allows coaches to manage students (
 
 ### 🎭 Role-Based System
 
-- **Players:** Track stats, climb leaderboards, join multiple rooms.
+- **Players:** Track stats, climb leaderboards, earn achievements, and join multiple rooms.
 - **Coaches/Organizers:** Manage communities and tournaments, create "Ghost Profiles" for students, and record matches without affecting their own stats. Coaches are hidden from leaderboards.
 
 ### 👻 Ghost Profiles & Claiming
@@ -19,16 +19,19 @@ Smashlog goes beyond simple scorekeeping. It allows coaches to manage students (
 
 ### 🏠 Room Modes (The Math Behind)
 
-| Mode                 | Description                      | Math Logic                                                                                                                  |
-| :------------------- | :------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| **Professional** 🏆  | Zero-sum game for serious clubs. | Strict ELO (K-Factor 32). Optional "Calibration Phase" (2x K-Factor) for new players.                                       |
-| **Office League** 💼 | For workplace morale.            | **Inflationary System:** Losses are penalized at 80%. Rankings use "Adjusted Points" to reward activity over pure win rate. |
-| **Arcade** 👾        | For fun and casual play.         | No ELO changes. Leaderboard based on total wins only.                                                                       |
+Rooms dictate how ELO is calculated and how seasons are handled.
+
+| Mode                 | Description                         | Math & Season Logic                                                                                                                                                                            |
+| :------------------- | :---------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Derby** ⚔️         | Endless rivalry with short sprints. | Pure ELO. Endless season divided into automated 1-2 week **Sprints**. Features a **25% Soft Reset** of ELO after each sprint and a persistent **Hall of Fame** for titles and "Giant Slayers". |
+| **Professional** 🏆  | Zero-sum game for serious clubs.    | Strict ELO (K-Factor 32). Optional "Calibration Phase" (2x K-Factor) for new players. At the end of the season, the room is archived as a read-only monument.                                  |
+| **Office League** 💼 | For workplace morale.               | **Inflationary System:** Losses are penalized at 80%. Rankings use "Adjusted Points" to reward activity over pure win rate. Archived upon season finish.                                       |
+| **Arcade** 👾        | For fun and casual play.            | No ELO changes (K-Factor 0). Leaderboard based on total wins only. Archived upon season finish.                                                                                                |
 
 ### 📊 Dual-Rating Architecture
 
-1.  **Global ELO:** Your "Passport". Follows you everywhere and never resets.
-2.  **Room ELO:** Specific to a private league. Resets every **Season**.
+1. **Global ELO:** Your "Passport". Follows you everywhere across the app, uses strict zero-sum math, and never resets.
+2. **Room ELO:** Specific to a private league. Depending on the mode, it is either immortalized when a room is archived (Classic modes) or softly reset to keep competition fierce (Derby mode).
 
 ### 🧠 AI Match Recorder
 
@@ -47,8 +50,8 @@ Powered by **Google Genkit + Gemini 2.0 Flash**.
 - **Language:** TypeScript
 - **UI Library:** React 19, Shadcn UI, Tailwind CSS
 - **State Management:** React Context (Auth, Sport)
-- **Visualization:** Recharts (ELO history graphs)
-- **Internationalization:** i18next
+- **Visualization:** Recharts (ELO history graphs & Performance trends)
+- **Internationalization:** i18next (EN, FI, RU, KO)
 
 ### Backend (Serverless)
 
@@ -56,7 +59,7 @@ Powered by **Google Genkit + Gemini 2.0 Flash**.
 - **Auth:** Firebase Auth
 - **Logic:** Firebase Cloud Functions (v2)
   - _Complex ELO calculations are performed server-side to ensure integrity._
-  - _Profile merging and deletions are handled via secure transactions._
+  - _Automated CRON jobs handle Derby sprint finalizations._
 - **AI:** Google Genkit
 
 ---
@@ -66,7 +69,7 @@ Powered by **Google Genkit + Gemini 2.0 Flash**.
 ```bash
 ├── functions/               # Firebase Cloud Functions (Backend)
 │   ├── src/
-│   │   ├── index.ts         # Entry point (Triggers & Callables)
+│   │   ├── index.ts         # Entry point (Triggers, Scheduled Sprints & Callables)
 │   │   ├── lib/eloMath.ts   # Core ELO algorithms
 │   │   └── config.ts        # Sport-specific collection configs
 ├── src/
@@ -77,14 +80,15 @@ Powered by **Google Genkit + Gemini 2.0 Flash**.
 │   │   └── rooms/           # League pages
 │   ├── components/
 │   │   ├── communities/     # Community settings & feed
+│   │   ├── rooms/           # Derby Hall of Fame, Sprint Timers, Standings
 │   │   ├── record-blocks/   # Sport-specific score inputs
 │   │   └── ui/              # Shadcn UI primitives
 │   ├── contexts/            # Global state (Auth, Sport selection)
 │   ├── lib/
 │   │   ├── elo.ts           # Client-side helpers
-│   │   ├── season.ts        # Season finalization logic
-│   │   └── types.ts         # TypeScript interfaces (Room, UserProfile, Match)
-├── firebase.rules           # Firestore Security Rules
+│   │   ├── season.ts        # Season archiving & Sprint soft-reset logic
+│   │   └── types.ts         # TypeScript interfaces
+├── firestore.rules          # Firestore Security Rules
 └── firebaserc               # Project configuration
 ```
 
@@ -93,20 +97,18 @@ Powered by **Google Genkit + Gemini 2.0 Flash**.
 Smashlog uses a hybrid security model:
 
 1. **Firestore Rules:**
-
-- **Read:** Most data is public-read (if `isPublic: true`) or restricted to room members.
-- **Write:** Users can only update their own profiles.
-- **Invites:** A special rule allows users to update the `rooms` array of _other_ users only for invitations.
+   - **Read:** Most data is public-read (if `isPublic: true`) or restricted to room members.
+   - **Write:** Users can only update their own profiles (except for specific fields like achievements awarded by the system or friend requests).
+   - **Matches:** Strictly controlled to prevent score tampering.
 
 2. **Cloud Functions:**
-
-- Critical operations (Recording matches, Calculating ELO, Merging profiles) are executed in a trusted server environment to prevent cheating.
+   - Critical operations (Recording matches, Calculating ELO, Merging profiles, Derby resets) are executed in a trusted server environment to prevent cheating.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - Firebase CLI (`npm install -g firebase-tools`)
 
 ### Installation
@@ -139,12 +141,15 @@ npm run dev
 4. **Deploy Backend:**
 
 ```bash
+cd functions
+npm install
+npm run build
 firebase deploy --only functions
 ```
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please ensure you do not modify `src/lib/season.ts` or `functions/src/lib/eloMath.ts` without understanding the rating inflation implications.
+Contributions are welcome! Please ensure you do not modify `src/lib/season.ts` or `functions/src/lib/eloMath.ts` without understanding the rating inflation and Derby reset implications.
 
 ## 📄 License
 
