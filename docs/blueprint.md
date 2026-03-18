@@ -187,7 +187,7 @@ Users fill out standard forms (e.g., `PingPongRecordBlock.tsx`) entering final s
 - **Flow:** Setup (Room/Players) -> Waiting -> Match in Progress -> Series Results.
 - **Features:** Keyboard shortcuts for scoring, undo, side switching, and match series aggregation.
 - **Submission:** Submits an entire series of matches in one payload via `aiSaveMatch` cloud function. Dispatches a custom `match-recorded` event to automatically refresh background feeds.
-- **TODO [Hardware Integration]:** Hook up `Gamepad API` event listeners inside the Scoreboard component when the physical USB Arcade Controllers arrive. Replace/augment keyboard `keydown` events with `gamepadconnected` and polling logic.
+- **TODO [Hardware Integration]:** When the physical USB Arcade Controllers arrive, program the Gamepad API event listeners inside the Scoreboard component. Replace/augment keyboard `keydown` events with `gamepadconnected` and polling logic.
 
 ### C. Season Finalization (Classic vs. Derby)
 

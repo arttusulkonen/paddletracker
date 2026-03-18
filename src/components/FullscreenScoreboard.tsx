@@ -1,4 +1,3 @@
-// src/components/FullscreenScoreboard.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -95,6 +94,13 @@ export const FullscreenScoreboard = ({
   });
 
   useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsMac(navigator.userAgent.toUpperCase().indexOf('MAC') >= 0);
     }
@@ -111,14 +117,14 @@ export const FullscreenScoreboard = ({
         const q = query(
           collection(db, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid),
-          where('isArchived', '!=', true)
+          where('isArchived', '!=', true),
         );
         const snap = await getDocs(q);
 
         const fetched: RoomWithId[] = [];
         snap.forEach((doc) => {
           const rData = doc.data() as Room;
-          if (rData.isArchived !== 'true') {
+          if (rData.isArchived !== true && rData.isArchived !== 'true') {
             fetched.push({ id: doc.id, ...rData });
           }
         });
@@ -128,7 +134,6 @@ export const FullscreenScoreboard = ({
         );
         setRooms(fetched);
       } catch (error: any) {
-        console.error(error);
         toast({
           title: t('Error loading rooms'),
           description: error.message,
@@ -275,6 +280,14 @@ export const FullscreenScoreboard = ({
       return;
     }
 
+    if (!isMatchFinished && (scoreL > 0 || scoreR > 0)) {
+      toast({
+        title: t('Please finish the current game before submitting'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const functions = getFunctions(app ?? undefined, 'europe-west1');
@@ -325,6 +338,7 @@ export const FullscreenScoreboard = ({
     playerLName,
     playerRName,
     selectedRoom,
+    isMatchFinished,
     app,
     t,
     toast,
@@ -478,6 +492,7 @@ export const FullscreenScoreboard = ({
         size='icon'
         onClick={onClose}
         className='absolute top-6 right-6 h-12 w-12 rounded-full bg-muted/50 hover:bg-muted z-50'
+        aria-label={t('Close')}
       >
         <X className='h-6 w-6' />
       </Button>
@@ -512,6 +527,7 @@ export const FullscreenScoreboard = ({
                   }
                 }}
                 className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer'
+                aria-label={t('Room')}
               >
                 <option value='' disabled>
                   {t('Select Room')}
@@ -538,6 +554,7 @@ export const FullscreenScoreboard = ({
                   onChange={(e) => setPlayerLId(e.target.value)}
                   disabled={!selectedRoom}
                   className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                  aria-label={t('Player Left')}
                 >
                   <option value='' disabled>
                     {t('Select Player Left')}
@@ -568,6 +585,7 @@ export const FullscreenScoreboard = ({
                   onChange={(e) => setPlayerRId(e.target.value)}
                   disabled={!selectedRoom}
                   className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                  aria-label={t('Player Right')}
                 >
                   <option value='' disabled>
                     {t('Select Player Right')}
