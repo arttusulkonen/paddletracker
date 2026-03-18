@@ -11,6 +11,7 @@ import {
 	HttpsError,
 	onCall,
 } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { genkit, z } from 'genkit';
 import { SPORT_COLLECTIONS } from './config';
 import {
@@ -1808,5 +1809,198 @@ export const aiContentCheck = onCall(
         reason: 'Content check failed. Please try again later.',
       };
     }
+  },
+);
+
+export const processDerbySprints = onSchedule(
+  {
+    schedule: '59 23 * * 0',
+    timeZone: 'Europe/Helsinki',
+    region: 'europe-west1',
+    timeoutSeconds: 300,
+  },
+  async () => {
+    const nowIso = new Date().toISOString();
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const nowMs = Date.now();
+
+    logger.info('Starting Derby Sprints processing...');
+
+    for (const collectionName of collectionsToScan.rooms) {
+      if (!collectionName) continue;
+
+      const sport = collectionName.split('-')[1];
+      if (!sport) continue;
+
+      const roomsRef = db.collection(collectionName);
+
+      const snapshot = await roomsRef
+        .where('mode', '==', 'derby')
+        .where('isFinished', '==', false)
+        .where('isArchived', '==', false)
+        .get();
+
+      for (const roomDoc of snapshot.docs) {
+        if (!roomDoc.exists) continue;
+
+        const room = roomDoc.data();
+        if (!room) continue;
+
+        const sprintDurationWeeks = room.sprintDuration || 2;
+
+        if (!room.sprintStartTs) {
+          await roomDoc.ref.update({ sprintStartTs: nowMs });
+          logger.info(`Initialized sprintStartTs for room ${roomDoc.id}`);
+          continue;
+        }
+
+        const elapsedMs = nowMs - room.sprintStartTs;
+        const requiredMs = sprintDurationWeeks * ONE_WEEK_MS;
+
+        if (elapsedMs < requiredMs) {
+          continue;
+        }
+
+        logger.info(
+          `Processing Sprint End for room: ${room.name} (${roomDoc.id})`,
+        );
+
+        const members = room.members || [];
+        if (members.length === 0) continue;
+
+        const sortedByRating = [...members].sort(
+          (a, b) => (b.rating || 0) - (a.rating || 0),
+        );
+        const champion = sortedByRating[0];
+
+        const sortedByStreak = [...members].sort(
+          (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
+        );
+        const unstoppable =
+          sortedByStreak[0]?.highestStreak >= 5 ? sortedByStreak[0] : null;
+
+        const hallOfFame = room.hallOfFame || [];
+        const batch = db.batch();
+
+        const getOrCreateHof = (uid: string, name: string) => {
+          if (!uid) return null;
+          let entry = hallOfFame.find((e: any) => e.userId === uid);
+          if (!entry) {
+            entry = {
+              userId: uid,
+              name: name || 'Unknown',
+              championships: 0,
+              streaksBroken: 0,
+              maxStreakEver: 0,
+              totalDerbyWins: 0,
+            };
+            hallOfFame.push(entry);
+          }
+
+          // Coerce existing values to numbers to prevent NaN/sorting issues
+          entry.championships = Number(entry.championships) || 0;
+          entry.streaksBroken = Number(entry.streaksBroken) || 0;
+          entry.maxStreakEver = Number(entry.maxStreakEver) || 0;
+          entry.totalDerbyWins = Number(entry.totalDerbyWins) || 0;
+
+          return entry;
+        };
+
+        if (champion && champion.userId) {
+          const hof = getOrCreateHof(champion.userId, champion.name);
+          if (hof) {
+            hof.championships += 1;
+          }
+
+          batch.update(db.collection('users').doc(champion.userId), {
+            achievements: admin.firestore.FieldValue.arrayUnion({
+              type: 'derbyChampion',
+              sport: sport,
+              dateFinished: nowIso,
+              roomId: roomDoc.id,
+              roomName: room.name || '',
+              roomRating: champion.rating || 1000,
+            }),
+          });
+        }
+
+        if (unstoppable && unstoppable.userId) {
+          batch.update(db.collection('users').doc(unstoppable.userId), {
+            achievements: admin.firestore.FieldValue.arrayUnion({
+              type: 'derbyUnstoppable',
+              sport: sport,
+              dateFinished: nowIso,
+              roomId: roomDoc.id,
+              roomName: room.name || '',
+              longestWinStreak: unstoppable.highestStreak || 0,
+            }),
+          });
+        }
+
+        members.forEach((m: any) => {
+          if (!m || !m.userId) return;
+
+          const hof = getOrCreateHof(m.userId, m.name);
+          if (hof) {
+            const slayersCount =
+              m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
+            hof.streaksBroken += slayersCount;
+
+            const currentHighest = Number(m.highestStreak) || 0;
+            if (currentHighest > hof.maxStreakEver) {
+              hof.maxStreakEver = currentHighest;
+            }
+
+            hof.totalDerbyWins = Number(m.wins) || 0;
+          }
+
+          const currentElo = m.rating || 1000;
+          m.rating = Math.round(1000 + (currentElo - 1000) * 0.75);
+
+          m.currentStreak = 0;
+          m.highestStreak = 0;
+          m.badges = [];
+        });
+
+        if (room.communityId) {
+          const feedRef = db
+            .collection('communities')
+            .doc(room.communityId)
+            .collection('feed')
+            .doc();
+          batch.set(feedRef, {
+            id: feedRef.id,
+            communityId: room.communityId,
+            type: 'season_finished',
+            sport: sport,
+            title: `Derby Sprint Finished: ${room.name || 'Unknown'}`,
+            description: champion
+              ? `🏆 ${champion.name} won the sprint!`
+              : 'The sprint has concluded.',
+            createdAt: nowIso,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            meta: {
+              roomId: roomDoc.id,
+              roomName: room.name || '',
+              mode: 'derby',
+              winner: champion?.name || '',
+            },
+          });
+        }
+
+        const sprintCount = (room.sprintCount || 0) + 1;
+        batch.update(roomDoc.ref, {
+          members: members,
+          hallOfFame: hallOfFame,
+          sprintStartTs: nowMs,
+          sprintCount: sprintCount,
+        });
+
+        await batch.commit();
+        logger.info(`Successfully processed sprint for room ${roomDoc.id}`);
+      }
+    }
+
+    logger.info('Derby Sprints processing completed.');
   },
 );

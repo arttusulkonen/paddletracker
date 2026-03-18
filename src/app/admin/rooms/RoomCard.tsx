@@ -47,7 +47,9 @@ interface RoomCardProps {
 }
 
 // Хелпер для парсинга финского формата дат "DD.MM.YYYY HH.MM.SS"
-const parseCustomDate = (dateInput: string | number | undefined | null): Date => {
+const parseCustomDate = (
+  dateInput: string | number | undefined | null,
+): Date => {
   if (!dateInput) return new Date();
 
   // Если это уже число (timestamp)
@@ -108,7 +110,7 @@ export const RoomCard: React.FC<RoomCardProps> = ({
 
   const isMember = room.memberIds?.includes(user?.uid || '');
   const sportIcon = sportConfig[room.sport || 'pingpong'].icon;
-  
+
   // Используем memberIds, так как он надежнее
   const memberCount = room.memberIds?.length || 0;
 
@@ -151,118 +153,162 @@ export const RoomCard: React.FC<RoomCardProps> = ({
   const getModeBadge = () => {
     switch (room.mode) {
       case 'professional':
-        return { label: t('Pro'), color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800' };
+        return {
+          label: t('Pro'),
+          color:
+            'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
+        };
       case 'arcade':
-        return { label: t('Arcade'), color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' };
+        return {
+          label: t('Arcade'),
+          color:
+            'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+        };
       default:
-        return { label: t('Club'), color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' };
+        return {
+          label: t('Club'),
+          color:
+            'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        };
     }
   };
   const mode = getModeBadge();
 
   return (
-    <Card className={`flex flex-col h-full transition-all duration-300 border-t-4 ${status.style} group`}>
-      <CardHeader className="pb-3 relative">
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className={`text-[10px] uppercase font-bold tracking-wider border ${mode.color}`}>
+    <Card
+      className={`flex flex-col h-full transition-all duration-300 border-t-4 ${status.style} group`}
+    >
+      <CardHeader className='pb-3 relative'>
+        <div className='flex justify-between items-start mb-3'>
+          <div className='flex flex-wrap gap-2'>
+            <Badge
+              variant='outline'
+              className={`text-[10px] uppercase font-bold tracking-wider border ${mode.color}`}
+            >
               {mode.label}
             </Badge>
 
             {status.label && (
-              <Badge variant="secondary" className="text-[10px] gap-1">
+              <Badge variant='secondary' className='text-[10px] gap-1'>
                 {status.icon} {status.label}
               </Badge>
             )}
 
             {room.communityName && (
-               <Badge variant="outline" className="text-[10px] gap-1 bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900">
-                  <Warehouse className="h-3 w-3" />
-                  <span className="truncate max-w-[120px]">{room.communityName}</span>
-               </Badge>
+              <Badge
+                variant='outline'
+                className='text-[10px] gap-1 bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900'
+              >
+                <Warehouse className='h-3 w-3' />
+                <span className='truncate max-w-[120px]'>
+                  {room.communityName}
+                </span>
+              </Badge>
             )}
           </div>
 
-          <div className="text-muted-foreground/50 group-hover:text-primary transition-colors">
+          <div className='text-muted-foreground/50 group-hover:text-primary transition-colors'>
             {sportIcon}
           </div>
         </div>
 
-        <CardTitle className="text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-          <Link href={`${hrefBase}/${room.id}`} className="hover:underline">
+        <CardTitle className='text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors'>
+          <Link href={`${hrefBase}/${room.id}`} className='hover:underline'>
             {room.name}
           </Link>
         </CardTitle>
-        
-        <CardDescription className="flex items-center gap-1 text-xs">
+
+        <CardDescription className='flex items-center gap-1 text-xs'>
           <span>{t('by')}</span>
-          <span className="font-medium text-foreground">{room.creatorName || t('Unknown')}</span>
-          {room.creator === user?.uid && <Crown className="h-3 w-3 text-amber-500" />}
+          <span className='font-medium text-foreground'>
+            {room.creatorName || t('Unknown')}
+          </span>
+          {room.creator === user?.uid && (
+            <Crown className='h-3 w-3 text-amber-500' />
+          )}
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="flex-grow space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-           <div className="bg-muted/40 p-2 rounded-md flex flex-col items-center justify-center border border-transparent group-hover:border-border transition-colors">
-              <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] uppercase font-bold tracking-wider">
-                 <Users className="h-3 w-3" /> {t('Members')}
-              </div>
-              <span className="text-lg font-bold">{memberCount}</span>
-           </div>
-           <div className="bg-muted/40 p-2 rounded-md flex flex-col items-center justify-center border border-transparent group-hover:border-border transition-colors">
-              <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] uppercase font-bold tracking-wider">
-                 <CalendarDays className="h-3 w-3" /> {t('Created')}
-              </div>
-              <span className="text-xs font-medium mt-1">
-                {createdDate.toLocaleDateString(undefined, {
-                   month: 'short', year: '2-digit', day: 'numeric'
-                })}
-              </span>
-           </div>
+      <CardContent className='flex-grow space-y-4'>
+        <div className='grid grid-cols-2 gap-2'>
+          <div className='bg-muted/40 p-2 rounded-md flex flex-col items-center justify-center border border-transparent group-hover:border-border transition-colors'>
+            <div className='flex items-center gap-1.5 text-muted-foreground text-[10px] uppercase font-bold tracking-wider'>
+              <Users className='h-3 w-3' /> {t('Members')}
+            </div>
+            <span className='text-lg font-bold'>{memberCount}</span>
+          </div>
+          <div className='bg-muted/40 p-2 rounded-md flex flex-col items-center justify-center border border-transparent group-hover:border-border transition-colors'>
+            <div className='flex items-center gap-1.5 text-muted-foreground text-[10px] uppercase font-bold tracking-wider'>
+              <CalendarDays className='h-3 w-3' /> {t('Created')}
+            </div>
+            <span className='text-xs font-medium mt-1'>
+              {createdDate.toLocaleDateString(undefined, {
+                month: 'short',
+                year: '2-digit',
+                day: 'numeric',
+              })}
+            </span>
+          </div>
         </div>
 
         {isMember && (
-           <div className="pt-3 border-t flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                 <div className="p-1 bg-primary/10 rounded-full text-primary">
-                    <Trophy className="h-3 w-3" />
-                 </div>
-                 <div className="flex flex-col leading-none">
-                    <span className="text-[10px] text-muted-foreground font-bold uppercase">Rating</span>
-                    <span className="font-bold">{Math.round(myRating || 1000)}</span>
-                 </div>
+          <div className='pt-3 border-t flex items-center justify-between text-sm'>
+            <div className='flex items-center gap-2'>
+              <div className='p-1 bg-primary/10 rounded-full text-primary'>
+                <Trophy className='h-3 w-3' />
               </div>
-              <div className="text-right leading-none">
-                 <span className="block text-[10px] text-muted-foreground font-bold uppercase">{t('Matches')}</span>
-                 <span className="font-bold">{myMatches || 0}</span>
+              <div className='flex flex-col leading-none'>
+                <span className='text-[10px] text-muted-foreground font-bold uppercase'>
+                  Rating
+                </span>
+                <span className='font-bold'>
+                  {Math.round(myRating || 1000)}
+                </span>
               </div>
-           </div>
+            </div>
+            <div className='text-right leading-none'>
+              <span className='block text-[10px] text-muted-foreground font-bold uppercase'>
+                {t('Matches')}
+              </span>
+              <span className='font-bold'>{myMatches || 0}</span>
+            </div>
+          </div>
         )}
       </CardContent>
 
-      <CardFooter className="pt-2 pb-4">
-        <Button asChild className="w-full shadow-sm" variant={status.btnVariant as any}>
-          <Link href={`${hrefBase}/${room.id}`}>
-             {status.btnText}
-          </Link>
+      <CardFooter className='pt-2 pb-4'>
+        <Button
+          asChild
+          className='w-full shadow-sm'
+          variant={status.btnVariant as any}
+        >
+          <Link href={`${hrefBase}/${room.id}`}>{status.btnText}</Link>
         </Button>
-        
-        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-           {room.isPublic ? (
-              <TooltipProvider>
-                 <Tooltip>
-                    <TooltipTrigger><Globe className="h-3 w-3 text-muted-foreground" /></TooltipTrigger>
-                    <TooltipContent side="left"><p>{t('Public Room')}</p></TooltipContent>
-                 </Tooltip>
-              </TooltipProvider>
-           ) : (
-              <TooltipProvider>
-                 <Tooltip>
-                    <TooltipTrigger><Lock className="h-3 w-3 text-muted-foreground" /></TooltipTrigger>
-                    <TooltipContent side="left"><p>{t('Private Room')}</p></TooltipContent>
-                 </Tooltip>
-              </TooltipProvider>
-           )}
+
+        <div className='absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity'>
+          {room.isPublic ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Globe className='h-3 w-3 text-muted-foreground' />
+                </TooltipTrigger>
+                <TooltipContent side='left'>
+                  <p>{t('Public Room')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Lock className='h-3 w-3 text-muted-foreground' />
+                </TooltipTrigger>
+                <TooltipContent side='left'>
+                  <p>{t('Private Room')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </CardFooter>
     </Card>

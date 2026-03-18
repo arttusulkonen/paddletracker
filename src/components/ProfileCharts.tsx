@@ -11,7 +11,6 @@ import {
 	Line,
 	LineChart,
 	Tooltip as RechartTooltip,
-	Legend as ReLegend,
 	ResponsiveContainer,
 	XAxis,
 	YAxis,

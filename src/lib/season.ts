@@ -287,29 +287,6 @@ export async function finalizeSeason(
     mode,
   };
 
-  const updatedMembers = roomMembers.map((m: any) => {
-    const resetMember = {
-      ...m,
-      wins: 0,
-      losses: 0,
-      rating: 1000,
-      totalMatches: 0,
-      deltaRoom: 0,
-      avgPtsPerMatch: 0,
-      last5Form: [],
-    };
-
-    if (mode === 'derby') {
-      resetMember.currentStreak = 0;
-      resetMember.highestStreak = 0;
-      resetMember.badges = [];
-      resetMember.nemesisId = null;
-      resetMember.h2h = {};
-    }
-
-    return resetMember;
-  });
-
   let bestStreakPlayer: SeasonRow | null = null;
   if (mode === 'derby') {
     bestStreakPlayer = [...enrichedSummary].sort(
@@ -329,9 +306,10 @@ export async function finalizeSeason(
     }
   };
 
+  // ИЗМЕНЕНИЕ 1: Добавляем isArchived: true, убираем сброс members
   currentBatch.update(roomRef, {
     seasonHistory: arrayUnion(entry),
-    members: updatedMembers,
+    isArchived: true,
   });
   opCount++;
   commitBatchIfFull();
@@ -394,18 +372,6 @@ export async function finalizeSeason(
     opCount++;
     commitBatchIfFull();
   }
-
-  const qsMatches = query(
-    collection(db, config.matches),
-    where('roomId', '==', roomId),
-  );
-  const snapMatches = await getDocs(qsMatches);
-
-  snapMatches.docs.forEach((d) => {
-    currentBatch.delete(d.ref);
-    opCount++;
-    commitBatchIfFull();
-  });
 
   if (opCount > 0) {
     batches.push(currentBatch.commit());

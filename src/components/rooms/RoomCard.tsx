@@ -99,9 +99,10 @@ export const RoomCard: React.FC<RoomCardProps> = ({
       return {
         label: t('Archived'),
         icon: <Archive className='h-3 w-3' />,
-        style: 'opacity-70 grayscale',
+        style: 'bg-muted/40 opacity-70 grayscale border-2 border-dashed border-muted-foreground/30',
         btnText: t('View History'),
         btnVariant: 'secondary',
+        isActive: false,
       };
     }
     if (room.isFinished) {
@@ -109,17 +110,19 @@ export const RoomCard: React.FC<RoomCardProps> = ({
         label: t('Season Finished'),
         icon: <CheckCircle2 className='h-3 w-3' />,
         style:
-          'bg-amber-50/50 dark:bg-amber-950/10 ring-1 ring-amber-200 dark:ring-amber-900',
+          'bg-amber-500/5 dark:bg-amber-900/10 ring-1 ring-amber-500/20 opacity-90',
         btnText: t('View Results'),
         btnVariant: 'outline',
+        isActive: false,
       };
     }
     return {
       label: null,
       icon: null,
-      style: 'hover:scale-[1.02] hover:shadow-2xl',
+      style: 'hover:scale-[1.02] hover:shadow-2xl ring-1 ring-black/5 dark:ring-white/10 bg-background/50',
       btnText: isMember ? t('Enter Room') : t('View Details'),
       btnVariant: isMember ? 'default' : 'secondary',
+      isActive: true,
     };
   };
 
@@ -157,24 +160,33 @@ export const RoomCard: React.FC<RoomCardProps> = ({
 
   return (
     <CardUI
-      className={`flex flex-col h-full transition-all duration-500 border-0 rounded-[2rem] glass-panel ${status.style} group overflow-hidden relative`}
+      className={`flex flex-col h-full transition-all duration-500 border-0 rounded-[2rem] glass-panel ${status.style} ${status.isActive ? 'group' : ''} overflow-hidden relative`}
     >
-      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
+      {!status.isActive && (
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-muted/50 via-transparent to-transparent pointer-events-none" />
+      )}
+      
+   
+      {status.isActive && (
+        <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none' />
+      )}
 
       <CardHeaderUI className='pb-4 relative z-10 px-6 pt-6'>
         <div className='flex justify-between items-start mb-4'>
           <div className='flex flex-wrap gap-2'>
             <BadgeUI
               variant='outline'
-              className={`text-[9px] uppercase font-bold tracking-widest border-0 ${mode.color} px-2.5 py-0.5 rounded-full`}
+              className={`text-[9px] uppercase font-bold tracking-widest border-0 ${!status.isActive ? 'opacity-70 saturate-50' : mode.color} px-2.5 py-0.5 rounded-full`}
             >
               {mode.label}
             </BadgeUI>
 
             {status.label && (
               <BadgeUI
-                variant='secondary'
-                className='text-[9px] gap-1 px-2.5 py-0.5 rounded-full border-0 bg-background/50 backdrop-blur-md shadow-sm uppercase tracking-widest font-bold'
+                variant={room.isArchived ? 'secondary' : 'default'}
+                className={`text-[9px] gap-1 px-2.5 py-0.5 rounded-full border-0 shadow-sm uppercase tracking-widest font-bold ${
+                  room.isFinished && !room.isArchived ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 hover:bg-amber-500/30' : 'bg-background/50 backdrop-blur-md'
+                }`}
               >
                 {status.icon} {status.label}
               </BadgeUI>
@@ -183,7 +195,11 @@ export const RoomCard: React.FC<RoomCardProps> = ({
             {room.communityName && (
               <BadgeUI
                 variant='outline'
-                className='text-[9px] gap-1 px-2.5 py-0.5 rounded-full border-0 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 ring-1 ring-indigo-500/30 uppercase tracking-widest font-bold'
+                className={`text-[9px] gap-1 px-2.5 py-0.5 rounded-full border-0 uppercase tracking-widest font-bold ${
+                  !status.isActive 
+                    ? 'bg-muted text-muted-foreground' 
+                    : 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 ring-1 ring-indigo-500/30'
+                }`}
               >
                 <Warehouse className='h-3 w-3' />
                 <span className='truncate max-w-[100px]'>
@@ -193,12 +209,18 @@ export const RoomCard: React.FC<RoomCardProps> = ({
             )}
           </div>
 
-          <div className='text-muted-foreground/30 group-hover:text-primary transition-colors bg-background/50 p-2 rounded-xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-sm'>
+          <div className={`transition-colors p-2 rounded-xl backdrop-blur-sm ${
+            status.isActive 
+              ? 'text-muted-foreground/30 group-hover:text-primary bg-background/50 ring-1 ring-black/5 dark:ring-white/10' 
+              : 'text-muted-foreground/20 bg-transparent'
+          }`}>
             {sportIcon}
           </div>
         </div>
 
-        <CardTitleUI className='text-2xl font-extrabold tracking-tight leading-tight line-clamp-1 group-hover:text-primary transition-colors'>
+        <CardTitleUI className={`text-2xl font-extrabold tracking-tight leading-tight line-clamp-1 transition-colors ${
+          status.isActive ? 'group-hover:text-primary' : 'text-foreground/80'
+        }`}>
           <Link
             href={`${hrefBase}/${room.id}`}
             className='before:absolute before:inset-0'
@@ -207,30 +229,38 @@ export const RoomCard: React.FC<RoomCardProps> = ({
           </Link>
         </CardTitleUI>
 
-        <CardDescriptionUI className='flex items-center gap-1.5 text-xs mt-1.5'>
+        <CardDescriptionUI className={`flex items-center gap-1.5 text-xs mt-1.5 ${!status.isActive ? 'opacity-60' : ''}`}>
           <span className='font-light opacity-70'>{t('by')}</span>
           <span className='font-semibold text-foreground/80'>
             {room.creatorName || t('Unknown')}
           </span>
           {room.creator === user?.uid && (
-            <Crown className='h-3.5 w-3.5 text-amber-500' />
+            <Crown className={`h-3.5 w-3.5 ${!status.isActive ? 'text-muted-foreground' : 'text-amber-500'}`} />
           )}
         </CardDescriptionUI>
       </CardHeaderUI>
 
       <CardContentUI className='flex-grow space-y-5 relative z-10 px-6'>
         <div className='grid grid-cols-2 gap-3'>
-          <div className='bg-background/40 backdrop-blur-md p-3 rounded-2xl flex flex-col items-center justify-center ring-1 ring-black/5 dark:ring-white/5 group-hover:ring-primary/20 transition-colors shadow-sm'>
-            <div className='flex items-center gap-1.5 text-muted-foreground text-[9px] uppercase font-bold tracking-widest'>
+          <div className={`p-3 rounded-2xl flex flex-col items-center justify-center transition-colors shadow-sm ${
+            status.isActive 
+              ? 'bg-background/40 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/5 group-hover:ring-primary/20' 
+              : 'bg-muted/30 border border-transparent'
+          }`}>
+            <div className={`flex items-center gap-1.5 text-[9px] uppercase font-bold tracking-widest ${!status.isActive ? 'text-muted-foreground/70' : 'text-muted-foreground'}`}>
               <Users className='h-3.5 w-3.5' /> {t('Members')}
             </div>
-            <span className='text-2xl font-black mt-1'>{memberCount}</span>
+            <span className={`text-2xl font-black mt-1 ${!status.isActive ? 'text-foreground/70' : ''}`}>{memberCount}</span>
           </div>
-          <div className='bg-background/40 backdrop-blur-md p-3 rounded-2xl flex flex-col items-center justify-center ring-1 ring-black/5 dark:ring-white/5 group-hover:ring-primary/20 transition-colors shadow-sm'>
-            <div className='flex items-center gap-1.5 text-muted-foreground text-[9px] uppercase font-bold tracking-widest'>
+          <div className={`p-3 rounded-2xl flex flex-col items-center justify-center transition-colors shadow-sm ${
+            status.isActive 
+              ? 'bg-background/40 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/5 group-hover:ring-primary/20' 
+              : 'bg-muted/30 border border-transparent'
+          }`}>
+            <div className={`flex items-center gap-1.5 text-[9px] uppercase font-bold tracking-widest ${!status.isActive ? 'text-muted-foreground/70' : 'text-muted-foreground'}`}>
               <CalendarDays className='h-3.5 w-3.5' /> {t('Created')}
             </div>
-            <span className='text-sm font-semibold mt-2'>
+            <span className={`text-sm font-semibold mt-2 ${!status.isActive ? 'text-foreground/70' : ''}`}>
               {createdDate.toLocaleDateString(undefined, {
                 month: 'short',
                 day: 'numeric',
@@ -240,9 +270,13 @@ export const RoomCard: React.FC<RoomCardProps> = ({
         </div>
 
         {isMember && (
-          <div className='pt-4 border-t border-border/40 flex items-center justify-between text-sm'>
+          <div className={`pt-4 border-t flex items-center justify-between text-sm ${!status.isActive ? 'border-border/20 opacity-70' : 'border-border/40'}`}>
             <div className='flex items-center gap-3'>
-              <div className='p-2 bg-primary/10 rounded-xl text-primary ring-1 ring-primary/20'>
+              <div className={`p-2 rounded-xl ${
+                status.isActive 
+                  ? 'bg-primary/10 text-primary ring-1 ring-primary/20' 
+                  : 'bg-muted text-muted-foreground'
+              }`}>
                 <Trophy className='h-4 w-4' />
               </div>
               <div className='flex flex-col leading-none'>
@@ -267,7 +301,13 @@ export const RoomCard: React.FC<RoomCardProps> = ({
       <CardFooterUI className='pt-2 pb-6 px-6 relative z-10'>
         <ButtonUI
           asChild
-          className={`w-full rounded-xl h-12 font-bold shadow-md transition-all ${status.btnVariant === 'default' ? 'hover:shadow-lg active:scale-[0.98]' : ''}`}
+          className={`w-full rounded-xl h-12 font-bold shadow-md transition-all ${
+            status.isActive && status.btnVariant === 'default' 
+              ? 'hover:shadow-lg active:scale-[0.98]' 
+              : !status.isActive 
+                ? 'opacity-80 hover:opacity-100'
+                : ''
+          }`}
           variant={status.btnVariant as any}
         >
           <Link href={`${hrefBase}/${room.id}`}>{status.btnText}</Link>

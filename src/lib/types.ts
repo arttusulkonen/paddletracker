@@ -53,7 +53,7 @@ export interface RankHistoryPoint {
 
 // --- Achievements ---
 export interface Achievement {
-  type: string; // e.g. 'seasonFinish'
+  type: string; // e.g. 'seasonFinish', 'derbyChampion', 'derbyUnstoppable'
   sport?: Sport;
   dateFinished?: string;
   userId?: string | null;
@@ -188,6 +188,15 @@ export interface Season {
   summary: SeasonSummary[];
 }
 
+export interface DerbyHallOfFameEntry {
+  userId: string;
+  name: string;
+  championships: number;
+  streaksBroken: number;
+  maxStreakEver: number;
+  totalDerbyWins: number;
+}
+
 // --- Rooms ---
 export interface Room {
   id: string;
@@ -210,6 +219,10 @@ export interface Room {
   isArchived?: boolean;
   archivedAt?: string;
   kFactor?: number;
+  useGlobalElo?: boolean;
+  
+  // Derby Config
+  sprintDuration?: number; // Duration of a derby sprint in weeks (1, 2, 3, 4)
 
   // Members & Access
   adminIds?: string[];
@@ -220,10 +233,15 @@ export interface Room {
   // Data
   seasonHistory?: Season[];
   rankHistories?: Record<string, RankHistoryPoint[]>; // userId -> history
+  hallOfFame?: DerbyHallOfFameEntry[]; // Persistent derby stats
 
   // Communities
   communityId?: string | null;
   communityName?: string;
+
+	sprintCount?: number; // Total number of sprints completed in derby mode
+
+	sprintStartTs?: string; // ISO timestamp when the current sprint started
 }
 
 // --- Matches ---

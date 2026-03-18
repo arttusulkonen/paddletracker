@@ -14,9 +14,8 @@ The core philosophy is a **Dual-Rating System**:
 
 1.  **Global ELO:** A persistent, strict zero-sum rating (True Skill) that follows the player everywhere. Used primarily for "The Big Picture" and seeding new rooms.
 2.  **Room ELO:** A local, seasonal rating specific to a private room.
-    - **Independence:** By default, everyone starts from **1000** in a new room (fresh start).
-    - **Seeding:** Optionally, professional rooms can seed players based on their Global ELO.
-    - **Rules:** The calculation rules (Inflation, K-Factor, Volatility) are dictated by the Room's **Game Mode**.
+    - **Independence:** By default, everyone starts from **1000** in a new room (fresh start), unless specific room modes dictate otherwise.
+    - **Rules:** The calculation rules (Inflation, K-Factor, Volatility, Resets) are dictated by the Room's **Game Mode**.
 
 ---
 
@@ -68,28 +67,34 @@ _Designed for workplace rivalries and casual leagues where activity should be re
 
 - **ELO Logic:** **Inflationary**. Winners gain full points, losers lose only **80%** of the calculated delta. This injects points into the system, preventing stagnation.
 - **K-Factor:** Fixed at `32`.
-- **Ranking Criteria:** **Adjusted Points**.
-  $$\text{AdjPoints} = (\text{Rating} - 1000) \times \sqrt{\frac{\text{MatchesPlayed}}{\text{AverageMatches}}}$$
-  _Active players can outrank higher-rated campers._
+- **Ranking Criteria:** **Adjusted Points**. Active players can outrank higher-rated campers.
 
 ### B. Professional
 
 _Designed for serious clubs, tournaments, and competitive squads._
 
 - **ELO Logic:** **Strict Zero-Sum** with **Provisional Ratings**.
-- **Dynamic Volatility (Calibration):** For the first **10 matches** in the room, the K-Factor is **doubled** (e.g., $32 \times 2 = 64$). This allows new players to quickly reach their real skill level.
+- **Dynamic Volatility (Calibration):** For the first **10 matches** in the room, the K-Factor is **doubled**. This allows new players to quickly reach their real skill level.
 - **Base K-Factor:** Customizable (16–64). Standard is `32`.
-- **Seeding (Optional):** Admins can choose to seed players based on their **Global ELO** upon room creation. By default, everyone starts at 1000.
+- **Seeding:** By default, everyone starts at 1000, but admins can optionally seed players based on their Global ELO.
 - **Ranking Criteria:** **Room Rating** (Pure ELO).
-  _Tie-breakers: Win Rate -\> Wins._
 
-### C. Arcade
+### C. Derby
+
+_Designed for intense, endless rivalries with short cycles and persistent history._
+
+- **Endless Season & Sprints:** The room never truly "closes". Instead, it runs in automated cycles called **Sprints** (e.g., 1–2 weeks).
+- **Starting ELO:** Players start with their **Global ELO** exactly as it is, seamlessly integrating the room with global skill levels.
+- **Soft Reset:** At the end of a sprint, ratings are pulled 25% closer to 1000 to prevent runaway leaders, and a new sprint begins automatically.
+- **Hall of Fame:** Persistent tracking of all-time achievements (Titles won, "Giant Slayers" for breaking 3+ win streaks, Max Streaks, Total Derby Wins).
+- **Ranking Criteria:** **Room Rating** (Pure ELO).
+
+### D. Arcade
 
 _Designed for "just for fun" games without ranking stress._
 
 - **ELO Logic:** **None**. K-Factor is forced to `0`. Ratings remain at 1000.
 - **Ranking Criteria:** **Total Wins**.
-  _Tie-breakers: Win Rate -\> Matches Played._
 
 ---
 
@@ -124,38 +129,34 @@ src/
 │   ├── register/            # Registration with "Claim Profile" logic
 │   ├── mobile/              # Mobile-optimized views
 │   ├── admin/               # Global Admin Panel (Super Admins)
-│   └── manage/              # [NEW] Coach Management Console
+│   └── manage/              # Coach Management Console
 │       ├── layout.tsx       # Coach sidebar navigation
 │       ├── players/         # Ghost player management & creation
 │       └── communities/     # Community creation & details
-│           ├── [communityId]/ # Single community view
 ├── components/
 │   ├── AiAssistant.tsx      # AI Chat Interface (Genkit integration)
 │   ├── RecordBlock.tsx      # Manual match entry component
-│   ├── communities/         # [NEW] Community-related components
-│   │   ├── CreateCommunityDialog.tsx
-│   │   └── CommunitySettingsDialog.tsx
-│   ├── layout/
-│   │   └── Navbar.tsx       # Dynamic navigation based on roles (Coach/Admin/Player)
+│   ├── communities/         # Community-related components
 │   ├── rooms/
 │   │   ├── CreateRoomDialog.tsx # Room creation (Mode, K-Factor, Seeding)
-│   │   ├── RoomHeader.tsx       # Room metadata & Visual Theme
+│   │   ├── RoomHeader.tsx       # Room metadata, Visual Theme, Derby Timer
+│   │   ├── DerbyHallOfFame.tsx  # Persistent stats for Derby mode
 │   │   └── StandingsTable.tsx   # Dynamic leaderboard based on Mode
 │   └── ...
 ├── contexts/
 │   ├── AuthContext.tsx      # User profile, auth state, & role checks
 │   └── SportContext.tsx     # Active sport switcher & DB config
 ├── lib/
-│   ├── elo.ts               # Client-side wrapper for Cloud Function call
-│   ├── season.ts            # Season statistics & sorting logic (Mode-aware)
+│   ├── elo.ts               # Client-side wrapper for Cloud Function calls
+│   ├── season.ts            # Season statistics, archiving, & sprint logic
 │   ├── firebase.ts          # Firebase Client SDK initialization
-│   └── types.ts             # TS Interfaces (User, Room, Match, Community, GhostUser)
+│   └── types.ts             # TS Interfaces
 functions/
 ├── src/
-│   ├── index.ts             # Cloud Functions (recordMatch, aiSaveMatch, Triggers)
+│   ├── index.ts             # Cloud Functions (recordMatch, Derby Triggers)
 │   ├── config.ts            # Collection names configuration
 │   ├── lib/
-│   │   └── eloMath.ts       # Shared ELO math logic (K-factor, Delta)
+│   │   └── eloMath.ts       # Shared ELO math logic
 │   └── ...
 ```
 
@@ -166,12 +167,12 @@ functions/
 ### The Dual-Layer Formula
 
 **Calculation Location:** Server-side (Cloud Functions).
-The client sends raw match data, and the server calculates both Global and Room ratings using `functions/src/lib/eloMath.ts`.
+The client sends raw match data, and the server calculates both Global and Room ratings simultaneously.
 
 #### 1. Global ELO (Always Professional)
 
 - Used for cross-room skill comparison.
-- **Formula:** Standard ELO ().
+- **Formula:** Standard ELO.
 - **K-Factor:** Always fixed at `32`.
 - **Type:** Zero-Sum.
 
@@ -179,20 +180,10 @@ The client sends raw match data, and the server calculates both Global and Room 
 
 Calculated using the **current room ratings** of the players (not Global).
 
-- **Office Mode:**
-- Base K = 32.
-- If Delta < 0 (Loss): .
-
-- **Professional Mode:**
-- **Dynamic K (Provisional):**
-- If `matchesPlayed < 10`: . (Calibration Phase)
-- If `matchesPlayed >= 10`: .
-
-- **Base K:** Configured in room settings (default 32).
-- Logic: Standard Zero-Sum.
-
-- **Arcade Mode:**
-- K = 0. Delta is always 0.
+- **Office Mode:** Base K = 32. If Delta < 0 (Loss), multiply by 0.8.
+- **Professional Mode:** Provisional K (matches < 10) = Base K \* 2. Normal matches use Base K. Zero-Sum.
+- **Derby Mode:** Same zero-sum logic as Professional, but room ratings undergo a 25% Soft Reset towards 1000 at the end of each Sprint.
+- **Arcade Mode:** K = 0. Delta is always 0.
 
 ---
 
@@ -202,7 +193,7 @@ The database is partitioned by sport (`pingpong`, `tennis`, `badminton`) for mat
 
 ### Users Collection (`users`)
 
-Stores profile data, roles, ghost status, and nested statistics per sport.
+Stores profile data, roles, ghost status, achievements, and nested statistics per sport.
 
 ```json
 users/{uid}
@@ -210,28 +201,25 @@ users/{uid}
   "uid": "string",
   "displayName": "string",
   "email": "string",
-
-  // Role & Type
   "accountType": "player" | "coach",
-  "roles": ["player", "coach"],
-
-  // Ghost / Management Fields
   "isGhost": boolean,
-  "managedBy": "string (Coach UID)", // If ghost, who created them
-  "isClaimed": boolean, // If true, this is an archived ghost
-  "claimedBy": "string (Real User UID)", // Link to the new real user
-  "communityIds": ["string (CommunityID)"], // Membership references
-
-  // Statistics (New Structure)
-  "rooms": ["string (RoomID)"],
+  "managedBy": "string (Coach UID)",
+  "achievements": [
+    {
+      "type": "seasonFinish | derbyChampion | derbyUnstoppable",
+      "sport": "pingpong",
+      "dateFinished": "string",
+      "roomName": "string",
+      "place": 1
+    }
+  ],
   "sports": {
     "pingpong": {
-      "globalElo": "number", // Persistent True Skill
+      "globalElo": "number",
       "wins": "number",
       "losses": "number",
       "eloHistory": [{ "ts": "ISO", "elo": 1200 }]
-    },
-    // ... tennis, badminton
+    }
   }
 }
 ```
@@ -245,72 +233,60 @@ communities/{communityId}
 {
   "id": "string",
   "name": "string",
-  "description": "string",
   "ownerId": "string (Coach UID)",
   "admins": ["string (Coach UIDs)"],
   "members": ["string (Player/Ghost UIDs)"],
-  "roomIds": ["string (RoomID)"], // Auto-linked rooms
-  "createdAt": "string (ISO)",
-  "avatarURL": "string | null"
+  "roomIds": ["string (RoomID)"]
 }
-```
-
-### Community Feed (`community_feed`) [NEW]
-
-Event log for community activity. Populated via Cloud Function triggers.
-
-```json
-community_feed/{feedId}
-{
-  "communityId": "string",
-  "type": "match_finished" | "room_created",
-  "sport": "pingpong" | "tennis",
-  "title": "string", // e.g. "Alex vs Bob"
-  "description": "string", // e.g. "Score: 11-9"
-  "timestamp": "Timestamp",
-  "meta": { "matchId": "...", "roomId": "..." },
-  "actorAvatars": ["url1", "url2"]
-}
-
 ```
 
 ### Rooms Collections (`rooms-pingpong`, etc.)
 
-Stores league configuration and embedded member data.
+Stores league configuration, Derby settings, and embedded member data.
 
 ```json
 rooms-pingpong/{roomId}
 {
   "id": "string",
   "name": "string",
-  "mode": "string ('office' | 'professional' | 'arcade')",
+  "mode": "string ('office' | 'professional' | 'arcade' | 'derby')",
   "kFactor": "number (Base K)",
-  "useGlobalElo": "boolean", // Did we seed from global?
-  "isRanked": "boolean",
+  "isArchived": "boolean", // True if the season was manually finished (Read-Only)
+
+  // Derby Specific Fields
+  "sprintDuration": "number (weeks)",
+  "sprintStartTs": "number (Epoch ms)",
+  "sprintCount": "number",
+  "hallOfFame": [
+    {
+      "userId": "string",
+      "name": "string",
+      "titles": "number",
+      "streaksBroken": "number",
+      "maxStreakEver": "number",
+      "totalDerbyWins": "number"
+    }
+  ],
+
   "members": [
     {
       "userId": "string",
       "name": "string",
-      "rating": "number (Room ELO - Independent)",
-      "globalElo": "number (Snapshot for display)",
-      "wins": "number (In this room)",
-      "losses": "number (In this room)",
-      "role": "string",
-      "totalMatches": "number", // Cached stats
-      "longestWinStreak": "number"
+      "rating": "number (Room ELO)",
+      "wins": "number",
+      "losses": "number",
+      "currentStreak": "number",
+      "highestStreak": "number",
+      "badges": ["string ('giant_slayer')"]
     }
   ],
-  "rankHistories": {
-     "USER_UID": [{ "ts": "ISO", "rating": 1200, "place": 1 }]
-  },
   "seasonHistory": [...]
 }
-
 ```
 
 ### Matches Collections (`matches-pingpong`, etc.)
 
-Stores details of **both** rating changes.
+Stores details of **both** global and room rating changes.
 
 ```json
 matches-pingpong/{matchId}
@@ -325,18 +301,10 @@ matches-pingpong/{matchId}
   "player1": {
     "name": "string",
     "scores": "number",
-    "side": "left | right",
-    "oldRating": "number",
-    "newRating": "number",
-    "addedPoints": "number",
-    // Room Ratings
-    "roomOldRating": "number",
-    "roomNewRating": "number",
-    "roomAddedPoints": "number"
-  },
-  // ... player2
+    "addedPoints": "number (Global Delta)",
+    "roomAddedPoints": "number (Room Delta)"
+  }
 }
-
 ```
 
 ---
@@ -346,59 +314,35 @@ matches-pingpong/{matchId}
 ### A. Ghost Player Lifecycle
 
 1. **Create:** Coach goes to `/manage/players` -> "Create Ghost Player".
-2. **Assign:** Coach selects a Community (optional) during creation.
-3. **Play:** Ghost appears in search results and can be added to rooms. Matches are recorded normally against the Ghost's ID.
-4. **Invite:** Coach clicks "Copy Invite Link" (`.../register?claim=GHOST_ID`).
-5. **Claim:** User opens link -> Registers.
+2. **Play:** Ghost appears in search results. Matches are recorded normally against the Ghost's ID.
+3. **Claim:** User opens link (`/register?claim=GHOST_ID`) -> Registers. System copies stats, updates community links, and marks ghost as `isClaimed`.
 
-- System detects `claim` param.
-- New user document created with stats copied from Ghost document.
-- Ghost document updated to `isClaimed: true` / `isGhost: false`.
+### B. Match Entry (Server-Side)
 
-### B. Community Management & Feed
+**File:** `functions/src/index.ts`
 
-1. **Create:** Coach creates a Community via `/manage/communities`.
-2. **Populate:** Coach adds new Ghost Players directly into the Community or assigns existing ones.
-3. **Feed:** The "Feed" tab shows real-time updates of matches played by community members, powered by backend triggers (`onMatchCreated`).
+1. **Client:** Submits scores.
+2. **Server:** Calculates Global ELO change (always K=32) and Room ELO change (based on Room Mode & K-Factor).
+3. **Derby Mechanics:** If the mode is Derby, the server checks if a player ended a 3+ win streak of the opponent and awards a `giant_slayer` badge.
+4. **Batch Write:** Atomically updates `matches`, `rooms` (members array), and `users`.
 
-### C. Match Entry (Server-Side)
-
-**File:** `functions/src/index.ts` (Function: `recordMatch`)
-
-1. **Client:** Collects scores and calls `recordMatch` Cloud Function.
-2. **Server:** - Validates user auth and permissions.
-
-- Fetches Room config and User profiles.
-- Calculates Global ELO change (always K=32).
-- Calculates Room ELO change (based on Room Mode & K-Factor).
-
-3. **Batch Write:** Atomically updates:
-
-- `matches` collection (new doc).
-- `rooms` collection (updates `members` array stats).
-- `users` collection (updates global stats & history).
-
-4. **Trigger:** `onPingPongMatchCreated` detects new match -> writes to `community_feed` of relevant communities.
-
-### D. Season Finalization
+### C. Season Finalization (Classic vs. Derby)
 
 **File:** `src/lib/season.ts`
 
-1. Fetch all matches for the room.
-2. Re-calculate statistics (Wins/Losses/Streaks).
-3. **Sort Leaderboard:**
+**For Classic Modes (Office / Pro / Arcade):**
 
-- **Office:** Sort by `AdjPoints` (Activity biased).
-- **Professional:** Sort by `RoomRating` (Skill biased).
-- **Arcade:** Sort by `Wins`.
+1. Admin clicks "Finish Season".
+2. System calculates final standings, total wins, and longest streaks.
+3. Snapshots the results into the room's `seasonHistory` array.
+4. Awards achievements (medals) to top players' user profiles.
+5. Sets **`isArchived: true`** on the room. The room becomes a read-only historical monument. No matches are deleted, and no stats are reset.
 
-4. Save snapshot to `seasonHistory` and award Achievements.
+**For Derby Mode (Sprints):**
 
-### E. AI Assistant
-
-**File:** `functions/src/index.ts`
-The server-side AI handler `aiSaveMatch` implements the **exact same logic** as `recordMatch`. It parses natural language input into structured match data and then applies the standard ELO math logic.
-
-```
-
-```
+1. Triggered automatically via Cloud Functions (or manual override).
+2. Calculates sprint standings, snapshots to `seasonHistory`, and awards achievements (`derbyChampion`, `derbyUnstoppable`).
+3. Updates the persistent **Hall of Fame** inside the room document with new titles, slayers, and total wins.
+4. Performs a **Soft Reset**: `newRating = 1000 + (oldRating - 1000) * 0.75`.
+5. Resets sprint-specific stats (`wins`, `losses`, `currentStreak`) to 0.
+6. Updates `sprintStartTs` and increments `sprintCount` to begin the next sprint automatically. The room remains active.

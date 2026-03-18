@@ -4,6 +4,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
 import { RecordBlock } from '@/components/RecordBlock';
 import { DerbyFeed } from '@/components/rooms/DerbyFeed';
+import { DerbyHallOfFame } from '@/components/rooms/DerbyHallOfFame';
 import { DerbySimulator } from '@/components/rooms/DerbySimulator';
 import { MembersList } from '@/components/rooms/MembersList';
 import { RecentMatches } from '@/components/rooms/RecentMatches';
@@ -57,7 +58,17 @@ import {
 	where,
 	writeBatch,
 } from 'firebase/firestore';
-import { Archive, ArrowLeft, Clock, Info, Lock, UserPlus } from 'lucide-react';
+import {
+	Archive,
+	ArrowLeft,
+	Clock,
+	History,
+	LayoutDashboard,
+	Lock,
+	Trophy,
+	UserPlus,
+	Zap,
+} from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -72,6 +83,15 @@ const tsToMs = (v?: string) => {
   return isNaN(ms) ? Date.parse(v ?? '') || 0 : ms;
 };
 
+const cleanForFirebase = (obj: any): any => {
+  if (!obj) return null;
+  return JSON.parse(
+    JSON.stringify(obj, (key, value) => {
+      return value === undefined ? null : value;
+    }),
+  );
+};
+
 type StartEndElo = Record<string, { start: number; end: number }>;
 type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
@@ -84,21 +104,17 @@ export default function RoomPage() {
   const roomId = useParams().roomId as string;
 
   const [accessDenied, setAccessDenied] = useState(false);
-
   const [room, setRoom] = useState<Room | null>(null);
   const [rawMatches, setRawMatches] = useState<Match[]>([]);
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [latestSeason, setLatestSeason] = useState<Season | null>(null);
-
   const [seasonStarts, setSeasonStarts] = useState<Record<string, number>>({});
   const [seasonRoomStarts, setSeasonRoomStarts] = useState<
     Record<string, number>
   >({});
-
   const [hasMounted, setHasMounted] = useState(false);
-
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
@@ -126,7 +142,6 @@ export default function RoomPage() {
           return;
         }
         const roomData = { id: snap.id, ...snap.data() } as Room;
-
         const viewerId = user?.uid ?? '';
         const isMemberNow =
           Array.isArray(roomData.memberIds) &&
@@ -137,7 +152,6 @@ export default function RoomPage() {
           setAccessDenied(true);
           return;
         }
-
         setRoom(roomData);
         const history = roomData.seasonHistory as unknown as
           | Season[]
@@ -163,24 +177,16 @@ export default function RoomPage() {
     const unsub = onSnapshot(roomsQ, async (snap) => {
       const idsSet = new Set<string>();
       const currentMemberIds = new Set<string>(room?.memberIds ?? []);
-
       snap.forEach((d) => {
         const memberIds: string[] = d.data()?.memberIds ?? [];
         for (const id of memberIds) {
-          if (!id) continue;
-          if (id === user.uid) continue;
-          if (currentMemberIds.has(id)) continue;
-          idsSet.add(id);
+          if (id && id !== user.uid && !currentMemberIds.has(id))
+            idsSet.add(id);
         }
       });
-
       if (idsSet.size === 0) return setCoPlayers([]);
-
       const loaded = await Promise.all(
-        Array.from(idsSet).map(async (uid) => {
-          const profile = await getUserLite(uid);
-          return profile && profile.uid === uid ? profile : null;
-        }),
+        Array.from(idsSet).map(async (uid) => await getUserLite(uid)),
       );
       setCoPlayers(loaded.filter((p): p is UserProfile => !!p));
     });
@@ -192,13 +198,12 @@ export default function RoomPage() {
       friends
         .filter((p) => !memberIdsSet.has(p.uid) && p.accountType !== 'coach')
         .sort((a, b) =>
-          (a.name ?? a.displayName ?? '').localeCompare(
-            b.name ?? b.displayName ?? '',
+          (a.name || a.displayName || '').localeCompare(
+            b.name || b.displayName || '',
           ),
         ),
     [friends, memberIdsSet],
   );
-
   const othersInSport = useMemo(() => {
     const friendSet = new Set(friends.map((f) => f.uid));
     return coPlayers
@@ -209,22 +214,23 @@ export default function RoomPage() {
           p.accountType !== 'coach',
       )
       .sort((a, b) =>
-        (a.name ?? a.displayName ?? '').localeCompare(
-          b.name ?? b.displayName ?? '',
+        (a.name || a.displayName || '').localeCompare(
+          b.name || b.displayName || '',
         ),
       );
   }, [coPlayers, friends, memberIdsSet]);
 
-  const isCreator = useMemo(() => {
-    if (!user || !room) return false;
-    return room.creator === user.uid || room.createdBy === user.uid;
-  }, [user, room]);
-
+  const isCreator = useMemo(
+    () =>
+      user &&
+      room &&
+      (room.creator === user.uid || room.createdBy === user.uid),
+    [user, room],
+  );
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
     if (isCreator || isGlobalAdmin) return true;
-    const r = room as Room & { adminIds?: string[] };
-    return Array.isArray(r.adminIds) && r.adminIds.includes(user.uid);
+    return Array.isArray(room.adminIds) && room.adminIds.includes(user.uid);
   }, [room, user, isGlobalAdmin, isCreator]);
 
   const isMember = useMemo(
@@ -249,42 +255,37 @@ export default function RoomPage() {
 
   useEffect(() => {
     const fetchFriends = async () => {
-      if (userProfile?.friends && userProfile.friends.length > 0) {
+      if (userProfile?.friends?.length) {
         const friendProfiles = await Friends.getMultipleUsersLite(
           userProfile.friends,
         );
         setFriends(friendProfiles);
-      } else {
-        setFriends([]);
-      }
+      } else setFriends([]);
     };
     fetchFriends();
   }, [userProfile]);
 
   useEffect(() => {
     if (!room) return;
-
     const syncData = async () => {
       if (!db) return;
-
       const starts: Record<string, number> = {};
       const roomStarts: Record<string, number> = {};
-
       rawMatches.forEach((m) => {
-        const p1 = m.player1Id,
-          p2 = m.player2Id;
-        if (starts[p1] == null) starts[p1] = m.player1.oldRating;
-        if (starts[p2] == null) starts[p2] = m.player2.oldRating;
-        if (roomStarts[p1] == null) roomStarts[p1] = m.player1.roomOldRating;
-        if (roomStarts[p2] == null) roomStarts[p2] = m.player2.roomOldRating;
+        if (starts[m.player1Id] == null)
+          starts[m.player1Id] = m.player1.oldRating;
+        if (starts[m.player2Id] == null)
+          starts[m.player2Id] = m.player2.oldRating;
+        if (roomStarts[m.player1Id] == null)
+          roomStarts[m.player1Id] = m.player1.roomOldRating;
+        if (roomStarts[m.player2Id] == null)
+          roomStarts[m.player2Id] = m.player2.roomOldRating;
       });
-
       setSeasonStarts(starts);
       setSeasonRoomStarts(roomStarts);
 
       const memberIds = room.memberIds || [];
       const existingMembersMap = new Map<string, RoomMember>();
-
       if (Array.isArray(room.members)) {
         room.members.forEach((m) => existingMembersMap.set(m.userId, m));
       }
@@ -305,33 +306,29 @@ export default function RoomPage() {
           }
         }),
       );
-
       const freshProfiles = new Map<string, UserProfile>();
-      userDocsSnaps.forEach((userSnap) => {
-        if (userSnap && userSnap.exists())
-          freshProfiles.set(userSnap.id, userSnap.data() as UserProfile);
+      userDocsSnaps.forEach((s) => {
+        if (s?.exists()) freshProfiles.set(s.id, s.data() as UserProfile);
       });
 
       const syncedMembers: RoomMember[] = memberIds
         .filter((uid) => !freshProfiles.get(uid)?.isDeleted)
         .map((uid) => {
-          const profile = freshProfiles.get(uid);
+          const p = freshProfiles.get(uid);
           const existing = existingMembersMap.get(uid);
-
-          const displayName = profile
-            ? (profile.name ?? profile.displayName ?? 'Unknown')
-            : (existing?.name ?? 'Unknown');
-
+          const displayName = p
+            ? p.name || p.displayName || 'Unknown'
+            : existing?.name || 'Unknown';
           const accountType =
-            profile?.accountType || (existing as any)?.accountType || 'player';
+            p?.accountType || (existing as any)?.accountType || 'player';
 
           if (existing) {
             return {
               ...existing,
               name: displayName,
-              photoURL: profile?.photoURL,
-              globalElo: profile?.sports?.[sport]?.globalElo,
-              rank: profile?.rank,
+              photoURL: p?.photoURL || null,
+              globalElo: p?.sports?.[sport]?.globalElo || 1000,
+              rank: p?.rank || null,
               accountType,
             } as any;
           }
@@ -339,429 +336,395 @@ export default function RoomPage() {
           return {
             userId: uid,
             name: displayName,
-            email: profile?.email ?? '',
-            photoURL: profile?.photoURL,
+            email: p?.email ?? '',
+            photoURL: p?.photoURL || null,
             rating: 1000,
             wins: 0,
             losses: 0,
             role: 'viewer',
             date: new Date().toISOString(),
-            globalElo: profile?.sports?.[sport]?.globalElo ?? 1000,
+            globalElo: p?.sports?.[sport]?.globalElo ?? 1000,
             accountType,
           } as any;
         });
-
       setMembers(syncedMembers);
 
       const syncedMatches = rawMatches.map((match) => {
-        const p1Profile = freshProfiles.get(match.player1Id);
-        const p2Profile = freshProfiles.get(match.player2Id);
-
+        const p1 = freshProfiles.get(match.player1Id);
+        const p2 = freshProfiles.get(match.player2Id);
         const newMatch = {
           ...match,
           player1: { ...match.player1 },
           player2: { ...match.player2 },
         };
-
-        if (p1Profile)
-          newMatch.player1.name =
-            p1Profile.name ?? p1Profile.displayName ?? 'Unknown';
-        if (p2Profile)
-          newMatch.player2.name =
-            p2Profile.name ?? p2Profile.displayName ?? 'Unknown';
-
+        if (p1) newMatch.player1.name = p1.name || p1.displayName || 'Unknown';
+        if (p2) newMatch.player2.name = p2.name || p2.displayName || 'Unknown';
         const winnerId =
           match.player1.scores > match.player2.scores
             ? match.player1Id
             : match.player2Id;
-        const winnerProfile = freshProfiles.get(winnerId);
-
-        if (winnerProfile)
-          newMatch.winner =
-            winnerProfile.name ?? winnerProfile.displayName ?? 'Unknown';
-
+        const winner = freshProfiles.get(winnerId);
+        if (winner)
+          newMatch.winner = winner.name || winner.displayName || 'Unknown';
         return newMatch;
       });
-
       setRecentMatches(syncedMatches.slice().reverse());
       setIsLoading(false);
     };
-
     syncData();
   }, [room, rawMatches, sport]);
 
   const last5Form = useCallback(
-    (m: RoomMember): MiniMatch[] =>
+    (m: RoomMember) =>
       recentMatches
         .filter((x) => x.player1Id === m.userId || x.player2Id === m.userId)
         .slice(0, 5)
         .map((x) => {
-          const winnerId =
-            x.player1.scores > x.player2.scores ? x.player1Id : x.player2Id;
-          const win = winnerId === m.userId;
+          const win =
+            (x.player1.scores > x.player2.scores
+              ? x.player1Id
+              : x.player2Id) === m.userId;
           const isPlayer1 = x.player1Id === m.userId;
-          const youScore = isPlayer1 ? x.player1.scores : x.player2.scores;
-          const oppScore = isPlayer1 ? x.player2.scores : x.player1.scores;
-          const opponent = isPlayer1 ? x.player2.name : x.player1.name;
           return {
             result: win ? 'W' : 'L',
-            opponent,
-            score: `${youScore}-${oppScore}`,
-          };
+            opponent:
+              (isPlayer1 ? x.player2.name : x.player1.name) || 'Unknown',
+            score: `${isPlayer1 ? x.player1.scores : x.player2.scores}-${isPlayer1 ? x.player2.scores : x.player1.scores}`,
+          } as any;
         }),
     [recentMatches],
   );
 
   const regularPlayers = useMemo(() => {
-    const baseMembers = members;
     const matchStats: Record<string, { wins: number; losses: number }> = {};
     const latestRoomRatings: Record<string, number> = {};
-
     rawMatches.forEach((m) => {
       const winnerId =
         m.player1.scores > m.player2.scores ? m.player1Id : m.player2Id;
-
       [m.player1Id, m.player2Id].forEach((id) => {
         if (!matchStats[id]) matchStats[id] = { wins: 0, losses: 0 };
-        if (id === winnerId) {
-          matchStats[id].wins++;
-        } else {
-          matchStats[id].losses++;
-        }
-
+        if (id === winnerId) matchStats[id].wins++;
+        else matchStats[id].losses++;
         latestRoomRatings[m.player1Id] = m.player1.roomNewRating;
         latestRoomRatings[m.player2Id] = m.player2.roomNewRating;
       });
     });
 
-    const tennisStats: Record<
-      string,
-      { aces: number; doubleFaults: number; winners: number }
-    > = {};
-    if (sport === 'tennis') {
-      rawMatches.forEach((m) => {
-        const p1Id = m.player1Id,
-          p2Id = m.player2Id;
-        if (!tennisStats[p1Id])
-          tennisStats[p1Id] = { aces: 0, doubleFaults: 0, winners: 0 };
-        if (!tennisStats[p2Id])
-          tennisStats[p2Id] = { aces: 0, doubleFaults: 0, winners: 0 };
-
-        tennisStats[p1Id].aces += Number(m.player1.aces) || 0;
-        tennisStats[p1Id].doubleFaults += Number(m.player1.doubleFaults) || 0;
-        tennisStats[p1Id].winners += Number(m.player1.winners) || 0;
-
-        tennisStats[p2Id].aces += Number(m.player2.aces) || 0;
-        tennisStats[p2Id].doubleFaults += Number(m.player2.doubleFaults) || 0;
-        tennisStats[p2Id].winners += Number(m.player2.winners) || 0;
-      });
-    }
-
-    return baseMembers.map((m: RoomMember) => {
+    return members.map((m: RoomMember) => {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
       const currentRating = latestRoomRatings[m.userId] ?? m.rating ?? 1000;
-      const total = wins + losses;
-
+      const startingRating = seasonRoomStarts[m.userId] ?? 1000;
       let max = 0,
         cur = 0;
       rawMatches.forEach((match) => {
         if (match.player1Id === m.userId || match.player2Id === m.userId) {
-          const isPlayer1 = match.player1Id === m.userId;
-          const win =
-            (isPlayer1 && match.player1.scores > match.player2.scores) ||
-            (!isPlayer1 && match.player2.scores > match.player1.scores);
+          const isP1 = match.player1Id === m.userId;
+          const win = isP1
+            ? match.player1.scores > match.player2.scores
+            : match.player2.scores > match.player1.scores;
           cur = win ? cur + 1 : 0;
           if (cur > max) max = cur;
         }
       });
-
+      const total = wins + losses;
       return {
         ...m,
-        ...tennisStats[m.userId],
         rating: currentRating,
         ratingVisible: total >= 1,
         wins,
         losses,
         totalMatches: total,
         winPct: calcWinPct(wins, losses),
-        deltaRoom: currentRating - (seasonRoomStarts[m.userId] ?? 1000),
+        deltaRoom: currentRating - startingRating,
         globalDelta:
           (m.globalElo ?? 1000) -
           (seasonStarts[m.userId] ?? m.globalElo ?? 1000),
         avgPtsPerMatch:
-          total > 0
-            ? (currentRating - +(seasonRoomStarts[m.userId] ?? 1000)) / total
-            : 0,
+          total > 0 ? (currentRating - startingRating) / total : 0,
         last5Form: last5Form(m),
         longestWinStreak: max,
       };
     });
-  }, [members, rawMatches, seasonStarts, seasonRoomStarts, sport, last5Form]);
+  }, [members, rawMatches, seasonStarts, seasonRoomStarts, last5Form]);
 
   const playersOnlyMembers = useMemo(
     () => regularPlayers.filter((m: any) => m.accountType !== 'coach'),
     [regularPlayers],
   );
 
-  const getSeasonEloSnapshots = useCallback(
-    async (roomId: string): Promise<StartEndElo> => {
-      if (!db) throw new Error('DB not initialized');
+  const handleFinishSeason = useCallback(async () => {
+    try {
       const qs = query(
-        collection(db, config.collections.matches),
+        collection(db!, config.collections.matches),
         where('roomId', '==', roomId),
         orderBy('tsIso', 'asc'),
       );
       const snap = await getDocs(qs);
       const firstSeen: Record<string, number> = {};
       const lastSeen: Record<string, number> = {};
-
       snap.docs.forEach((d) => {
         const m = d.data() as any;
-        [
-          {
-            id: m.player1Id,
-            old: m.player1.oldRating,
-            new: m.player1.newRating,
-          },
-          {
-            id: m.player2Id,
-            old: m.player2.oldRating,
-            new: m.player2.newRating,
-          },
-        ].forEach((p) => {
-          if (!(p.id in firstSeen)) firstSeen[p.id] = p.old;
-          lastSeen[p.id] = p.new;
-        });
+        if (!(m.player1Id in firstSeen))
+          firstSeen[m.player1Id] = m.player1.oldRating;
+        if (!(m.player2Id in firstSeen))
+          firstSeen[m.player2Id] = m.player2.oldRating;
+        lastSeen[m.player1Id] = m.player1.newRating;
+        lastSeen[m.player2Id] = m.player2.newRating;
       });
-
-      const out: StartEndElo = {};
-      Object.keys(firstSeen).forEach((uid) => {
-        out[uid] = {
-          start: firstSeen[uid],
-          end: lastSeen[uid] ?? firstSeen[uid],
-        };
-      });
-      return out;
-    },
-    [config.collections.matches],
-  );
-
-  const handleFinishSeason = useCallback(async () => {
-    try {
-      const snapshots = await getSeasonEloSnapshots(roomId);
+      const snapshots: any = {};
+      Object.keys(firstSeen).forEach(
+        (uid) =>
+          (snapshots[uid] = {
+            start: firstSeen[uid],
+            end: lastSeen[uid] ?? firstSeen[uid],
+          }),
+      );
       await finalizeSeason(roomId, snapshots, config.collections, sport);
       toast({ title: t('Season finished') });
     } catch (err) {
       console.error(err);
-      toast({
-        title: t('Error'),
-        description: t('Failed to finish season'),
-        variant: 'destructive',
-      });
+      toast({ title: t('Error'), variant: 'destructive' });
     }
-  }, [roomId, getSeasonEloSnapshots, config.collections, sport, toast, t]);
+  }, [roomId, config.collections, sport, t, toast]);
 
-  const handleRequestToJoin = useCallback(async () => {
-    if (!user || !room || !db) return;
-    await updateDoc(doc(db, config.collections.rooms, roomId), {
-      joinRequests: arrayUnion(user.uid),
-    });
-    toast({ title: t('Request Sent') });
-  }, [user, room, roomId, config.collections.rooms, toast, t]);
-
-  const handleCancelRequestToJoin = useCallback(async () => {
-    if (!user || !room || !db) return;
-    await updateDoc(doc(db, config.collections.rooms, roomId), {
-      joinRequests: arrayRemove(user.uid),
-    });
-    toast({ title: t('Request Canceled') });
-  }, [user, room, roomId, config.collections.rooms, toast, t]);
-
-  const handleLeaveRoom = useCallback(async () => {
-    if (!user || !room || !db) return;
-    const memberToRemove = members.find((m) => m.userId === user.uid);
-    await updateDoc(doc(db, config.collections.rooms, roomId), {
-      members: memberToRemove ? arrayRemove(memberToRemove) : undefined,
-      memberIds: arrayRemove(user.uid),
-    });
-    toast({ title: t("You've left the room") });
-    router.push('/rooms');
-  }, [user, room, roomId, config.collections.rooms, router, toast, t, members]);
-
-  const handleInviteFriends = async () => {
-    if (!user || !room || !db || selectedFriends.length === 0) {
-      toast({ title: t('Select friends to invite'), variant: 'destructive' });
-      return;
-    }
-    const effectiveSelected = selectedFriends.filter(
-      (id) => !memberIdsSet.has(id),
-    );
-    if (effectiveSelected.length === 0) {
-      toast({ title: t('Select friends to invite'), variant: 'destructive' });
-      setIsInviting(false);
-      return;
-    }
-    setIsInviting(true);
+  const handleForceEndSprint = async () => {
+    if (!room || room.mode !== 'derby' || !db) return;
     try {
-      const isStillMember = room.members.some((m) => m.userId === user.uid);
-      if (!isStillMember) {
-        toast({
-          title: t('Permission Denied'),
-          description: t('You are no longer a member of this room.'),
-          variant: 'destructive',
-        });
-        setIsInviting(false);
-        return;
-      }
+      const nowMs = Date.now();
+      const nowIso = new Date().toISOString();
+      const startDate = (room as any).sprintStartTs
+        ? new Date((room as any).sprintStartTs).toLocaleDateString()
+        : '???';
+      const endDate = new Date(nowMs).toLocaleDateString();
+      const periodLabel = `${startDate} — ${endDate}`;
+      if (members.length === 0) return;
 
-      const getLite = async (uid: string): Promise<UserProfile | null> => {
-        const fromFriends = friends.find((f) => f.uid === uid);
-        if (fromFriends) return fromFriends;
-        const fromCo = coPlayers.find((p) => p.uid === uid);
-        if (fromCo) return fromCo;
-        const lite = await getUserLite(uid);
-        return lite
-          ? ({ uid, ...(lite as Omit<typeof lite, 'uid'>) } as UserProfile)
-          : null;
+      const participants = [...playersOnlyMembers].sort((a, b) => {
+        const rA = a.rating || 1000;
+        const rB = b.rating || 1000;
+        if (rB !== rA) return rB - rA;
+        const wA = a.wins || 0;
+        const wB = b.wins || 0;
+        if (wB !== wA) return wB - wA;
+        const wrA = (a.wins || 0) / (a.totalMatches || 1);
+        const wrB = (b.wins || 0) / (b.totalMatches || 1);
+        return wrB - wrA;
+      });
+
+      const podium = participants.slice(0, 3);
+      const champion = podium[0];
+      const topSlayerPlayer = [...playersOnlyMembers].sort(
+        (a, b) =>
+          (b.badges?.filter((x: string) => x === 'giant_slayer').length || 0) -
+          (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0),
+      )[0];
+      const slayerCount =
+        topSlayerPlayer?.badges?.filter((x: string) => x === 'giant_slayer')
+          .length || 0;
+      const topStreakPlayer = [...playersOnlyMembers].sort(
+        (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
+      )[0];
+
+      const sprintResult = {
+        sprintNumber: ((room as any).sprintCount || 0) + 1,
+        period: periodLabel,
+        winnerId: champion?.userId || null,
+        winnerName: champion?.name || 'Unknown',
+        podium: podium.map((p) => ({
+          name: p.name || 'Unknown',
+          userId: p.userId,
+          rating: p.rating || 1000,
+        })),
+        topSlayerName: topSlayerPlayer?.name || null,
+        topSlayerCount: slayerCount || 0,
+        maxStreak: topStreakPlayer?.highestStreak || 0,
+        maxStreakPlayerName: topStreakPlayer?.name || null,
       };
 
-      const profiles = await Promise.all(
-        effectiveSelected.map(async (uid) => ({
-          uid,
-          profile: await getLite(uid),
-        })),
-      );
+      const hallOfFame = Array.isArray(room.hallOfFame)
+        ? [...room.hallOfFame]
+        : [];
+      const sprintHistory = Array.isArray((room as any).sprintHistory)
+        ? [...(room as any).sprintHistory]
+        : [];
+      sprintHistory.push(sprintResult);
 
       const batch = writeBatch(db);
-      const roomRef = doc(db, config.collections.rooms, roomId);
+      const updatedMembers = members.map((m: any) => {
+        let hof = hallOfFame.find((e: any) => e.userId === m.userId);
+        if (!hof) {
+          hof = {
+            userId: m.userId,
+            name: m.name || 'Unknown',
+            championships: 0,
+            streaksBroken: 0,
+            maxStreakEver: 0,
+            totalDerbyWins: 0,
+          };
+          hallOfFame.push(hof);
+        }
+        if (m.userId === champion?.userId)
+          hof.championships = (hof.championships || 0) + 1;
+        const curSlayers =
+          m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
+        hof.streaksBroken = (hof.streaksBroken || 0) + curSlayers;
+        if ((m.highestStreak || 0) > (hof.maxStreakEver || 0))
+          hof.maxStreakEver = m.highestStreak;
+        hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
 
+        const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
+        if (podiumIdx !== -1) {
+          const userRef = doc(db, 'users', m.userId);
+          const baseAchievement = {
+            sport,
+            dateFinished: nowIso,
+            roomName: room.name || 'Derby',
+            place: podiumIdx + 1,
+            matchesPlayed: m.totalMatches || 0,
+            wins: m.wins || 0,
+            mode: 'derby',
+          };
+          const achievementsToAdd = [
+            { ...baseAchievement, type: 'seasonFinish' },
+          ];
+          if (podiumIdx === 0)
+            achievementsToAdd.push({
+              ...baseAchievement,
+              type: 'derbyChampion',
+            });
+          batch.update(userRef, {
+            achievements: arrayUnion(...achievementsToAdd),
+          });
+        }
+        if (
+          m.userId === topStreakPlayer?.userId &&
+          (m.highestStreak || 0) >= 5
+        ) {
+          batch.update(doc(db, 'users', m.userId), {
+            achievements: arrayUnion({
+              type: 'derbyUnstoppable',
+              sport,
+              dateFinished: nowIso,
+              roomName: room.name || 'Derby',
+              longestWinStreak: m.highestStreak,
+            }),
+          });
+        }
+        const oldRating = m.rating || 1000;
+        return {
+          ...m,
+          rating: Math.round(1000 + (oldRating - 1000) * 0.75),
+          currentStreak: 0,
+          highestStreak: 0,
+          badges: [],
+        };
+      });
+
+      batch.update(
+        doc(db, config.collections.rooms, roomId),
+        cleanForFirebase({
+          members: updatedMembers,
+          hallOfFame,
+          sprintHistory,
+          sprintStartTs: nowMs,
+          sprintCount: ((room as any).sprintCount || 0) + 1,
+        }),
+      );
+      await batch.commit();
+      toast({
+        title: t('Sprint Finished'),
+        description: `${champion?.name || 'Someone'} is the Champion!`,
+      });
+    } catch (error) {
+      console.error(error);
+      toast({ title: t('Error'), variant: 'destructive' });
+    }
+  };
+
+  const handleInviteFriends = async () => {
+    if (!user || !room || !db || selectedFriends.length === 0) return;
+    setIsInviting(true);
+    try {
+      const batch = writeBatch(db);
+      const profiles = await Promise.all(
+        selectedFriends.map(async (uid) => {
+          const p = await getUserLite(uid);
+          return { uid, profile: p };
+        }),
+      );
       const newMembers = profiles.map(({ uid, profile }) => ({
         userId: uid,
-        name: profile?.name ?? profile?.displayName ?? 'New Player',
-        email: profile?.email ?? '',
+        name: profile?.name || profile?.displayName || 'New Player',
+        email: profile?.email || '',
         rating: 1000,
         wins: 0,
         losses: 0,
         date: new Date().toISOString(),
         role: 'editor' as const,
       }));
-
-      profiles.forEach(({ uid }) => {
-        const userRef = doc(db!, 'users', uid);
-        batch.update(userRef, { rooms: arrayUnion(roomId) });
-      });
-
-      batch.update(roomRef, {
+      selectedFriends.forEach((uid) =>
+        batch.update(doc(db!, 'users', uid), { rooms: arrayUnion(roomId) }),
+      );
+      batch.update(doc(db, config.collections.rooms, roomId), {
         members: arrayUnion(...newMembers),
-        memberIds: arrayUnion(...effectiveSelected),
+        memberIds: arrayUnion(...selectedFriends),
       });
-
       await batch.commit();
-
-      toast({
-        title: t('Invitations Sent'),
-        description: t('Your friends have been added to the room.'),
-      });
+      toast({ title: t('Invitations Sent') });
       setSelectedFriends([]);
-    } catch (error) {
-      console.error('Failed to invite friends:', error);
-      toast({
-        title: t('Error'),
-        description: t('Failed to invite friends.'),
-        variant: 'destructive',
-      });
+    } catch (e) {
+      console.error(e);
+      toast({ title: t('Error'), variant: 'destructive' });
     } finally {
       setIsInviting(false);
     }
   };
 
-  const handleRemovePlayer = async (userIdToRemove: string) => {
-    if (!room || !user || !db) return;
-
-    const memberToRemove = members.find((m) => m.userId === userIdToRemove);
-
+  const handleRemovePlayer = async (uid: string) => {
+    if (!room || !db || !canManageRoom) return;
     try {
-      if (!canManageRoom) {
-        toast({
-          title: t('Permission Denied'),
-          description: t('You do not have rights to remove players.'),
-          variant: 'destructive',
-        });
-        return;
-      }
-
       const batch = writeBatch(db);
-      const roomRef = doc(db, config.collections.rooms, roomId);
-
-      const updates: any = {
-        memberIds: arrayRemove(userIdToRemove),
-      };
-      if (memberToRemove) {
-        updates.members = arrayRemove(memberToRemove);
-      }
-
-      batch.update(roomRef, updates);
-
-      const userRef = doc(db, 'users', userIdToRemove);
-      batch.update(userRef, { rooms: arrayRemove(roomId) });
-
-      await batch.commit();
-
-      toast({ title: t('Player removed successfully') });
-    } catch (error) {
-      console.error('Failed to remove player:', error);
-      toast({
-        title: t('Error'),
-        description: t('Failed to remove player from the room.'),
-        variant: 'destructive',
+      const member = members.find((m) => m.userId === uid);
+      batch.update(doc(db, config.collections.rooms, roomId), {
+        memberIds: arrayRemove(uid),
+        members: member ? arrayRemove(member) : undefined,
       });
+      batch.update(doc(db, 'users', uid), { rooms: arrayRemove(roomId) });
+      await batch.commit();
+      toast({ title: t('Player removed') });
+    } catch (e) {
+      console.error(e);
+      toast({ title: t('Error'), variant: 'destructive' });
     }
   };
 
-  const hasPendingRequest = useMemo(
-    () => room?.joinRequests?.includes(user?.uid ?? ''),
-    [user, room],
-  );
-
-  const showInviteSection = isMember && !latestSeason && !room?.isArchived;
-
-  if (accessDenied) {
+  if (accessDenied)
     return (
-      <div className='fixed inset-0 z-50 flex items-center justify-center'>
-        <div className='absolute inset-0 backdrop-blur-3xl bg-background/80' />
-        <Dialog open>
-          <DialogContent className='sm:max-w-md border-0 glass-panel shadow-2xl rounded-3xl'>
-            <DialogHeader>
-              <DialogTitle>{t('Private Room')}</DialogTitle>
-              <DialogDescription className='text-muted-foreground'>
-                {t(
-                  'This room is private. You will be redirected to the rooms list.',
-                )}
-              </DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
+      <Dialog open>
+        <DialogContent className='glass-panel border-0 rounded-3xl'>
+          <DialogHeader>
+            <DialogTitle>{t('Private Room')}</DialogTitle>
+            <DialogDescription>
+              {t('This room is private. Redirecting...')}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+  if (!hasMounted || isLoading || !room)
+    return (
+      <div className='flex items-center justify-center min-h-screen'>
+        <div className='animate-pulse h-16 w-16 rounded-full bg-primary/20 blur-sm' />
       </div>
     );
-  }
-
-  if (!hasMounted || isLoading || !room) {
-    return (
-      <div className='flex items-center justify-center min-h-screen bg-background'>
-        <div className='animate-pulse flex flex-col items-center gap-6'>
-          <div className='h-16 w-16 rounded-full bg-primary/20 blur-sm'></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <ProtectedRoute>
-      <div className='container mx-auto py-8 px-4'>
+      <div className='container mx-auto py-8 px-4 max-w-7xl'>
         <Button
           variant='ghost'
-          className='mb-4 -ml-2 text-muted-foreground hover:text-foreground rounded-full h-10 px-4 transition-colors'
+          className='mb-4 -ml-2 text-muted-foreground hover:text-foreground rounded-full h-10 transition-all'
           onClick={() => router.push('/rooms')}
         >
           <ArrowLeft className='mr-2 h-4 w-4' /> {t('Back to Rooms')}
@@ -771,11 +734,19 @@ export default function RoomPage() {
           room={room}
           members={members}
           isMember={!!isMember}
-          hasPendingRequest={!!hasPendingRequest}
+          hasPendingRequest={!!room.joinRequests?.includes(user?.uid ?? '')}
           isCreator={isCreator}
-          onJoin={handleRequestToJoin}
-          onCancelJoin={handleCancelRequestToJoin}
-          onLeave={handleLeaveRoom}
+          onJoin={() =>
+            updateDoc(doc(db!, config.collections.rooms, roomId), {
+              joinRequests: arrayUnion(user!.uid),
+            })
+          }
+          onCancelJoin={() =>
+            updateDoc(doc(db!, config.collections.rooms, roomId), {
+              joinRequests: arrayRemove(user!.uid),
+            })
+          }
+          onLeave={() => router.push('/rooms')}
         />
 
         <div className='space-y-4 mb-10'>
@@ -787,58 +758,28 @@ export default function RoomPage() {
               <Archive className='h-4 w-4' />
               <AlertTitle>{t('Archived Room')}</AlertTitle>
               <AlertDescription>
-                {t('This room is read-only. No new matches can be recorded.')}
+                {t('This room is read-only.')}
               </AlertDescription>
             </Alert>
           )}
-
           {!room.isArchived && latestSeason && (
             <Alert className='border-0 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 rounded-2xl shadow-md ring-1 ring-amber-200 dark:ring-amber-900'>
-              <Clock className='h-4 w-4 text-amber-600 dark:text-amber-500' />
-              <AlertTitle className='text-amber-800 dark:text-amber-400'>
-                {t('Season Finished')}
-              </AlertTitle>
-              <AlertDescription className='text-amber-700 dark:text-amber-300'>
+              <Clock className='h-4 w-4 text-amber-600' />
+              <AlertTitle>{t('Season Finished')}</AlertTitle>
+              <AlertDescription>
                 {t('Matches are paused until a new season starts.')}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {!isMember &&
-            room.isPublic &&
-            !hasPendingRequest &&
-            !room.isArchived && (
-              <Alert className='border-0 bg-blue-50 dark:bg-blue-950/20 text-blue-800 dark:text-blue-400 rounded-2xl shadow-md ring-1 ring-blue-200 dark:ring-blue-900'>
-                <Info className='h-4 w-4 text-blue-600 dark:text-blue-500' />
-                <AlertTitle className='text-blue-800 dark:text-blue-400'>
-                  {t('Join to Play')}
-                </AlertTitle>
-                <AlertDescription className='text-blue-700 dark:text-blue-300'>
-                  {t(
-                    'This is a public room. Join to start recording matches and see your stats.',
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-
-          {hasPendingRequest && (
-            <Alert className='border-0 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-400 rounded-2xl shadow-md ring-1 ring-yellow-200 dark:ring-yellow-900'>
-              <Lock className='h-4 w-4 text-yellow-600 dark:text-yellow-500' />
-              <AlertTitle className='text-yellow-800 dark:text-yellow-400'>
-                {t('Request Pending')}
-              </AlertTitle>
-              <AlertDescription className='text-yellow-700 dark:text-yellow-300'>
-                {t('Waiting for admin approval to join.')}
               </AlertDescription>
             </Alert>
           )}
         </div>
 
-        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8'>
+        {/* SECTION 1: INTERACTIVE - MEMBERS & RECORDING */}
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12'>
           <div className='lg:col-span-4 space-y-6'>
             <Card className='shadow-xl border-0 rounded-[2rem] bg-card glass-panel'>
               <CardHeader className='px-6 pt-6 pb-2'>
-                <CardTitle className='text-xl font-bold'>
+                <CardTitle className='text-xl font-bold flex items-center gap-2'>
+                  <UserPlus className='w-5 h-5 text-primary' />
                   {t('Players')}
                 </CardTitle>
               </CardHeader>
@@ -851,120 +792,48 @@ export default function RoomPage() {
                   currentUser={user}
                   onRemovePlayer={handleRemovePlayer}
                 />
-
-                {showInviteSection && (
+                {isMember && !latestSeason && !room.isArchived && (
                   <div className='mt-8 pt-6 border-t border-border/40'>
-                    <div className='flex items-center gap-2 mb-4'>
-                      <div className='bg-primary/10 p-1.5 rounded-lg'>
-                        <UserPlus className='h-4 w-4 text-primary' />
-                      </div>
-                      <h4 className='font-bold text-base'>
-                        {t('Invite Friends')}
-                      </h4>
-                    </div>
-
-                    <ScrollArea className='h-[200px] border-0 ring-1 ring-black/5 dark:ring-white/10 rounded-2xl bg-muted/20 p-2 shadow-inner'>
-                      {friendsAll.length + othersInSport.length > 0 ? (
-                        <div className='space-y-5 p-1'>
-                          {friendsAll.length > 0 && (
-                            <div className='space-y-2'>
-                              <div className='px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-widest'>
-                                {t('My Friends')}
-                              </div>
-                              {friendsAll.map((p) => (
-                                <label
-                                  key={p.uid}
-                                  className='flex items-center gap-3 p-2.5 rounded-xl hover:bg-background cursor-pointer transition-colors border border-transparent hover:border-border/50 hover:shadow-sm'
-                                >
-                                  <Checkbox
-                                    checked={selectedFriends.includes(p.uid)}
-                                    className='rounded-full data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-muted-foreground/30'
-                                    onCheckedChange={(v) =>
-                                      v
-                                        ? setSelectedFriends([
-                                            ...selectedFriends,
-                                            p.uid,
-                                          ])
-                                        : setSelectedFriends(
-                                            selectedFriends.filter(
-                                              (id) => id !== p.uid,
-                                            ),
-                                          )
-                                    }
-                                  />
-                                  <div className='flex items-center gap-3 overflow-hidden'>
-                                    <Avatar className='h-8 w-8 ring-1 ring-black/5 dark:ring-white/10'>
-                                      <AvatarImage
-                                        src={p.photoURL ?? undefined}
-                                      />
-                                      <AvatarFallback className='bg-primary/10 text-primary text-xs'>
-                                        {(p.name ?? '?')[0]}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className='truncate text-sm font-semibold'>
-                                      {p.name ?? p.displayName}
-                                    </span>
-                                  </div>
-                                </label>
-                              ))}
-                            </div>
-                          )}
-
-                          {othersInSport.length > 0 && (
-                            <div className='space-y-2'>
-                              <div className='px-2 text-[10px] uppercase font-bold text-muted-foreground tracking-widest'>
-                                {t('Recent Opponents')}
-                              </div>
-                              {othersInSport.map((p) => (
-                                <label
-                                  key={p.uid}
-                                  className='flex items-center gap-3 p-2.5 rounded-xl hover:bg-background cursor-pointer transition-colors border border-transparent hover:border-border/50 hover:shadow-sm'
-                                >
-                                  <Checkbox
-                                    checked={selectedFriends.includes(p.uid)}
-                                    className='rounded-full data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-muted-foreground/30'
-                                    onCheckedChange={(v) =>
-                                      v
-                                        ? setSelectedFriends([
-                                            ...selectedFriends,
-                                            p.uid,
-                                          ])
-                                        : setSelectedFriends(
-                                            selectedFriends.filter(
-                                              (id) => id !== p.uid,
-                                            ),
-                                          )
-                                    }
-                                  />
-                                  <div className='flex items-center gap-3 overflow-hidden'>
-                                    <Avatar className='h-8 w-8 ring-1 ring-black/5 dark:ring-white/10'>
-                                      <AvatarImage
-                                        src={p.photoURL ?? undefined}
-                                      />
-                                      <AvatarFallback className='bg-primary/10 text-primary text-xs'>
-                                        {(p.name ?? '?')[0]}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className='truncate text-sm font-semibold'>
-                                      {p.name ?? p.displayName}
-                                    </span>
-                                  </div>
-                                </label>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className='h-full flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4'>
-                          <UserPlus className='h-10 w-10 mb-3 opacity-20' />
-                          <p>{t('No friends available to invite.')}</p>
-                        </div>
-                      )}
+                    <h4 className='font-bold text-sm mb-4 uppercase tracking-widest text-muted-foreground'>
+                      {t('Invite Friends')}
+                    </h4>
+                    <ScrollArea className='h-[180px] border-0 ring-1 ring-black/5 rounded-2xl bg-muted/20 p-2 shadow-inner'>
+                      {friendsAll.concat(othersInSport).map((p) => (
+                        <label
+                          key={p.uid}
+                          className='flex items-center gap-3 p-2 rounded-xl hover:bg-background cursor-pointer transition-colors'
+                        >
+                          <Checkbox
+                            checked={selectedFriends.includes(p.uid)}
+                            onCheckedChange={(v) =>
+                              v
+                                ? setSelectedFriends([
+                                    ...selectedFriends,
+                                    p.uid,
+                                  ])
+                                : setSelectedFriends(
+                                    selectedFriends.filter(
+                                      (id) => id !== p.uid,
+                                    ),
+                                  )
+                            }
+                          />
+                          <Avatar className='h-8 w-8'>
+                            <AvatarImage src={p.photoURL || undefined} />
+                            <AvatarFallback className='text-xs'>
+                              {(p.name || '?')[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className='truncate text-sm font-semibold'>
+                            {p.name || p.displayName}
+                          </span>
+                        </label>
+                      ))}
                     </ScrollArea>
                     <Button
                       onClick={handleInviteFriends}
                       disabled={isInviting || selectedFriends.length === 0}
-                      className='w-full mt-4 h-12 rounded-xl text-base font-semibold shadow-md transition-all active:scale-[0.98]'
+                      className='w-full mt-4 h-12 rounded-xl font-bold shadow-md'
                     >
                       {isInviting ? t('Sending...') : t('Send Invites')}
                     </Button>
@@ -972,26 +841,60 @@ export default function RoomPage() {
                 )}
               </CardContent>
             </Card>
+
+            {(isCreator || isGlobalAdmin) && room.mode === 'derby' && (
+              <div className='p-4 rounded-3xl border border-red-500/20 bg-red-500/5 space-y-4'>
+                <p className='text-[10px] uppercase font-black text-red-600 dark:text-red-400 tracking-widest text-center'>
+                  {t('Admin Dev Mode')}
+                </p>
+                <Button
+                  variant='destructive'
+                  className='w-full rounded-xl font-bold'
+                  onClick={() => {
+                    if (confirm(t('Reset ELO and update Hall of Fame?')))
+                      handleForceEndSprint();
+                  }}
+                >
+                  {t('Force End Sprint')}
+                </Button>
+              </div>
+            )}
           </div>
 
-          <div className='lg:col-span-8 space-y-8'>
-            {isMember && !latestSeason && !room.isArchived && (
-              <section>
-                <RecordBlock
-                  members={playersOnlyMembers}
-                  roomId={roomId}
-                  room={room}
-                  isCreator={isCreator}
-                  isGlobalAdmin={isGlobalAdmin}
-                  onFinishSeason={handleFinishSeason}
-                />
-              </section>
+          <div className='lg:col-span-8'>
+            {isMember && !latestSeason && !room.isArchived ? (
+              <RecordBlock
+                members={playersOnlyMembers}
+                roomId={roomId}
+                room={room}
+                isCreator={isCreator}
+                isGlobalAdmin={isGlobalAdmin}
+                onFinishSeason={handleFinishSeason}
+              />
+            ) : (
+              <Card className='h-full border-0 rounded-[2rem] glass-panel bg-muted/20 flex items-center justify-center p-8 text-center'>
+                <div className='max-w-xs space-y-2'>
+                  <Lock className='w-10 h-10 mx-auto opacity-20' />
+                  <h3 className='font-bold text-lg opacity-40'>
+                    {t('Join this room to record matches')}
+                  </h3>
+                </div>
+              </Card>
             )}
           </div>
         </div>
 
-        <div className='mt-16 mb-8 text-center text-sm text-muted-foreground'>
-          <section className='mb-8'>
+        {/* SECTION 2: INFORMATION - STANDINGS (FULL WIDTH) */}
+        <div className='space-y-12'>
+          <section className='animate-in fade-in duration-700'>
+            <div className='flex items-center gap-3 mb-6 px-2'>
+              <div className='bg-primary/10 p-2 rounded-xl text-primary ring-1 ring-primary/20 shadow-sm'>
+                <LayoutDashboard className='w-5 h-5' />
+              </div>
+              <h2 className='text-2xl font-black tracking-tight'>
+                {t('Leaderboard')}
+              </h2>
+            </div>
             <StandingsTable
               players={playersOnlyMembers}
               latestSeason={latestSeason}
@@ -1000,34 +903,46 @@ export default function RoomPage() {
             />
           </section>
 
-          {(isCreator || isGlobalAdmin) && room.mode === 'derby' && (
-            <DerbySimulator
-              roomId={roomId}
-              members={playersOnlyMembers}
-              sport={sport}
-            />
+          {(canManageRoom || isGlobalAdmin) && room.mode === 'derby' && (
+            <section className='animate-in slide-in-from-bottom-4 duration-1000'>
+              <DerbySimulator
+                roomId={roomId}
+                members={playersOnlyMembers}
+                sport={sport}
+              />
+            </section>
           )}
 
-          <section>
+          {/* SECTION 3: TABS - EVENTS & HISTORY (FULL WIDTH) */}
+          <section className='animate-in fade-in duration-1000 pb-12'>
             {room.mode === 'derby' ? (
               <Tabs defaultValue='derby' className='w-full'>
-                <TabsList className='mb-8 grid w-full max-w-md mx-auto grid-cols-2 p-1.5 bg-muted/30 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl h-auto min-h-[3.5rem]'>
+                <TabsList className='mb-8 grid w-full max-w-2xl mx-auto grid-cols-3 p-1.5 bg-muted/30 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl h-auto min-h-[3.5rem]'>
                   <TabsTrigger
                     value='derby'
-                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm whitespace-normal text-center data-[state=active]:bg-background data-[state=active]:shadow-md font-semibold transition-all'
+                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm font-bold gap-2'
                   >
-                    {t('Derby Events')}
+                    <Zap className='w-4 h-4 hidden sm:block' />
+                    {t('Events')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value='hof'
+                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm font-bold gap-2'
+                  >
+                    <Trophy className='w-4 h-4 hidden sm:block' />
+                    {t('Hall of Fame')}
                   </TabsTrigger>
                   <TabsTrigger
                     value='matches'
-                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm whitespace-normal text-center data-[state=active]:bg-background data-[state=active]:shadow-md font-semibold transition-all'
+                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm font-bold gap-2'
                   >
-                    {t('Match History')}
+                    <History className='w-4 h-4 hidden sm:block' />
+                    {t('History')}
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent
                   value='derby'
-                  className='mt-0 text-left animate-in fade-in duration-500'
+                  className='mt-0 text-left animate-in fade-in zoom-in-95 duration-500'
                 >
                   <DerbyFeed
                     room={room}
@@ -1036,14 +951,28 @@ export default function RoomPage() {
                   />
                 </TabsContent>
                 <TabsContent
+                  value='hof'
+                  className='mt-0 text-left animate-in fade-in zoom-in-95 duration-500'
+                >
+                  <DerbyHallOfFame room={room} />
+                </TabsContent>
+                <TabsContent
                   value='matches'
-                  className='mt-0 text-left animate-in fade-in duration-500'
+                  className='mt-0 text-left animate-in fade-in zoom-in-95 duration-500'
                 >
                   <RecentMatches matches={recentMatches} />
                 </TabsContent>
               </Tabs>
             ) : (
               <div className='text-left'>
+                <div className='flex items-center gap-3 mb-6 px-2'>
+                  <div className='bg-primary/10 p-2 rounded-xl text-primary ring-1 ring-primary/20 shadow-sm'>
+                    <History className='w-5 h-5' />
+                  </div>
+                  <h2 className='text-2xl font-black tracking-tight'>
+                    {t('Match History')}
+                  </h2>
+                </div>
                 <RecentMatches matches={recentMatches} />
               </div>
             )}

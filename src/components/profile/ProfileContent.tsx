@@ -3,7 +3,7 @@
 
 import AchievementsPanel from '@/components/AchievementsPanel';
 import ProfileCharts from '@/components/profile/ProfileCharts';
-import { RankedInsights } from '@/components/RankedInsights';
+import { InsightItem, RankedInsights } from '@/components/RankedInsights';
 import {
 	Badge,
 	Card,
@@ -28,15 +28,12 @@ import { Sport, SportConfig } from '@/contexts/SportContext';
 import { db } from '@/lib/firebase';
 import type { Match, Room, UserProfile } from '@/lib/types';
 import { parseFlexDate, safeFormatDate } from '@/lib/utils/date';
-import {
-	buildInsights,
-	computeSideStats,
-	computeStats,
-	groupByMonth,
-	opponentStats,
-} from '@/lib/utils/profileUtils';
+import { computeSideStats, computeStats } from '@/lib/utils/profileUtils';
 import { doc, getDoc } from 'firebase/firestore';
+import { TFunction } from 'i18next';
 import {
+	Activity,
+	AlertTriangle,
 	BarChart,
 	CornerUpLeft,
 	CornerUpRight,
@@ -45,6 +42,10 @@ import {
 	ListOrdered,
 	Lock,
 	Percent,
+	Swords,
+	Target,
+	TrendingDown,
+	TrendingUp,
 	Trophy,
 } from 'lucide-react';
 import React, { FC, useEffect, useMemo, useState } from 'react';
@@ -53,26 +54,16 @@ import { useTranslation } from 'react-i18next';
 interface ProfileContentProps {
   canViewProfile: boolean;
   sport: Sport;
-  playedSports: Sport[];
-  onSportChange: (sport: Sport) => void;
-  stats: any;
   sportProfile: any;
-  sideStats: any;
-  pieData: any[];
-  sidePieData: any[];
-  sidePieLossData: any[];
-  insights: any[];
-  perfData: any[];
-  monthlyData: any[];
   opponents: { id: string; name: string }[];
   matches: Match[];
   loadingMatches: boolean;
   meUid: string;
   config: SportConfig;
-  oppStats: any[];
   targetProfile: UserProfile;
   tennisStats: any | null;
   achievements: any[];
+  perfData: any[];
 }
 
 const TennisStatsCard: FC<{
@@ -147,7 +138,7 @@ function StatCard({
 }) {
   return (
     <Card className='border-0 rounded-3xl glass-panel shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group'>
-      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+      <div className='absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none' />
       <CardContent className='p-6 flex items-center gap-5 relative z-10'>
         <div className='bg-primary/10 p-3.5 rounded-2xl ring-1 ring-primary/20 text-primary shadow-sm group-hover:scale-110 transition-transform duration-300 ease-out'>
           <Icon className='h-6 w-6' />
@@ -286,14 +277,14 @@ function MatchesTableCard({
   title,
   matches,
   loading,
-  meUid,
+  targetUid,
   t,
   config,
 }: {
   title: string;
   matches: Match[];
   loading: boolean;
-  meUid: string;
+  targetUid: string;
   t: (key: string) => string;
   config: SportConfig;
 }) {
@@ -421,7 +412,7 @@ function MatchesTableCard({
                     );
                   }
                   const room = roomData.get(m.roomId!);
-                  const isP1 = m.player1Id === meUid;
+                  const isP1 = m.player1Id === targetUid;
                   const date = safeFormatDate(
                     m.tsIso ?? m.timestamp ?? m.createdAt ?? m.playedAt,
                     'MMM d, HH:mm',
@@ -494,12 +485,260 @@ function MatchesTableCard({
   );
 }
 
+const generateSmartAnalytics = (
+  matches: Match[],
+  targetUid: string,
+  oppFilter: string,
+  isSelf: boolean,
+  playerName: string,
+  t: TFunction,
+): InsightItem[] => {
+  const insights: InsightItem[] = [];
+
+  const sorted = [...matches].sort((a, b) => {
+    const timeA = a.tsIso ? Date.parse(a.tsIso) : 0;
+    const timeB = b.tsIso ? Date.parse(b.tsIso) : 0;
+    return timeB - timeA;
+  });
+
+  const recent = sorted.slice(0, 5);
+
+  if (recent.length >= 3) {
+    let recentWins = 0;
+    recent.forEach((m) => {
+      const isP1 = m.player1Id === targetUid;
+      const myScore = isP1 ? m.player1.scores : m.player2.scores;
+      const oppScore = isP1 ? m.player2.scores : m.player1.scores;
+      if (myScore > oppScore) recentWins++;
+    });
+
+    if (recentWins >= Math.ceil(recent.length * 0.7)) {
+      insights.push({
+        icon: TrendingUp,
+        color: 'text-emerald-500',
+        bg: 'bg-emerald-500/10 ring-emerald-500/20',
+        title: t('Hot Streak'),
+        description: isSelf ? (
+          <span>
+            {t('You have won')}{' '}
+            <strong>
+              {recentWins} {t('of the last')} {recent.length}
+            </strong>{' '}
+            {t('matches. Your momentum is peaking right now!')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('has won')}{' '}
+            <strong>
+              {recentWins} {t('of the last')} {recent.length}
+            </strong>{' '}
+            {t('matches. Their momentum is peaking right now!')}
+          </span>
+        ),
+      });
+    } else if (recentWins <= Math.floor(recent.length * 0.3)) {
+      insights.push({
+        icon: TrendingDown,
+        color: 'text-red-500',
+        bg: 'bg-red-500/10 ring-red-500/20',
+        title: t('Rough Patch'),
+        description: isSelf ? (
+          <span>
+            {t('You have only won')}{' '}
+            <strong>
+              {recentWins} {t('of the last')} {recent.length}
+            </strong>{' '}
+            {t('matches. Time to take a breath and refocus.')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('has only won')}{' '}
+            <strong>
+              {recentWins} {t('of the last')} {recent.length}
+            </strong>{' '}
+            {t('matches. They are currently struggling.')}
+          </span>
+        ),
+      });
+    } else {
+      insights.push({
+        icon: Activity,
+        color: 'text-amber-500',
+        bg: 'bg-amber-500/10 ring-amber-500/20',
+        title: t('Inconsistent Form'),
+        description: isSelf ? (
+          <span>
+            {t('Your recent results are mixed')} (
+            <strong>
+              {recentWins}W - {recent.length - recentWins}L
+            </strong>
+            ). {t('Try to find a stable rhythm.')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('has mixed recent results')} (
+            <strong>
+              {recentWins}W - {recent.length - recentWins}L
+            </strong>
+            ).
+          </span>
+        ),
+      });
+    }
+  }
+
+  let closeMatches = 0;
+  let closeWins = 0;
+  let totalWinMargin = 0;
+  let totalWins = 0;
+
+  sorted.forEach((m) => {
+    const isP1 = m.player1Id === targetUid;
+    const myScore = isP1 ? m.player1.scores : m.player2.scores;
+    const oppScore = isP1 ? m.player2.scores : m.player1.scores;
+    const diff = Math.abs(myScore - oppScore);
+
+    if (diff <= 2 && Math.max(myScore, oppScore) >= 11) {
+      closeMatches++;
+      if (myScore > oppScore) closeWins++;
+    }
+    if (myScore > oppScore) {
+      totalWins++;
+      totalWinMargin += diff;
+    }
+  });
+
+  if (closeMatches >= 3) {
+    const clutchRate = closeWins / closeMatches;
+    if (clutchRate >= 0.6) {
+      insights.push({
+        icon: Target,
+        color: 'text-blue-500',
+        bg: 'bg-blue-500/10 ring-blue-500/20',
+        title: t('Clutch Player'),
+        description: isSelf ? (
+          <span>
+            {t('You thrive under pressure, winning')}{' '}
+            <strong>{(clutchRate * 100).toFixed(0)}%</strong>{' '}
+            {t('of your close games (2-point diff).')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('thrives under pressure, winning')}{' '}
+            <strong>{(clutchRate * 100).toFixed(0)}%</strong>{' '}
+            {t('of their close games.')}
+          </span>
+        ),
+      });
+    } else if (clutchRate <= 0.4) {
+      insights.push({
+        icon: AlertTriangle,
+        color: 'text-orange-500',
+        bg: 'bg-orange-500/10 ring-orange-500/20',
+        title: t('Late-Game Pressure'),
+        description: isSelf ? (
+          <span>
+            {t('You tend to lose tight games (won only')}{' '}
+            <strong>
+              {closeWins} {t('of')} {closeMatches}
+            </strong>
+            ). {t('Focus on staying calm when tied.')}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong>{' '}
+            {t('tends to lose tight games (won only')}{' '}
+            <strong>
+              {closeWins} {t('of')} {closeMatches}
+            </strong>
+            ).
+          </span>
+        ),
+      });
+    }
+  }
+
+  if (oppFilter !== 'all' && sorted.length >= 3) {
+    const winRate = (totalWins / sorted.length) * 100;
+    const avgMargin =
+      totalWins > 0 ? (totalWinMargin / totalWins).toFixed(1) : '0';
+
+    if (winRate >= 70) {
+      insights.push({
+        icon: Swords,
+        color: 'text-purple-500',
+        bg: 'bg-purple-500/10 ring-purple-500/20',
+        title: t('Total Dominance'),
+        description: isSelf ? (
+          <span>
+            {t('You dominate this matchup with a')}{' '}
+            <strong>{winRate.toFixed(0)}%</strong>{' '}
+            {t('win rate. When you win, you win by an average of')}{' '}
+            <strong>
+              {avgMargin} {t('points.')}
+            </strong>
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('dominates this matchup with a')}{' '}
+            <strong>{winRate.toFixed(0)}%</strong>{' '}
+            {t('win rate, winning by an average of')}{' '}
+            <strong>
+              {avgMargin} {t('points.')}
+            </strong>
+          </span>
+        ),
+      });
+    } else if (winRate <= 30) {
+      insights.push({
+        icon: AlertTriangle,
+        color: 'text-rose-500',
+        bg: 'bg-rose-500/10 ring-rose-500/20',
+        title: t('Tough Matchup'),
+        description: isSelf ? (
+          <span>
+            {t('You struggle here')} (<strong>{winRate.toFixed(0)}%</strong>{' '}
+            {t(
+              'win rate). You need a completely new tactical approach against this opponent.',
+            )}
+          </span>
+        ) : (
+          <span>
+            <strong>{playerName}</strong> {t('struggles here')} (
+            <strong>{winRate.toFixed(0)}%</strong>{' '}
+            {t('win rate). This is a tough matchup for them.')}
+          </span>
+        ),
+      });
+    } else {
+      insights.push({
+        icon: Activity,
+        color: 'text-sky-500',
+        bg: 'bg-sky-500/10 ring-sky-500/20',
+        title: t('Even Rivalry'),
+        description: isSelf ? (
+          <span>
+            {t('This is a highly competitive matchup. Your win rate is')}{' '}
+            <strong>{winRate.toFixed(0)}%</strong>. {t('Every point counts!')}
+          </span>
+        ) : (
+          <span>
+            {t('This is a highly competitive matchup.')}{' '}
+            <strong>{playerName}&apos;s</strong> {t('win rate is')}{' '}
+            <strong>{winRate.toFixed(0)}%</strong>.
+          </span>
+        ),
+      });
+    }
+  }
+
+  return insights;
+};
+
 export const ProfileContent: React.FC<ProfileContentProps> = ({
   canViewProfile,
   sport,
-  stats,
   sportProfile,
-  sideStats,
   matches,
   loadingMatches,
   meUid,
@@ -508,10 +747,15 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
   achievements,
   opponents,
   perfData,
-  monthlyData,
+  targetProfile,
 }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [oppFilter, setOppFilter] = useState('all');
+
+  const isSelf = user?.uid === targetProfile.uid;
+  const playerName =
+    targetProfile.displayName || targetProfile.name || t('Player');
 
   const filteredMatchesAll = useMemo(
     () =>
@@ -537,8 +781,15 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
 
   const derivedInsights = useMemo(
     () =>
-      buildInsights(filteredRanked, meUid, stats, sideStats, monthlyData, t),
-    [filteredRanked, meUid, stats, sideStats, monthlyData, t],
+      generateSmartAnalytics(
+        filteredRanked,
+        meUid,
+        oppFilter,
+        isSelf,
+        playerName,
+        t as unknown as TFunction,
+      ),
+    [filteredRanked, meUid, oppFilter, isSelf, playerName, t],
   );
 
   const winRateTrend = useMemo(() => {
@@ -636,14 +887,6 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
     ],
     [derivedSideStats, t],
   );
-  const derivedMonthly = useMemo(
-    () => groupByMonth(filteredRanked, meUid),
-    [filteredRanked, meUid],
-  );
-  const derivedOppStats = useMemo(
-    () => opponentStats(filteredRanked, meUid),
-    [filteredRanked, meUid],
-  );
 
   const selectedOpponentName = opponents.find((o) => o.id === oppFilter)?.name;
 
@@ -737,14 +980,11 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
       <RankedInsights insights={derivedInsights} t={t} />
 
       <ProfileCharts
-        t={t}
+        t={t as unknown as TFunction}
         pieData={derivedPieData}
         sidePieData={derivedSidePieData}
         sidePieLossData={derivedSidePieLossData}
         perfData={perfData as any}
-        monthlyData={derivedMonthly as any}
-        oppStats={derivedOppStats as any}
-        compact={false}
         winRateTrend={winRateTrend}
         selectedOpponentName={selectedOpponentName}
       />
@@ -753,7 +993,7 @@ export const ProfileContent: React.FC<ProfileContentProps> = ({
         title={`${t('Matches')} (${filteredMatchesAll.length})`}
         matches={filteredMatchesAll}
         loading={loadingMatches}
-        meUid={meUid}
+        targetUid={meUid}
         t={t}
         config={config}
       />
