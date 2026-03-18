@@ -111,13 +111,14 @@ export const FullscreenScoreboard = ({
         const q = query(
           collection(db, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid),
+          where('isArchived', '!=', true)
         );
         const snap = await getDocs(q);
 
-        const fetched: any[] = [];
+        const fetched: RoomWithId[] = [];
         snap.forEach((doc) => {
-          const rData = doc.data();
-          if (rData.isArchived !== true && rData.isArchived !== 'true') {
+          const rData = doc.data() as Room;
+          if (rData.isArchived !== 'true') {
             fetched.push({ id: doc.id, ...rData });
           }
         });
@@ -264,6 +265,11 @@ export const FullscreenScoreboard = ({
   }, [isMatchFinished]);
 
   const submitSeries = useCallback(async () => {
+    if (!selectedRoom?.id) {
+      toast({ title: t('No room selected'), variant: 'destructive' });
+      return;
+    }
+
     if (matchHistory.length === 0 && scoreL === 0 && scoreR === 0) {
       toast({ title: t('No matches to submit'), variant: 'destructive' });
       return;
@@ -292,7 +298,7 @@ export const FullscreenScoreboard = ({
 
       const response = await saveFunc({
         matches: drafts,
-        roomId: selectedRoom?.id,
+        roomId: selectedRoom.id,
       });
 
       setMatchResults(response.data as MatchResultData);
@@ -764,9 +770,6 @@ export const FullscreenScoreboard = ({
               </div>
               <div className='grid grid-cols-2 gap-x-8 gap-y-2'>
                 <div>
-                  <strong className='text-foreground'>Space</strong> : START
-                </div>
-                <div>
                   <strong className='text-foreground'>S</strong> : SWITCH SIDES
                 </div>
                 <div>
@@ -794,7 +797,7 @@ export const FullscreenScoreboard = ({
       )}
 
       {step === 'results' && matchResults && (
-        <div className='flex flex-col w-full max-w-2xl bg-background border border-border rounded-[2.5rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-500 z-50'>
+        <div className='flex flex-col w-full max-w-2xl bg-card border border-border rounded-[2rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-500 z-50'>
           <div className='flex items-center justify-center gap-3 mb-8 text-primary'>
             <Trophy className='h-10 w-10' />
             <h2 className='text-4xl font-extrabold uppercase tracking-tight text-foreground'>
@@ -812,15 +815,15 @@ export const FullscreenScoreboard = ({
                   key={idx}
                   className={`p-5 rounded-2xl flex items-center justify-between border transition-colors ${
                     isEpicGain
-                      ? 'bg-primary/10 border-primary/20'
-                      : 'bg-muted/50 border-border/50'
+                      ? 'bg-accent/50 border-accent'
+                      : 'bg-muted/50 border-border'
                   }`}
                 >
                   <div className='flex flex-col'>
                     <span className='font-bold text-xl flex items-center gap-2 text-foreground'>
                       {u.name}
                       {isEpicGain && (
-                        <Flame className='w-5 h-5 text-primary fill-current animate-pulse' />
+                        <Flame className='w-5 h-5 text-orange-500 fill-current animate-pulse' />
                       )}
                     </span>
                     {u.oldRank && u.newRank ? (
@@ -830,10 +833,10 @@ export const FullscreenScoreboard = ({
                         <span
                           className={
                             u.newRank < u.oldRank
-                              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                              ? 'text-emerald-500 font-bold'
                               : u.newRank > u.oldRank
-                                ? 'text-destructive'
-                                : 'text-foreground'
+                                ? 'text-destructive font-bold'
+                                : 'text-foreground font-bold'
                           }
                         >
                           #{u.newRank}
@@ -844,13 +847,11 @@ export const FullscreenScoreboard = ({
                   <div className='text-right'>
                     <div
                       className={`font-black text-2xl flex items-center justify-end gap-1 ${
-                        isEpicGain
-                          ? 'text-primary'
-                          : isPositive
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : isNeutral
-                              ? 'text-muted-foreground'
-                              : 'text-destructive'
+                        isPositive
+                          ? 'text-emerald-500'
+                          : isNeutral
+                            ? 'text-muted-foreground'
+                            : 'text-destructive'
                       }`}
                     >
                       {isPositive ? (
@@ -868,11 +869,7 @@ export const FullscreenScoreboard = ({
                       {Math.round(u.newElo)} Global
                     </div>
                     {u.roomElo && (
-                      <div
-                        className={`text-sm font-bold mt-0.5 ${
-                          isEpicGain ? 'text-primary' : 'text-foreground'
-                        }`}
-                      >
+                      <div className='text-sm font-bold mt-0.5 text-primary'>
                         {Math.round(u.roomElo)} Room
                       </div>
                     )}
