@@ -84,6 +84,15 @@ export const FullscreenScoreboard = ({
   );
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stateRef = useRef({
+    step,
+    isMatchFinished: false,
+    isSubmitting,
+    scoreL,
+    scoreR,
+    playerLId,
+    playerRId,
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -117,11 +126,18 @@ export const FullscreenScoreboard = ({
           (b.createdAt || '').localeCompare(a.createdAt || ''),
         );
         setRooms(fetched);
-      } catch (e) {}
+      } catch (error: any) {
+        console.error(error);
+        toast({
+          title: t('Error loading rooms'),
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     };
 
     fetchRooms();
-  }, [user?.uid, config?.collections?.rooms]);
+  }, [user?.uid, config?.collections?.rooms, t, toast]);
 
   useEffect(() => {
     if (!rooms || rooms.length === 0) return;
@@ -161,23 +177,18 @@ export const FullscreenScoreboard = ({
     return member ? member.name : 'Player R';
   }, [selectedRoom, playerRId]);
 
-  const { config } = useSport();
-
   const checkWinCondition = useCallback(
     (l: number, r: number) => {
-      // Prefer sport-specific validation when available
       if (config && typeof config === 'object') {
         const validator = (config as any).validateScore;
 
         if (typeof validator === 'function') {
           const result = validator(l, r);
 
-          // If the validator returns a boolean, treat it as "match finished"
           if (typeof result === 'boolean') {
             return result;
           }
 
-          // If the validator returns an object with an `isValid` flag, use it
           if (result && typeof result === 'object' && 'isValid' in result) {
             const isValid = (result as any).isValid;
             if (typeof isValid === 'boolean') {
@@ -187,7 +198,6 @@ export const FullscreenScoreboard = ({
         }
       }
 
-      // Fallback: default ping-pong style rule (first to 11, win by 2)
       if (l >= 11 || r >= 11) {
         if (Math.abs(l - r) >= 2) {
           return true;
@@ -206,6 +216,26 @@ export const FullscreenScoreboard = ({
   };
 
   const isMatchFinished = checkWinCondition(scoreL, scoreR);
+
+  useEffect(() => {
+    stateRef.current = {
+      step,
+      isMatchFinished,
+      isSubmitting,
+      scoreL,
+      scoreR,
+      playerLId,
+      playerRId,
+    };
+  }, [
+    step,
+    isMatchFinished,
+    isSubmitting,
+    scoreL,
+    scoreR,
+    playerLId,
+    playerRId,
+  ]);
 
   useEffect(() => {
     if (isMatchFinished) {
@@ -326,6 +356,11 @@ export const FullscreenScoreboard = ({
     [playerLName, playerRName, scoreL, scoreR, playerLId, playerRId],
   );
 
+  const callbacksRef = useRef({ submitSeries, handleNextAction, onClose });
+  useEffect(() => {
+    callbacksRef.current = { submitSeries, handleNextAction, onClose };
+  }, [submitSeries, handleNextAction, onClose]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (typeof document !== 'undefined') {
@@ -338,12 +373,15 @@ export const FullscreenScoreboard = ({
           return;
       }
 
-      if (step === 'setup') return;
+      const current = stateRef.current;
+      const cbs = callbacksRef.current;
 
-      if (step === 'results') {
+      if (current.step === 'setup') return;
+
+      if (current.step === 'results') {
         if (e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape') {
           e.preventDefault();
-          onClose();
+          cbs.onClose();
         }
         return;
       }
@@ -354,13 +392,13 @@ export const FullscreenScoreboard = ({
 
       if (isSubmit) {
         e.preventDefault();
-        if (step === 'match' && !isSubmitting) {
-          submitSeries();
+        if (current.step === 'match' && !current.isSubmitting) {
+          cbs.submitSeries();
         }
         return;
       }
 
-      if (step === 'waiting') {
+      if (current.step === 'waiting') {
         if (e.code === 'Space') {
           e.preventDefault();
           setStep('match');
@@ -375,16 +413,16 @@ export const FullscreenScoreboard = ({
         return;
       }
 
-      if (step === 'match' && isMatchFinished) {
+      if (current.step === 'match' && current.isMatchFinished) {
         if (e.code === 'Space') {
           e.preventDefault();
-          handleNextAction('rematch');
+          cbs.handleNextAction('rematch');
         } else if (e.code === 'KeyS') {
           e.preventDefault();
-          handleNextAction('next_swap');
+          cbs.handleNextAction('next_swap');
         } else if (e.code === 'KeyN') {
           e.preventDefault();
-          handleNextAction('next_keep');
+          cbs.handleNextAction('next_keep');
         } else if (e.code === 'KeyW') {
           e.preventDefault();
           setScoreL((prev) => Math.max(0, prev - 1));
@@ -405,7 +443,7 @@ export const FullscreenScoreboard = ({
         return;
       }
 
-      if (step === 'match' && !isMatchFinished) {
+      if (current.step === 'match' && !current.isMatchFinished) {
         if (e.code === 'KeyQ') {
           setScoreL((prev) => prev + 1);
         } else if (e.code === 'KeyP') {
@@ -415,31 +453,17 @@ export const FullscreenScoreboard = ({
         } else if (e.code === 'KeyO') {
           setScoreR((prev) => Math.max(0, prev - 1));
         } else if (e.code === 'KeyS') {
-          const tempScore = scoreL;
-          setScoreL(scoreR);
-          setScoreR(tempScore);
-          const tempLId = playerLId;
-          setPlayerLId(playerRId);
-          setPlayerRId(tempLId);
+          setScoreL(current.scoreR);
+          setScoreR(current.scoreL);
+          setPlayerLId(current.playerRId);
+          setPlayerRId(current.playerLId);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    step,
-    isMatchFinished,
-    isMac,
-    isSubmitting,
-    submitSeries,
-    handleNextAction,
-    scoreL,
-    scoreR,
-    playerLId,
-    playerRId,
-    onClose,
-  ]);
+  }, [isMac]);
 
   return (
     <div className='fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-300'>
@@ -463,73 +487,97 @@ export const FullscreenScoreboard = ({
             </p>
           </div>
           <div className='space-y-4'>
-            <select
-              value={selectedRoom?.id || ''}
-              onChange={(e) => {
-                const r = rooms.find((room) => room.id === e.target.value);
-                if (r) {
-                  setSelectedRoom(r);
-                  setPlayerLId('');
-                  setPlayerRId('');
-                }
-              }}
-              className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer'
-              aria-label={t('Room')}
-            >
-              <option value='' disabled>
+            <div className='space-y-1.5'>
+              <label
+                htmlFor='room-select'
+                className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1'
+              >
                 {t('Select Room')}
-              </option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
+              </label>
+              <select
+                id='room-select'
+                value={selectedRoom?.id || ''}
+                onChange={(e) => {
+                  const r = rooms.find((room) => room.id === e.target.value);
+                  if (r) {
+                    setSelectedRoom(r);
+                    setPlayerLId('');
+                    setPlayerRId('');
+                  }
+                }}
+                className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer'
+              >
+                <option value='' disabled>
+                  {t('Select Room')}
                 </option>
-              ))}
-            </select>
+                {rooms.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className='grid grid-cols-2 gap-4'>
-              <select
-                value={playerLId}
-                onChange={(e) => setPlayerLId(e.target.value)}
-                disabled={!selectedRoom}
-                className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
-                aria-label={t('Player Left')}
-              >
-                <option value='' disabled>
-                  {t('Select Player Left')}
-                </option>
-                {Array.isArray(selectedRoom?.members) &&
-                  selectedRoom.members.map((m: any) => (
-                    <option
-                      key={m.userId}
-                      value={m.userId}
-                      disabled={m.userId === playerRId}
-                    >
-                      {m.name}
-                    </option>
-                  ))}
-              </select>
+              <div className='space-y-1.5'>
+                <label
+                  htmlFor='player-left-select'
+                  className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1'
+                >
+                  {t('Player Left')}
+                </label>
+                <select
+                  id='player-left-select'
+                  value={playerLId}
+                  onChange={(e) => setPlayerLId(e.target.value)}
+                  disabled={!selectedRoom}
+                  className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                >
+                  <option value='' disabled>
+                    {t('Select Player Left')}
+                  </option>
+                  {Array.isArray(selectedRoom?.members) &&
+                    selectedRoom.members.map((m: any) => (
+                      <option
+                        key={m.userId}
+                        value={m.userId}
+                        disabled={m.userId === playerRId}
+                      >
+                        {m.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
 
-              <select
-                value={playerRId}
-                onChange={(e) => setPlayerRId(e.target.value)}
-                disabled={!selectedRoom}
-                className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
-                aria-label={t('Player Right')}
-              >
-                <option value='' disabled>
-                  {t('Select Player Right')}
-                </option>
-                {Array.isArray(selectedRoom?.members) &&
-                  selectedRoom.members.map((m: any) => (
-                    <option
-                      key={m.userId}
-                      value={m.userId}
-                      disabled={m.userId === playerLId}
-                    >
-                      {m.name}
-                    </option>
-                  ))}
-              </select>
+              <div className='space-y-1.5'>
+                <label
+                  htmlFor='player-right-select'
+                  className='text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1'
+                >
+                  {t('Player Right')}
+                </label>
+                <select
+                  id='player-right-select'
+                  value={playerRId}
+                  onChange={(e) => setPlayerRId(e.target.value)}
+                  disabled={!selectedRoom}
+                  className='w-full p-4 bg-muted/50 rounded-xl border-0 ring-1 ring-border focus:ring-2 focus:ring-primary text-lg outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                >
+                  <option value='' disabled>
+                    {t('Select Player Right')}
+                  </option>
+                  {Array.isArray(selectedRoom?.members) &&
+                    selectedRoom.members.map((m: any) => (
+                      <option
+                        key={m.userId}
+                        value={m.userId}
+                        disabled={m.userId === playerLId}
+                      >
+                        {m.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
             </div>
 
             <Button
@@ -549,10 +597,15 @@ export const FullscreenScoreboard = ({
           <h2 className='text-2xl font-semibold text-muted-foreground uppercase tracking-widest'>
             {selectedRoom?.name}
           </h2>
-          <h1 className='text-6xl font-extrabold text-primary animate-pulse'>
-            {t('Waiting for START...')}
-          </h1>
-          <div className='flex justify-center gap-24 text-3xl font-medium'>
+          <div>
+            <h1 className='text-6xl font-extrabold text-primary animate-pulse'>
+              {t('Waiting for START...')}
+            </h1>
+            <p className='text-2xl text-muted-foreground mt-6 font-medium tracking-widest uppercase'>
+              {t('Press [Space] to begin')}
+            </p>
+          </div>
+          <div className='flex justify-center gap-24 text-3xl font-medium pt-8'>
             <div className='flex flex-col items-center gap-2'>
               <span className='text-muted-foreground text-sm uppercase tracking-widest'>
                 {t('Left Side')}
@@ -698,14 +751,7 @@ export const FullscreenScoreboard = ({
                   {isSubmitting ? (
                     <Loader2 className='animate-spin mr-2 h-6 w-6' />
                   ) : null}
-                  {t(
-                    `Submit Series [${
-                      typeof navigator !== 'undefined' &&
-                      /Mac|iPhone|iPad|iPod/.test(navigator.platform)
-                        ? 'Cmd'
-                        : 'Ctrl'
-                    }+Enter]`,
-                  )}
+                  {t(`Submit Series [${isMac ? 'Cmd' : 'Ctrl'}+Enter]`)}
                 </Button>
               </div>
             </div>
