@@ -49,6 +49,8 @@ type MatchResultData = {
   updates: PlayerUpdate[];
 };
 
+type RoomWithId = Room & { id: string };
+
 export const FullscreenScoreboard = ({
   onClose,
   lastActiveRoom,
@@ -65,8 +67,8 @@ export const FullscreenScoreboard = ({
     'setup',
   );
 
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState<any | null>(null);
+  const [rooms, setRooms] = useState<RoomWithId[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<RoomWithId | null>(null);
   const [playerLId, setPlayerLId] = useState('');
   const [playerRId, setPlayerRId] = useState('');
 
