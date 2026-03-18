@@ -38,9 +38,7 @@ type CombinedMatch = Match & {
   sport: Sport;
 };
 
-// Batch size for displaying matches
 const BATCH_SIZE = 5;
-// Fetch limit for querying firestore
 const FETCH_LIMIT = 10;
 
 type Cursors = Record<Sport, DocumentSnapshot | null>;
@@ -59,18 +57,14 @@ const MatchItem: React.FC<{
   const p2 = match.player2;
   const timeAgo = formatTimeAgo(
     match.tsIso ?? match.timestamp ?? match.createdAt ?? '',
-    t
+    t,
   );
 
   const p1Id = match.player1Id;
   const p2Id = match.player2Id;
 
   return (
-    <div
-      // FIX 1: Removed config.theme.border which doesn't exist on the type. Used generic border-border.
-      className={`relative flex flex-col gap-2 p-3 border-b border-border border-l-4 rounded-r bg-card/50 hover:bg-accent/5 transition-colors`}
-    >
-      {/* Community Badge */}
+    <div className='relative flex flex-col gap-2 p-3 border-b border-border border-l-4 rounded-r bg-card/50 hover:bg-accent/5 transition-colors'>
       {communityName && (
         <div className='absolute top-2 right-2 flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wider font-semibold bg-muted/80 px-2 py-0.5 rounded-full z-10 max-w-[40%]'>
           <Building2 className='h-3 w-3 shrink-0' />
@@ -80,7 +74,6 @@ const MatchItem: React.FC<{
 
       <div className='flex items-start gap-3 mt-1 pt-4 sm:pt-1'>
         <div className={`mt-1 ${config.theme.primary}`}>
-          {/* FIX 2: Cast icon to ReactElement<any> to match cloneElement overload */}
           {React.cloneElement(config.icon as React.ReactElement<any>, {
             className: 'h-5 w-5',
           })}
@@ -92,7 +85,6 @@ const MatchItem: React.FC<{
               className='flex items-center gap-1.5 group'
             >
               <Avatar className='h-5 w-5'>
-                {/* FIX 3: Cast p1 as any because photoURL is not in MatchSide type */}
                 <AvatarImage src={(p1 as any).photoURL || undefined} />
                 <AvatarFallback className='text-[10px]'>
                   {p1.name?.[0]}
@@ -110,7 +102,6 @@ const MatchItem: React.FC<{
               className='flex items-center gap-1.5 group'
             >
               <Avatar className='h-5 w-5'>
-                {/* FIX 4: Cast p2 as any because photoURL is not in MatchSide type */}
                 <AvatarImage src={(p2 as any).photoURL || undefined} />
                 <AvatarFallback className='text-[10px]'>
                   {p2.name?.[0]}
@@ -191,12 +182,10 @@ export const LiveFeed: React.FC = () => {
 
     const roomCollections = sports.map((s) => sportConfig[s].collections.rooms);
 
-    // 1. Identify Visible Rooms & Collect Community IDs
     for (const collectionName of roomCollections) {
-      // Public Rooms
       const qPublic = query(
         collection(db, collectionName),
-        where('isPublic', '==', true)
+        where('isPublic', '==', true),
       );
       const snapPublic = await getDocs(qPublic);
       snapPublic.docs.forEach((doc) => {
@@ -210,11 +199,10 @@ export const LiveFeed: React.FC = () => {
         }
       });
 
-      // Member Rooms
       const qMember = query(
         collection(db, collectionName),
         where('isPublic', '!=', true),
-        where('memberIds', 'array-contains', user.uid)
+        where('memberIds', 'array-contains', user.uid),
       );
       const snapMember = await getDocs(qMember);
       snapMember.docs.forEach((doc) => {
@@ -229,7 +217,6 @@ export const LiveFeed: React.FC = () => {
       });
     }
 
-    // 2. Fetch ONLY the relevant communities (in chunks of 10)
     const commIdsArray = Array.from(uniqueCommunityIds);
     if (commIdsArray.length > 0) {
       const chunks = [];
@@ -243,8 +230,7 @@ export const LiveFeed: React.FC = () => {
             if (!db) return;
             const qComm = query(
               collection(db, 'communities'),
-              // FIX 5: Explicitly type chunk as string[]
-              where(documentId(), 'in', chunk as string[])
+              where(documentId(), 'in', chunk as string[]),
             );
             const snap = await getDocs(qComm);
             snap.forEach((doc) => {
@@ -261,7 +247,7 @@ export const LiveFeed: React.FC = () => {
           } catch (e) {
             console.error('Error fetching community chunk', e);
           }
-        })
+        }),
       );
     }
 
@@ -285,7 +271,7 @@ export const LiveFeed: React.FC = () => {
     async (
       sport: Sport,
       cursor: DocumentSnapshot | null,
-      roomIds: string[]
+      roomIds: string[],
     ) => {
       if (allLoadedRef.current[sport] || roomIds.length === 0)
         return { matches: [], cursor, allLoaded: true };
@@ -332,7 +318,7 @@ export const LiveFeed: React.FC = () => {
         return { matches: [], cursor, allLoaded: true };
       }
     },
-    []
+    [],
   );
 
   const loadNextBatch = useCallback(
@@ -362,7 +348,7 @@ export const LiveFeed: React.FC = () => {
           !allLoadedRef.current[sport]
         ) {
           fetches.push(
-            fetchQueue(sport, cursorsRef.current[sport], visibleRoomIds)
+            fetchQueue(sport, cursorsRef.current[sport], visibleRoomIds),
           );
         }
       }
@@ -375,7 +361,6 @@ export const LiveFeed: React.FC = () => {
             continue;
           }
           anyFetched = true;
-          // FIX 6: Cast sport to Sport type to fix implicit any indexing error
           const sport = result.matches[0]?.sport as Sport;
           if (sport) {
             queuesRef.current[sport] = [
@@ -389,7 +374,7 @@ export const LiveFeed: React.FC = () => {
       }
 
       const remainingInQueues = sports.some(
-        (s) => queuesRef.current[s].length > 0
+        (s) => queuesRef.current[s].length > 0,
       );
       const remainingToLoad = sports.some((s) => !allLoadedRef.current[s]);
 
@@ -407,7 +392,7 @@ export const LiveFeed: React.FC = () => {
           const candidate = queuesRef.current[sport][0];
           if (candidate) {
             const candidateDate = parseFlexDate(
-              candidate.tsIso ?? candidate.timestamp ?? candidate.createdAt
+              candidate.tsIso ?? candidate.timestamp ?? candidate.createdAt,
             ).getTime();
             if (candidateDate > bestDate) {
               bestDate = candidateDate;
@@ -433,7 +418,7 @@ export const LiveFeed: React.FC = () => {
 
       isLoadingMoreRef.current = false;
     },
-    [fetchQueue, visibleRoomIds, roomsReady]
+    [fetchQueue, visibleRoomIds, roomsReady],
   );
 
   useEffect(() => {
@@ -443,11 +428,20 @@ export const LiveFeed: React.FC = () => {
     }
   }, [userProfile, roomsReady, loadNextBatch]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setRoomsReady(false);
     hasLoadedInitialRef.current = false;
     loadVisibleRoomsAndCommunities();
-  };
+  }, [loadVisibleRoomsAndCommunities]);
+
+  useEffect(() => {
+    const handleMatchRecorded = () => {
+      handleRefresh();
+    };
+    window.addEventListener('match-recorded', handleMatchRecorded);
+    return () =>
+      window.removeEventListener('match-recorded', handleMatchRecorded);
+  }, [handleRefresh]);
 
   return (
     <Card className='shadow-lg border-none'>

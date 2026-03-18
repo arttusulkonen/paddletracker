@@ -38,6 +38,11 @@ The core philosophy is a **Dual-Rating System**:
 - **Compute:** Cloud Functions (2nd Gen)
 - **AI Engine:** Google Genkit + Gemini 2.0 Flash
 
+### Hardware Integration (Planned)
+
+- **Controllers:** Zero Delay USB Encoders
+- **Input Detection:** Gamepad API (Web Native)
+
 ---
 
 ## 3. User Roles & Account Types
@@ -135,6 +140,7 @@ src/
 │       └── communities/     # Community creation & details
 ├── components/
 │   ├── AiAssistant.tsx      # AI Chat Interface (Genkit integration)
+│   ├── FullscreenScoreboard.tsx # Live scoreboard for physical/keyboard input
 │   ├── RecordBlock.tsx      # Manual match entry component
 │   ├── communities/         # Community-related components
 │   ├── rooms/
@@ -162,7 +168,51 @@ functions/
 
 ---
 
-## 7. ELO Rating System Details
+## 7. Core Features & Workflows
+
+### A. Ghost Player Lifecycle
+
+1. **Create:** Coach goes to `/manage/players` -> "Create Ghost Player".
+2. **Play:** Ghost appears in search results. Matches are recorded normally against the Ghost's ID.
+3. **Claim:** User opens link (`/register?claim=GHOST_ID`) -> Registers. System copies stats, updates community links, and marks ghost as `isClaimed`.
+
+### B. Match Entry (Manual vs Scoreboard)
+
+**1. Manual Entry (Traditional)**
+Users fill out standard forms (e.g., `PingPongRecordBlock.tsx`) entering final scores. Sent to the server via Cloud Functions.
+
+**2. Live Scoreboard (Fullscreen)**
+
+- **File:** `src/components/FullscreenScoreboard.tsx`
+- **Flow:** Setup (Room/Players) -> Waiting -> Match in Progress -> Series Results.
+- **Features:** Keyboard shortcuts for scoring, undo, side switching, and match series aggregation.
+- **Submission:** Submits an entire series of matches in one payload via `aiSaveMatch` cloud function. Dispatches a custom `match-recorded` event to automatically refresh background feeds.
+- **TODO [Hardware Integration]:** When the physical USB Arcade Controllers arrive, program the Gamepad API event listeners inside the Scoreboard component. Replace/augment keyboard `keydown` events with `gamepadconnected` and polling logic.
+
+### C. Season Finalization (Classic vs. Derby)
+
+**File:** `src/lib/season.ts`
+
+**For Classic Modes (Office / Pro / Arcade):**
+
+1. Admin clicks "Finish Season".
+2. System calculates final standings, total wins, and longest streaks.
+3. Snapshots the results into the room's `seasonHistory` array.
+4. Awards achievements (medals) to top players' user profiles.
+5. Sets **`isArchived: true`** on the room. The room becomes a read-only historical monument. No matches are deleted, and no stats are reset.
+
+**For Derby Mode (Sprints):**
+
+1. Triggered automatically via Cloud Functions (or manual override).
+2. Calculates sprint standings, snapshots to `seasonHistory`, and awards achievements (`derbyChampion`, `derbyUnstoppable`).
+3. Updates the persistent **Hall of Fame** inside the room document with new titles, slayers, and total wins.
+4. Performs a **Soft Reset**: `newRating = 1000 + (oldRating - 1000) * 0.75`.
+5. Resets sprint-specific stats (`wins`, `losses`, `currentStreak`) to 0.
+6. Updates `sprintStartTs` and increments `sprintCount` to begin the next sprint automatically. The room remains active.
+
+---
+
+## 8. ELO Rating System Details
 
 ### The Dual-Layer Formula
 
@@ -187,7 +237,7 @@ Calculated using the **current room ratings** of the players (not Global).
 
 ---
 
-## 8. Database Structure (Firestore)
+## 9. Database Structure (Firestore)
 
 The database is partitioned by sport (`pingpong`, `tennis`, `badminton`) for matches and rooms, but Users and Communities are shared/global.
 
@@ -306,43 +356,3 @@ matches-pingpong/{matchId}
   }
 }
 ```
-
----
-
-## 9. Workflows
-
-### A. Ghost Player Lifecycle
-
-1. **Create:** Coach goes to `/manage/players` -> "Create Ghost Player".
-2. **Play:** Ghost appears in search results. Matches are recorded normally against the Ghost's ID.
-3. **Claim:** User opens link (`/register?claim=GHOST_ID`) -> Registers. System copies stats, updates community links, and marks ghost as `isClaimed`.
-
-### B. Match Entry (Server-Side)
-
-**File:** `functions/src/index.ts`
-
-1. **Client:** Submits scores.
-2. **Server:** Calculates Global ELO change (always K=32) and Room ELO change (based on Room Mode & K-Factor).
-3. **Derby Mechanics:** If the mode is Derby, the server checks if a player ended a 3+ win streak of the opponent and awards a `giant_slayer` badge.
-4. **Batch Write:** Atomically updates `matches`, `rooms` (members array), and `users`.
-
-### C. Season Finalization (Classic vs. Derby)
-
-**File:** `src/lib/season.ts`
-
-**For Classic Modes (Office / Pro / Arcade):**
-
-1. Admin clicks "Finish Season".
-2. System calculates final standings, total wins, and longest streaks.
-3. Snapshots the results into the room's `seasonHistory` array.
-4. Awards achievements (medals) to top players' user profiles.
-5. Sets **`isArchived: true`** on the room. The room becomes a read-only historical monument. No matches are deleted, and no stats are reset.
-
-**For Derby Mode (Sprints):**
-
-1. Triggered automatically via Cloud Functions (or manual override).
-2. Calculates sprint standings, snapshots to `seasonHistory`, and awards achievements (`derbyChampion`, `derbyUnstoppable`).
-3. Updates the persistent **Hall of Fame** inside the room document with new titles, slayers, and total wins.
-4. Performs a **Soft Reset**: `newRating = 1000 + (oldRating - 1000) * 0.75`.
-5. Resets sprint-specific stats (`wins`, `losses`, `currentStreak`) to 0.
-6. Updates `sprintStartTs` and increments `sprintCount` to begin the next sprint automatically. The room remains active.
