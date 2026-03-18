@@ -668,7 +668,14 @@ export const FullscreenScoreboard = ({
                   {isSubmitting ? (
                     <Loader2 className='animate-spin mr-2 h-6 w-6' />
                   ) : null}
-                  {t('Submit Series [Cmd+Enter]')}
+                  {t(
+                    `Submit Series [${
+                      typeof navigator !== 'undefined' &&
+                      /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+                        ? 'Cmd'
+                        : 'Ctrl'
+                    }+Enter]`,
+                  )}
                 </Button>
               </div>
             </div>
