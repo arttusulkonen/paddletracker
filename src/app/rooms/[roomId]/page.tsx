@@ -86,14 +86,11 @@ const tsToMs = (v?: string) => {
 const cleanForFirebase = (obj: any): any => {
   if (!obj) return null;
   return JSON.parse(
-    JSON.stringify(obj, (key, value) => {
+    JSON.stringify(obj, (_, value) => {
       return value === undefined ? null : value;
     }),
   );
 };
-
-type StartEndElo = Record<string, { start: number; end: number }>;
-type MiniMatch = { result: 'W' | 'L'; opponent: string; score: string };
 
 export default function RoomPage() {
   const { t } = useTranslation();
@@ -119,6 +116,8 @@ export default function RoomPage() {
   const [coPlayers, setCoPlayers] = useState<UserProfile[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [isInviting, setIsInviting] = useState(false);
+
+  const debugMode = false;
 
   const memberIdsSet = useMemo(
     () => new Set(room?.memberIds ?? []),
@@ -222,11 +221,14 @@ export default function RoomPage() {
 
   const isCreator = useMemo(
     () =>
-      user &&
-      room &&
-      (room.creator === user.uid || room.createdBy === user.uid),
+      !!(
+        user &&
+        room &&
+        (room.creator === user.uid || room.createdBy === user.uid)
+      ),
     [user, room],
   );
+
   const canManageRoom = useMemo(() => {
     if (!room || !user) return false;
     if (isCreator || isGlobalAdmin) return true;
@@ -575,7 +577,7 @@ export default function RoomPage() {
 
         const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
         if (podiumIdx !== -1) {
-          const userRef = doc(db, 'users', m.userId);
+          const userRef = doc(db!, 'users', m.userId);
           const baseAchievement = {
             sport,
             dateFinished: nowIso,
@@ -601,7 +603,7 @@ export default function RoomPage() {
           m.userId === topStreakPlayer?.userId &&
           (m.highestStreak || 0) >= 5
         ) {
-          batch.update(doc(db, 'users', m.userId), {
+          batch.update(doc(db!, 'users', m.userId), {
             achievements: arrayUnion({
               type: 'derbyUnstoppable',
               sport,
@@ -690,7 +692,7 @@ export default function RoomPage() {
         memberIds: arrayRemove(uid),
         members: member ? arrayRemove(member) : undefined,
       });
-      batch.update(doc(db, 'users', uid), { rooms: arrayRemove(roomId) });
+      batch.update(doc(db!, 'users', uid), { rooms: arrayRemove(roomId) });
       await batch.commit();
       toast({ title: t('Player removed') });
     } catch (e) {
@@ -842,23 +844,25 @@ export default function RoomPage() {
               </CardContent>
             </Card>
 
-            {(isCreator || isGlobalAdmin) && room.mode === 'derby' && (
-              <div className='p-4 rounded-3xl border border-red-500/20 bg-red-500/5 space-y-4'>
-                <p className='text-[10px] uppercase font-black text-red-600 dark:text-red-400 tracking-widest text-center'>
-                  {t('Admin Dev Mode')}
-                </p>
-                <Button
-                  variant='destructive'
-                  className='w-full rounded-xl font-bold'
-                  onClick={() => {
-                    if (confirm(t('Reset ELO and update Hall of Fame?')))
-                      handleForceEndSprint();
-                  }}
-                >
-                  {t('Force End Sprint')}
-                </Button>
-              </div>
-            )}
+            {(isCreator || isGlobalAdmin) &&
+              room.mode === 'derby' &&
+              debugMode && (
+                <div className='p-4 rounded-3xl border border-red-500/20 bg-red-500/5 space-y-4'>
+                  <p className='text-[10px] uppercase font-black text-red-600 dark:text-red-400 tracking-widest text-center'>
+                    {t('Admin Dev Mode')}
+                  </p>
+                  <Button
+                    variant='destructive'
+                    className='w-full rounded-xl font-bold'
+                    onClick={() => {
+                      if (confirm(t('Reset ELO and update Hall of Fame?')))
+                        handleForceEndSprint();
+                    }}
+                  >
+                    {t('Force End Sprint')}
+                  </Button>
+                </div>
+              )}
           </div>
 
           <div className='lg:col-span-8'>
@@ -903,15 +907,17 @@ export default function RoomPage() {
             />
           </section>
 
-          {(canManageRoom || isGlobalAdmin) && room.mode === 'derby' && (
-            <section className='animate-in slide-in-from-bottom-4 duration-1000'>
-              <DerbySimulator
-                roomId={roomId}
-                members={playersOnlyMembers}
-                sport={sport}
-              />
-            </section>
-          )}
+          {(canManageRoom || isGlobalAdmin) &&
+            room.mode === 'derby' &&
+            debugMode && (
+              <section className='animate-in slide-in-from-bottom-4 duration-1000'>
+                <DerbySimulator
+                  roomId={roomId}
+                  members={playersOnlyMembers}
+                  sport={sport}
+                />
+              </section>
+            )}
 
           {/* SECTION 3: TABS - EVENTS & HISTORY (FULL WIDTH) */}
           <section className='animate-in fade-in duration-1000 pb-12'>

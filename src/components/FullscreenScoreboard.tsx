@@ -1,3 +1,4 @@
+// src/components/FullscreenScoreboard.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,6 @@ import {
 	ArrowUp,
 	Flame,
 	Loader2,
-	Minus,
 	Trophy,
 	X,
 } from 'lucide-react';
@@ -136,10 +136,10 @@ export const FullscreenScoreboard = ({
 
           if (
             rData.isArchived !== true &&
-            rData.isArchived !== 'true' &&
+            String(rData.isArchived) !== 'true' &&
             !isSeasonFinished
           ) {
-            fetched.push({ id: doc.id, ...rData });
+            fetched.push({ ...rData, id: doc.id });
           }
         });
 
@@ -165,7 +165,7 @@ export const FullscreenScoreboard = ({
     if (
       lastActiveRoom &&
       lastActiveRoom.isArchived !== true &&
-      lastActiveRoom.isArchived !== 'true'
+      String(lastActiveRoom.isArchived) !== 'true'
     ) {
       const match = rooms.find((r) => r.id === lastActiveRoom.id);
       if (match) {
@@ -236,6 +236,28 @@ export const FullscreenScoreboard = ({
     critical_tie: 'text-foreground drop-shadow-[0_0_25px_rgba(59,130,246,0.6)]',
     high_voltage: 'text-foreground drop-shadow-[0_0_35px_rgba(245,158,11,0.7)]',
   };
+
+  const gamesWonL = useMemo(() => {
+    return matchHistory.filter((m) => {
+      const pLWin = m.scoreL > m.scoreR;
+      const pRWin = m.scoreR > m.scoreL;
+      return (
+        (m.playerLId === playerLId && pLWin) ||
+        (m.playerRId === playerLId && pRWin)
+      );
+    }).length;
+  }, [matchHistory, playerLId]);
+
+  const gamesWonR = useMemo(() => {
+    return matchHistory.filter((m) => {
+      const pLWin = m.scoreL > m.scoreR;
+      const pRWin = m.scoreR > m.scoreL;
+      return (
+        (m.playerLId === playerRId && pLWin) ||
+        (m.playerRId === playerRId && pRWin)
+      );
+    }).length;
+  }, [matchHistory, playerRId]);
 
   const playerLHistoryStatus = useMemo(() => {
     return matchHistory.map((m) => {
@@ -407,6 +429,8 @@ export const FullscreenScoreboard = ({
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+
       const active = document.activeElement?.tagName.toLowerCase();
       if (active === 'input' || active === 'textarea' || active === 'select')
         return;
@@ -429,7 +453,11 @@ export const FullscreenScoreboard = ({
 
       if (isSubmitShortcut) {
         e.preventDefault();
-        if (!cur.isSubmitting) cbs.submitSeries();
+        if (!cur.isSubmitting) {
+          if (cur.isMatchFinished || (cur.scoreL === 0 && cur.scoreR === 0)) {
+            cbs.submitSeries();
+          }
+        }
         return;
       }
 
@@ -440,7 +468,6 @@ export const FullscreenScoreboard = ({
           setScoreL(0);
           setScoreR(0);
           setTime(0);
-          if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = setInterval(() => setTime((v) => v + 1), 1000);
         }
         return;
@@ -463,9 +490,13 @@ export const FullscreenScoreboard = ({
         } else if (e.code === 'KeyW') {
           e.preventDefault();
           setScoreL((v) => Math.max(0, v - 1));
+          if (!timerRef.current)
+            timerRef.current = setInterval(() => setTime((v) => v + 1), 1000);
         } else if (e.code === 'KeyO') {
           e.preventDefault();
           setScoreR((v) => Math.max(0, v - 1));
+          if (!timerRef.current)
+            timerRef.current = setInterval(() => setTime((v) => v + 1), 1000);
         }
         return;
       }
@@ -519,6 +550,7 @@ export const FullscreenScoreboard = ({
         size='icon'
         onClick={onCloseReset}
         className='absolute top-6 right-6 h-14 w-14 rounded-full bg-card/40 backdrop-blur-xl border border-border/50 hover:bg-muted z-50 transition-all hover:rotate-90'
+        aria-label={t('Close')}
       >
         <X className='h-6 w-6' />
       </Button>
@@ -553,7 +585,7 @@ export const FullscreenScoreboard = ({
                     setPlayerRId('');
                   }
                 }}
-                className='w-full p-5 bg-background/50 rounded-2xl border border-border/50 text-xl font-bold outline-none cursor-pointer focus:ring-4 focus:ring-primary/20 transition-all'
+                className='w-full p-5 bg-background/50 rounded-2xl border-2 border-border/50 text-xl font-bold outline-none cursor-pointer focus:ring-4 focus:ring-primary/20 transition-all'
               >
                 <option value='' disabled>
                   {t('Choose Room...')}
@@ -580,7 +612,7 @@ export const FullscreenScoreboard = ({
                   value={playerLId}
                   onChange={(e) => setPlayerLId(e.target.value)}
                   disabled={!selectedRoom}
-                  className='w-full p-5 bg-background/50 rounded-2xl border border-blue-500/20 text-lg font-bold outline-none cursor-pointer focus:ring-4 focus:ring-blue-500/20 transition-all'
+                  className='w-full p-5 bg-background/50 rounded-2xl border-2 border-blue-500/20 text-lg font-bold outline-none cursor-pointer focus:ring-4 focus:ring-blue-500/20 transition-all'
                 >
                   <option value='' disabled>
                     {t('Select Player')}
@@ -609,7 +641,7 @@ export const FullscreenScoreboard = ({
                   value={playerRId}
                   onChange={(e) => setPlayerRId(e.target.value)}
                   disabled={!selectedRoom}
-                  className='w-full p-5 bg-background/50 rounded-2xl border border-red-500/20 text-lg font-bold outline-none cursor-pointer focus:ring-4 focus:ring-red-500/20 transition-all'
+                  className='w-full p-5 bg-background/50 rounded-2xl border-2 border-red-500/20 text-lg font-bold outline-none cursor-pointer focus:ring-4 focus:ring-red-500/20 transition-all'
                 >
                   <option value='' disabled>
                     {t('Select Player')}
@@ -729,15 +761,7 @@ export const FullscreenScoreboard = ({
                   {t('Time')}
                 </span>
                 <span className='text-3xl font-mono font-light tracking-tighter tabular-nums opacity-80'>
-                  {((v) =>
-                    typeof v === 'number'
-                      ? `${Math.floor(v / 60)
-                          .toString()
-                          .padStart(
-                            2,
-                            '0',
-                          )}:${(v % 60).toString().padStart(2, '0')}`
-                      : '00:00')(time)}
+                  {formatTime(time)}
                 </span>
               </div>
             </div>
@@ -814,7 +838,7 @@ export const FullscreenScoreboard = ({
           </div>
 
           <div className='absolute bottom-10 left-10 z-50 group'>
-            <div className='absolute bottom-full left-0 mb-4 p-8 bg-card/90 backdrop-blur-3xl rounded-[2.5rem] border border-border shadow-2xl min-w-[340px] opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 origin-bottom-left'>
+            <div className='absolute bottom-full left-0 mb-4 p-8 bg-card/90 backdrop-blur-3xl rounded-[2.5rem] border border-border shadow-2xl min-w-[340px] opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:pointer-events-auto transition-all duration-300 origin-bottom-left'>
               <div className='flex items-center gap-3 mb-6'>
                 <div className='h-3 w-3 rounded-full bg-emerald-500 animate-pulse' />
                 <h4 className='text-xs font-black uppercase tracking-[0.2em] text-foreground'>
@@ -898,12 +922,12 @@ export const FullscreenScoreboard = ({
               </div>
             </div>
 
-            <div className='p-4 bg-card/90 backdrop-blur-3xl rounded-full border border-border shadow-2xl flex items-center gap-3 cursor-pointer hover:bg-muted transition-colors w-max'>
+            <button className='p-4 bg-card/90 backdrop-blur-3xl rounded-full border border-border shadow-2xl flex items-center gap-3 cursor-pointer hover:bg-muted focus:outline-none focus:ring-4 focus:ring-primary/50 transition-all w-max'>
               <div className='h-3 w-3 rounded-full bg-emerald-500 animate-pulse' />
               <span className='text-xs font-black uppercase tracking-[0.2em] pr-2'>
                 {isMatchFinished ? t('Post-Match') : t('Remote')}
               </span>
-            </div>
+            </button>
           </div>
 
           {isMatchFinished && (
