@@ -5,8 +5,11 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development next dev",
     "build": "next build",
+    "build:functions": "npm --prefix functions run build",
     "start": "next start",
-    "deploy": "npm run build && firebase deploy --only hosting",
+    "deploy:dev": "npm run build:functions && rm -rf .next && firebase deploy --project pingpong-dev-fa6d2",
+    "deploy:prod": "npm run build:functions && rm -rf .next && firebase deploy --project tabletennis-f4c23",
+    "deploy:all": "npm run deploy:dev && npm run deploy:prod",
     "i18n:extract": "npx i18next-parser",
     "lint:css": "stylelint \"src/**/*.css\" \"src/**/*.scss\" --quiet",
     "lint:css:fix": "stylelint \"src/**/*.css\" \"src/**/*.scss\" --fix --quiet",

@@ -586,7 +586,7 @@ export const FullscreenScoreboard = ({
                   htmlFor='playerLId'
                   className='text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] pl-2'
                 >
-                  {t('Blue Corner')}
+                  {t('Left Corner')}
                 </label>
                 <select
                   id='playerLId'
@@ -615,7 +615,7 @@ export const FullscreenScoreboard = ({
                   htmlFor='playerRId'
                   className='text-[10px] font-black text-red-500 uppercase tracking-[0.3em] pl-2'
                 >
-                  {t('Red Corner')}
+                  {t('Right Corner')}
                 </label>
                 <select
                   id='playerRId'

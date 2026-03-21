@@ -6,8 +6,7 @@
   "hosting": {
     "source": ".",
     "frameworksBackend": {
-      "region": "europe-west1",
-      "dotEnv": ".env.production"
+      "region": "europe-west1"
     },
     "headers": [
       {
