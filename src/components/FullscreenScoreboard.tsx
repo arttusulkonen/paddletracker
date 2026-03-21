@@ -15,6 +15,7 @@ import {
 	ArrowUp,
 	Flame,
 	Loader2,
+	Minus,
 	Trophy,
 	X,
 } from 'lucide-react';
@@ -104,17 +105,12 @@ export const FullscreenScoreboard = ({
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-      if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsMac(navigator.userAgent.toUpperCase().indexOf('MAC') >= 0);
     }
     return () => {
+      document.body.style.overflow = '';
+      if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
@@ -166,7 +162,11 @@ export const FullscreenScoreboard = ({
   useEffect(() => {
     if (!rooms || rooms.length === 0) return;
 
-    if (lastActiveRoom && !lastActiveRoom.isArchived) {
+    if (
+      lastActiveRoom &&
+      lastActiveRoom.isArchived !== true &&
+      lastActiveRoom.isArchived !== 'true'
+    ) {
       const match = rooms.find((r) => r.id === lastActiveRoom.id);
       if (match) {
         setSelectedRoom(match);
@@ -197,7 +197,7 @@ export const FullscreenScoreboard = ({
     (l: number, r: number) => {
       if (config && typeof (config as any).validateScore === 'function') {
         const res = (config as any).validateScore(l, r);
-        return typeof res === 'boolean' ? res : res?.isValid;
+        return typeof res === 'boolean' ? res : !!res?.isValid;
       }
       return (l >= 11 || r >= 11) && Math.abs(l - r) >= 2;
     },
@@ -236,28 +236,6 @@ export const FullscreenScoreboard = ({
     critical_tie: 'text-foreground drop-shadow-[0_0_25px_rgba(59,130,246,0.6)]',
     high_voltage: 'text-foreground drop-shadow-[0_0_35px_rgba(245,158,11,0.7)]',
   };
-
-  const gamesWonL = useMemo(() => {
-    return matchHistory.filter((m) => {
-      const pLWin = m.scoreL > m.scoreR;
-      const pRWin = m.scoreR > m.scoreL;
-      return (
-        (m.playerLId === playerLId && pLWin) ||
-        (m.playerRId === playerLId && pRWin)
-      );
-    }).length;
-  }, [matchHistory, playerLId]);
-
-  const gamesWonR = useMemo(() => {
-    return matchHistory.filter((m) => {
-      const pLWin = m.scoreL > m.scoreR;
-      const pRWin = m.scoreR > m.scoreL;
-      return (
-        (m.playerLId === playerRId && pLWin) ||
-        (m.playerRId === playerRId && pRWin)
-      );
-    }).length;
-  }, [matchHistory, playerRId]);
 
   const playerLHistoryStatus = useMemo(() => {
     return matchHistory.map((m) => {
@@ -462,6 +440,7 @@ export const FullscreenScoreboard = ({
           setScoreL(0);
           setScoreR(0);
           setTime(0);
+          if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = setInterval(() => setTime((v) => v + 1), 1000);
         }
         return;
@@ -574,7 +553,7 @@ export const FullscreenScoreboard = ({
                     setPlayerRId('');
                   }
                 }}
-                className='w-full p-5 bg-background/50 rounded-2xl border-2 border-border/50 text-xl font-bold outline-none cursor-pointer focus:ring-4 focus:ring-primary/20 transition-all'
+                className='w-full p-5 bg-background/50 rounded-2xl border border-border/50 text-xl font-bold outline-none cursor-pointer focus:ring-4 focus:ring-primary/20 transition-all'
               >
                 <option value='' disabled>
                   {t('Choose Room...')}
@@ -601,7 +580,7 @@ export const FullscreenScoreboard = ({
                   value={playerLId}
                   onChange={(e) => setPlayerLId(e.target.value)}
                   disabled={!selectedRoom}
-                  className='w-full p-5 bg-background/50 rounded-2xl border-2 border-blue-500/20 text-lg font-bold outline-none cursor-pointer focus:ring-4 focus:ring-blue-500/20 transition-all'
+                  className='w-full p-5 bg-background/50 rounded-2xl border border-blue-500/20 text-lg font-bold outline-none cursor-pointer focus:ring-4 focus:ring-blue-500/20 transition-all'
                 >
                   <option value='' disabled>
                     {t('Select Player')}
@@ -630,7 +609,7 @@ export const FullscreenScoreboard = ({
                   value={playerRId}
                   onChange={(e) => setPlayerRId(e.target.value)}
                   disabled={!selectedRoom}
-                  className='w-full p-5 bg-background/50 rounded-2xl border-2 border-red-500/20 text-lg font-bold outline-none cursor-pointer focus:ring-4 focus:ring-red-500/20 transition-all'
+                  className='w-full p-5 bg-background/50 rounded-2xl border border-red-500/20 text-lg font-bold outline-none cursor-pointer focus:ring-4 focus:ring-red-500/20 transition-all'
                 >
                   <option value='' disabled>
                     {t('Select Player')}
@@ -995,6 +974,7 @@ export const FullscreenScoreboard = ({
           <div className='flex flex-col gap-4 mb-14'>
             {matchResults.updates.map((u, idx) => {
               const isPositive = u.eloDiff > 0;
+              const isNeutral = u.eloDiff === 0;
               const isEpic = u.eloDiff >= 20;
               return (
                 <div
@@ -1025,10 +1005,12 @@ export const FullscreenScoreboard = ({
                   </div>
                   <div className='text-right'>
                     <div
-                      className={`font-black text-5xl flex items-center justify-end gap-1 tracking-tighter ${isPositive ? 'text-emerald-500' : 'text-destructive'}`}
+                      className={`font-black text-5xl flex items-center justify-end gap-1 tracking-tighter ${isPositive ? 'text-emerald-500' : isNeutral ? 'text-muted-foreground' : 'text-destructive'}`}
                     >
                       {isPositive ? (
                         <ArrowUp size={36} />
+                      ) : isNeutral ? (
+                        <Minus size={30} />
                       ) : (
                         <ArrowDown size={36} />
                       )}
