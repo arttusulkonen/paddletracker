@@ -16,6 +16,9 @@
     "lint": "npm run lint:js && npm run lint:css && npm run lint:types",
     "fix": "npm run lint:js:fix && npm run lint:css:fix"
   },
+  "engines": {
+    "node": "22"
+  },
   "dependencies": {
     "@genkit-ai/googleai": "^1.6.2",
     "@genkit-ai/next": "^1.6.2",

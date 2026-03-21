@@ -7,7 +7,6 @@ import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
 import { app, db } from '@/lib/firebase';
 import type { Room } from '@/lib/types';
-import confetti from 'canvas-confetti';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
@@ -16,6 +15,7 @@ import {
 	ArrowUp,
 	Flame,
 	Loader2,
+	Minus,
 	Trophy,
 	X,
 } from 'lucide-react';
@@ -237,28 +237,6 @@ export const FullscreenScoreboard = ({
     high_voltage: 'text-foreground drop-shadow-[0_0_35px_rgba(245,158,11,0.7)]',
   };
 
-  const gamesWonL = useMemo(() => {
-    return matchHistory.filter((m) => {
-      const pLWin = m.scoreL > m.scoreR;
-      const pRWin = m.scoreR > m.scoreL;
-      return (
-        (m.playerLId === playerLId && pLWin) ||
-        (m.playerRId === playerLId && pRWin)
-      );
-    }).length;
-  }, [matchHistory, playerLId]);
-
-  const gamesWonR = useMemo(() => {
-    return matchHistory.filter((m) => {
-      const pLWin = m.scoreL > m.scoreR;
-      const pRWin = m.scoreR > m.scoreL;
-      return (
-        (m.playerLId === playerRId && pLWin) ||
-        (m.playerRId === playerRId && pRWin)
-      );
-    }).length;
-  }, [matchHistory, playerRId]);
-
   const playerLHistoryStatus = useMemo(() => {
     return matchHistory.map((m) => {
       const pLWin = m.scoreL > m.scoreR;
@@ -303,13 +281,17 @@ export const FullscreenScoreboard = ({
     playerRId,
   ]);
 
+  // ДИНАМИЧЕСКИЙ ИМПОРТ: Экономит ~2-3 МБ оперативной памяти на сервере!
   useEffect(() => {
     if (isMatchFinished) {
-      confetti({
-        particleCount: 150,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b'],
+      import('canvas-confetti').then((module) => {
+        const confetti = module.default;
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b'],
+        });
       });
     }
   }, [isMatchFinished]);
@@ -761,7 +743,15 @@ export const FullscreenScoreboard = ({
                   {t('Time')}
                 </span>
                 <span className='text-3xl font-mono font-light tracking-tighter tabular-nums opacity-80'>
-                  {formatTime(time)}
+                  {((v) =>
+                    typeof v === 'number'
+                      ? `${Math.floor(v / 60)
+                          .toString()
+                          .padStart(
+                            2,
+                            '0',
+                          )}:${(v % 60).toString().padStart(2, '0')}`
+                      : '00:00')(time)}
                 </span>
               </div>
             </div>

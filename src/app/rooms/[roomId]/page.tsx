@@ -117,7 +117,7 @@ export default function RoomPage() {
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [isInviting, setIsInviting] = useState(false);
 
-  const debugMode = false;
+  const debugMode = false as boolean;
 
   const memberIdsSet = useMemo(
     () => new Set(room?.memberIds ?? []),
@@ -133,8 +133,9 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!user || !db) return;
+    const firestore = db;
     const unsubRoom = onSnapshot(
-      doc(db, config.collections.rooms, roomId),
+      doc(firestore, config.collections.rooms, roomId),
       (snap) => {
         if (!snap.exists()) {
           router.push('/rooms');
@@ -169,8 +170,9 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!user || accessDenied || !db) return;
+    const firestore = db;
     const roomsQ = query(
-      collection(db, config.collections.rooms),
+      collection(firestore, config.collections.rooms),
       where('memberIds', 'array-contains', user.uid),
     );
     const unsub = onSnapshot(roomsQ, async (snap) => {
@@ -242,8 +244,9 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!user || !db || accessDenied) return;
+    const firestore = db;
     const q = query(
-      collection(db, config.collections.matches),
+      collection(firestore, config.collections.matches),
       where('roomId', '==', roomId),
     );
     const unsub = onSnapshot(q, (snap) => {
@@ -271,6 +274,7 @@ export default function RoomPage() {
     if (!room) return;
     const syncData = async () => {
       if (!db) return;
+      const firestore = db;
       const starts: Record<string, number> = {};
       const roomStarts: Record<string, number> = {};
       rawMatches.forEach((m) => {
@@ -302,7 +306,7 @@ export default function RoomPage() {
       const userDocsSnaps = await Promise.all(
         memberIds.map(async (id) => {
           try {
-            return await getDoc(doc(db!, 'users', id));
+            return await getDoc(doc(firestore, 'users', id));
           } catch {
             return null;
           }
@@ -456,9 +460,11 @@ export default function RoomPage() {
   );
 
   const handleFinishSeason = useCallback(async () => {
+    if (!db) return;
+    const firestore = db;
     try {
       const qs = query(
-        collection(db!, config.collections.matches),
+        collection(firestore, config.collections.matches),
         where('roomId', '==', roomId),
         orderBy('tsIso', 'asc'),
       );
@@ -492,6 +498,7 @@ export default function RoomPage() {
 
   const handleForceEndSprint = async () => {
     if (!room || room.mode !== 'derby' || !db) return;
+    const firestore = db;
     try {
       const nowMs = Date.now();
       const nowIso = new Date().toISOString();
@@ -552,7 +559,7 @@ export default function RoomPage() {
         : [];
       sprintHistory.push(sprintResult);
 
-      const batch = writeBatch(db);
+      const batch = writeBatch(firestore);
       const updatedMembers = members.map((m: any) => {
         let hof = hallOfFame.find((e: any) => e.userId === m.userId);
         if (!hof) {
@@ -577,7 +584,7 @@ export default function RoomPage() {
 
         const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
         if (podiumIdx !== -1) {
-          const userRef = doc(db!, 'users', m.userId);
+          const userRef = doc(firestore, 'users', m.userId);
           const baseAchievement = {
             sport,
             dateFinished: nowIso,
@@ -603,7 +610,7 @@ export default function RoomPage() {
           m.userId === topStreakPlayer?.userId &&
           (m.highestStreak || 0) >= 5
         ) {
-          batch.update(doc(db!, 'users', m.userId), {
+          batch.update(doc(firestore, 'users', m.userId), {
             achievements: arrayUnion({
               type: 'derbyUnstoppable',
               sport,
@@ -624,7 +631,7 @@ export default function RoomPage() {
       });
 
       batch.update(
-        doc(db, config.collections.rooms, roomId),
+        doc(firestore, config.collections.rooms, roomId),
         cleanForFirebase({
           members: updatedMembers,
           hallOfFame,
@@ -646,9 +653,10 @@ export default function RoomPage() {
 
   const handleInviteFriends = async () => {
     if (!user || !room || !db || selectedFriends.length === 0) return;
+    const firestore = db;
     setIsInviting(true);
     try {
-      const batch = writeBatch(db);
+      const batch = writeBatch(firestore);
       const profiles = await Promise.all(
         selectedFriends.map(async (uid) => {
           const p = await getUserLite(uid);
@@ -666,9 +674,11 @@ export default function RoomPage() {
         role: 'editor' as const,
       }));
       selectedFriends.forEach((uid) =>
-        batch.update(doc(db!, 'users', uid), { rooms: arrayUnion(roomId) }),
+        batch.update(doc(firestore, 'users', uid), {
+          rooms: arrayUnion(roomId),
+        }),
       );
-      batch.update(doc(db, config.collections.rooms, roomId), {
+      batch.update(doc(firestore, config.collections.rooms, roomId), {
         members: arrayUnion(...newMembers),
         memberIds: arrayUnion(...selectedFriends),
       });
@@ -685,14 +695,17 @@ export default function RoomPage() {
 
   const handleRemovePlayer = async (uid: string) => {
     if (!room || !db || !canManageRoom) return;
+    const firestore = db;
     try {
-      const batch = writeBatch(db);
+      const batch = writeBatch(firestore);
       const member = members.find((m) => m.userId === uid);
-      batch.update(doc(db, config.collections.rooms, roomId), {
+      batch.update(doc(firestore, config.collections.rooms, roomId), {
         memberIds: arrayRemove(uid),
         members: member ? arrayRemove(member) : undefined,
       });
-      batch.update(doc(db!, 'users', uid), { rooms: arrayRemove(roomId) });
+      batch.update(doc(firestore, 'users', uid), {
+        rooms: arrayRemove(roomId),
+      });
       await batch.commit();
       toast({ title: t('Player removed') });
     } catch (e) {
@@ -738,16 +751,18 @@ export default function RoomPage() {
           isMember={!!isMember}
           hasPendingRequest={!!room.joinRequests?.includes(user?.uid ?? '')}
           isCreator={isCreator}
-          onJoin={() =>
-            updateDoc(doc(db!, config.collections.rooms, roomId), {
+          onJoin={() => {
+            if (!db) return;
+            updateDoc(doc(db, config.collections.rooms, roomId), {
               joinRequests: arrayUnion(user!.uid),
-            })
-          }
-          onCancelJoin={() =>
-            updateDoc(doc(db!, config.collections.rooms, roomId), {
+            });
+          }}
+          onCancelJoin={() => {
+            if (!db) return;
+            updateDoc(doc(db, config.collections.rooms, roomId), {
               joinRequests: arrayRemove(user!.uid),
-            })
-          }
+            });
+          }}
           onLeave={() => router.push('/rooms')}
         />
 
