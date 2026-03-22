@@ -1,4 +1,3 @@
-// src/components/FullscreenScoreboard.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -284,15 +283,19 @@ export const FullscreenScoreboard = ({
   // ДИНАМИЧЕСКИЙ ИМПОРТ: Экономит ~2-3 МБ оперативной памяти на сервере!
   useEffect(() => {
     if (isMatchFinished) {
-      import('canvas-confetti').then((module) => {
-        const confetti = module.default;
-        confetti({
-          particleCount: 150,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b'],
+      import('canvas-confetti')
+        .then((module) => {
+          const confetti = module.default;
+          confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b'],
+          });
+        })
+        .catch((error) => {
+          console.error(error);
         });
-      });
     }
   }, [isMatchFinished]);
 
@@ -450,6 +453,7 @@ export const FullscreenScoreboard = ({
           setScoreL(0);
           setScoreR(0);
           setTime(0);
+          if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = setInterval(() => setTime((v) => v + 1), 1000);
         }
         return;
@@ -1028,7 +1032,7 @@ export const FullscreenScoreboard = ({
                       ) : (
                         <ArrowDown size={36} />
                       )}
-                      {Math.round(Math.abs(u.eloDiff))}
+                      {(u.eloDiff > 0 ? '+' : '') + Math.round(u.eloDiff)}
                     </div>
                     <div className='text-xs font-black text-muted-foreground uppercase mt-3 tracking-widest'>
                       <span className='text-foreground text-sm mr-2'>

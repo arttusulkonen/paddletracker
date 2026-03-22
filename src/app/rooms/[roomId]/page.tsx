@@ -1,4 +1,3 @@
-// src/app/rooms/[roomId]/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -117,7 +116,12 @@ export default function RoomPage() {
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [isInviting, setIsInviting] = useState(false);
 
-  const debugMode = false as boolean;
+  const debugModeEnv =
+    typeof process !== 'undefined'
+      ? process.env.NEXT_PUBLIC_ROOMS_DEBUG_MODE
+      : undefined;
+  const debugMode =
+    typeof debugModeEnv === 'string' && debugModeEnv.toLowerCase() === 'true';
 
   const memberIdsSet = useMemo(
     () => new Set(room?.memberIds ?? []),
