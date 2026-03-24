@@ -120,7 +120,7 @@ export const FullscreenScoreboard = ({
     const fetchRooms = async () => {
       try {
         const q = query(
-          collection(db, config.collections.rooms),
+          collection(db!, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid),
         );
         const snap = await getDocs(q);
@@ -203,13 +203,6 @@ export const FullscreenScoreboard = ({
     [config],
   );
 
-  const formatTime = (seconds: number) => {
-    if (seconds === null || seconds === undefined) return '00:00';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-  };
-
   const isMatchFinished = checkWinCondition(scoreL, scoreR);
 
   const intensity = useMemo(() => {
@@ -280,7 +273,6 @@ export const FullscreenScoreboard = ({
     playerRId,
   ]);
 
-  // ДИНАМИЧЕСКИЙ ИМПОРТ: Экономит ~2-3 МБ оперативной памяти на сервере!
   useEffect(() => {
     if (isMatchFinished) {
       import('canvas-confetti')
