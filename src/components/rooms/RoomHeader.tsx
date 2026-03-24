@@ -1,4 +1,3 @@
-// src/components/rooms/RoomHeader.tsx
 'use client';
 
 import {
@@ -16,6 +15,9 @@ import {
 	AvatarImage,
 	Button,
 	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
 	DialogTrigger,
 	Tooltip,
 	TooltipContent,
@@ -76,31 +78,38 @@ export function RoomHeader({
   const [timeLeft, setTimeLeft] = useState<string>('');
 
   useEffect(() => {
-    if (mode !== 'derby' || !room.sprintStartTs) return;
+    if (mode !== 'derby') return;
 
-    const interval = setInterval(() => {
-      const durationWeeks = (room as any).sprintDurationWeeks || 1;
-      const endTs =
-        Number(room.sprintStartTs) + durationWeeks * 7 * 24 * 60 * 60 * 1000;
+    const calculateTimeLeft = () => {
+      const startTs = room.sprintStartTs;
+
+      if (!startTs) {
+        return t('Awaiting first match...');
+      }
+
+      const durationWeeks = room.sprintDuration || 2;
+      const endTs = startTs + durationWeeks * 7 * 24 * 60 * 60 * 1000;
       const now = Date.now();
       const diff = endTs - now;
 
       if (diff <= 0) {
-        setTimeLeft(t('Finalizing...'));
-        return;
+        return t('Finalizing...');
       }
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / (1000 * 60)) % 60);
 
-      setTimeLeft(
-        `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`,
-      );
+      return `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    const interval = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [room.sprintStartTs, mode, t]);
+  }, [room.sprintStartTs, room.sprintDuration, mode, t]);
 
   const topBountyMember = members?.reduce((prev, current) => {
     const prevStreak = prev?.currentStreak ?? 0;
@@ -340,7 +349,7 @@ export function RoomHeader({
             )}
 
             {mode === 'derby' && (
-              <div className='mt-8 flex flex-wrap gap-4'>
+              <div className='mt-8 flex flex-wrap gap-4 h-full'>
                 <div className='flex items-center gap-4 bg-background/40 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-2xl p-4 min-w-[280px] shadow-sm'>
                   <div className='h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary relative'>
                     <Zap className='w-6 h-6 fill-current' />
@@ -356,10 +365,106 @@ export function RoomHeader({
                     </div>
                     <div className='text-lg font-black tracking-tight flex items-center gap-2'>
                       <Clock className='w-4 h-4 text-muted-foreground' />
-                      {timeLeft || '--:--'}
+                      {timeLeft}
                     </div>
                   </div>
                 </div>
+
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant='outline'
+                      className='rounded-2xl h-auto py-4 min-h-[80px] border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-700 dark:text-red-400'
+                    >
+                      <HelpCircle className='w-5 h-5 mr-2' />
+                      {t('Derby FAQ')}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className='glass-panel sm:max-w-2xl border-0 rounded-[2rem]'>
+                    <DialogHeader>
+                      <DialogTitle className='text-2xl font-black uppercase tracking-tight text-red-600 dark:text-red-400 flex items-center gap-2'>
+                        <Swords className='w-6 h-6' />
+                        {t('Derby Mode FAQ')}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className='space-y-6 mt-4 text-sm'>
+                      <div className='space-y-2'>
+                        <h4 className='font-bold text-foreground text-base'>
+                          {t('Why does Room ELO start lower than Global ELO?')}
+                        </h4>
+                        <p className='text-muted-foreground leading-relaxed mb-2'>
+                          {t(
+                            'To keep the micro-league highly competitive, Derby mode compresses starting ELOs towards 1000. This ensures a tight leaderboard while giving a slight advantage to experienced players.',
+                          )}
+                        </p>
+                        <div className='bg-muted/30 p-3 rounded-lg'>
+                          <span className='font-mono text-xs block mb-1 text-foreground'>
+                            {t('Formula: 500 + (Global ELO * 0.5)')}
+                          </span>
+                          <span className='text-xs text-muted-foreground'>
+                            {t(
+                              'Example: If Global ELO is 1120, Room ELO becomes 1060.',
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <h4 className='font-bold text-foreground text-base'>
+                          {t(
+                            'Why do Room ELO and Global ELO change differently?',
+                          )}
+                        </h4>
+                        <p className='text-muted-foreground leading-relaxed mb-2'>
+                          {t(
+                            'Points gained or lost depend on the rating difference between players. Because Room ELOs are compressed, the gap between players is smaller, resulting in slightly more volatile rating changes inside the room.',
+                          )}
+                        </p>
+                        <div className='bg-muted/30 p-3 rounded-lg'>
+                          <span className='text-xs text-muted-foreground'>
+                            {t(
+                              'Example: A 40-point gap globally might only be a 20-point gap in the room. This makes upsets more rewarding and losses slightly more punishing locally.',
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <h4 className='font-bold text-foreground text-base'>
+                          {t('What are Bounties and Nemesis?')}
+                        </h4>
+                        <p className='text-muted-foreground leading-relaxed mb-2'>
+                          {t(
+                            'These are unique multipliers applied ONLY to Room ELO:',
+                          )}
+                        </p>
+                        <ul className='list-disc pl-5 text-muted-foreground space-y-3'>
+                          <li>
+                            <strong className='text-foreground'>
+                              {t('Bounty:')}
+                            </strong>{' '}
+                            {t(
+                              'A player with 3+ consecutive wins gets a bounty. Defeating them grants a bonus of (Streak - 2) * 5 ELO.',
+                            )}
+                            <div className='block text-xs mt-2 bg-muted/30 p-2 rounded-md'>
+                              {t(
+                                'Example: Stopping a 5-win streak gives +15 bonus ELO and the Giant Slayer badge.',
+                              )}
+                            </div>
+                          </li>
+                          <li>
+                            <strong className='text-foreground'>
+                              {t('Nemesis:')}
+                            </strong>{' '}
+                            {t(
+                              'An opponent you have a <40% win rate against (minimum 3 games). Beating your Nemesis multiplies your gained ELO by 1.5x.',
+                            )}
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
                 {showBounty && topBountyMember && (
                   <div className='flex items-center gap-4 bg-red-500/5 backdrop-blur-md ring-1 ring-red-500/20 rounded-2xl p-4 min-w-[280px] shadow-sm animate-in fade-in slide-in-from-left-4 duration-500'>
