@@ -73,7 +73,6 @@ export function RoomHeader({
   const memberCount = room.memberIds?.length || 0;
   const isManagedUser = !!userProfile?.managedBy;
 
-  // --- Логика Таймера Спринта ---
   const [timeLeft, setTimeLeft] = useState<string>('');
 
   useEffect(() => {
@@ -82,7 +81,7 @@ export function RoomHeader({
     const interval = setInterval(() => {
       const durationWeeks = (room as any).sprintDurationWeeks || 1;
       const endTs =
-        room.sprintStartTs! + durationWeeks * 7 * 24 * 60 * 60 * 1000;
+        Number(room.sprintStartTs) + durationWeeks * 7 * 24 * 60 * 60 * 1000;
       const now = Date.now();
       const diff = endTs - now;
 
@@ -340,10 +339,8 @@ export function RoomHeader({
               </p>
             )}
 
-            {/* --- DERBY INFO SECTION (Sprint & Bounty) --- */}
             {mode === 'derby' && (
               <div className='mt-8 flex flex-wrap gap-4'>
-                {/* Sprint Timer Block */}
                 <div className='flex items-center gap-4 bg-background/40 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-2xl p-4 min-w-[280px] shadow-sm'>
                   <div className='h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary relative'>
                     <Zap className='w-6 h-6 fill-current' />
@@ -364,7 +361,6 @@ export function RoomHeader({
                   </div>
                 </div>
 
-                {/* Bounty Block */}
                 {showBounty && topBountyMember && (
                   <div className='flex items-center gap-4 bg-red-500/5 backdrop-blur-md ring-1 ring-red-500/20 rounded-2xl p-4 min-w-[280px] shadow-sm animate-in fade-in slide-in-from-left-4 duration-500'>
                     <Avatar className='h-12 w-12 ring-2 ring-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]'>
