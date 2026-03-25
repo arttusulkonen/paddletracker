@@ -104,10 +104,8 @@ export function RoomHeader({
       return `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
     };
 
-    // Set initial label
     setTimeLeft(calculateTimeLeft());
 
-    // Only start an interval once we have a valid, non-zero sprint start timestamp.
     const startMs = Number(room.sprintStartTs);
     const hasValidStartTs =
       !!room.sprintStartTs && !Number.isNaN(startMs) && startMs !== 0;
@@ -115,7 +113,6 @@ export function RoomHeader({
       return;
     }
 
-    // Update once per minute since we only display days/hours/minutes.
     const interval = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
     }, 60_000);
@@ -234,14 +231,36 @@ export function RoomHeader({
                           <div>
                             <h4 className='font-bold text-foreground'>
                               {t(
+                                'What is a Sprint and what does the timer mean?',
+                              )}
+                            </h4>
+                            <p>
+                              {t(
+                                'Derby mode runs in continuous cycles called Sprints. The timer shows how much time is left until the current Sprint ends. When the timer hits zero, the player with the highest ELO is crowned Champion, achievements are awarded, and all Room ELOs undergo a 25% Soft Reset towards 1000 to keep the next Sprint competitive.',
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <h4 className='font-bold text-foreground'>
+                              {t(
                                 'Why does Room ELO start lower than Global ELO?',
                               )}
                             </h4>
                             <p>
                               {t(
-                                'To keep the micro-league highly competitive, Derby mode compresses starting ELOs towards 1000.',
+                                'To keep the micro-league highly competitive, Derby mode compresses starting ELOs towards 1000. This ensures a tight leaderboard while giving a slight advantage to experienced players.',
                               )}
                             </p>
+                            <div className='bg-muted/30 p-3 rounded-lg mt-1.5'>
+                              <span className='font-mono text-[10px] block mb-1 text-foreground'>
+                                {t('Formula: 500 + (Global ELO * 0.5)')}
+                              </span>
+                              <span className='text-[10px] text-muted-foreground/80'>
+                                {t(
+                                  'Example: If Global ELO is 1120, Room ELO becomes 1060.',
+                                )}
+                              </span>
+                            </div>
                           </div>
                           <div>
                             <h4 className='font-bold text-foreground'>
@@ -251,15 +270,27 @@ export function RoomHeader({
                             </h4>
                             <p>
                               {t(
-                                'Because Room ELOs are compressed, the gap between players is smaller, resulting in slightly more volatile rating changes inside the room.',
+                                'Points gained or lost depend on the rating difference between players. Because Room ELOs are compressed, the gap between players is smaller, resulting in slightly more volatile rating changes inside the room.',
                               )}
                             </p>
+                            <div className='bg-muted/30 p-3 rounded-lg mt-1.5'>
+                              <span className='text-[10px] text-muted-foreground/80'>
+                                {t(
+                                  'Example: A 40-point gap globally might only be a 20-point gap in the room. This makes upsets more rewarding and losses slightly more punishing locally.',
+                                )}
+                              </span>
+                            </div>
                           </div>
                           <div>
                             <h4 className='font-bold text-foreground'>
                               {t('What are Bounties and Nemesis?')}
                             </h4>
-                            <ul className='list-disc pl-4 space-y-1 mt-1'>
+                            <p className='mb-1.5'>
+                              {t(
+                                'These are unique multipliers applied ONLY to Room ELO:',
+                              )}
+                            </p>
+                            <ul className='list-disc pl-4 space-y-2 mt-1'>
                               <li>
                                 <b className='text-foreground'>
                                   {t('Bounty:')}
@@ -267,6 +298,11 @@ export function RoomHeader({
                                 {t(
                                   'A player with 3+ consecutive wins gets a bounty. Defeating them grants a bonus of (Streak - 2) * 5 ELO.',
                                 )}
+                                <div className='block text-[10px] mt-1.5 bg-muted/30 p-2 rounded-md'>
+                                  {t(
+                                    'Example: Stopping a 5-win streak gives +15 bonus ELO and the Giant Slayer badge.',
+                                  )}
+                                </div>
                               </li>
                               <li>
                                 <b className='text-foreground'>
