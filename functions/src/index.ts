@@ -672,10 +672,16 @@ export const aiSaveMatch = onCall(
       const updatedMemberIds = new Set(currentMemberIds);
       members.forEach((m) => updatedMemberIds.add(m.userId));
 
-      batch.update(roomRef, {
+      const roomUpdates: any = {
         members,
         memberIds: Array.from(updatedMemberIds),
-      });
+      };
+
+      if (mode === 'derby' && !roomData.sprintStartTs) {
+        roomUpdates.sprintStartTs = Date.now();
+      }
+
+      batch.update(roomRef, roomUpdates);
 
       await batch.commit();
 
@@ -1237,7 +1243,13 @@ export const recordMatch = onCall(
     member2.wins = (member2.wins || 0) + totalWinsP2;
     member2.losses = (member2.losses || 0) + totalWinsP1;
 
-    batch.update(roomRef, { members: members });
+    const roomUpdates: any = { members: members };
+
+    if (mode === 'derby' && !roomData.sprintStartTs) {
+      roomUpdates.sprintStartTs = Date.now();
+    }
+
+    batch.update(roomRef, roomUpdates);
 
     const updateUserStats = (
       ref: any,
@@ -1849,8 +1861,6 @@ export const processDerbySprints = onSchedule(
         const sprintDurationWeeks = room.sprintDuration || 2;
 
         if (!room.sprintStartTs) {
-          await roomDoc.ref.update({ sprintStartTs: nowMs });
-          logger.info(`Initialized sprintStartTs for room ${roomDoc.id}`);
           continue;
         }
 
@@ -1897,7 +1907,6 @@ export const processDerbySprints = onSchedule(
             hallOfFame.push(entry);
           }
 
-          // Coerce existing values to numbers to prevent NaN/sorting issues
           entry.championships = Number(entry.championships) || 0;
           entry.streaksBroken = Number(entry.streaksBroken) || 0;
           entry.maxStreakEver = Number(entry.maxStreakEver) || 0;

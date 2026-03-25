@@ -420,11 +420,12 @@ export default function RoomPage() {
       });
     });
 
-    return members.map((m: RoomMember) => {
+    const basePlayers = members.map((m: RoomMember) => {
       const wins = matchStats[m.userId]?.wins ?? 0;
       const losses = matchStats[m.userId]?.losses ?? 0;
       const currentRating = latestRoomRatings[m.userId] ?? m.rating ?? 1000;
       const startingRating = seasonRoomStarts[m.userId] ?? 1000;
+
       let max = 0,
         cur = 0;
       rawMatches.forEach((match) => {
@@ -437,7 +438,9 @@ export default function RoomPage() {
           if (cur > max) max = cur;
         }
       });
+
       const total = wins + losses;
+
       return {
         ...m,
         rating: currentRating,
@@ -454,8 +457,28 @@ export default function RoomPage() {
           total > 0 ? (currentRating - startingRating) / total : 0,
         last5Form: last5Form(m),
         longestWinStreak: max,
+        startRoomRating: startingRating,
+        startGlobalElo: seasonStarts[m.userId] ?? m.globalElo ?? 1000,
       };
     });
+
+    const activePlayers = basePlayers.filter((p: any) => p.totalMatches > 0);
+    const totalMatchesAll = activePlayers.reduce(
+      (sum: number, r: any) => sum + r.totalMatches,
+      0,
+    );
+    const avgM =
+      activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
+
+    const adjFactor = (ratio: number) => {
+      if (!isFinite(ratio) || ratio <= 0) return 0;
+      return Math.sqrt(ratio);
+    };
+
+    return basePlayers.map((p: any) => ({
+      ...p,
+      adjPointsLive: p.deltaRoom * adjFactor(p.totalMatches / avgM),
+    }));
   }, [members, rawMatches, seasonStarts, seasonRoomStarts, last5Form]);
 
   const playersOnlyMembers = useMemo(
@@ -794,7 +817,6 @@ export default function RoomPage() {
           )}
         </div>
 
-        {/* SECTION 1: INTERACTIVE - MEMBERS & RECORDING */}
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12'>
           <div className='lg:col-span-4 space-y-6'>
             <Card className='shadow-xl border-0 rounded-[2rem] bg-card glass-panel'>
@@ -907,25 +929,7 @@ export default function RoomPage() {
           </div>
         </div>
 
-        {/* SECTION 2: INFORMATION - STANDINGS (FULL WIDTH) */}
         <div className='space-y-12'>
-          <section className='animate-in fade-in duration-700'>
-            <div className='flex items-center gap-3 mb-6 px-2'>
-              <div className='bg-primary/10 p-2 rounded-xl text-primary ring-1 ring-primary/20 shadow-sm'>
-                <LayoutDashboard className='w-5 h-5' />
-              </div>
-              <h2 className='text-2xl font-black tracking-tight'>
-                {t('Leaderboard')}
-              </h2>
-            </div>
-            <StandingsTable
-              players={playersOnlyMembers}
-              latestSeason={latestSeason}
-              roomCreatorId={room.createdBy || room.creator || ''}
-              roomMode={room.mode || 'office'}
-            />
-          </section>
-
           {(canManageRoom || isGlobalAdmin) &&
             room.mode === 'derby' &&
             debugMode && (
@@ -938,8 +942,7 @@ export default function RoomPage() {
               </section>
             )}
 
-          {/* SECTION 3: TABS - EVENTS & HISTORY (FULL WIDTH) */}
-          <section className='animate-in fade-in duration-1000 pb-12'>
+          <section className='animate-in fade-in duration-1000'>
             {room.mode === 'derby' ? (
               <Tabs defaultValue='derby' className='w-full'>
                 <TabsList className='mb-8 grid w-full max-w-2xl mx-auto grid-cols-3 p-1.5 bg-muted/30 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl h-auto min-h-[3.5rem]'>
@@ -1001,6 +1004,23 @@ export default function RoomPage() {
                 <RecentMatches matches={recentMatches} />
               </div>
             )}
+          </section>
+
+          <section className='animate-in fade-in duration-700'>
+            <div className='flex items-center gap-3 mb-6 px-2'>
+              <div className='bg-primary/10 p-2 rounded-xl text-primary ring-1 ring-primary/20 shadow-sm'>
+                <LayoutDashboard className='w-5 h-5' />
+              </div>
+              <h2 className='text-2xl font-black tracking-tight'>
+                {t('Leaderboard')}
+              </h2>
+            </div>
+            <StandingsTable
+              players={playersOnlyMembers}
+              latestSeason={latestSeason}
+              roomCreatorId={room.createdBy || room.creator || ''}
+              roomMode={room.mode || 'office'}
+            />
           </section>
         </div>
       </div>

@@ -1,4 +1,3 @@
-// src/components/rooms/RoomHeader.tsx
 'use client';
 
 import {
@@ -16,6 +15,9 @@ import {
 	AvatarImage,
 	Button,
 	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
 	DialogTrigger,
 	Tooltip,
 	TooltipContent,
@@ -76,31 +78,50 @@ export function RoomHeader({
   const [timeLeft, setTimeLeft] = useState<string>('');
 
   useEffect(() => {
-    if (mode !== 'derby' || !room.sprintStartTs) return;
+    if (mode !== 'derby') return;
 
-    const interval = setInterval(() => {
-      const durationWeeks = (room as any).sprintDurationWeeks || 1;
-      const endTs =
-        Number(room.sprintStartTs) + durationWeeks * 7 * 24 * 60 * 60 * 1000;
+    const calculateTimeLeft = () => {
+      const startTs = room.sprintStartTs;
+
+      if (!startTs) return t('Awaiting first match...');
+
+      const startMs = Number(startTs);
+      if (Number.isNaN(startMs) || startMs === 0)
+        return t('Awaiting first match...');
+
+      const durationWeeks = Number(room.sprintDuration) || 2;
+      const durationMs = durationWeeks * 7 * 24 * 60 * 60 * 1000;
+      const endTs = startMs + durationMs;
       const now = Date.now();
       const diff = endTs - now;
 
-      if (diff <= 0) {
-        setTimeLeft(t('Finalizing...'));
-        return;
-      }
+      if (diff <= 0) return t('Finalizing...');
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / (1000 * 60)) % 60);
 
-      setTimeLeft(
-        `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`,
-      );
-    }, 1000);
+      return `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
+    };
+
+    // Set initial label
+    setTimeLeft(calculateTimeLeft());
+
+    // Only start an interval once we have a valid, non-zero sprint start timestamp.
+    const startMs = Number(room.sprintStartTs);
+    const hasValidStartTs =
+      !!room.sprintStartTs && !Number.isNaN(startMs) && startMs !== 0;
+    if (!hasValidStartTs) {
+      return;
+    }
+
+    // Update once per minute since we only display days/hours/minutes.
+    const interval = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 60_000);
 
     return () => clearInterval(interval);
-  }, [room.sprintStartTs, mode, t]);
+  }, [room.sprintStartTs, room.sprintDuration, mode, t]);
 
   const topBountyMember = members?.reduce((prev, current) => {
     const prevStreak = prev?.currentStreak ?? 0;
@@ -121,7 +142,6 @@ export function RoomHeader({
       case 'professional':
         return {
           bg: 'bg-amber-50/50 dark:bg-amber-950/10',
-          border: 'border-amber-200 dark:border-amber-900',
           iconColor: 'text-amber-600 dark:text-amber-500',
           icon: <Medal className='w-4 h-4' />,
           label: t('Professional'),
@@ -132,7 +152,6 @@ export function RoomHeader({
       case 'arcade':
         return {
           bg: 'bg-purple-50/50 dark:bg-purple-950/10',
-          border: 'border-purple-200 dark:border-purple-900',
           iconColor: 'text-purple-600 dark:text-purple-500',
           icon: <Gamepad2 className='w-4 h-4' />,
           label: t('Arcade'),
@@ -143,7 +162,6 @@ export function RoomHeader({
       case 'derby':
         return {
           bg: 'bg-red-50/50 dark:bg-red-950/10',
-          border: 'border-red-200 dark:border-red-900',
           iconColor: 'text-red-600 dark:text-red-500',
           icon: <Swords className='w-4 h-4' />,
           label: t('Derby'),
@@ -154,7 +172,6 @@ export function RoomHeader({
       default:
         return {
           bg: 'bg-slate-50/50 dark:bg-slate-950/10',
-          border: 'border-slate-200 dark:border-slate-800',
           iconColor: 'text-slate-600 dark:text-slate-500',
           icon: <Briefcase className='w-4 h-4' />,
           label: t('Office'),
@@ -169,107 +186,164 @@ export function RoomHeader({
 
   return (
     <div
-      className={`mb-10 rounded-[2.5rem] overflow-hidden glass-panel relative ${theme.bg}`}
+      className={`mb-8 rounded-3xl overflow-hidden glass-panel relative ${theme.bg}`}
     >
       <div
         className={`absolute top-0 left-0 w-full h-1.5 opacity-80 ${theme.bg.includes('amber') ? 'bg-gradient-to-r from-amber-400 to-amber-600' : theme.bg.includes('purple') ? 'bg-gradient-to-r from-purple-400 to-purple-600' : theme.bg.includes('red') ? 'bg-gradient-to-r from-red-400 to-red-600' : 'bg-gradient-to-r from-slate-400 to-slate-600'}`}
       />
 
-      <div className='relative px-8 py-10 md:px-12'>
-        <div className='flex flex-col md:flex-row gap-8 items-start md:items-center'>
-          <div className='flex-shrink-0 relative'>
-            <Avatar className='h-28 w-28 ring-4 ring-white/40 dark:ring-black/20 shadow-2xl overflow-hidden bg-background/50 backdrop-blur-sm'>
-              <AvatarImage
-                src={room.avatarURL || undefined}
-                className='object-cover'
-              />
-              <AvatarFallback className='text-4xl font-light text-muted-foreground bg-transparent'>
-                {room.name[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </div>
+      <div className='relative p-6 sm:p-8'>
+        <div className='flex flex-col md:flex-row gap-6 items-start md:items-center'>
+          <Avatar className='h-20 w-20 ring-2 ring-white/40 dark:ring-black/20 shadow-lg shrink-0'>
+            <AvatarImage
+              src={room.avatarURL || undefined}
+              className='object-cover'
+            />
+            <AvatarFallback className='text-2xl font-bold bg-background/50'>
+              {room.name[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
 
-          <div className='flex-grow space-y-4 min-w-0 w-full'>
-            <div className='flex flex-col md:flex-row md:items-center justify-between gap-6'>
+          <div className='flex-grow min-w-0 w-full'>
+            <div className='flex flex-col md:flex-row md:items-start justify-between gap-4'>
               <div>
-                <h1 className='text-4xl md:text-5xl font-extrabold tracking-tight text-foreground truncate mb-2'>
+                <h1 className='text-3xl font-extrabold tracking-tight truncate mb-2'>
                   {room.name}
                 </h1>
-
-                <div className='flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-muted-foreground font-medium'>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={`flex items-center gap-2 cursor-help ${theme.iconColor} bg-background/50 px-3 py-1.5 rounded-full ring-1 ring-black/5 dark:ring-white/10`}
+                <div className='flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium'>
+                  {mode === 'derby' ? (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <button
+                          className={`flex items-center gap-1 cursor-pointer hover:bg-background/80 transition-colors ${theme.iconColor} bg-background/50 px-2 py-1 rounded-md ring-1 ring-black/5 dark:ring-white/10`}
                         >
                           {theme.icon}
-                          <span className='font-semibold tracking-wide uppercase text-xs'>
+                          <span className='font-bold uppercase tracking-widest text-[9px]'>
                             {theme.label}
                           </span>
-                          <HelpCircle className='w-3.5 h-3.5 opacity-50' />
+                          <HelpCircle className='w-3 h-3 opacity-60 ml-0.5' />
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className='glass-panel border-0 sm:max-w-xl rounded-2xl'>
+                        <DialogHeader>
+                          <DialogTitle className='text-xl font-black uppercase tracking-tight text-red-600 dark:text-red-400 flex items-center gap-2'>
+                            <Swords className='w-5 h-5' /> {t('Derby Mode FAQ')}
+                          </DialogTitle>
+                        </DialogHeader>
+                        <div className='space-y-4 text-xs text-muted-foreground mt-2'>
+                          <div>
+                            <h4 className='font-bold text-foreground'>
+                              {t(
+                                'Why does Room ELO start lower than Global ELO?',
+                              )}
+                            </h4>
+                            <p>
+                              {t(
+                                'To keep the micro-league highly competitive, Derby mode compresses starting ELOs towards 1000.',
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <h4 className='font-bold text-foreground'>
+                              {t(
+                                'Why do Room ELO and Global ELO change differently?',
+                              )}
+                            </h4>
+                            <p>
+                              {t(
+                                'Because Room ELOs are compressed, the gap between players is smaller, resulting in slightly more volatile rating changes inside the room.',
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <h4 className='font-bold text-foreground'>
+                              {t('What are Bounties and Nemesis?')}
+                            </h4>
+                            <ul className='list-disc pl-4 space-y-1 mt-1'>
+                              <li>
+                                <b className='text-foreground'>
+                                  {t('Bounty:')}
+                                </b>{' '}
+                                {t(
+                                  'A player with 3+ consecutive wins gets a bounty. Defeating them grants a bonus of (Streak - 2) * 5 ELO.',
+                                )}
+                              </li>
+                              <li>
+                                <b className='text-foreground'>
+                                  {t('Nemesis:')}
+                                </b>{' '}
+                                {t(
+                                  'An opponent you have a <40% win rate against. Beating your Nemesis multiplies your gained ELO by 1.5x.',
+                                )}
+                              </li>
+                            </ul>
+                          </div>
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent className='glass-panel border-0 shadow-2xl'>
-                        <p className='max-w-xs text-xs leading-relaxed'>
-                          {theme.description}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                      </DialogContent>
+                    </Dialog>
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={`flex items-center gap-1 cursor-help ${theme.iconColor} bg-background/50 px-2 py-1 rounded-md ring-1 ring-black/5 dark:ring-white/10`}
+                          >
+                            {theme.icon}
+                            <span className='font-bold uppercase tracking-widest text-[9px]'>
+                              {theme.label}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className='glass-panel border-0 text-xs'>
+                          <p>{theme.description}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
 
-                  <div className='flex items-center gap-2'>
+                  <div className='flex items-center gap-1.5'>
                     {room.isPublic ? (
-                      <>
-                        <Globe className='w-4 h-4 opacity-70' />
-                        <span className='uppercase tracking-widest text-[10px] font-bold'>
-                          {t('Public')}
-                        </span>
-                      </>
+                      <Globe className='w-3 h-3 opacity-70' />
                     ) : (
-                      <>
-                        <Lock className='w-4 h-4 opacity-70' />
-                        <span className='uppercase tracking-widest text-[10px] font-bold'>
-                          {t('Private')}
-                        </span>
-                      </>
+                      <Lock className='w-3 h-3 opacity-70' />
                     )}
+                    <span className='uppercase tracking-widest text-[9px] font-bold'>
+                      {room.isPublic ? t('Public') : t('Private')}
+                    </span>
                   </div>
-                  <div className='w-1.5 h-1.5 rounded-full bg-muted-foreground/30' />
-                  <div className='flex items-center gap-2'>
-                    <Users className='w-4 h-4 opacity-70' />
-                    <span className='font-mono text-base'>{memberCount}</span>
+                  <div className='w-1 h-1 rounded-full bg-muted-foreground/30' />
+                  <div className='flex items-center gap-1.5'>
+                    <Users className='w-3 h-3 opacity-70' />
+                    <span className='font-mono text-xs'>{memberCount}</span>
                   </div>
                 </div>
               </div>
 
-              <div className='flex items-center gap-3 mt-4 md:mt-0 flex-shrink-0'>
-                {!isMember && !room.isArchived && (
-                  <>
-                    {hasPendingRequest ? (
+              <div className='flex items-center gap-2 shrink-0'>
+                {!isMember &&
+                  !room.isArchived &&
+                  (hasPendingRequest ? (
+                    <Button
+                      onClick={onCancelJoin}
+                      variant='secondary'
+                      size='sm'
+                      className='rounded-lg text-xs'
+                    >
+                      <X className='mr-1.5 h-3 w-3' />
+                      {t('Cancel Request')}
+                    </Button>
+                  ) : (
+                    room.isPublic && (
                       <Button
-                        onClick={onCancelJoin}
-                        variant='secondary'
-                        size='lg'
-                        className='rounded-full shadow-md'
+                        onClick={onJoin}
+                        size='sm'
+                        className='rounded-lg text-xs font-bold shadow-sm'
                       >
-                        <X className='mr-2 h-5 w-5' />
-                        {t('Cancel Request')}
+                        <LogIn className='mr-1.5 h-3 w-3' />
+                        {t('Join Room')}
                       </Button>
-                    ) : (
-                      room.isPublic && (
-                        <Button
-                          onClick={onJoin}
-                          size='lg'
-                          className='rounded-full shadow-xl hover:scale-105 transition-transform font-semibold px-8'
-                        >
-                          <LogIn className='mr-2 h-5 w-5' />
-                          {t('Join Room')}
-                        </Button>
-                      )
-                    )}
-                  </>
-                )}
+                    )
+                  ))}
 
                 {isMember &&
                   !isCreator &&
@@ -280,30 +354,29 @@ export function RoomHeader({
                         <Button
                           variant='outline'
                           size='icon'
-                          className='text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full h-12 w-12 glass-panel border-0'
-                          title={t('Leave')}
+                          className='h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive border-border/50 text-muted-foreground'
                         >
-                          <LogOut className='h-5 w-5' />
+                          <LogOut className='h-3.5 w-3.5' />
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent className='glass-panel border-0 sm:rounded-[2rem]'>
+                      <AlertDialogContent className='glass-panel border-0 sm:rounded-2xl'>
                         <AlertDialogHeader>
-                          <AlertDialogTitle className='text-2xl'>
+                          <AlertDialogTitle className='text-xl'>
                             {t('Leave this room?')}
                           </AlertDialogTitle>
-                          <AlertDialogDescription className='text-base'>
+                          <AlertDialogDescription className='text-sm'>
                             {t(
                               "You won't be able to record matches here anymore.",
                             )}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter className='mt-6 gap-3 sm:gap-0'>
-                          <AlertDialogCancel className='rounded-xl h-12 text-base'>
+                        <AlertDialogFooter className='mt-4 gap-2'>
+                          <AlertDialogCancel className='h-9 text-xs rounded-lg'>
                             {t('Stay')}
                           </AlertDialogCancel>
                           <AlertDialogAction
                             onClick={onLeave}
-                            className='bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-12 text-base font-bold'
+                            className='bg-destructive hover:bg-destructive/90 h-9 text-xs rounded-lg'
                           >
                             {t('Yes, Leave')}
                           </AlertDialogAction>
@@ -318,9 +391,9 @@ export function RoomHeader({
                       <Button
                         variant='outline'
                         size='icon'
-                        className='rounded-full h-12 w-12 glass-panel border-0 hover:bg-background/80 transition-all'
+                        className='h-8 w-8 rounded-lg hover:bg-muted border-border/50 text-muted-foreground'
                       >
-                        <Settings className='h-5 w-5' />
+                        <Settings className='h-3.5 w-3.5' />
                       </Button>
                     </DialogTrigger>
                     <RoomSettingsDialog room={room} members={members} />
@@ -329,56 +402,52 @@ export function RoomHeader({
               </div>
             </div>
 
-            {room.description ? (
-              <p className='text-muted-foreground md:text-lg font-light leading-relaxed max-w-3xl mt-4'>
+            {room.description && (
+              <p className='text-muted-foreground text-sm font-light mt-3 max-w-2xl leading-relaxed'>
                 {room.description}
-              </p>
-            ) : (
-              <p className='text-muted-foreground/60 md:text-lg font-light leading-relaxed max-w-3xl mt-4 italic'>
-                {theme.description}
               </p>
             )}
 
             {mode === 'derby' && (
-              <div className='mt-8 flex flex-wrap gap-4'>
-                <div className='flex items-center gap-4 bg-background/40 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-2xl p-4 min-w-[280px] shadow-sm'>
-                  <div className='h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary relative'>
-                    <Zap className='w-6 h-6 fill-current' />
-                    <span className='absolute -top-1 -right-1 flex h-3 w-3'>
+              <div className='mt-5 flex flex-wrap gap-3'>
+                <div className='flex items-center gap-3 bg-background/40 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-xl p-2.5 shadow-sm pr-4'>
+                  <div className='h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-primary relative'>
+                    <Zap className='w-4 h-4 fill-current' />
+                    <span className='absolute -top-1 -right-1 flex h-2 w-2'>
                       <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75'></span>
-                      <span className='relative inline-flex rounded-full h-3 w-3 bg-primary'></span>
+                      <span className='relative inline-flex rounded-full h-2 w-2 bg-primary'></span>
                     </span>
                   </div>
                   <div>
-                    <div className='text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-0.5 flex items-center gap-1.5'>
-                      Sprint #{(room as any).sprintCount || 0 + 1}
+                    <div className='text-[8px] uppercase font-bold text-muted-foreground tracking-widest mb-0.5 flex items-center gap-1'>
+                      Sprint #{((room as any).sprintCount || 0) + 1}
                       <span className='text-primary opacity-100'>• LIVE</span>
                     </div>
-                    <div className='text-lg font-black tracking-tight flex items-center gap-2'>
-                      <Clock className='w-4 h-4 text-muted-foreground' />
-                      {timeLeft || '--:--'}
+                    <div className='text-sm font-black tracking-tight flex items-center gap-1.5 leading-none'>
+                      <Clock className='w-3 h-3 text-muted-foreground' />
+                      {timeLeft || t('Loading...')}
                     </div>
                   </div>
                 </div>
 
                 {showBounty && topBountyMember && (
-                  <div className='flex items-center gap-4 bg-red-500/5 backdrop-blur-md ring-1 ring-red-500/20 rounded-2xl p-4 min-w-[280px] shadow-sm animate-in fade-in slide-in-from-left-4 duration-500'>
-                    <Avatar className='h-12 w-12 ring-2 ring-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]'>
+                  <div className='flex items-center gap-3 bg-red-500/5 backdrop-blur-md ring-1 ring-red-500/20 rounded-xl p-2.5 shadow-sm pr-4'>
+                    <Avatar className='h-8 w-8 ring-1 ring-red-500'>
                       <AvatarImage
                         src={topBountyMember.photoURL || undefined}
                       />
-                      <AvatarFallback className='bg-red-500/10 text-red-600 font-bold'>
+                      <AvatarFallback className='bg-red-500/10 text-red-600 text-[10px] font-bold'>
                         {(topBountyMember.name || '?')
                           .substring(0, 2)
                           .toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className='text-[10px] uppercase font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5 tracking-widest mb-0.5'>
-                        <Flame className='w-3 h-3 fill-current' />
+                      <div className='text-[8px] uppercase font-bold text-red-600 dark:text-red-400 tracking-widest mb-0.5 flex items-center gap-1'>
+                        <Flame className='w-2.5 h-2.5 fill-current' />{' '}
                         {t('Most Wanted')}
                       </div>
-                      <div className='text-sm font-bold text-foreground'>
+                      <div className='text-xs font-bold leading-none'>
                         {t('Defeat')} {topBountyMember.name}{' '}
                         <span className='text-red-500'>
                           +{bountyPoints} ELO

@@ -77,6 +77,10 @@ export const FullscreenScoreboard = ({
     null,
   );
 
+  const [initialServerSide, setInitialServerSide] = useState<'L' | 'R' | null>(
+    null,
+  );
+
   const [scoreL, setScoreL] = useState(0);
   const [scoreR, setScoreR] = useState(0);
   const [time, setTime] = useState(0);
@@ -100,7 +104,14 @@ export const FullscreenScoreboard = ({
     scoreR,
     playerLId,
     playerRId,
+    initialServerSide,
   });
+
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTime(0);
+    timerRef.current = setInterval(() => setTime((v) => v + 1), 1000);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -120,7 +131,7 @@ export const FullscreenScoreboard = ({
     const fetchRooms = async () => {
       try {
         const q = query(
-          collection(db, config.collections.rooms),
+          collection(db!, config.collections.rooms),
           where('memberIds', 'array-contains', user.uid),
         );
         const snap = await getDocs(q);
@@ -203,14 +214,24 @@ export const FullscreenScoreboard = ({
     [config],
   );
 
-  const formatTime = (seconds: number) => {
-    if (seconds === null || seconds === undefined) return '00:00';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-  };
-
   const isMatchFinished = checkWinCondition(scoreL, scoreR);
+
+  const totalPoints = scoreL + scoreR;
+  let isServeSwapped = false;
+  if (scoreL >= 10 && scoreR >= 10) {
+    isServeSwapped = totalPoints % 2 !== 0;
+  } else {
+    isServeSwapped = Math.floor(totalPoints / 2) % 2 !== 0;
+  }
+
+  const currentServerSide =
+    initialServerSide === 'L'
+      ? isServeSwapped
+        ? 'R'
+        : 'L'
+      : isServeSwapped
+        ? 'L'
+        : 'R';
 
   const intensity = useMemo(() => {
     if (isMatchFinished) return 'normal';
@@ -269,6 +290,7 @@ export const FullscreenScoreboard = ({
       scoreR,
       playerLId,
       playerRId,
+      initialServerSide,
     };
   }, [
     step,
@@ -278,9 +300,9 @@ export const FullscreenScoreboard = ({
     scoreR,
     playerLId,
     playerRId,
+    initialServerSide,
   ]);
 
-  // ДИНАМИЧЕСКИЙ ИМПОРТ: Экономит ~2-3 МБ оперативной памяти на сервере!
   useEffect(() => {
     if (isMatchFinished) {
       import('canvas-confetti')
@@ -386,16 +408,28 @@ export const FullscreenScoreboard = ({
       }
       setScoreL(0);
       setScoreR(0);
-      setTime(0);
+      startTimer();
+
       if (action === 'next_swap') {
         const oldL = playerLId;
         setPlayerLId(playerRId);
         setPlayerRId(oldL);
+      } else if (action === 'next_keep') {
+        setInitialServerSide((prev) => (prev === 'L' ? 'R' : 'L'));
       }
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => setTime((v) => v + 1), 1000);
+
+      setStep('match');
     },
-    [playerLId, playerRId, playerLName, playerRName, scoreL, scoreR, time],
+    [
+      playerLId,
+      playerRId,
+      playerLName,
+      playerRName,
+      scoreL,
+      scoreR,
+      time,
+      startTimer,
+    ],
   );
 
   const onCloseReset = useCallback(() => {
@@ -447,14 +481,16 @@ export const FullscreenScoreboard = ({
       }
 
       if (cur.step === 'waiting') {
-        if (e.code === 'Space' || e.code === 'Enter') {
+        if (e.code === 'ArrowLeft' || e.code === 'KeyQ') {
           e.preventDefault();
+          setInitialServerSide('L');
           setStep('match');
-          setScoreL(0);
-          setScoreR(0);
-          setTime(0);
-          if (timerRef.current) clearInterval(timerRef.current);
-          timerRef.current = setInterval(() => setTime((v) => v + 1), 1000);
+          startTimer();
+        } else if (e.code === 'ArrowRight' || e.code === 'KeyP') {
+          e.preventDefault();
+          setInitialServerSide('R');
+          setStep('match');
+          startTimer();
         }
         return;
       }
@@ -525,7 +561,7 @@ export const FullscreenScoreboard = ({
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isMac]);
+  }, [isMac, startTimer]);
 
   return (
     <div className='fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-500'>
@@ -661,37 +697,51 @@ export const FullscreenScoreboard = ({
       )}
 
       {step === 'waiting' && (
-        <div className='text-center space-y-16 relative z-10 w-full max-w-6xl px-8'>
+        <div className='text-center space-y-12 relative z-10 w-full max-w-6xl px-8'>
           <div className='inline-block bg-primary/10 px-10 py-3 rounded-full border border-primary/20'>
             <h2 className='text-2xl font-black text-primary uppercase tracking-[0.4em]'>
               {selectedRoom?.name}
             </h2>
           </div>
-          <div className='space-y-8'>
-            <h1 className='text-9xl font-black text-foreground uppercase tracking-tighter animate-pulse drop-shadow-2xl italic'>
-              {t('Ready')}
+          <div className='space-y-4'>
+            <h1 className='text-6xl md:text-8xl font-black text-foreground uppercase tracking-tighter drop-shadow-2xl italic'>
+              {t('Who serves first?')}
             </h1>
-            <p className='text-4xl text-primary font-black tracking-[0.5em] uppercase border-y border-primary/20 py-6'>
-              {t('Press [Space] to start')}
+            <p className='text-xl md:text-2xl text-muted-foreground font-black tracking-[0.2em] uppercase py-2'>
+              {t('Select to begin match')}
             </p>
           </div>
-          <div className='grid grid-cols-2 gap-20 text-6xl font-black uppercase italic pt-12'>
-            <div className='flex flex-col items-center gap-6'>
-              <span className='text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.5)]'>
+          <div className='grid grid-cols-2 gap-10 md:gap-20 pt-8'>
+            <button
+              onClick={() => {
+                setInitialServerSide('L');
+                setStep('match');
+                startTimer();
+              }}
+              className='flex flex-col items-center gap-6 p-10 rounded-[3rem] border-4 border-transparent hover:border-blue-500/50 hover:bg-blue-500/10 transition-all group focus:outline-none focus:ring-4 focus:ring-blue-500/30'
+            >
+              <span className='text-4xl md:text-6xl font-black uppercase italic text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.5)] group-hover:scale-105 transition-transform'>
                 {playerLName}
               </span>
-              <span className='text-xs font-black tracking-[1em] text-muted-foreground/40 not-italic uppercase'>
-                {t('Blue Corner')}
+              <span className='text-sm font-black tracking-[0.5em] text-muted-foreground/60 not-italic uppercase'>
+                {t('Press ←')}
               </span>
-            </div>
-            <div className='flex flex-col items-center gap-6'>
-              <span className='text-red-500 drop-shadow-[0_0_20px_rgba(239,68,68,0.5)]'>
+            </button>
+            <button
+              onClick={() => {
+                setInitialServerSide('R');
+                setStep('match');
+                startTimer();
+              }}
+              className='flex flex-col items-center gap-6 p-10 rounded-[3rem] border-4 border-transparent hover:border-red-500/50 hover:bg-red-500/10 transition-all group focus:outline-none focus:ring-4 focus:ring-red-500/30'
+            >
+              <span className='text-4xl md:text-6xl font-black uppercase italic text-red-500 drop-shadow-[0_0_20px_rgba(239,68,68,0.5)] group-hover:scale-105 transition-transform'>
                 {playerRName}
               </span>
-              <span className='text-xs font-black tracking-[1em] text-muted-foreground/40 not-italic uppercase'>
-                {t('Red Corner')}
+              <span className='text-sm font-black tracking-[0.5em] text-muted-foreground/60 not-italic uppercase'>
+                {t('Press →')}
               </span>
-            </div>
+            </button>
           </div>
         </div>
       )}
@@ -767,7 +817,12 @@ export const FullscreenScoreboard = ({
             </div>
 
             <div className='flex-1 h-full flex flex-col items-center justify-center relative px-12 group'>
-              <div className='flex flex-col items-center mb-10 transition-transform group-hover:-translate-y-2'>
+              <div className='flex flex-col items-center mb-10 transition-transform group-hover:-translate-y-2 relative'>
+                {!isMatchFinished && currentServerSide === 'L' && (
+                  <div className='absolute -top-10 bg-emerald-500 text-white text-[10px] font-black px-3 py-1 rounded-full animate-bounce uppercase tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.6)]'>
+                    {t('Serve')}
+                  </div>
+                )}
                 <h3
                   className={`text-6xl lg:text-8xl font-black uppercase tracking-tighter mb-6 ${playerLId === initialIds?.l ? 'text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'text-red-500 drop-shadow-[0_0_20px_rgba(239,68,68,0.3)]'}`}
                 >
@@ -799,7 +854,12 @@ export const FullscreenScoreboard = ({
             </div>
 
             <div className='flex-1 h-full flex flex-col items-center justify-center relative px-12 group'>
-              <div className='flex flex-col items-center mb-10 transition-transform group-hover:-translate-y-2'>
+              <div className='flex flex-col items-center mb-10 transition-transform group-hover:-translate-y-2 relative'>
+                {!isMatchFinished && currentServerSide === 'R' && (
+                  <div className='absolute -top-10 bg-emerald-500 text-white text-[10px] font-black px-3 py-1 rounded-full animate-bounce uppercase tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.6)]'>
+                    {t('Serve')}
+                  </div>
+                )}
                 <h3
                   className={`text-6xl lg:text-8xl font-black uppercase tracking-tighter mb-6 ${playerRId === initialIds?.l ? 'text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'text-red-500 drop-shadow-[0_0_20px_rgba(239,68,68,0.3)]'}`}
                 >

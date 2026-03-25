@@ -60,7 +60,7 @@ export default function ScrollToTopButton() {
         // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
         'fixed left-0 z-30',
         'hidden 2xl:block',
-        'w-[calc((100vw-77.5rem)/2)]', // Ширина левой пустой области
+        'w-[calc((100vw-80rem)/2)]', // Ширина левой пустой области
         'group transition-all duration-300',
         isVisible
           ? 'opacity-100 pointer-events-auto'
