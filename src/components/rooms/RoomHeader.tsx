@@ -409,7 +409,7 @@ export function RoomHeader({
                   </div>
                   <div>
                     <div className='text-[8px] uppercase font-bold text-muted-foreground tracking-widest mb-0.5 flex items-center gap-1'>
-                      Sprint #{(room as any).sprintCount || 0 + 1}
+                      Sprint #{((room as any).sprintCount || 0) + 1}
                       <span className='text-primary opacity-100'>• LIVE</span>
                     </div>
                     <div className='text-sm font-black tracking-tight flex items-center gap-1.5 leading-none'>
