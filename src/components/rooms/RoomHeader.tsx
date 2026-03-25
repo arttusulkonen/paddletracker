@@ -104,10 +104,21 @@ export function RoomHeader({
       return `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
     };
 
+    // Set initial label
     setTimeLeft(calculateTimeLeft());
+
+    // Only start an interval once we have a valid, non-zero sprint start timestamp.
+    const startMs = Number(room.sprintStartTs);
+    const hasValidStartTs =
+      !!room.sprintStartTs && !Number.isNaN(startMs) && startMs !== 0;
+    if (!hasValidStartTs) {
+      return;
+    }
+
+    // Update once per minute since we only display days/hours/minutes.
     const interval = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
-    }, 1000);
+    }, 60_000);
 
     return () => clearInterval(interval);
   }, [room.sprintStartTs, room.sprintDuration, mode, t]);
