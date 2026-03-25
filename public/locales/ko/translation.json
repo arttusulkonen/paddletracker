@@ -384,7 +384,7 @@
   "Derby mode runs in continuous cycles called Sprints. The timer shows how much time is left until the current Sprint ends. When the timer hits zero, the player with the highest ELO is crowned Champion, achievements are awarded, and all Room ELOs undergo a 25% Soft Reset towards 1000 to keep the next Sprint competitive.": "",
   "Derby Standings: Micro-league where streaks and rivalries swing the points.": "",
   "Derby Unstoppable": "",
-  "Derby uses automated seasons (Sprints). At the end of each sprint, top players receive achievements, and ELO undergoes a \"Soft Reset\" (pulled 25% closer to 1000).": "",
+  "Derby uses automated seasons (Sprints). At the end of each sprint, top players receive achievements, and ELO undergoes a \"Soft Reset\" (pulled 25% closer to 1000).": "Derby는 '스프린트'라고 불리는 자동 시즌으로 진행됩니다. 각 스프린트가 끝나면 상위 플레이어에게 업적이 부여되고, ELO는 1000에 25% 더 가까워지도록 '소프트 리셋'됩니다.",
   "Derby:": "",
   "Describe briefly how you plan to use the app to speed up approval.": "승인을 앞당기기 위해 앱 사용 계획을 간단히 설명해주세요.",
   "Description": "설명",
