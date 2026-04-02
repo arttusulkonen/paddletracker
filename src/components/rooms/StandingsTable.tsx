@@ -1,3 +1,4 @@
+// src/components/rooms/StandingsTable.tsx
 'use client';
 
 import {
@@ -72,10 +73,12 @@ export function StandingsTable({
       const factor = dir === 'asc' ? 1 : -1;
 
       if (key === 'winPct') {
-        return factor * (parseFloat(a.winPct) - parseFloat(b.winPct));
+        return (
+          factor * (parseFloat(a.winPct ?? '0') - parseFloat(b.winPct ?? '0'))
+        );
       }
       if (key === 'name') {
-        return factor * a.name.localeCompare(b.name);
+        return factor * (a.name || '').localeCompare(b.name || '');
       }
       return factor * ((a[key] ?? 0) - (b[key] ?? 0));
     });
@@ -206,26 +209,28 @@ export function StandingsTable({
 
 function LiveFinalStandings({ players, t, roomMode }: any) {
   const rows = useMemo(() => {
-    const sorted = [...players].sort((a: any, b: any) => {
-      const aPlayed = a.totalMatches > 0;
-      const bPlayed = b.totalMatches > 0;
-      if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
+    const activePlayers = players.filter((p: any) => (p.totalMatches ?? 0) > 0);
 
+    const sorted = [...activePlayers].sort((a: any, b: any) => {
       if (roomMode === 'professional' || roomMode === 'derby') {
-        if (b.rating !== a.rating) return b.rating - a.rating;
-        if (b.winPct !== a.winPct)
-          return parseFloat(b.winPct) - parseFloat(a.winPct);
-        return b.wins - a.wins;
+        if (b.rating !== a.rating) return (b.rating ?? 0) - (a.rating ?? 0);
+        const bWin = parseFloat(b.winPct ?? '0');
+        const aWin = parseFloat(a.winPct ?? '0');
+        if (bWin !== aWin) return bWin - aWin;
+        return (b.wins ?? 0) - (a.wins ?? 0);
       } else if (roomMode === 'arcade') {
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        if (b.winPct !== a.winPct)
-          return parseFloat(b.winPct) - parseFloat(a.winPct);
-        return b.totalMatches - a.totalMatches;
+        if (b.wins !== a.wins) return (b.wins ?? 0) - (a.wins ?? 0);
+        const bWin = parseFloat(b.winPct ?? '0');
+        const aWin = parseFloat(a.winPct ?? '0');
+        if (bWin !== aWin) return bWin - aWin;
+        return (b.totalMatches ?? 0) - (a.totalMatches ?? 0);
       } else {
-        if ((b.adjPointsLive ?? 0) !== (a.adjPointsLive ?? 0))
+        if (b.adjPointsLive !== a.adjPointsLive)
           return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
-        if (b.rating !== a.rating) return b.rating - a.rating;
-        return parseFloat(b.winPct) - parseFloat(a.winPct);
+        if (b.rating !== a.rating) return (b.rating ?? 0) - (a.rating ?? 0);
+        const bWin = parseFloat(b.winPct ?? '0');
+        const aWin = parseFloat(a.winPct ?? '0');
+        return bWin - aWin;
       }
     });
 
@@ -235,12 +240,12 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
   const headers = [
     { key: 'place', label: 'Rank' },
     { key: 'name', label: 'Player' },
-    { key: 'matchesPlayed', label: 'Games' },
+    { key: 'totalMatches', label: 'Games' },
     { key: 'wins', label: 'W' },
     { key: 'losses', label: 'L' },
-    { key: 'roomRating', label: 'Room ELO' },
+    { key: 'rating', label: 'Room ELO' },
     ...(roomMode !== 'professional'
-      ? [{ key: 'adjPoints', label: 'Adj Pts' }]
+      ? [{ key: 'adjPointsLive', label: 'Adj Pts' }]
       : []),
     { key: 'globalElo', label: 'Global ELO' },
   ];
@@ -263,11 +268,11 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
           </TableHeader>
           <TableBody>
             {rows.map((r: any, index: number) => {
-              const isLeader = index === 0 && r.totalMatches > 0;
+              const isLeader = index === 0;
               return (
                 <TableRow
                   key={r.userId}
-                  className={`border-b border-border/40 transition-colors ${r.totalMatches === 0 ? 'opacity-50' : 'hover:bg-muted/30'} ${isLeader && roomMode === 'derby' ? 'bg-red-500/5 hover:bg-red-500/10 border-l-2 border-l-red-500' : ''}`}
+                  className={`border-b border-border/40 transition-colors hover:bg-muted/30 ${isLeader && roomMode === 'derby' ? 'bg-red-500/5 hover:bg-red-500/10 border-l-2 border-l-red-500' : ''}`}
                 >
                   <TableCell className='text-center py-2 px-3'>
                     <div
@@ -288,13 +293,13 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                     </div>
                   </TableCell>
                   <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                    {r.totalMatches}
+                    {r.totalMatches ?? 0}
                   </TableCell>
                   <TableCell className='text-center py-2 px-3 font-bold text-emerald-500 text-xs'>
-                    {r.wins}
+                    {r.wins ?? 0}
                   </TableCell>
                   <TableCell className='text-center py-2 px-3 font-bold text-red-500 text-xs'>
-                    {r.losses}
+                    {r.losses ?? 0}
                   </TableCell>
 
                   <TableCell className='text-center py-2 px-3'>
@@ -302,23 +307,26 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                       <span
                         className={`font-black text-sm ${roomMode === 'professional' || roomMode === 'derby' ? 'text-primary' : ''}`}
                       >
-                        {Math.round(r.rating)}
+                        {Math.round(r.rating ?? 1000)}
                       </span>
-                      {(roomMode === 'derby' || roomMode === 'professional') &&
-                        r.totalMatches > 0 && (
-                          <div className='flex items-center gap-1 mt-0.5'>
-                            <span className='text-[9px] text-muted-foreground font-medium'>
-                              S:{Math.round(r.startRoomRating)}
-                            </span>
-                            <span
-                              className={`text-[9px] font-bold flex items-center ${r.deltaRoom > 0 ? 'text-emerald-500' : r.deltaRoom < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
-                            >
-                              <span className='mr-px'>Δ</span>
-                              {r.deltaRoom > 0 ? '+' : ''}
-                              {Math.round(r.deltaRoom)}
-                            </span>
-                          </div>
-                        )}
+                      {(roomMode === 'derby' ||
+                        roomMode === 'professional') && (
+                        <div className='flex items-center gap-1 mt-0.5'>
+                          <span className='text-[9px] text-muted-foreground font-medium'>
+                            S:
+                            {Math.round(
+                              (r.rating ?? 1000) - (r.deltaRoom || 0),
+                            )}
+                          </span>
+                          <span
+                            className={`text-[9px] font-bold flex items-center ${(r.deltaRoom || 0) > 0 ? 'text-emerald-500' : (r.deltaRoom || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
+                          >
+                            <span className='mr-px'>Δ</span>
+                            {(r.deltaRoom || 0) > 0 ? '+' : ''}
+                            {Math.round(r.deltaRoom || 0)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
 
@@ -326,9 +334,7 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                     <TableCell className='text-center py-2 px-3'>
                       <div className='flex flex-col items-center justify-center'>
                         <span className='font-black text-green-600 dark:text-green-400 text-base'>
-                          {r.totalMatches > 0
-                            ? r.adjPointsLive?.toFixed(1)
-                            : '—'}
+                          {r.adjPointsLive?.toFixed(1) ?? '—'}
                         </span>
                         <span className='text-[8px] uppercase tracking-widest font-bold text-muted-foreground'>
                           {t('adj')}
@@ -340,22 +346,23 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                   <TableCell className='text-center py-2 px-3'>
                     <div className='flex flex-col items-center justify-center'>
                       <span className='font-bold text-sm text-foreground'>
-                        {Math.round(r.globalElo)}
+                        {Math.round(r.globalElo ?? 1000)}
                       </span>
-                      {r.totalMatches > 0 && (
-                        <div className='flex items-center gap-1 mt-0.5'>
-                          <span className='text-[9px] text-muted-foreground font-medium'>
-                            S:{Math.round(r.startGlobalElo)}
-                          </span>
-                          <span
-                            className={`text-[9px] font-bold flex items-center ${r.globalDelta > 0 ? 'text-emerald-500' : r.globalDelta < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
-                          >
-                            <span className='mr-px'>Δ</span>
-                            {r.globalDelta > 0 ? '+' : ''}
-                            {Math.round(r.globalDelta)}
-                          </span>
-                        </div>
-                      )}
+                      <div className='flex items-center gap-1 mt-0.5'>
+                        <span className='text-[9px] text-muted-foreground font-medium'>
+                          S:
+                          {Math.round(
+                            (r.globalElo ?? 1000) - (r.globalDelta || 0),
+                          )}
+                        </span>
+                        <span
+                          className={`text-[9px] font-bold flex items-center ${(r.globalDelta || 0) > 0 ? 'text-emerald-500' : (r.globalDelta || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
+                        >
+                          <span className='mr-px'>Δ</span>
+                          {(r.globalDelta || 0) > 0 ? '+' : ''}
+                          {Math.round(r.globalDelta || 0)}
+                        </span>
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -466,7 +473,7 @@ function RegularStandings({
       ...(roomMode !== 'professional'
         ? [
             {
-              key: 'adjPoints',
+              key: 'adjPointsLive',
               label: 'Adj Pts',
               isSortable: true,
               description:
@@ -652,21 +659,24 @@ function RegularStandings({
                 <TableCell className='text-center py-2 px-3'>
                   <div className='flex flex-col items-center justify-center'>
                     <span className='font-black text-primary text-base'>
-                      {p.ratingVisible ? Math.round(p.rating) : '—'}
+                      {p.ratingVisible ? Math.round(p.rating ?? 1000) : '—'}
                     </span>
                     {p.ratingVisible && (
                       <div className='flex items-center gap-1 mt-0.5'>
                         {(roomMode === 'derby' ||
                           roomMode === 'professional') && (
                           <span className='text-[9px] text-muted-foreground font-medium'>
-                            S:{Math.round(p.rating - (p.deltaRoom || 0))}
+                            S:
+                            {Math.round(
+                              (p.rating ?? 1000) - (p.deltaRoom || 0),
+                            )}
                           </span>
                         )}
                         <span
-                          className={`text-[9px] font-bold flex items-center ${p.deltaRoom > 0 ? 'text-emerald-500' : p.deltaRoom < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
+                          className={`text-[9px] font-bold flex items-center ${(p.deltaRoom || 0) > 0 ? 'text-emerald-500' : (p.deltaRoom || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
                         >
                           <span className='mr-px'>Δ</span>
-                          {p.deltaRoom > 0 ? '+' : ''}
+                          {(p.deltaRoom || 0) > 0 ? '+' : ''}
                           {Math.round(p.deltaRoom || 0)}
                         </span>
                       </div>
@@ -678,7 +688,7 @@ function RegularStandings({
                   <TableCell className='text-center py-2 px-3'>
                     <div className='flex flex-col items-center justify-center'>
                       <span className='font-black text-green-600 dark:text-green-400 text-lg'>
-                        {p.ratingVisible && p.totalMatches > 0
+                        {p.ratingVisible && (p.totalMatches ?? 0) > 0
                           ? p.adjPointsLive?.toFixed(1)
                           : '—'}
                       </span>
@@ -703,10 +713,10 @@ function RegularStandings({
                           )}
                         </span>
                         <span
-                          className={`text-[9px] font-bold flex items-center ${p.globalDelta > 0 ? 'text-emerald-500' : p.globalDelta < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
+                          className={`text-[9px] font-bold flex items-center ${(p.globalDelta || 0) > 0 ? 'text-emerald-500' : (p.globalDelta || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
                         >
                           <span className='mr-px'>Δ</span>
-                          {p.globalDelta > 0 ? '+' : ''}
+                          {(p.globalDelta || 0) > 0 ? '+' : ''}
                           {Math.round(p.globalDelta || 0)}
                         </span>
                       </div>
@@ -717,16 +727,16 @@ function RegularStandings({
                 {sport === 'tennis' ? (
                   <>
                     <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                      {p.totalMatches}
+                      {p.totalMatches ?? 0}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 text-emerald-500 font-bold text-xs'>
-                      {p.wins}
+                      {p.wins ?? 0}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 text-red-500 font-bold text-xs'>
-                      {p.losses}
+                      {p.losses ?? 0}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 font-bold text-xs'>
-                      {p.ratingVisible ? `${p.winPct}%` : '—'}
+                      {p.ratingVisible ? `${p.winPct ?? 0}%` : '—'}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 font-mono text-xs'>
                       {p.aces ?? 0}
@@ -741,19 +751,21 @@ function RegularStandings({
                 ) : (
                   <>
                     <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                      {p.totalMatches}
+                      {p.totalMatches ?? 0}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 font-bold text-emerald-500 text-xs'>
-                      {p.wins}
+                      {p.wins ?? 0}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 font-bold text-red-500 text-xs'>
-                      {p.losses}
+                      {p.losses ?? 0}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 font-black text-xs'>
-                      {p.ratingVisible ? `${p.winPct}%` : '—'}
+                      {p.ratingVisible ? `${p.winPct ?? 0}%` : '—'}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 font-mono text-[10px]'>
-                      {p.ratingVisible ? p.avgPtsPerMatch.toFixed(1) : '—'}
+                      {p.ratingVisible
+                        ? (p.avgPtsPerMatch ?? 0).toFixed(1)
+                        : '—'}
                     </TableCell>
                     <TableCell className='text-center py-2 px-3'>
                       <div className='flex gap-0.5 justify-center'>
@@ -770,7 +782,7 @@ function RegularStandings({
                       </div>
                     </TableCell>
                     <TableCell className='text-center py-2 px-3 font-bold text-muted-foreground text-xs'>
-                      {p.ratingVisible ? p.longestWinStreak : '—'}
+                      {p.ratingVisible ? (p.longestWinStreak ?? 0) : '—'}
                     </TableCell>
                   </>
                 )}
@@ -858,16 +870,16 @@ function FinalStandings({ season, t, roomMode }: any) {
                 </div>
               </TableCell>
               <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                {r.matchesPlayed}
+                {r.matchesPlayed ?? 0}
               </TableCell>
               <TableCell className='text-center py-2 px-3 font-bold text-emerald-500 text-xs'>
-                {r.wins}
+                {r.wins ?? 0}
               </TableCell>
               <TableCell className='text-center py-2 px-3 font-bold text-red-500 text-xs'>
-                {r.losses}
+                {r.losses ?? 0}
               </TableCell>
               <TableCell className='text-center py-2 px-3 font-black text-base text-primary'>
-                {Math.round(r.roomRating)}
+                {Math.round(r.roomRating ?? 1000)}
               </TableCell>
               {roomMode !== 'professional' && (
                 <TableCell className='text-center py-2 px-3 font-black text-green-600 dark:text-green-400 text-lg'>

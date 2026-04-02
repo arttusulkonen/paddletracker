@@ -25,7 +25,10 @@ import {
 	TooltipTrigger,
 } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSport } from '@/contexts/SportContext';
+import { app } from '@/lib/firebase';
 import type { Room, Member as RoomMember } from '@/lib/types';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
 	Briefcase,
 	Clock,
@@ -70,6 +73,7 @@ export function RoomHeader({
 }: RoomHeaderProps) {
   const { t } = useTranslation();
   const { userProfile } = useAuth();
+  const { sport } = useSport();
 
   const mode = room.mode || 'office';
   const memberCount = room.memberIds?.length || 0;
@@ -79,6 +83,18 @@ export function RoomHeader({
 
   useEffect(() => {
     if (mode !== 'derby') return;
+
+    let hasTriggeredFinalize = false;
+
+    const triggerFinalize = async () => {
+      try {
+        const functions = getFunctions(app, 'europe-west1');
+        const finalizeFn = httpsCallable(functions, 'forceFinalizeDerbySprint');
+        await finalizeFn({ roomId: room.id, sport: sport });
+      } catch (e) {
+        console.error('Failed to auto-finalize derby sprint:', e);
+      }
+    };
 
     const calculateTimeLeft = () => {
       const startTs = room.sprintStartTs;
@@ -95,15 +111,26 @@ export function RoomHeader({
       const now = Date.now();
       const diff = endTs - now;
 
-      if (diff <= 0) return t('Finalizing...');
+      if (diff <= 0) {
+        if (!hasTriggeredFinalize) {
+          hasTriggeredFinalize = true;
+          triggerFinalize();
+        }
+        return t('Finalizing...');
+      }
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / (1000 * 60)) % 60);
+      const secs = Math.floor((diff / 1000) % 60);
 
-      return `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
+      if (days > 0) {
+        return `${days}d ${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+      }
+      return `${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
     };
 
+    hasTriggeredFinalize = false;
     setTimeLeft(calculateTimeLeft());
 
     const startMs = Number(room.sprintStartTs);
@@ -115,10 +142,10 @@ export function RoomHeader({
 
     const interval = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
-    }, 60_000);
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [room.sprintStartTs, room.sprintDuration, mode, t]);
+  }, [room.sprintStartTs, room.sprintDuration, mode, t, room.id, sport]);
 
   const topBountyMember = members?.reduce((prev, current) => {
     const prevStreak = prev?.currentStreak ?? 0;

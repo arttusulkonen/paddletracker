@@ -1,3 +1,4 @@
+// src/components/rooms/MembersList.tsx
 'use client';
 
 import {
@@ -53,30 +54,39 @@ export function MembersList({
     return members.find((m: any) => m.userId === currentUser?.uid)?.nemesisId;
   }, [members, currentUser]);
 
+  const playersOnly = useMemo(() => {
+    const arr = Array.isArray(members) ? members : [];
+    return arr.filter((p: any) => p.accountType !== 'coach');
+  }, [members]);
+
   const sortedMembers = useMemo(() => {
-    return [...members].sort((a, b) => {
-      const aPlayed = a.totalMatches > 0;
-      const bPlayed = b.totalMatches > 0;
+    return [...playersOnly].sort((a, b) => {
+      const aPlayed = (a.totalMatches ?? 0) > 0;
+      const bPlayed = (b.totalMatches ?? 0) > 0;
       if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
 
       if (roomMode === 'professional' || roomMode === 'derby') {
-        if (b.rating !== a.rating) return b.rating - a.rating;
-        if (b.winPct !== a.winPct)
-          return parseFloat(b.winPct) - parseFloat(a.winPct);
-        return b.wins - a.wins;
+        if (b.rating !== a.rating) return (b.rating ?? 0) - (a.rating ?? 0);
+        const bWin = parseFloat(b.winPct ?? '0');
+        const aWin = parseFloat(a.winPct ?? '0');
+        if (bWin !== aWin) return bWin - aWin;
+        return (b.wins ?? 0) - (a.wins ?? 0);
       } else if (roomMode === 'arcade') {
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        if (b.winPct !== a.winPct)
-          return parseFloat(b.winPct) - parseFloat(a.winPct);
-        return b.totalMatches - a.totalMatches;
+        if (b.wins !== a.wins) return (b.wins ?? 0) - (a.wins ?? 0);
+        const bWin = parseFloat(b.winPct ?? '0');
+        const aWin = parseFloat(a.winPct ?? '0');
+        if (bWin !== aWin) return bWin - aWin;
+        return (b.totalMatches ?? 0) - (a.totalMatches ?? 0);
       } else {
-        if ((b.adjPointsLive ?? 0) !== (a.adjPointsLive ?? 0))
+        if (b.adjPointsLive !== a.adjPointsLive)
           return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
-        if (b.rating !== a.rating) return b.rating - a.rating;
-        return parseFloat(b.winPct) - parseFloat(a.winPct);
+        if (b.rating !== a.rating) return (b.rating ?? 0) - (a.rating ?? 0);
+        const bWin = parseFloat(b.winPct ?? '0');
+        const aWin = parseFloat(a.winPct ?? '0');
+        return bWin - aWin;
       }
     });
-  }, [members, roomMode]);
+  }, [playersOnly, roomMode]);
 
   const canRemovePlayers = isCreator || canManage;
 
@@ -106,47 +116,7 @@ export function MembersList({
               const currentStreak = p.currentStreak ?? 0;
               const isOnFire = currentStreak >= 3;
               const isGiantSlayer = p.badges?.includes('giant_slayer');
-
-              let rightValueNode;
-              if (p.totalMatches === 0) {
-                rightValueNode = (
-                  <span className='text-muted-foreground/50'>—</span>
-                );
-              } else if (roomMode === 'professional') {
-                rightValueNode = (
-                  <div className='text-right'>
-                    <div className='font-black text-primary text-xl leading-none mb-1'>
-                      {Math.round(p.rating)}
-                    </div>
-                    <div className='text-[9px] uppercase tracking-widest font-bold text-muted-foreground'>
-                      {t('elo')}
-                    </div>
-                  </div>
-                );
-              } else {
-                rightValueNode = (
-                  <div className='text-right flex flex-col items-end justify-center'>
-                    {roomMode === 'derby' ? (
-                      <div className='font-black text-primary text-xl leading-none flex items-center gap-1 mb-1'>
-                        {Math.round(p.rating)}
-                      </div>
-                    ) : roomMode === 'arcade' ? (
-                      <div className='font-black text-purple-500 text-xl leading-none flex items-center gap-1 mb-1'>
-                        {p.wins}{' '}
-                        <span className='text-[10px] text-muted-foreground'>
-                          W
-                        </span>
-                      </div>
-                    ) : null}
-                    <div className='font-black text-green-600 dark:text-green-400 text-lg leading-none'>
-                      {p.adjPointsLive?.toFixed(1) ?? '0.0'}
-                    </div>
-                    <div className='text-[9px] uppercase tracking-widest font-bold text-muted-foreground mt-0.5'>
-                      {t('adj')}
-                    </div>
-                  </div>
-                );
-              }
+              const hasPlayed = (p.totalMatches ?? 0) > 0;
 
               return (
                 <div
@@ -156,16 +126,16 @@ export function MembersList({
                   <div className='flex items-center gap-2.5 flex-grow min-w-0'>
                     <div
                       className={`w-4 text-right font-mono text-xs font-bold shrink-0 ${
-                        index === 0 && p.totalMatches > 0
+                        index === 0 && hasPlayed
                           ? 'text-yellow-500'
-                          : index === 1 && p.totalMatches > 0
+                          : index === 1 && hasPlayed
                             ? 'text-slate-400'
-                            : index === 2 && p.totalMatches > 0
+                            : index === 2 && hasPlayed
                               ? 'text-amber-600'
                               : 'text-muted-foreground/40'
                       }`}
                     >
-                      {p.totalMatches > 0 ? index + 1 : '-'}
+                      {hasPlayed ? index + 1 : '-'}
                     </div>
 
                     <Avatar
@@ -207,14 +177,14 @@ export function MembersList({
 
                       <div className='text-[10px] text-muted-foreground truncate mt-0.5 flex items-center gap-1.5 font-medium'>
                         <span className='text-emerald-500 font-bold'>
-                          {p.wins}
+                          {p.wins ?? 0}
                         </span>
                         <span className='opacity-40 uppercase tracking-wider text-[8px]'>
                           {t('W')}
                         </span>
                         <span className='opacity-20'>|</span>
                         <span className='text-red-500 font-bold'>
-                          {p.losses}
+                          {p.losses ?? 0}
                         </span>
                         <span className='opacity-40 uppercase tracking-wider text-[8px]'>
                           {t('L')}
@@ -274,12 +244,12 @@ export function MembersList({
                   </div>
 
                   <div className='flex items-center gap-2 pl-1 shrink-0'>
-                    {p.totalMatches > 0 && (
+                    {hasPlayed && (
                       <div className='flex flex-col items-end justify-center min-w-[36px]'>
                         {roomMode === 'professional' ? (
                           <>
                             <span className='font-black text-primary text-sm leading-none'>
-                              {Math.round(p.rating)}
+                              {Math.round(p.rating ?? 1000)}
                             </span>
                             <span className='text-[8px] uppercase tracking-widest text-muted-foreground/60 font-bold mt-0.5'>
                               {t('elo')}
@@ -288,7 +258,7 @@ export function MembersList({
                         ) : roomMode === 'arcade' ? (
                           <>
                             <span className='font-black text-purple-500 text-sm leading-none'>
-                              {p.wins}
+                              {p.wins ?? 0}
                             </span>
                             <span className='text-[8px] uppercase tracking-widest text-muted-foreground/60 font-bold mt-0.5'>
                               {t('wins')}
@@ -307,7 +277,6 @@ export function MembersList({
                       </div>
                     )}
 
-                    {/* Кнопка удаления появляется ТОЛЬКО при ховере */}
                     {canRemovePlayers && p.userId !== currentUser?.uid && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
