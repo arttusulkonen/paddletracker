@@ -1,4 +1,3 @@
-// src/components/rooms/MembersList.tsx
 'use client';
 
 import {
@@ -54,71 +53,30 @@ export function MembersList({
     return members.find((m: any) => m.userId === currentUser?.uid)?.nemesisId;
   }, [members, currentUser]);
 
-  const computed = useMemo(() => {
-    const arr = Array.isArray(members) ? members : [];
-    const playersOnly = arr.filter((p: any) => p.accountType !== 'coach');
-
-    const base = playersOnly.map((p: any) => {
-      const totalMatches = Number.isFinite(p.totalMatches)
-        ? Number(p.totalMatches)
-        : Number(p.wins ?? 0) + Number(p.losses ?? 0);
-
-      const roomRating = Number(p.rating ?? 1000);
-      const totalAddedPoints = roomRating - 1000;
-
-      const winRate =
-        totalMatches > 0 ? (Number(p.wins ?? 0) / totalMatches) * 100 : 0;
-
-      return {
-        ...p,
-        totalMatches,
-        roomRating,
-        totalAddedPoints,
-        winRate,
-      };
-    });
-
-    const activePlayers = base.filter((p: any) => p.totalMatches > 0);
-    const totalMatchesAll = activePlayers.reduce(
-      (sum: number, r: any) => sum + r.totalMatches,
-      0,
-    );
-    const avgM =
-      activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
-
-    const adjFactor = (ratio: number) => {
-      if (!isFinite(ratio) || ratio <= 0) return 0;
-      return Math.sqrt(ratio);
-    };
-
-    return base.map((p: any) => ({
-      ...p,
-      adjPointsLive: p.totalAddedPoints * adjFactor(p.totalMatches / avgM),
-    }));
-  }, [members]);
-
   const sortedMembers = useMemo(() => {
-    return [...computed].sort((a, b) => {
+    return [...members].sort((a, b) => {
       const aPlayed = a.totalMatches > 0;
       const bPlayed = b.totalMatches > 0;
       if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
 
       if (roomMode === 'professional' || roomMode === 'derby') {
-        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
-        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        if (b.winPct !== a.winPct)
+          return parseFloat(b.winPct) - parseFloat(a.winPct);
         return b.wins - a.wins;
       } else if (roomMode === 'arcade') {
         if (b.wins !== a.wins) return b.wins - a.wins;
-        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        if (b.winPct !== a.winPct)
+          return parseFloat(b.winPct) - parseFloat(a.winPct);
         return b.totalMatches - a.totalMatches;
       } else {
-        if (b.adjPointsLive !== a.adjPointsLive)
-          return b.adjPointsLive - a.adjPointsLive;
-        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
-        return b.winRate - a.winRate;
+        if ((b.adjPointsLive ?? 0) !== (a.adjPointsLive ?? 0))
+          return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return parseFloat(b.winPct) - parseFloat(a.winPct);
       }
     });
-  }, [computed, roomMode]);
+  }, [members, roomMode]);
 
   const canRemovePlayers = isCreator || canManage;
 
@@ -148,6 +106,47 @@ export function MembersList({
               const currentStreak = p.currentStreak ?? 0;
               const isOnFire = currentStreak >= 3;
               const isGiantSlayer = p.badges?.includes('giant_slayer');
+
+              let rightValueNode;
+              if (p.totalMatches === 0) {
+                rightValueNode = (
+                  <span className='text-muted-foreground/50'>—</span>
+                );
+              } else if (roomMode === 'professional') {
+                rightValueNode = (
+                  <div className='text-right'>
+                    <div className='font-black text-primary text-xl leading-none mb-1'>
+                      {Math.round(p.rating)}
+                    </div>
+                    <div className='text-[9px] uppercase tracking-widest font-bold text-muted-foreground'>
+                      {t('elo')}
+                    </div>
+                  </div>
+                );
+              } else {
+                rightValueNode = (
+                  <div className='text-right flex flex-col items-end justify-center'>
+                    {roomMode === 'derby' ? (
+                      <div className='font-black text-primary text-xl leading-none flex items-center gap-1 mb-1'>
+                        {Math.round(p.rating)}
+                      </div>
+                    ) : roomMode === 'arcade' ? (
+                      <div className='font-black text-purple-500 text-xl leading-none flex items-center gap-1 mb-1'>
+                        {p.wins}{' '}
+                        <span className='text-[10px] text-muted-foreground'>
+                          W
+                        </span>
+                      </div>
+                    ) : null}
+                    <div className='font-black text-green-600 dark:text-green-400 text-lg leading-none'>
+                      {p.adjPointsLive?.toFixed(1) ?? '0.0'}
+                    </div>
+                    <div className='text-[9px] uppercase tracking-widest font-bold text-muted-foreground mt-0.5'>
+                      {t('adj')}
+                    </div>
+                  </div>
+                );
+              }
 
               return (
                 <div

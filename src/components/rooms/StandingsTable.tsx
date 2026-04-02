@@ -1,4 +1,3 @@
-// src/components/rooms/StandingsTable.tsx
 'use client';
 
 import {
@@ -21,7 +20,13 @@ import {
 	TooltipTrigger,
 } from '@/components/ui';
 import { useSport } from '@/contexts/SportContext';
-import { Flame, Info, LayoutDashboard, ShieldCheck, Trophy } from 'lucide-react';
+import {
+	Flame,
+	Info,
+	LayoutDashboard,
+	ShieldCheck,
+	Trophy,
+} from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -201,85 +206,30 @@ export function StandingsTable({
 
 function LiveFinalStandings({ players, t, roomMode }: any) {
   const rows = useMemo(() => {
-    const base = players.map((p: any) => {
-      const matchesPlayed = Number(
-        typeof p.totalMatches === 'number'
-          ? p.totalMatches
-          : (p.wins ?? 0) + (p.losses ?? 0),
-      );
-      const roomRating = Number(p.rating ?? 1000);
-      const startRoomRating = roomRating - (p.deltaRoom || 0);
-      const globalElo = Number(p.globalElo ?? 1000);
-      const startGlobalElo = globalElo - (p.globalDelta || 0);
-
-      let totalAddedPoints = 0;
-
-      if (matchesPlayed === 0) {
-        totalAddedPoints = 0;
-      } else if (typeof p.deltaRoom === 'number') {
-        totalAddedPoints = p.deltaRoom;
-      } else {
-        totalAddedPoints = roomRating - 1000;
-      }
-
-      return {
-        userId: p.userId,
-        name: p.name,
-        matchesPlayed,
-        wins: Number(p.wins ?? 0),
-        losses: Number(p.losses ?? 0),
-        winRate:
-          matchesPlayed > 0 ? (Number(p.wins ?? 0) / matchesPlayed) * 100 : 0,
-        totalAddedPoints,
-        longestWinStreak: Number(p.longestWinStreak ?? 0),
-        currentStreak: Number(p.currentStreak ?? 0),
-        roomRating,
-        startRoomRating,
-        globalElo,
-        startGlobalElo,
-        globalDelta: p.globalDelta || 0,
-      };
-    });
-
-    const activePlayers = base.filter((p: any) => p.matchesPlayed > 0);
-    const totalMatchesAll = activePlayers.reduce(
-      (sum: number, r: any) => sum + r.matchesPlayed,
-      0,
-    );
-    const avgM =
-      activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
-
-    const adjFactor = (ratio: number) => {
-      if (!isFinite(ratio) || ratio <= 0) return 0;
-      return Math.sqrt(ratio);
-    };
-
-    const withAdj = base.map((r: any) => ({
-      ...r,
-      adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM),
-    }));
-
-    withAdj.sort((a: any, b: any) => {
-      const aPlayed = a.matchesPlayed > 0;
-      const bPlayed = b.matchesPlayed > 0;
+    const sorted = [...players].sort((a: any, b: any) => {
+      const aPlayed = a.totalMatches > 0;
+      const bPlayed = b.totalMatches > 0;
       if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
 
       if (roomMode === 'professional' || roomMode === 'derby') {
-        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
-        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        if (b.winPct !== a.winPct)
+          return parseFloat(b.winPct) - parseFloat(a.winPct);
         return b.wins - a.wins;
       } else if (roomMode === 'arcade') {
         if (b.wins !== a.wins) return b.wins - a.wins;
-        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
-        return b.matchesPlayed - a.matchesPlayed;
+        if (b.winPct !== a.winPct)
+          return parseFloat(b.winPct) - parseFloat(a.winPct);
+        return b.totalMatches - a.totalMatches;
       } else {
-        if (b.adjPoints !== a.adjPoints) return b.adjPoints - a.adjPoints;
-        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
-        return b.winRate - a.winRate;
+        if ((b.adjPointsLive ?? 0) !== (a.adjPointsLive ?? 0))
+          return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return parseFloat(b.winPct) - parseFloat(a.winPct);
       }
     });
 
-    return withAdj.map((r: any, i: number) => ({ ...r, place: i + 1 }));
+    return sorted.map((r: any, i: number) => ({ ...r, place: i + 1 }));
   }, [players, roomMode]);
 
   const headers = [
@@ -313,11 +263,11 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
           </TableHeader>
           <TableBody>
             {rows.map((r: any, index: number) => {
-              const isLeader = index === 0 && r.matchesPlayed > 0;
+              const isLeader = index === 0 && r.totalMatches > 0;
               return (
                 <TableRow
                   key={r.userId}
-                  className={`border-b border-border/40 transition-colors ${r.matchesPlayed === 0 ? 'opacity-50' : 'hover:bg-muted/30'} ${isLeader && roomMode === 'derby' ? 'bg-red-500/5 hover:bg-red-500/10 border-l-2 border-l-red-500' : ''}`}
+                  className={`border-b border-border/40 transition-colors ${r.totalMatches === 0 ? 'opacity-50' : 'hover:bg-muted/30'} ${isLeader && roomMode === 'derby' ? 'bg-red-500/5 hover:bg-red-500/10 border-l-2 border-l-red-500' : ''}`}
                 >
                   <TableCell className='text-center py-2 px-3'>
                     <div
@@ -338,7 +288,7 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                     </div>
                   </TableCell>
                   <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                    {r.matchesPlayed}
+                    {r.totalMatches}
                   </TableCell>
                   <TableCell className='text-center py-2 px-3 font-bold text-emerald-500 text-xs'>
                     {r.wins}
@@ -352,20 +302,20 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                       <span
                         className={`font-black text-sm ${roomMode === 'professional' || roomMode === 'derby' ? 'text-primary' : ''}`}
                       >
-                        {Math.round(r.roomRating)}
+                        {Math.round(r.rating)}
                       </span>
                       {(roomMode === 'derby' || roomMode === 'professional') &&
-                        r.matchesPlayed > 0 && (
+                        r.totalMatches > 0 && (
                           <div className='flex items-center gap-1 mt-0.5'>
                             <span className='text-[9px] text-muted-foreground font-medium'>
                               S:{Math.round(r.startRoomRating)}
                             </span>
                             <span
-                              className={`text-[9px] font-bold flex items-center ${r.totalAddedPoints > 0 ? 'text-emerald-500' : r.totalAddedPoints < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
+                              className={`text-[9px] font-bold flex items-center ${r.deltaRoom > 0 ? 'text-emerald-500' : r.deltaRoom < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
                             >
                               <span className='mr-px'>Δ</span>
-                              {r.totalAddedPoints > 0 ? '+' : ''}
-                              {Math.round(r.totalAddedPoints)}
+                              {r.deltaRoom > 0 ? '+' : ''}
+                              {Math.round(r.deltaRoom)}
                             </span>
                           </div>
                         )}
@@ -376,7 +326,9 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                     <TableCell className='text-center py-2 px-3'>
                       <div className='flex flex-col items-center justify-center'>
                         <span className='font-black text-green-600 dark:text-green-400 text-base'>
-                          {r.matchesPlayed > 0 ? r.adjPoints?.toFixed(1) : '—'}
+                          {r.totalMatches > 0
+                            ? r.adjPointsLive?.toFixed(1)
+                            : '—'}
                         </span>
                         <span className='text-[8px] uppercase tracking-widest font-bold text-muted-foreground'>
                           {t('adj')}
@@ -390,7 +342,7 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                       <span className='font-bold text-sm text-foreground'>
                         {Math.round(r.globalElo)}
                       </span>
-                      {r.matchesPlayed > 0 && (
+                      {r.totalMatches > 0 && (
                         <div className='flex items-center gap-1 mt-0.5'>
                           <span className='text-[9px] text-muted-foreground font-medium'>
                             S:{Math.round(r.startGlobalElo)}
@@ -615,50 +567,6 @@ function RegularStandings({
       : [...common, ...standardSpecific];
   }, [sport, roomMode]);
 
-  const rows = useMemo(() => {
-    const base = players.map((p: any) => {
-      const matchesPlayed = Number(
-        typeof p.totalMatches === 'number'
-          ? p.totalMatches
-          : (p.wins ?? 0) + (p.losses ?? 0),
-      );
-      const roomRating = Number(p.rating ?? 1000);
-      let totalAddedPoints = 0;
-
-      if (matchesPlayed === 0) {
-        totalAddedPoints = 0;
-      } else if (typeof p.deltaRoom === 'number') {
-        totalAddedPoints = p.deltaRoom;
-      } else {
-        totalAddedPoints = roomRating - 1000;
-      }
-
-      return {
-        ...p,
-        matchesPlayed,
-        totalAddedPoints,
-      };
-    });
-
-    const activePlayers = base.filter((p: any) => p.matchesPlayed > 0);
-    const totalMatchesAll = activePlayers.reduce(
-      (sum: number, r: any) => sum + r.matchesPlayed,
-      0,
-    );
-    const avgM =
-      activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
-
-    const adjFactor = (ratio: number) => {
-      if (!isFinite(ratio) || ratio <= 0) return 0;
-      return Math.sqrt(ratio);
-    };
-
-    return base.map((r: any) => ({
-      ...r,
-      adjPoints: r.totalAddedPoints * adjFactor(r.matchesPlayed / avgM),
-    }));
-  }, [players]);
-
   return (
     <div className='overflow-x-auto'>
       <ScrollArea className='w-full max-h-[500px]'>
@@ -700,7 +608,7 @@ function RegularStandings({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((p: any, i: number) => (
+            {players.map((p: any, i: number) => (
               <TableRow
                 key={p.userId}
                 className='hover:bg-muted/30 border-b border-border/40 transition-colors'
@@ -770,8 +678,8 @@ function RegularStandings({
                   <TableCell className='text-center py-2 px-3'>
                     <div className='flex flex-col items-center justify-center'>
                       <span className='font-black text-green-600 dark:text-green-400 text-lg'>
-                        {p.ratingVisible && p.matchesPlayed > 0
-                          ? p.adjPoints?.toFixed(1)
+                        {p.ratingVisible && p.totalMatches > 0
+                          ? p.adjPointsLive?.toFixed(1)
                           : '—'}
                       </span>
                       <span className='text-[8px] uppercase tracking-widest font-bold text-muted-foreground'>

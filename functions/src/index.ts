@@ -418,6 +418,8 @@ export const aiSaveMatch = onCall(
       }
     };
 
+    const chronicle: any[] = [];
+
     try {
       for (let i = 0; i < matches.length; i++) {
         const match = matches[i];
@@ -457,6 +459,9 @@ export const aiSaveMatch = onCall(
         const p1State = userUpdates.get(p1Id)!;
         const p2State = userUpdates.get(p2Id)!;
 
+        const startRoomR1 = p1State.currentRoomElo;
+        const startRoomR2 = p2State.currentRoomElo;
+
         const d1_Global = calculateDelta(
           p1State.currentGlobalElo,
           p2State.currentGlobalElo,
@@ -490,6 +495,10 @@ export const aiSaveMatch = onCall(
         let final_d1_Room = d1_Room;
         let final_d2_Room = d2_Room;
 
+        let bountyApplied = 0;
+        let nemesisApplied = false;
+        let streakContinued = 0;
+
         if (mode === 'derby') {
           p1Member.currentStreak = p1Member.currentStreak ?? 0;
           p1Member.highestStreak = p1Member.highestStreak ?? 0;
@@ -521,11 +530,13 @@ export const aiSaveMatch = onCall(
 
             if (totalH2H >= 3 && winRateH2H <= 0.4) {
               baseWinnerDelta = Math.round(baseWinnerDelta * 1.5);
+              nemesisApplied = true;
             }
 
             if (loserMember.currentStreak >= 3) {
               const bounty = (loserMember.currentStreak - 2) * 5;
               baseWinnerDelta += bounty;
+              bountyApplied = bounty;
 
               if (!winnerMember.badges.includes('giant_slayer')) {
                 winnerMember.badges.push('giant_slayer');
@@ -542,6 +553,8 @@ export const aiSaveMatch = onCall(
           }
 
           winnerMember.currentStreak += 1;
+          streakContinued = winnerMember.currentStreak;
+
           if (winnerMember.currentStreak > winnerMember.highestStreak) {
             winnerMember.highestStreak = winnerMember.currentStreak;
           }
@@ -585,6 +598,21 @@ export const aiSaveMatch = onCall(
         const timestamp = getFinnishDate(matchDate);
 
         const matchRef = db.collection(collectionName).doc();
+
+        chronicle.push({
+          gameNumber: i + 1,
+          player1Id: p1Id,
+          player2Id: p2Id,
+          player1EloBefore: startRoomR1,
+          player2EloBefore: startRoomR2,
+          player1BaseDelta: d1_Room,
+          player2BaseDelta: d2_Room,
+          player1Delta: final_d1_Room,
+          player2Delta: final_d2_Room,
+          bountyApplied,
+          nemesisApplied,
+          streakContinued,
+        });
 
         batch.set(matchRef, {
           roomId,
@@ -707,7 +735,7 @@ export const aiSaveMatch = onCall(
 
       updatesList.sort((a, b) => b.eloDiff - a.eloDiff);
 
-      return { success: true, updates: updatesList };
+      return { success: true, updates: updatesList, chronicle };
     } catch (error: any) {
       logger.error('aiSaveMatch error:', error);
       if (error instanceof HttpsError) {
