@@ -54,39 +54,71 @@ export function MembersList({
     return members.find((m: any) => m.userId === currentUser?.uid)?.nemesisId;
   }, [members, currentUser]);
 
-  const playersOnly = useMemo(() => {
+  const computed = useMemo(() => {
     const arr = Array.isArray(members) ? members : [];
-    return arr.filter((p: any) => p.accountType !== 'coach');
+    const playersOnly = arr.filter((p: any) => p.accountType !== 'coach');
+
+    const base = playersOnly.map((p: any) => {
+      const totalMatches = Number.isFinite(p.totalMatches)
+        ? Number(p.totalMatches)
+        : Number(p.wins ?? 0) + Number(p.losses ?? 0);
+
+      const roomRating = Number(p.rating ?? 1000);
+      const totalAddedPoints = roomRating - 1000;
+
+      const winRate =
+        totalMatches > 0 ? (Number(p.wins ?? 0) / totalMatches) * 100 : 0;
+
+      return {
+        ...p,
+        totalMatches,
+        roomRating,
+        totalAddedPoints,
+        winRate,
+      };
+    });
+
+    const activePlayers = base.filter((p: any) => p.totalMatches > 0);
+    const totalMatchesAll = activePlayers.reduce(
+      (sum: number, r: any) => sum + r.totalMatches,
+      0,
+    );
+    const avgM =
+      activePlayers.length > 0 ? totalMatchesAll / activePlayers.length : 1;
+
+    const adjFactor = (ratio: number) => {
+      if (!isFinite(ratio) || ratio <= 0) return 0;
+      return Math.sqrt(ratio);
+    };
+
+    return base.map((p: any) => ({
+      ...p,
+      adjPointsLive: p.totalAddedPoints * adjFactor(p.totalMatches / avgM),
+    }));
   }, [members]);
 
   const sortedMembers = useMemo(() => {
-    return [...playersOnly].sort((a, b) => {
-      const aPlayed = (a.totalMatches ?? 0) > 0;
-      const bPlayed = (b.totalMatches ?? 0) > 0;
+    return [...computed].sort((a, b) => {
+      const aPlayed = a.totalMatches > 0;
+      const bPlayed = b.totalMatches > 0;
       if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
 
       if (roomMode === 'professional' || roomMode === 'derby') {
-        if (b.rating !== a.rating) return (b.rating ?? 0) - (a.rating ?? 0);
-        const bWin = parseFloat(b.winPct ?? '0');
-        const aWin = parseFloat(a.winPct ?? '0');
-        if (bWin !== aWin) return bWin - aWin;
-        return (b.wins ?? 0) - (a.wins ?? 0);
+        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        return b.wins - a.wins;
       } else if (roomMode === 'arcade') {
-        if (b.wins !== a.wins) return (b.wins ?? 0) - (a.wins ?? 0);
-        const bWin = parseFloat(b.winPct ?? '0');
-        const aWin = parseFloat(a.winPct ?? '0');
-        if (bWin !== aWin) return bWin - aWin;
-        return (b.totalMatches ?? 0) - (a.totalMatches ?? 0);
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        return b.totalMatches - a.totalMatches;
       } else {
         if (b.adjPointsLive !== a.adjPointsLive)
-          return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
-        if (b.rating !== a.rating) return (b.rating ?? 0) - (a.rating ?? 0);
-        const bWin = parseFloat(b.winPct ?? '0');
-        const aWin = parseFloat(a.winPct ?? '0');
-        return bWin - aWin;
+          return b.adjPointsLive - a.adjPointsLive;
+        if (b.roomRating !== a.roomRating) return b.roomRating - a.roomRating;
+        return b.winRate - a.winRate;
       }
     });
-  }, [playersOnly, roomMode]);
+  }, [computed, roomMode]);
 
   const canRemovePlayers = isCreator || canManage;
 
@@ -116,7 +148,7 @@ export function MembersList({
               const currentStreak = p.currentStreak ?? 0;
               const isOnFire = currentStreak >= 3;
               const isGiantSlayer = p.badges?.includes('giant_slayer');
-              const hasPlayed = (p.totalMatches ?? 0) > 0;
+              const hasPlayed = p.totalMatches > 0;
 
               return (
                 <div

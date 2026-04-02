@@ -112,7 +112,7 @@ export function RoomHeader({
       const diff = endTs - now;
 
       if (diff <= 0) {
-        if (!hasTriggeredFinalize) {
+        if (isMember && !hasTriggeredFinalize) {
           hasTriggeredFinalize = true;
           triggerFinalize();
         }
@@ -145,7 +145,15 @@ export function RoomHeader({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [room.sprintStartTs, room.sprintDuration, mode, t, room.id, sport]);
+  }, [
+    room.sprintStartTs,
+    room.sprintDuration,
+    mode,
+    t,
+    room.id,
+    sport,
+    isMember,
+  ]);
 
   const topBountyMember = members?.reduce((prev, current) => {
     const prevStreak = prev?.currentStreak ?? 0;

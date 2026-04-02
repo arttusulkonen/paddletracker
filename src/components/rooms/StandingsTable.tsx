@@ -209,7 +209,10 @@ export function StandingsTable({
 
 function LiveFinalStandings({ players, t, roomMode }: any) {
   const rows = useMemo(() => {
-    const activePlayers = players.filter((p: any) => (p.totalMatches ?? 0) > 0);
+    const activePlayers = players.filter((p: any) => {
+      const played = p.totalMatches ?? (p.wins ?? 0) + (p.losses ?? 0);
+      return played > 0;
+    });
 
     const sorted = [...activePlayers].sort((a: any, b: any) => {
       if (roomMode === 'professional' || roomMode === 'derby') {
@@ -223,7 +226,9 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
         const bWin = parseFloat(b.winPct ?? '0');
         const aWin = parseFloat(a.winPct ?? '0');
         if (bWin !== aWin) return bWin - aWin;
-        return (b.totalMatches ?? 0) - (a.totalMatches ?? 0);
+        const bPlayed = b.totalMatches ?? (b.wins ?? 0) + (b.losses ?? 0);
+        const aPlayed = a.totalMatches ?? (a.wins ?? 0) + (a.losses ?? 0);
+        return bPlayed - aPlayed;
       } else {
         if (b.adjPointsLive !== a.adjPointsLive)
           return (b.adjPointsLive ?? 0) - (a.adjPointsLive ?? 0);
@@ -269,6 +274,9 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
           <TableBody>
             {rows.map((r: any, index: number) => {
               const isLeader = index === 0;
+              const matchesPlayed =
+                r.totalMatches ?? (r.wins ?? 0) + (r.losses ?? 0);
+
               return (
                 <TableRow
                   key={r.userId}
@@ -293,7 +301,7 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                     </div>
                   </TableCell>
                   <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                    {r.totalMatches ?? 0}
+                    {matchesPlayed}
                   </TableCell>
                   <TableCell className='text-center py-2 px-3 font-bold text-emerald-500 text-xs'>
                     {r.wins ?? 0}
@@ -334,7 +342,9 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
                     <TableCell className='text-center py-2 px-3'>
                       <div className='flex flex-col items-center justify-center'>
                         <span className='font-black text-green-600 dark:text-green-400 text-base'>
-                          {r.adjPointsLive?.toFixed(1) ?? '—'}
+                          {r.adjPointsLive != null
+                            ? r.adjPointsLive.toFixed(1)
+                            : '—'}
                         </span>
                         <span className='text-[8px] uppercase tracking-widest font-bold text-muted-foreground'>
                           {t('adj')}
@@ -615,179 +625,189 @@ function RegularStandings({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {players.map((p: any, i: number) => (
-              <TableRow
-                key={p.userId}
-                className='hover:bg-muted/30 border-b border-border/40 transition-colors'
-              >
-                <TableCell className='text-center py-2 px-3 font-mono text-xs text-muted-foreground'>
-                  {i + 1}
-                </TableCell>
-                <TableCell className='py-2 px-3'>
-                  <div className='flex flex-col'>
-                    <div className='flex items-center gap-1.5'>
-                      <a
-                        href={`/profile/${p.userId}`}
-                        className='hover:underline font-semibold text-sm truncate'
-                      >
-                        {p.name}
-                      </a>
-                      {p.userId === creatorId && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <ShieldCheck className='h-3 w-3 text-primary shrink-0' />
-                            </TooltipTrigger>
-                            <TooltipContent className='glass-panel border-0 text-xs'>
-                              <p>{t('Room Creator')}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+            {players.map((p: any, i: number) => {
+              const playedCount =
+                p.totalMatches ?? (p.wins ?? 0) + (p.losses ?? 0);
+
+              return (
+                <TableRow
+                  key={p.userId}
+                  className='hover:bg-muted/30 border-b border-border/40 transition-colors'
+                >
+                  <TableCell className='text-center py-2 px-3 font-mono text-xs text-muted-foreground'>
+                    {i + 1}
+                  </TableCell>
+                  <TableCell className='py-2 px-3'>
+                    <div className='flex flex-col'>
+                      <div className='flex items-center gap-1.5'>
+                        <a
+                          href={`/profile/${p.userId}`}
+                          className='hover:underline font-semibold text-sm truncate'
+                        >
+                          {p.name}
+                        </a>
+                        {p.userId === creatorId && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <ShieldCheck className='h-3 w-3 text-primary shrink-0' />
+                              </TooltipTrigger>
+                              <TooltipContent className='glass-panel border-0 text-xs'>
+                                <p>{t('Room Creator')}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                      {p.currentStreak !== undefined &&
+                        p.currentStreak >= 3 && (
+                          <div className='flex gap-1 mt-0.5'>
+                            <span className='text-[8px] font-bold uppercase tracking-wider bg-orange-500/10 text-orange-600 px-1 py-px rounded flex items-center gap-0.5'>
+                              <Flame className='w-2 h-2 fill-current animate-pulse' />{' '}
+                              {p.currentStreak}
+                            </span>
+                          </div>
+                        )}
+                    </div>
+                  </TableCell>
+
+                  <TableCell className='text-center py-2 px-3'>
+                    <div className='flex flex-col items-center justify-center'>
+                      <span className='font-black text-primary text-base'>
+                        {p.ratingVisible ? Math.round(p.rating ?? 1000) : '—'}
+                      </span>
+                      {p.ratingVisible && (
+                        <div className='flex items-center gap-1 mt-0.5'>
+                          {(roomMode === 'derby' ||
+                            roomMode === 'professional') && (
+                            <span className='text-[9px] text-muted-foreground font-medium'>
+                              S:
+                              {Math.round(
+                                (p.rating ?? 1000) - (p.deltaRoom || 0),
+                              )}
+                            </span>
+                          )}
+                          <span
+                            className={`text-[9px] font-bold flex items-center ${(p.deltaRoom || 0) > 0 ? 'text-emerald-500' : (p.deltaRoom || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
+                          >
+                            <span className='mr-px'>Δ</span>
+                            {(p.deltaRoom || 0) > 0 ? '+' : ''}
+                            {Math.round(p.deltaRoom || 0)}
+                          </span>
+                        </div>
                       )}
                     </div>
-                    {p.currentStreak !== undefined && p.currentStreak >= 3 && (
-                      <div className='flex gap-1 mt-0.5'>
-                        <span className='text-[8px] font-bold uppercase tracking-wider bg-orange-500/10 text-orange-600 px-1 py-px rounded flex items-center gap-0.5'>
-                          <Flame className='w-2 h-2 fill-current animate-pulse' />{' '}
-                          {p.currentStreak}
+                  </TableCell>
+
+                  {roomMode !== 'professional' && (
+                    <TableCell className='text-center py-2 px-3'>
+                      <div className='flex flex-col items-center justify-center'>
+                        <span className='font-black text-green-600 dark:text-green-400 text-lg'>
+                          {p.ratingVisible && playedCount > 0
+                            ? p.adjPointsLive != null
+                              ? p.adjPointsLive.toFixed(1)
+                              : '—'
+                            : '—'}
+                        </span>
+                        <span className='text-[8px] uppercase tracking-widest font-bold text-muted-foreground'>
+                          {t('adj')}
                         </span>
                       </div>
-                    )}
-                  </div>
-                </TableCell>
+                    </TableCell>
+                  )}
 
-                <TableCell className='text-center py-2 px-3'>
-                  <div className='flex flex-col items-center justify-center'>
-                    <span className='font-black text-primary text-base'>
-                      {p.ratingVisible ? Math.round(p.rating ?? 1000) : '—'}
-                    </span>
-                    {p.ratingVisible && (
-                      <div className='flex items-center gap-1 mt-0.5'>
-                        {(roomMode === 'derby' ||
-                          roomMode === 'professional') && (
+                  <TableCell className='text-center py-2 px-3'>
+                    <div className='flex flex-col items-center justify-center'>
+                      <span className='font-bold text-sm text-foreground'>
+                        {p.ratingVisible
+                          ? Math.round(p.globalElo || 1000)
+                          : '—'}
+                      </span>
+                      {p.ratingVisible && (
+                        <div className='flex items-center gap-1 mt-0.5'>
                           <span className='text-[9px] text-muted-foreground font-medium'>
                             S:
                             {Math.round(
-                              (p.rating ?? 1000) - (p.deltaRoom || 0),
+                              (p.globalElo || 1000) - (p.globalDelta || 0),
                             )}
                           </span>
-                        )}
-                        <span
-                          className={`text-[9px] font-bold flex items-center ${(p.deltaRoom || 0) > 0 ? 'text-emerald-500' : (p.deltaRoom || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
-                        >
-                          <span className='mr-px'>Δ</span>
-                          {(p.deltaRoom || 0) > 0 ? '+' : ''}
-                          {Math.round(p.deltaRoom || 0)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-
-                {roomMode !== 'professional' && (
-                  <TableCell className='text-center py-2 px-3'>
-                    <div className='flex flex-col items-center justify-center'>
-                      <span className='font-black text-green-600 dark:text-green-400 text-lg'>
-                        {p.ratingVisible && (p.totalMatches ?? 0) > 0
-                          ? p.adjPointsLive?.toFixed(1)
-                          : '—'}
-                      </span>
-                      <span className='text-[8px] uppercase tracking-widest font-bold text-muted-foreground'>
-                        {t('adj')}
-                      </span>
+                          <span
+                            className={`text-[9px] font-bold flex items-center ${(p.globalDelta || 0) > 0 ? 'text-emerald-500' : (p.globalDelta || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
+                          >
+                            <span className='mr-px'>Δ</span>
+                            {(p.globalDelta || 0) > 0 ? '+' : ''}
+                            {Math.round(p.globalDelta || 0)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
-                )}
 
-                <TableCell className='text-center py-2 px-3'>
-                  <div className='flex flex-col items-center justify-center'>
-                    <span className='font-bold text-sm text-foreground'>
-                      {p.ratingVisible ? Math.round(p.globalElo || 1000) : '—'}
-                    </span>
-                    {p.ratingVisible && (
-                      <div className='flex items-center gap-1 mt-0.5'>
-                        <span className='text-[9px] text-muted-foreground font-medium'>
-                          S:
-                          {Math.round(
-                            (p.globalElo || 1000) - (p.globalDelta || 0),
-                          )}
-                        </span>
-                        <span
-                          className={`text-[9px] font-bold flex items-center ${(p.globalDelta || 0) > 0 ? 'text-emerald-500' : (p.globalDelta || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}
-                        >
-                          <span className='mr-px'>Δ</span>
-                          {(p.globalDelta || 0) > 0 ? '+' : ''}
-                          {Math.round(p.globalDelta || 0)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-
-                {sport === 'tennis' ? (
-                  <>
-                    <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                      {p.totalMatches ?? 0}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 text-emerald-500 font-bold text-xs'>
-                      {p.wins ?? 0}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 text-red-500 font-bold text-xs'>
-                      {p.losses ?? 0}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-bold text-xs'>
-                      {p.ratingVisible ? `${p.winPct ?? 0}%` : '—'}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                      {p.aces ?? 0}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                      {p.doubleFaults ?? 0}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                      {p.winners ?? 0}
-                    </TableCell>
-                  </>
-                ) : (
-                  <>
-                    <TableCell className='text-center py-2 px-3 font-mono text-xs'>
-                      {p.totalMatches ?? 0}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-bold text-emerald-500 text-xs'>
-                      {p.wins ?? 0}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-bold text-red-500 text-xs'>
-                      {p.losses ?? 0}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-black text-xs'>
-                      {p.ratingVisible ? `${p.winPct ?? 0}%` : '—'}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-mono text-[10px]'>
-                      {p.ratingVisible
-                        ? (p.avgPtsPerMatch ?? 0).toFixed(1)
-                        : '—'}
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3'>
-                      <div className='flex gap-0.5 justify-center'>
-                        {(p.last5Form || [])
-                          .slice()
-                          .reverse()
-                          .map((mm: MiniMatch, idx: number) => (
-                            <div
-                              key={idx}
-                              className={`w-2 h-2 rounded-full shadow-sm ${mm.result === 'W' ? 'bg-emerald-500' : 'bg-red-500'}`}
-                              title={`${mm.result === 'W' ? 'Win' : 'Loss'} vs ${mm.opponent}`}
-                            />
-                          ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className='text-center py-2 px-3 font-bold text-muted-foreground text-xs'>
-                      {p.ratingVisible ? (p.longestWinStreak ?? 0) : '—'}
-                    </TableCell>
-                  </>
-                )}
-              </TableRow>
-            ))}
+                  {sport === 'tennis' ? (
+                    <>
+                      <TableCell className='text-center py-2 px-3 font-mono text-xs'>
+                        {playedCount}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 text-emerald-500 font-bold text-xs'>
+                        {p.wins ?? 0}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 text-red-500 font-bold text-xs'>
+                        {p.losses ?? 0}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-bold text-xs'>
+                        {p.ratingVisible ? `${p.winPct ?? 0}%` : '—'}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-mono text-xs'>
+                        {p.aces ?? 0}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-mono text-xs'>
+                        {p.doubleFaults ?? 0}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-mono text-xs'>
+                        {p.winners ?? 0}
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell className='text-center py-2 px-3 font-mono text-xs'>
+                        {playedCount}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-bold text-emerald-500 text-xs'>
+                        {p.wins ?? 0}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-bold text-red-500 text-xs'>
+                        {p.losses ?? 0}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-black text-xs'>
+                        {p.ratingVisible ? `${p.winPct ?? 0}%` : '—'}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-mono text-[10px]'>
+                        {p.ratingVisible
+                          ? (p.avgPtsPerMatch ?? 0).toFixed(1)
+                          : '—'}
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3'>
+                        <div className='flex gap-0.5 justify-center'>
+                          {(p.last5Form || [])
+                            .slice()
+                            .reverse()
+                            .map((mm: MiniMatch, idx: number) => (
+                              <div
+                                key={idx}
+                                className={`w-2 h-2 rounded-full shadow-sm ${mm.result === 'W' ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                title={`${mm.result === 'W' ? 'Win' : 'Loss'} vs ${mm.opponent}`}
+                              />
+                            ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className='text-center py-2 px-3 font-bold text-muted-foreground text-xs'>
+                        {p.ratingVisible ? (p.longestWinStreak ?? 0) : '—'}
+                      </TableCell>
+                    </>
+                  )}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </ScrollArea>

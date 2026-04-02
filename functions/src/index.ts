@@ -1867,211 +1867,6 @@ export const aiContentCheck = onCall(
   },
 );
 
-export const processDerbySprints = onSchedule(
-  {
-    schedule: '59 23 * * 0',
-    timeZone: 'Europe/Helsinki',
-    region: 'europe-west1',
-    timeoutSeconds: 300,
-  },
-  async () => {
-    const nowIso = new Date().toISOString();
-    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-    const nowMs = Date.now();
-
-    logger.info('Starting Derby Sprints processing...');
-
-    for (const collectionName of collectionsToScan.rooms) {
-      if (!collectionName) continue;
-
-      const sport = collectionName.split('-')[1];
-      if (!sport) continue;
-
-      const roomsRef = db.collection(collectionName);
-
-      const snapshot = await roomsRef
-        .where('mode', '==', 'derby')
-        .where('isFinished', '==', false)
-        .where('isArchived', '==', false)
-        .get();
-
-      for (const roomDoc of snapshot.docs) {
-        if (!roomDoc.exists) continue;
-
-        const room = roomDoc.data();
-        if (!room) continue;
-
-        const sprintDurationWeeks = room.sprintDuration || 2;
-
-        if (!room.sprintStartTs) {
-          continue;
-        }
-
-        const elapsedMs = nowMs - room.sprintStartTs;
-        const requiredMs = sprintDurationWeeks * ONE_WEEK_MS;
-
-        if (elapsedMs < requiredMs) {
-          continue;
-        }
-
-        logger.info(
-          `Processing Sprint End for room: ${room.name} (${roomDoc.id})`,
-        );
-
-        const members = room.members || [];
-        if (members.length === 0) continue;
-
-        const sortedByRating = [...members].sort(
-          (a, b) => (b.rating || 0) - (a.rating || 0),
-        );
-        const champion = sortedByRating[0];
-
-        const sortedByStreak = [...members].sort(
-          (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
-        );
-        const unstoppable =
-          sortedByStreak[0]?.highestStreak >= 5 ? sortedByStreak[0] : null;
-
-        const hallOfFame = room.hallOfFame || [];
-        const batch = db.batch();
-
-        const getOrCreateHof = (uid: string, name: string) => {
-          if (!uid) return null;
-          let entry = hallOfFame.find((e: any) => e.userId === uid);
-          if (!entry) {
-            entry = {
-              userId: uid,
-              name: name || 'Unknown',
-              championships: 0,
-              streaksBroken: 0,
-              maxStreakEver: 0,
-              totalDerbyWins: 0,
-            };
-            hallOfFame.push(entry);
-          }
-
-          entry.championships = Number(entry.championships) || 0;
-          entry.streaksBroken = Number(entry.streaksBroken) || 0;
-          entry.maxStreakEver = Number(entry.maxStreakEver) || 0;
-          entry.totalDerbyWins = Number(entry.totalDerbyWins) || 0;
-
-          return entry;
-        };
-
-        if (champion && champion.userId) {
-          const hof = getOrCreateHof(champion.userId, champion.name);
-          if (hof) {
-            hof.championships += 1;
-          }
-
-          batch.update(db.collection('users').doc(champion.userId), {
-            achievements: admin.firestore.FieldValue.arrayUnion({
-              type: 'derbyChampion',
-              sport: sport,
-              dateFinished: nowIso,
-              roomId: roomDoc.id,
-              roomName: room.name || '',
-              roomRating: champion.rating || 1000,
-            }),
-          });
-        }
-
-        if (unstoppable && unstoppable.userId) {
-          batch.update(db.collection('users').doc(unstoppable.userId), {
-            achievements: admin.firestore.FieldValue.arrayUnion({
-              type: 'derbyUnstoppable',
-              sport: sport,
-              dateFinished: nowIso,
-              roomId: roomDoc.id,
-              roomName: room.name || '',
-              longestWinStreak: unstoppable.highestStreak || 0,
-            }),
-          });
-        }
-
-        members.forEach((m: any) => {
-          if (!m || !m.userId) return;
-
-          const hof = getOrCreateHof(m.userId, m.name);
-          if (hof) {
-            const slayersCount =
-              m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
-            hof.streaksBroken += slayersCount;
-
-            const currentHighest = Number(m.highestStreak) || 0;
-            if (currentHighest > hof.maxStreakEver) {
-              hof.maxStreakEver = currentHighest;
-            }
-
-            hof.totalDerbyWins = Number(m.wins) || 0;
-          }
-
-          const currentElo = m.rating || 1000;
-          m.rating = Math.round(1000 + (currentElo - 1000) * 0.75);
-
-          m.currentStreak = 0;
-          m.highestStreak = 0;
-          m.badges = [];
-        });
-
-        if (room.communityId) {
-          const feedRef = db
-            .collection('communities')
-            .doc(room.communityId)
-            .collection('feed')
-            .doc();
-          batch.set(feedRef, {
-            id: feedRef.id,
-            communityId: room.communityId,
-            type: 'season_finished',
-            sport: sport,
-            title: `Derby Sprint Finished: ${room.name || 'Unknown'}`,
-            description: champion
-              ? `🏆 ${champion.name} won the sprint!`
-              : 'The sprint has concluded.',
-            createdAt: nowIso,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            meta: {
-              roomId: roomDoc.id,
-              roomName: room.name || '',
-              mode: 'derby',
-              winner: champion?.name || '',
-            },
-          });
-        }
-
-        const sprintCount = (room.sprintCount || 0) + 1;
-        batch.update(roomDoc.ref, {
-          members: members,
-          hallOfFame: hallOfFame,
-          sprintStartTs: nowMs,
-          sprintCount: sprintCount,
-        });
-
-        await batch.commit();
-        logger.info(`Successfully processed sprint for room ${roomDoc.id}`);
-      }
-    }
-
-    logger.info('Derby Sprints processing completed.');
-  },
-);
-
-// Вспомогательная функция для форматирования даты в виде DD.MM.YYYY
-function getShortDate(dateObj: Date = new Date()): string {
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone: 'Europe/Helsinki',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  };
-  const formatter = new Intl.DateTimeFormat('fi-FI', options);
-  const parts = formatter.formatToParts(dateObj);
-  const getPart = (type: string) =>
-    parts.find((p) => p.type === type)?.value || '00';
-  return `${getPart('day')}.${getPart('month')}.${getPart('year')}`;
-}
-
 export const forceFinalizeDerbySprint = onCall(
   { region: 'europe-west1' },
   async (request: CallableRequest) => {
@@ -2081,8 +1876,13 @@ export const forceFinalizeDerbySprint = onCall(
 
     const callerUid = request.auth.uid;
     const { roomId, sport } = request.data || {};
+    
     if (!roomId || !sport) {
       throw new HttpsError('invalid-argument', 'Missing roomId or sport');
+    }
+
+    if (!['pingpong', 'tennis', 'badminton'].includes(sport)) {
+      throw new HttpsError('invalid-argument', 'Invalid sport type');
     }
 
     const nowMs = Date.now();
@@ -2107,10 +1907,7 @@ export const forceFinalizeDerbySprint = onCall(
 
       const memberIds = room.memberIds || [];
       if (!memberIds.includes(callerUid)) {
-        throw new HttpsError(
-          'permission-denied',
-          'Only room members can finalize the sprint',
-        );
+        throw new HttpsError('permission-denied', 'Only room members can finalize the sprint');
       }
 
       if (!room.sprintStartTs) {
@@ -2118,8 +1915,7 @@ export const forceFinalizeDerbySprint = onCall(
       }
 
       const sprintDurationWeeks = Number(room.sprintDuration) || 2;
-      const sprintEndTs =
-        room.sprintStartTs + sprintDurationWeeks * ONE_WEEK_MS;
+      const sprintEndTs = room.sprintStartTs + (sprintDurationWeeks * ONE_WEEK_MS);
 
       if (nowMs < sprintEndTs - 10000) {
         throw new HttpsError('failed-precondition', 'Sprint has not ended yet');
@@ -2129,13 +1925,13 @@ export const forceFinalizeDerbySprint = onCall(
       if (members.length === 0) return;
 
       const playersOnlyMembers = members.filter(
-        (m: any) => m.accountType !== 'coach',
+        (m: any) => m.accountType !== 'coach'
       );
 
       const startDate = room.sprintStartTs
-        ? getShortDate(new Date(room.sprintStartTs))
+        ? getFinnishDate(new Date(room.sprintStartTs)).split(' ')[0]
         : '???';
-      const endDate = getShortDate(new Date(nowMs));
+      const endDate = getFinnishDate(new Date(nowMs)).split(' ')[0];
       const periodLabel = `${startDate} — ${endDate}`;
 
       const participants = [...playersOnlyMembers].sort((a, b) => {
@@ -2158,14 +1954,14 @@ export const forceFinalizeDerbySprint = onCall(
       const topSlayerPlayer = [...playersOnlyMembers].sort(
         (a, b) =>
           (b.badges?.filter((x: string) => x === 'giant_slayer').length || 0) -
-          (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0),
+          (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0)
       )[0];
       const slayerCount =
         topSlayerPlayer?.badges?.filter((x: string) => x === 'giant_slayer')
           .length || 0;
 
       const topStreakPlayer = [...playersOnlyMembers].sort(
-        (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
+        (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0)
       )[0];
 
       const sprintCount = (room.sprintCount || 0) + 1;
@@ -2207,19 +2003,19 @@ export const forceFinalizeDerbySprint = onCall(
           };
           hallOfFame.push(hof);
         }
-
+        
         if (champion && m.userId === champion.userId) {
           hof.championships = (hof.championships || 0) + 1;
         }
-
+        
         const curSlayers =
           m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
         hof.streaksBroken = (hof.streaksBroken || 0) + curSlayers;
-
+        
         if ((m.highestStreak || 0) > (hof.maxStreakEver || 0)) {
           hof.maxStreakEver = m.highestStreak;
         }
-
+        
         hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
 
         const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
@@ -2246,11 +2042,11 @@ export const forceFinalizeDerbySprint = onCall(
           }
           t.update(userRef, {
             achievements: admin.firestore.FieldValue.arrayUnion(
-              ...achievementsToAdd,
+              ...achievementsToAdd
             ),
           });
         }
-
+        
         if (
           topStreakPlayer &&
           m.userId === topStreakPlayer.userId &&
@@ -2266,7 +2062,7 @@ export const forceFinalizeDerbySprint = onCall(
             }),
           });
         }
-
+        
         const oldRating = m.rating || 1000;
         return {
           ...m,
@@ -2313,7 +2109,7 @@ export const forceFinalizeDerbySprint = onCall(
     });
 
     return { success: true };
-  },
+  }
 );
 
 export const processDerbySprints = onSchedule(
@@ -2355,28 +2151,25 @@ export const processDerbySprints = onSchedule(
         }
 
         const sprintDurationWeeks = Number(room.sprintDuration) || 2;
-        const sprintEndTs =
-          room.sprintStartTs + sprintDurationWeeks * ONE_WEEK_MS;
+        const sprintEndTs = room.sprintStartTs + (sprintDurationWeeks * ONE_WEEK_MS);
 
         if (nowMs < sprintEndTs - 10000) {
           continue;
         }
 
-        logger.info(
-          `Processing Sprint End for room: ${room.name} (${roomDoc.id})`,
-        );
+        logger.info(`Processing Sprint End for room: ${room.name} (${roomDoc.id})`);
 
         const members = room.members || [];
         if (members.length === 0) continue;
 
         const playersOnlyMembers = members.filter(
-          (m: any) => m.accountType !== 'coach',
+          (m: any) => m.accountType !== 'coach'
         );
 
         const startDate = room.sprintStartTs
-          ? getShortDate(new Date(room.sprintStartTs))
+          ? getFinnishDate(new Date(room.sprintStartTs)).split(' ')[0]
           : '???';
-        const endDate = getShortDate(new Date(nowMs));
+        const endDate = getFinnishDate(new Date(nowMs)).split(' ')[0];
         const periodLabel = `${startDate} — ${endDate}`;
 
         const participants = [...playersOnlyMembers].sort((a, b) => {
@@ -2398,16 +2191,15 @@ export const processDerbySprints = onSchedule(
 
         const topSlayerPlayer = [...playersOnlyMembers].sort(
           (a, b) =>
-            (b.badges?.filter((x: string) => x === 'giant_slayer').length ||
-              0) -
-            (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0),
+            (b.badges?.filter((x: string) => x === 'giant_slayer').length || 0) -
+            (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0)
         )[0];
         const slayerCount =
           topSlayerPlayer?.badges?.filter((x: string) => x === 'giant_slayer')
             .length || 0;
 
         const topStreakPlayer = [...playersOnlyMembers].sort(
-          (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
+          (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0)
         )[0];
 
         const sprintCount = (room.sprintCount || 0) + 1;
@@ -2451,19 +2243,19 @@ export const processDerbySprints = onSchedule(
             };
             hallOfFame.push(hof);
           }
-
+          
           if (champion && m.userId === champion.userId) {
             hof.championships = (hof.championships || 0) + 1;
           }
-
+          
           const curSlayers =
             m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
           hof.streaksBroken = (hof.streaksBroken || 0) + curSlayers;
-
+          
           if ((m.highestStreak || 0) > (hof.maxStreakEver || 0)) {
             hof.maxStreakEver = m.highestStreak;
           }
-
+          
           hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
 
           const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
@@ -2490,11 +2282,11 @@ export const processDerbySprints = onSchedule(
             }
             batch.update(userRef, {
               achievements: admin.firestore.FieldValue.arrayUnion(
-                ...achievementsToAdd,
+                ...achievementsToAdd
               ),
             });
           }
-
+          
           if (
             topStreakPlayer &&
             m.userId === topStreakPlayer.userId &&
@@ -2510,7 +2302,7 @@ export const processDerbySprints = onSchedule(
               }),
             });
           }
-
+          
           const oldRating = m.rating || 1000;
           return {
             ...m,
@@ -2561,5 +2353,5 @@ export const processDerbySprints = onSchedule(
     }
 
     logger.info('Derby Sprints processing completed.');
-  },
+  }
 );
