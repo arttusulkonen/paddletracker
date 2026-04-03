@@ -1,3 +1,4 @@
+// src/components/rooms/DerbyFeed.tsx
 'use client';
 
 import {
@@ -16,6 +17,7 @@ import {
 	Coins,
 	Droplet,
 	Flame,
+	History,
 	LineChart,
 	Skull,
 	Swords,
@@ -105,7 +107,7 @@ const renderText = (
       {parts.map((part, i) => {
         if (part === '___WINNER___') {
           return (
-            <span key={i} className='text-foreground font-bold'>
+            <span key={i} className='text-foreground font-black'>
               {winnerName}
             </span>
           );
@@ -114,7 +116,7 @@ const renderText = (
           const loserClass =
             type === 'GIANT_SLAYER'
               ? 'text-muted-foreground line-through decoration-red-500/50'
-              : 'text-muted-foreground';
+              : 'text-muted-foreground font-medium';
           return (
             <span key={i} className={loserClass}>
               {loserName}
@@ -297,15 +299,14 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
     chronicles.length === 0
   ) {
     return (
-      <Card className='mb-4 border-0 rounded-xl glass-panel shadow-sm bg-red-500/5 ring-1 ring-red-500/20'>
-        <CardContent className='p-4 text-center text-red-600/70 dark:text-red-400/70'>
-          <Swords className='w-6 h-6 mx-auto mb-2 opacity-50' />
-          <p className='text-xs font-semibold max-w-sm mx-auto'>
-            {t(
-              'The Derby has begun. Play matches to build streaks and rivalries!',
-            )}
-          </p>
-        </CardContent>
+      <Card className='h-full border-0 rounded-[2rem] glass-panel shadow-sm bg-red-500/5 ring-1 ring-red-500/20 flex flex-col items-center justify-center p-8'>
+        <Swords className='w-12 h-12 text-red-500 mb-4 opacity-50' />
+        <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2">
+          {t('Arena is quiet')}
+        </h3>
+        <p className='text-sm font-medium text-red-600/70 dark:text-red-400/70 max-w-sm text-center'>
+          {t('The Derby has begun. Play matches to build streaks and rivalries!')}
+        </p>
       </Card>
     );
   }
@@ -315,40 +316,40 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
     const localizedText = t(phrase);
 
     const ScoreBadge = (
-      <div className='flex items-center gap-1 font-mono text-[9px] bg-background/80 backdrop-blur-md px-1.5 py-0.5 rounded border border-black/5 dark:border-white/5 text-muted-foreground shrink-0'>
-        <span className='font-bold text-foreground truncate max-w-[45px]'>
+      <div className='flex items-center gap-1.5 font-mono text-[10px] bg-background/80 backdrop-blur-md px-2 py-1 rounded-md border border-border shadow-sm text-muted-foreground shrink-0'>
+        <span className='font-bold text-foreground truncate max-w-[50px]'>
           {m.player1.name}
         </span>
-        <span className='opacity-50'>
+        <span className='opacity-40 px-0.5'>
           {m.player1.scores}-{m.player2.scores}
         </span>
-        <span className='font-bold text-foreground truncate max-w-[45px]'>
+        <span className='font-bold text-foreground truncate max-w-[50px]'>
           {m.player2.name}
         </span>
       </div>
     );
 
     const baseClass =
-      'rounded-xl p-2.5 shadow-sm ring-1 ring-inset flex flex-col justify-center';
+      'rounded-2xl p-3 shadow-sm ring-1 ring-inset flex flex-col justify-center gap-2';
 
     switch (type) {
       case 'FLAWLESS':
         return (
           <div className={`${baseClass} bg-sky-500/10 ring-sky-500/20`}>
-            <div className='flex items-center justify-between mb-1'>
-              <div className='flex items-center gap-1.5 text-sky-600 dark:text-sky-400 font-bold text-[9px] uppercase tracking-widest'>
-                <Target className='w-3 h-3' />
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-1.5 text-sky-600 dark:text-sky-400 font-black text-[10px] uppercase tracking-widest'>
+                <Target className='w-3.5 h-3.5' />
                 {t('Flawless Victory')}
               </div>
               <span className='text-[10px] font-black text-sky-600 dark:text-sky-400'>
                 +{Math.round(delta)}
               </span>
             </div>
-            <div className='flex items-center justify-between gap-2'>
-              <div className='text-[11px] font-medium leading-snug flex-1'>
+            <div className='flex flex-col gap-2.5'>
+              <div className='text-xs font-medium leading-snug text-muted-foreground'>
                 {renderText(localizedText, winner.name, loser.name, type)}
               </div>
-              {ScoreBadge}
+              <div className="flex justify-end">{ScoreBadge}</div>
             </div>
           </div>
         );
@@ -356,20 +357,20 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       case 'NAIL_BITER':
         return (
           <div className={`${baseClass} bg-amber-500/10 ring-amber-500/20`}>
-            <div className='flex items-center justify-between mb-1'>
-              <div className='flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-[9px] uppercase tracking-widest'>
-                <Droplet className='w-3 h-3' />
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-black text-[10px] uppercase tracking-widest'>
+                <Droplet className='w-3.5 h-3.5' />
                 {t('Nail-Biter')}
               </div>
               <span className='text-[10px] font-black text-amber-600 dark:text-amber-400'>
                 +{Math.round(delta)}
               </span>
             </div>
-            <div className='flex items-center justify-between gap-2'>
-              <div className='text-[11px] font-medium leading-snug flex-1'>
+            <div className='flex flex-col gap-2.5'>
+              <div className='text-xs font-medium leading-snug text-muted-foreground'>
                 {renderText(localizedText, winner.name, loser.name, type)}
               </div>
-              {ScoreBadge}
+              <div className="flex justify-end">{ScoreBadge}</div>
             </div>
           </div>
         );
@@ -379,23 +380,23 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
           <div
             className={`${baseClass} bg-red-500/10 ring-red-500/30 relative overflow-hidden`}
           >
-            <div className='absolute -right-2 -top-2 opacity-10 pointer-events-none'>
-              <Skull className='w-12 h-12 text-red-500' />
+            <div className='absolute -right-4 -top-4 opacity-[0.03] pointer-events-none'>
+              <Skull className='w-24 h-24 text-red-500' />
             </div>
-            <div className='flex items-center justify-between mb-1 relative z-10'>
-              <div className='flex items-center gap-1.5 text-red-600 dark:text-red-400 font-bold text-[9px] uppercase tracking-widest'>
-                <Swords className='w-3 h-3' />
+            <div className='flex items-center justify-between relative z-10'>
+              <div className='flex items-center gap-1.5 text-red-600 dark:text-red-400 font-black text-[10px] uppercase tracking-widest'>
+                <Swords className='w-3.5 h-3.5' />
                 {t('Giant Slayer')}
               </div>
-              <span className='text-[9px] font-black text-white bg-red-500 px-1 py-px rounded shadow-sm'>
+              <span className='text-[10px] font-black text-white bg-red-500 px-1.5 py-0.5 rounded-md shadow-sm'>
                 +{Math.round(delta)} ELO
               </span>
             </div>
-            <div className='flex items-center justify-between gap-2 relative z-10'>
-              <div className='text-[11px] font-medium leading-snug flex-1'>
+            <div className='flex flex-col gap-2.5 relative z-10'>
+              <div className='text-xs font-medium leading-snug text-muted-foreground'>
                 {renderText(localizedText, winner.name, loser.name, type)}
               </div>
-              {ScoreBadge}
+              <div className="flex justify-end">{ScoreBadge}</div>
             </div>
           </div>
         );
@@ -403,20 +404,20 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       case 'UPSET':
         return (
           <div className={`${baseClass} bg-purple-500/10 ring-purple-500/20`}>
-            <div className='flex items-center justify-between mb-1'>
-              <div className='flex items-center gap-1.5 text-purple-600 dark:text-purple-400 font-bold text-[9px] uppercase tracking-widest'>
-                <TrendingDown className='w-3 h-3' />
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-1.5 text-purple-600 dark:text-purple-400 font-black text-[10px] uppercase tracking-widest'>
+                <TrendingDown className='w-3.5 h-3.5' />
                 {t('Massive Upset')}
               </div>
               <span className='text-[10px] font-black text-purple-600 dark:text-purple-400'>
                 +{Math.round(delta)}
               </span>
             </div>
-            <div className='flex items-center justify-between gap-2'>
-              <div className='text-[11px] font-medium leading-snug flex-1'>
+            <div className='flex flex-col gap-2.5'>
+              <div className='text-xs font-medium leading-snug text-muted-foreground'>
                 {renderText(localizedText, winner.name, loser.name, type)}
               </div>
-              {ScoreBadge}
+              <div className="flex justify-end">{ScoreBadge}</div>
             </div>
           </div>
         );
@@ -424,20 +425,20 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       case 'DOMINATION':
         return (
           <div className={`${baseClass} bg-primary/10 ring-primary/20`}>
-            <div className='flex items-center justify-between mb-1'>
-              <div className='flex items-center gap-1.5 text-primary font-bold text-[9px] uppercase tracking-widest'>
-                <Flame className='w-3 h-3' />
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-1.5 text-primary font-black text-[10px] uppercase tracking-widest'>
+                <Flame className='w-3.5 h-3.5' />
                 {t('Domination')}
               </div>
               <span className='text-[10px] font-black text-primary'>
                 +{Math.round(delta)}
               </span>
             </div>
-            <div className='flex items-center justify-between gap-2'>
-              <div className='text-[11px] font-medium leading-snug flex-1'>
+            <div className='flex flex-col gap-2.5'>
+              <div className='text-xs font-medium leading-snug text-muted-foreground'>
                 {renderText(localizedText, winner.name, loser.name, type)}
               </div>
-              {ScoreBadge}
+               <div className="flex justify-end">{ScoreBadge}</div>
             </div>
           </div>
         );
@@ -445,13 +446,13 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
       default:
         return (
           <div className={`${baseClass} bg-muted/30 ring-border/50`}>
-            <div className='flex items-center justify-between gap-2'>
-              <div className='text-[11px] font-medium leading-snug flex-1'>
+             <div className='flex flex-col gap-2.5'>
+              <div className='text-xs font-medium leading-snug text-muted-foreground pr-8'>
                 {renderText(localizedText, winner.name, loser.name, type)}
               </div>
-              <div className='flex flex-col items-end gap-1'>
-                <span className='text-[9px] font-black text-muted-foreground flex items-center gap-0.5'>
-                  <Zap className='w-2.5 h-2.5' />+{Math.round(delta)}
+              <div className='flex items-center justify-between'>
+                 <span className='text-[10px] font-black text-muted-foreground flex items-center gap-1 bg-background px-1.5 py-0.5 rounded border border-border shadow-sm'>
+                  <Zap className='w-3 h-3 text-yellow-500' />+{Math.round(delta)}
                 </span>
                 {ScoreBadge}
               </div>
@@ -462,63 +463,66 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
   };
 
   return (
-    <div className='grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4'>
-      <div className='lg:col-span-5 space-y-4'>
+    <div className='grid grid-cols-1 lg:grid-cols-12 gap-6 h-full'>
+      
+      {/* Left Column: Insights, Bounties, Rivalries */}
+      <div className='lg:col-span-5 flex flex-col gap-6 h-full overflow-hidden'>
+        
+        {/* Arena Insights */}
         {(insights.highestStreak > 0 || insights.biggestHeist > 0) && (
-          <Card className='border-0 rounded-xl glass-panel bg-blue-500/5 ring-1 ring-blue-500/20 shadow-sm relative overflow-hidden'>
-            <div className='absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent mix-blend-overlay pointer-events-none' />
-            <CardHeader className='pb-2 relative z-10 px-4 pt-4'>
-              <CardTitle className='text-sm font-extrabold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 tracking-tight'>
-                <div className='p-1 bg-blue-500/10 rounded-md'>
-                  <LineChart className='w-3.5 h-3.5' />
-                </div>
+          <Card className='border-0 rounded-[1.5rem] glass-panel bg-blue-500/5 ring-1 ring-blue-500/20 shadow-sm shrink-0'>
+            <CardHeader className='pb-3 px-5 pt-5'>
+              <CardTitle className='text-sm font-black text-blue-600 dark:text-blue-400 flex items-center gap-2 uppercase tracking-widest'>
+                <LineChart className='w-4 h-4' />
                 {t('Arena Insights')}
               </CardTitle>
             </CardHeader>
-            <CardContent className='space-y-1.5 px-4 pb-4 relative z-10'>
+            <CardContent className='space-y-2 px-5 pb-5'>
               {insights.highestStreakPlayer && insights.highestStreak > 0 && (
-                <div className='flex items-center justify-between bg-background/60 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-lg p-2 shadow-sm'>
-                  <div className='flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground'>
-                    <Trophy className='w-3 h-3 text-yellow-500' />
+                <div className='flex items-center justify-between bg-background/80 backdrop-blur-md border border-border/50 rounded-xl p-3 shadow-sm'>
+                  <div className='flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground'>
+                    <Trophy className='w-3.5 h-3.5 text-yellow-500' />
                     <span>{t('All-Time Streak')}</span>
                   </div>
-                  <div className='flex items-center gap-1.5'>
+                  <div className='flex items-center gap-2'>
                     <span className='font-bold text-xs'>
                       {insights.highestStreakPlayer?.name}
                     </span>
-                    <span className='bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 px-1 py-px rounded text-[9px] font-black'>
+                    <span className='bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 px-1.5 py-0.5 rounded text-[10px] font-black'>
                       {insights.highestStreak} 🔥
                     </span>
                   </div>
                 </div>
               )}
+              
               {insights.biggestHeistPlayer && insights.biggestHeist > 0 && (
-                <div className='flex items-center justify-between bg-background/60 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-lg p-2 shadow-sm'>
-                  <div className='flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground'>
-                    <Coins className='w-3 h-3 text-emerald-500' />
+                <div className='flex items-center justify-between bg-background/80 backdrop-blur-md border border-border/50 rounded-xl p-3 shadow-sm'>
+                  <div className='flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground'>
+                    <Coins className='w-3.5 h-3.5 text-emerald-500' />
                     <span>{t('Biggest Heist')}</span>
                   </div>
-                  <div className='flex items-center gap-1.5'>
+                  <div className='flex items-center gap-2'>
                     <span className='font-bold text-xs'>
                       {insights.biggestHeistPlayer?.name}
                     </span>
-                    <span className='bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1 py-px rounded text-[9px] font-black'>
+                    <span className='bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded text-[10px] font-black'>
                       +{Math.round(insights.biggestHeist)} ELO
                     </span>
                   </div>
                 </div>
               )}
+              
               {insights.mostFrequentMatchupCount > 0 && (
-                <div className='flex items-center justify-between bg-background/60 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-lg p-2 shadow-sm'>
-                  <div className='flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground'>
-                    <Swords className='w-3 h-3 text-rose-500' />
+                <div className='flex items-center justify-between bg-background/80 backdrop-blur-md border border-border/50 rounded-xl p-3 shadow-sm'>
+                  <div className='flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground'>
+                    <Swords className='w-3.5 h-3.5 text-rose-500' />
                     <span>{t('Most Clashes')}</span>
                   </div>
-                  <div className='flex flex-col items-end gap-0.5'>
-                    <span className='bg-rose-500/20 text-rose-700 dark:text-rose-400 px-1 py-px rounded text-[8px] font-black uppercase'>
+                  <div className='flex flex-col items-end gap-1'>
+                    <span className='bg-rose-500/20 text-rose-700 dark:text-rose-400 px-1.5 py-0.5 rounded text-[9px] font-black uppercase'>
                       {insights.mostFrequentMatchupCount} {t('Games')}
                     </span>
-                    <span className='font-bold text-[9px] text-muted-foreground truncate max-w-[100px]'>
+                    <span className='font-bold text-[10px] text-muted-foreground truncate max-w-[120px]'>
                       {insights.mostFrequentMatchupNames}
                     </span>
                   </div>
@@ -528,115 +532,111 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
           </Card>
         )}
 
+        {/* Active Bounties */}
         {bounties.length > 0 && (
-          <Card className='border-0 rounded-xl glass-panel bg-orange-500/5 ring-1 ring-orange-500/20 shadow-sm relative overflow-hidden'>
-            <div className='absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent mix-blend-overlay pointer-events-none' />
-            <CardHeader className='pb-2 relative z-10 px-4 pt-4'>
-              <CardTitle className='text-sm font-extrabold text-orange-600 dark:text-orange-400 flex items-center gap-1.5 tracking-tight'>
-                <div className='p-1 bg-orange-500/10 rounded-md'>
-                  <Flame className='w-3.5 h-3.5 fill-current animate-pulse' />
-                </div>
+          <Card className='border-0 rounded-[1.5rem] glass-panel bg-orange-500/5 ring-1 ring-orange-500/20 shadow-sm shrink-0'>
+            <CardHeader className='pb-3 px-5 pt-5'>
+              <CardTitle className='text-sm font-black text-orange-600 dark:text-orange-400 flex items-center gap-2 uppercase tracking-widest'>
+                <Flame className='w-4 h-4 fill-current animate-pulse' />
                 {t('Active Bounties')}
               </CardTitle>
             </CardHeader>
-            <CardContent className='space-y-1.5 px-4 pb-4 relative z-10'>
-              {bounties.map((b) => (
-                <div
-                  key={b.userId}
-                  className='flex items-center justify-between bg-background/60 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-lg p-2 shadow-sm transition-transform hover:scale-[1.01]'
-                >
-                  <div className='flex items-center gap-2.5'>
-                    <Avatar className='h-7 w-7 ring-1 ring-orange-500/50'>
-                      <AvatarImage src={b.photoURL || undefined} />
-                      <AvatarFallback className='bg-orange-100 text-orange-700 text-[9px] font-bold'>
-                        {(b.name || '?').substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className='font-bold text-xs leading-tight'>
-                        {b.name}
+            <CardContent className='px-5 pb-5'>
+              <ScrollArea className='max-h-[160px] pr-3 -mr-3 custom-scrollbar'>
+                <div className="space-y-2">
+                  {bounties.map((b) => (
+                    <div
+                      key={b.userId}
+                      className='flex items-center justify-between bg-background/80 backdrop-blur-md border border-border/50 rounded-xl p-3 shadow-sm transition-transform hover:scale-[1.02]'
+                    >
+                      <div className='flex items-center gap-3'>
+                        <Avatar className='h-8 w-8 ring-2 ring-orange-500/50 ring-offset-1 ring-offset-background'>
+                          <AvatarImage src={b.photoURL || undefined} />
+                          <AvatarFallback className='bg-orange-100 text-orange-700 text-[10px] font-bold'>
+                            {(b.name || '?').substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className='font-bold text-sm leading-tight'>
+                            {b.name}
+                          </div>
+                          <div className='text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1 mt-0.5'>
+                            <Flame className='w-2.5 h-2.5 text-orange-500' />
+                            {b.currentStreak} {t('Win Streak')}
+                          </div>
+                        </div>
                       </div>
-                      <div className='text-[8px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1 mt-0.5'>
-                        <Flame className='w-2 h-2 text-orange-500' />
-                        {b.currentStreak} {t('Win Streak')}
+                      <div className='text-right'>
+                        <div className='text-[8px] font-black text-orange-500 uppercase tracking-widest mb-0.5'>
+                          {t('Reward')}
+                        </div>
+                        <div className='font-black text-lg text-foreground leading-none'>
+                          +{((b.currentStreak ?? 0) - 2) * 5}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className='text-right'>
-                    <div className='text-[7px] font-bold text-orange-500 uppercase tracking-widest mb-0.5'>
-                      {t('Reward')}
-                    </div>
-                    <div className='font-black text-sm text-foreground leading-none'>
-                      +{((b.currentStreak ?? 0) - 2) * 5}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </ScrollArea>
             </CardContent>
           </Card>
         )}
 
+        {/* Active Rivalries */}
         {rivalries.length > 0 && (
-          <Card className='border-0 rounded-xl glass-panel bg-purple-500/5 ring-1 ring-purple-500/20 shadow-sm relative overflow-hidden'>
-            <div className='absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent mix-blend-overlay pointer-events-none' />
-            <CardHeader className='pb-2 relative z-10 px-4 pt-4'>
-              <CardTitle className='text-sm font-extrabold text-purple-600 dark:text-purple-400 flex items-center gap-1.5 tracking-tight'>
-                <div className='p-1 bg-purple-500/10 rounded-md'>
-                  <Skull className='w-3.5 h-3.5' />
-                </div>
+          <Card className='border-0 rounded-[1.5rem] glass-panel bg-purple-500/5 ring-1 ring-purple-500/20 shadow-sm flex-1 overflow-hidden flex flex-col min-h-[200px]'>
+            <CardHeader className='pb-3 px-5 pt-5 shrink-0'>
+              <CardTitle className='text-sm font-black text-purple-600 dark:text-purple-400 flex items-center gap-2 uppercase tracking-widest'>
+                <Skull className='w-4 h-4' />
                 {t('Active Rivalries')}
               </CardTitle>
             </CardHeader>
-            <CardContent className='px-4 pb-4 relative z-10'>
-              <ScrollArea className='max-h-[220px] pr-2 overflow-visible'>
-                <div className='space-y-1.5'>
+            <CardContent className='px-5 pb-5 flex-1 overflow-hidden'>
+              <ScrollArea className='h-full pr-3 -mr-3 custom-scrollbar'>
+                <div className='space-y-3'>
                   {rivalries.map((r, idx) => (
                     <div
                       key={idx}
-                      className='flex items-center justify-between bg-background/60 backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10 rounded-lg p-2 shadow-sm'
+                      className='flex items-center justify-between bg-background/80 backdrop-blur-md border border-border/50 rounded-xl p-3 shadow-sm'
                     >
-                      <div className='flex flex-col items-center w-[40px] text-center'>
-                        <Avatar className='h-6 w-6 mb-1 ring-1 ring-black/5 dark:ring-white/10 grayscale opacity-70'>
+                      <div className='flex flex-col items-center w-[50px] text-center'>
+                        <Avatar className='h-8 w-8 mb-1.5 ring-1 ring-black/10 dark:ring-white/10 grayscale opacity-60'>
                           <AvatarImage src={r.victim.photoURL || undefined} />
-                          <AvatarFallback className='text-[9px] font-bold'>
-                            {(r.victim.name || '?')
-                              .substring(0, 2)
-                              .toUpperCase()}
+                          <AvatarFallback className='text-[10px] font-bold'>
+                            {(r.victim.name || '?').substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span className='text-[8px] font-bold leading-tight truncate w-full text-muted-foreground'>
+                        <span className='text-[9px] font-bold leading-tight truncate w-full text-muted-foreground'>
                           {r.victim.name}
                         </span>
                       </div>
 
-                      <div className='flex-1 flex flex-col items-center text-center justify-center px-1'>
-                        <div className='flex items-center gap-1 text-xs font-black bg-muted/50 px-1.5 py-0.5 rounded-md ring-1 ring-black/5 dark:ring-white/5'>
+                      <div className='flex-1 flex flex-col items-center text-center justify-center px-2 relative'>
+                        {/* Connecting Line */}
+                        <div className="absolute top-4 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent -z-10" />
+                        
+                        <div className='flex items-center gap-1.5 text-sm font-black bg-background px-2 py-0.5 rounded-lg border border-border shadow-sm mb-1.5'>
                           <span className='text-red-500' title={t('Wins')}>
                             {r.wins}
                           </span>
                           <span className='text-muted-foreground/30'>-</span>
-                          <span
-                            className='text-emerald-500'
-                            title={t('Losses')}
-                          >
+                          <span className='text-emerald-500' title={t('Losses')}>
                             {r.losses}
                           </span>
                         </div>
-                        <span className='text-[7px] font-bold text-purple-700 dark:text-purple-400 mt-1 bg-purple-500/20 px-1 py-px rounded uppercase tracking-widest'>
+                        <span className='text-[8px] font-black text-purple-700 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded uppercase tracking-widest'>
                           {r.winRate}% {t('Win')}
                         </span>
                       </div>
 
-                      <div className='flex flex-col items-center w-[40px] text-center'>
-                        <Avatar className='h-6 w-6 mb-1 ring-1 ring-purple-500 shadow-sm transition-transform hover:scale-110'>
+                      <div className='flex flex-col items-center w-[50px] text-center'>
+                        <Avatar className='h-8 w-8 mb-1.5 ring-2 ring-purple-500 shadow-md transition-transform hover:scale-110 ring-offset-1 ring-offset-background'>
                           <AvatarImage src={r.nemesis.photoURL || undefined} />
-                          <AvatarFallback className='text-[9px] font-bold bg-purple-100 text-purple-700'>
-                            {(r.nemesis.name || '?')
-                              .substring(0, 2)
-                              .toUpperCase()}
+                          <AvatarFallback className='text-[10px] font-bold bg-purple-100 text-purple-700'>
+                            {(r.nemesis.name || '?').substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <span className='text-[8px] font-bold leading-tight truncate w-full text-foreground'>
+                        <span className='text-[9px] font-bold leading-tight truncate w-full text-foreground'>
                           {r.nemesis.name}
                         </span>
                       </div>
@@ -649,43 +649,52 @@ export function DerbyFeed({ room, members, matches }: DerbyFeedProps) {
         )}
       </div>
 
-      <Card className='lg:col-span-7 border-0 rounded-xl glass-panel shadow-sm flex flex-col h-[500px] overflow-hidden'>
-        <CardHeader className='pb-2 border-b border-black/5 dark:border-white/5 bg-muted/10 flex-shrink-0 px-4 pt-4'>
-          <CardTitle className='text-base font-extrabold flex items-center justify-between tracking-tight'>
-            <div className='flex items-center gap-2'>
-              <div className='bg-primary/10 p-1.5 rounded-lg text-primary'>
-                <Swords className='w-4 h-4' />
+      {/* Right Column: Derby Chronicles Timeline */}
+      <Card className='lg:col-span-7 border-0 rounded-[2rem] glass-panel shadow-xl flex flex-col h-full overflow-hidden bg-card'>
+        <CardHeader className='pb-4 border-b border-border/40 bg-muted/5 flex-shrink-0 px-6 pt-6 relative'>
+          <CardTitle className='text-lg font-black flex items-center justify-between tracking-tight'>
+            <div className='flex items-center gap-2.5'>
+              <div className='bg-primary/10 p-2 rounded-xl text-primary'>
+                <History className='w-5 h-5' />
               </div>
               {t('Derby Chronicles')}
             </div>
-            <span className='text-[8px] uppercase tracking-widest font-bold text-muted-foreground bg-background/50 backdrop-blur-sm px-2 py-0.5 rounded-full ring-1 ring-black/5 dark:ring-white/10'>
+            <span className='text-[10px] uppercase tracking-widest font-bold text-muted-foreground bg-background px-3 py-1 rounded-full border border-border/50 shadow-sm'>
               {chronicles.length} {t('Events')}
             </span>
           </CardTitle>
         </CardHeader>
 
-        <CardContent className='p-0 flex-1 relative overflow-hidden bg-background/30'>
-          <ScrollArea className='h-full w-full p-3'>
+        <CardContent className='p-0 flex-1 relative overflow-hidden bg-background/20'>
+          <ScrollArea className='h-full w-full p-6'>
             {chronicles.length === 0 ? (
-              <div className='flex items-center justify-center h-full text-muted-foreground text-xs font-light py-10'>
+              <div className='flex flex-col items-center justify-center h-full text-muted-foreground text-xs font-light py-20 gap-2'>
+                <History className="w-8 h-8 opacity-20" />
                 {t('No historical events recorded yet.')}
               </div>
             ) : (
-              <div className='space-y-3 pr-2 pb-3 relative'>
-                <div className='absolute left-2.5 top-1.5 bottom-1.5 w-px bg-gradient-to-b from-primary/30 via-primary/10 to-transparent' />
+              <div className='space-y-4 pr-4 relative'>
+                {/* Timeline Line */}
+                <div className='absolute left-[9px] top-3 bottom-0 w-0.5 bg-border/50 rounded-full' />
 
                 {chronicles.map((event) => (
                   <div
                     key={event.match.id}
-                    className='relative pl-5 pb-0.5 group'
+                    className='relative pl-8 group'
                   >
-                    <div className='absolute left-[-3.5px] top-1 w-1.5 h-1.5 rounded-full bg-primary/50' />
-                    <div className='text-[7px] uppercase font-bold text-muted-foreground/70 mb-1 tracking-widest'>
+                    {/* Timeline Dot */}
+                    <div className='absolute left-0 top-1.5 w-5 h-5 rounded-full bg-background border-2 border-primary/40 flex items-center justify-center shadow-sm z-10 transition-colors group-hover:border-primary'>
+                       <div className="w-1.5 h-1.5 rounded-full bg-primary/40 group-hover:bg-primary transition-colors" />
+                    </div>
+                    
+                    {/* Time Label */}
+                    <div className='text-[9px] uppercase font-black text-muted-foreground/60 mb-2 tracking-widest ml-1'>
                       {safeFormatDate(
                         event.match.tsIso ?? event.match.timestamp,
                         'MMM d, HH:mm',
                       )}
                     </div>
+                    
                     {renderChronicleCard(event)}
                   </div>
                 ))}

@@ -28,15 +28,15 @@ The core philosophy is a **Dual-Rating System**:
 - **Styling:** Tailwind CSS, Shadcn UI
 - **Icons:** Lucide React, React Icons
 - **State Management:** React Context API (`AuthContext`, `SportContext`)
-- **Internationalization:** i18next (English, Finnish, Russian, Korean)
+- **Internationalization:** i18next (English, Finnish, Russian, Korean) + AI Auto-Translation Pipeline
 
 ### Backend (Firebase)
 
 - **Auth:** Firebase Authentication (Email/Password, Social)
 - **Database:** Cloud Firestore (NoSQL)
 - **Storage:** Firebase Storage (Avatars)
-- **Compute:** Cloud Functions (2nd Gen)
-- **AI Engine:** Google Genkit + Gemini 2.0 Flash
+- **Compute:** Cloud Functions (2nd Gen) includes scheduled cron jobs (`onSchedule`)
+- **AI Engine:** Google Genkit + Gemini 2.0 Flash (Used for Score Parsing, Content Moderation, and i18n Translations)
 
 ### Hardware Integration (Planned)
 
@@ -88,8 +88,10 @@ _Designed for serious clubs, tournaments, and competitive squads._
 
 _Designed for intense, endless rivalries with short cycles and persistent history._
 
-- **Endless Season & Sprints:** The room never truly "closes". Instead, it runs in automated cycles called **Sprints** (e.g., 1–2 weeks).
+- **Endless Season & Sprints:** The room never truly "closes". Instead, it runs in automated cycles called **Sprints** (e.g., 1–2 weeks) with a live countdown timer.
 - **Starting ELO:** Players start with their **Global ELO** exactly as it is, seamlessly integrating the room with global skill levels.
+- **Nemesis System:** If a player has a win rate of 40% or lower against a specific opponent (minimum 3 matches), that opponent becomes their "Nemesis". Defeating a Nemesis multiplies the gained Room ELO by **1.5x**.
+- **Bounty System:** Players on a 3+ win streak accrue a Bounty. Defeating them grants the winner `(Streak - 2) * 5` bonus Room ELO and the "Giant Slayer" badge.
 - **Soft Reset:** At the end of a sprint, ratings are pulled 25% closer to 1000 to prevent runaway leaders, and a new sprint begins automatically.
 - **Hall of Fame:** Persistent tracking of all-time achievements (Titles won, "Giant Slayers" for breaking 3+ win streaks, Max Streaks, Total Derby Wins).
 - **Ranking Criteria:** **Room Rating** (Pure ELO).
@@ -135,19 +137,17 @@ src/
 │   ├── mobile/              # Mobile-optimized views
 │   ├── admin/               # Global Admin Panel (Super Admins)
 │   └── manage/              # Coach Management Console
-│       ├── layout.tsx       # Coach sidebar navigation
-│       ├── players/         # Ghost player management & creation
-│       └── communities/     # Community creation & details
 ├── components/
 │   ├── AiAssistant.tsx      # AI Chat Interface (Genkit integration)
-│   ├── FullscreenScoreboard.tsx # Live scoreboard for physical/keyboard input
+│   ├── FullscreenScoreboard.tsx # Live scoreboard with Match Chronicle reporting
 │   ├── RecordBlock.tsx      # Manual match entry component
 │   ├── communities/         # Community-related components
 │   ├── rooms/
 │   │   ├── CreateRoomDialog.tsx # Room creation (Mode, K-Factor, Seeding)
-│   │   ├── RoomHeader.tsx       # Room metadata, Visual Theme, Derby Timer
+│   │   ├── RoomHeader.tsx       # Room metadata, Visual Theme, Auto-Finalizing Derby Timer
 │   │   ├── DerbyHallOfFame.tsx  # Persistent stats for Derby mode
-│   │   └── StandingsTable.tsx   # Dynamic leaderboard based on Mode
+│   │   ├── StandingsTable.tsx   # Dynamic leaderboard (using pre-computed server stats)
+│   │   └── MembersList.tsx      # Member management and stat breakdown
 │   └── ...
 ├── contexts/
 │   ├── AuthContext.tsx      # User profile, auth state, & role checks
@@ -159,11 +159,14 @@ src/
 │   └── types.ts             # TS Interfaces
 functions/
 ├── src/
-│   ├── index.ts             # Cloud Functions (recordMatch, Derby Triggers)
+│   ├── index.ts             # Cloud Functions (recordMatch, Derby Cron Jobs, AI integrations)
 │   ├── config.ts            # Collection names configuration
 │   ├── lib/
-│   │   └── eloMath.ts       # Shared ELO math logic
+│   │   └── eloMath.ts       # Shared ELO math logic (K-factor, zero-sum, inflation)
 │   └── ...
+scripts/
+├── auto-translate.ts        # AI Genkit pipeline for automated i18n translation mapping
+└── ...
 ```
 
 ---
@@ -176,7 +179,7 @@ functions/
 2. **Play:** Ghost appears in search results. Matches are recorded normally against the Ghost's ID.
 3. **Claim:** User opens link (`/register?claim=GHOST_ID`) -> Registers. System copies stats, updates community links, and marks ghost as `isClaimed`.
 
-### B. Match Entry (Manual vs Scoreboard)
+### B. Match Entry & Match Chronicle
 
 **1. Manual Entry (Traditional)**
 Users fill out standard forms (e.g., `PingPongRecordBlock.tsx`) entering final scores. Sent to the server via Cloud Functions.
@@ -186,12 +189,12 @@ Users fill out standard forms (e.g., `PingPongRecordBlock.tsx`) entering final s
 - **File:** `src/components/FullscreenScoreboard.tsx`
 - **Flow:** Setup (Room/Players) -> Waiting -> Match in Progress -> Series Results.
 - **Features:** Keyboard shortcuts for scoring, undo, side switching, and match series aggregation.
-- **Submission:** Submits an entire series of matches in one payload via `aiSaveMatch` cloud function. Dispatches a custom `match-recorded` event to automatically refresh background feeds.
+- **Match Chronicle:** Upon submission via `aiSaveMatch`, the server returns a detailed `chronicle` payload. The UI displays a post-match breakdown highlighting exactly how the ELO was calculated per game (Base Delta, Nemesis Multiplier, Bounty Points claimed).
 - **TODO [Hardware Integration]:** When the physical USB Arcade Controllers arrive, program the Gamepad API event listeners inside the Scoreboard component. Replace/augment keyboard `keydown` events with `gamepadconnected` and polling logic.
 
 ### C. Season Finalization (Classic vs. Derby)
 
-**File:** `src/lib/season.ts`
+**File:** `src/lib/season.ts` & `functions/src/index.ts`
 
 **For Classic Modes (Office / Pro / Arcade):**
 
@@ -199,16 +202,20 @@ Users fill out standard forms (e.g., `PingPongRecordBlock.tsx`) entering final s
 2. System calculates final standings, total wins, and longest streaks.
 3. Snapshots the results into the room's `seasonHistory` array.
 4. Awards achievements (medals) to top players' user profiles.
-5. Sets **`isArchived: true`** on the room. The room becomes a read-only historical monument. No matches are deleted, and no stats are reset.
+5. Sets **`isArchived: true`** on the room. The room becomes a read-only historical monument.
 
 **For Derby Mode (Sprints):**
 
-1. Triggered automatically via Cloud Functions (or manual override).
-2. Calculates sprint standings, snapshots to `seasonHistory`, and awards achievements (`derbyChampion`, `derbyUnstoppable`).
-3. Updates the persistent **Hall of Fame** inside the room document with new titles, slayers, and total wins.
+1. Triggered automatically via a scheduled Cloud Function (`processDerbySprints`) running periodically, **or** immediately via a client-side call when the `RoomHeader` countdown timer hits zero.
+2. Calculates sprint standings, snapshots to `sprintHistory`, and awards achievements (`derbyChampion`, `derbyUnstoppable`, `seasonFinish`).
+3. Updates the persistent **Hall of Fame** inside the room document with new titles, slayers, and total cumulative wins.
 4. Performs a **Soft Reset**: `newRating = 1000 + (oldRating - 1000) * 0.75`.
 5. Resets sprint-specific stats (`wins`, `losses`, `currentStreak`) to 0.
-6. Updates `sprintStartTs` and increments `sprintCount` to begin the next sprint automatically. The room remains active.
+6. Updates `sprintStartTs` and increments `sprintCount` to begin the next sprint automatically without downtime.
+
+### D. UI Rendering Optimization
+
+Components like `StandingsTable` and `MembersList` rely on pre-computed values calculated by parent containers or server-side (e.g., `totalMatches`, `winPct`, `adjPointsLive`). This ensures accurate sorting, prevents local mathematical duplication, and safely handles edge cases (like players with 0 matches).
 
 ---
 
@@ -231,8 +238,11 @@ The client sends raw match data, and the server calculates both Global and Room 
 Calculated using the **current room ratings** of the players (not Global).
 
 - **Office Mode:** Base K = 32. If Delta < 0 (Loss), multiply by 0.8.
-- **Professional Mode:** Provisional K (matches < 10) = Base K \* 2. Normal matches use Base K. Zero-Sum.
-- **Derby Mode:** Same zero-sum logic as Professional, but room ratings undergo a 25% Soft Reset towards 1000 at the end of each Sprint.
+- **Professional Mode:** Provisional K (matches < 10) = Base K \* 2. Normal matches use Base K. Strict Zero-Sum.
+- **Derby Mode:** Same zero-sum base logic as Professional, but incorporates post-calculation modifiers:
+  - **Nemesis Bonus:** ×1.5 multiplier to gained points if defeating a statistical nemesis.
+  - **Bounty Claim:** Additional `+((streak - 2) * 5)` points if breaking an opponent's 3+ win streak.
+  - **Soft Reset:** Ratings undergo a 25% pull towards 1000 at the end of each Sprint.
 - **Arcade Mode:** K = 0. Delta is always 0.
 
 ---
@@ -250,7 +260,6 @@ users/{uid}
 {
   "uid": "string",
   "displayName": "string",
-  "email": "string",
   "accountType": "player" | "coach",
   "isGhost": boolean,
   "managedBy": "string (Coach UID)",
@@ -274,22 +283,6 @@ users/{uid}
 }
 ```
 
-### Communities Collection (`communities`)
-
-Groups of players managed by coaches.
-
-```json
-communities/{communityId}
-{
-  "id": "string",
-  "name": "string",
-  "ownerId": "string (Coach UID)",
-  "admins": ["string (Coach UIDs)"],
-  "members": ["string (Player/Ghost UIDs)"],
-  "roomIds": ["string (RoomID)"]
-}
-```
-
 ### Rooms Collections (`rooms-pingpong`, etc.)
 
 Stores league configuration, Derby settings, and embedded member data.
@@ -301,7 +294,7 @@ rooms-pingpong/{roomId}
   "name": "string",
   "mode": "string ('office' | 'professional' | 'arcade' | 'derby')",
   "kFactor": "number (Base K)",
-  "isArchived": "boolean", // True if the season was manually finished (Read-Only)
+  "isArchived": "boolean",
 
   // Derby Specific Fields
   "sprintDuration": "number (weeks)",
@@ -311,7 +304,7 @@ rooms-pingpong/{roomId}
     {
       "userId": "string",
       "name": "string",
-      "titles": "number",
+      "championships": "number",
       "streaksBroken": "number",
       "maxStreakEver": "number",
       "totalDerbyWins": "number"
@@ -327,10 +320,15 @@ rooms-pingpong/{roomId}
       "losses": "number",
       "currentStreak": "number",
       "highestStreak": "number",
-      "badges": ["string ('giant_slayer')"]
+      "nemesisId": "string | null",
+      "badges": ["string ('giant_slayer')"],
+      "h2h": {
+        "opponentUid": { "wins": 2, "losses": 5 }
+      }
     }
   ],
-  "seasonHistory": [...]
+  "seasonHistory": [...] // Classic Mode History
+  "sprintHistory": [...] // Derby Mode History
 }
 ```
 

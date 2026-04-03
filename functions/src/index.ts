@@ -96,27 +96,6 @@ function getFinnishDate(dateObj: Date = new Date()): string {
   )}.${getPart('minute')}.${getPart('second')}`;
 }
 
-const calculateDelta = (
-  rating1: number,
-  rating2: number,
-  score1: number,
-  score2: number,
-  isGlobal: boolean,
-) => {
-  const K = 32;
-  const result = score1 > score2 ? 1 : 0;
-  const expected = 1 / (1 + 10 ** ((rating2 - rating1) / 400));
-  let delta = Math.round(K * (result - expected));
-
-  if (!isGlobal) {
-    if (delta < 0) {
-      const inflationFactor = 0.8;
-      delta = Math.round(delta * inflationFactor);
-    }
-  }
-  return delta;
-};
-
 async function getSuperAdminIds(): Promise<string[]> {
   try {
     const docRef = db.collection('config').doc('app');
@@ -221,6 +200,21 @@ export const aiChat = onCall(
     }
   },
 );
+
+export interface MatchChronicleEntry {
+  gameNumber: number;
+  player1Id: string;
+  player2Id: string;
+  player1EloBefore: number;
+  player2EloBefore: number;
+  player1BaseDelta: number;
+  player2BaseDelta: number;
+  player1Delta: number;
+  player2Delta: number;
+  bountyApplied: number;
+  nemesisApplied: boolean;
+  streakContinued: number;
+}
 
 export const aiSaveMatch = onCall(
   {
@@ -418,6 +412,8 @@ export const aiSaveMatch = onCall(
       }
     };
 
+    const chronicle: MatchChronicleEntry[] = [];
+
     try {
       for (let i = 0; i < matches.length; i++) {
         const match = matches[i];
@@ -457,38 +453,49 @@ export const aiSaveMatch = onCall(
         const p1State = userUpdates.get(p1Id)!;
         const p2State = userUpdates.get(p2Id)!;
 
-        const d1_Global = calculateDelta(
+        const startRoomR1 = p1State.currentRoomElo;
+        const startRoomR2 = p2State.currentRoomElo;
+
+        const d1_Global = calcDeltaImport(
           p1State.currentGlobalElo,
           p2State.currentGlobalElo,
           score1,
           score2,
           true,
+          mode,
         );
-        const d2_Global = calculateDelta(
+        const d2_Global = calcDeltaImport(
           p2State.currentGlobalElo,
           p1State.currentGlobalElo,
           score2,
           score1,
           true,
+          mode,
         );
 
-        const d1_Room = calculateDelta(
+        const d1_Room = calcDeltaImport(
           p1State.currentRoomElo,
           p2State.currentRoomElo,
           score1,
           score2,
           false,
+          mode,
         );
-        const d2_Room = calculateDelta(
+        const d2_Room = calcDeltaImport(
           p2State.currentRoomElo,
           p1State.currentRoomElo,
           score2,
           score1,
           false,
+          mode,
         );
 
         let final_d1_Room = d1_Room;
         let final_d2_Room = d2_Room;
+
+        let bountyApplied = 0;
+        let nemesisApplied = false;
+        let streakContinued = 0;
 
         if (mode === 'derby') {
           p1Member.currentStreak = p1Member.currentStreak ?? 0;
@@ -521,11 +528,13 @@ export const aiSaveMatch = onCall(
 
             if (totalH2H >= 3 && winRateH2H <= 0.4) {
               baseWinnerDelta = Math.round(baseWinnerDelta * 1.5);
+              nemesisApplied = true;
             }
 
             if (loserMember.currentStreak >= 3) {
               const bounty = (loserMember.currentStreak - 2) * 5;
               baseWinnerDelta += bounty;
+              bountyApplied = bounty;
 
               if (!winnerMember.badges.includes('giant_slayer')) {
                 winnerMember.badges.push('giant_slayer');
@@ -542,6 +551,8 @@ export const aiSaveMatch = onCall(
           }
 
           winnerMember.currentStreak += 1;
+          streakContinued = winnerMember.currentStreak;
+
           if (winnerMember.currentStreak > winnerMember.highestStreak) {
             winnerMember.highestStreak = winnerMember.currentStreak;
           }
@@ -585,6 +596,21 @@ export const aiSaveMatch = onCall(
         const timestamp = getFinnishDate(matchDate);
 
         const matchRef = db.collection(collectionName).doc();
+
+        chronicle.push({
+          gameNumber: i + 1,
+          player1Id: p1Id,
+          player2Id: p2Id,
+          player1EloBefore: startRoomR1,
+          player2EloBefore: startRoomR2,
+          player1BaseDelta: d1_Room,
+          player2BaseDelta: d2_Room,
+          player1Delta: final_d1_Room,
+          player2Delta: final_d2_Room,
+          bountyApplied,
+          nemesisApplied,
+          streakContinued,
+        });
 
         batch.set(matchRef, {
           roomId,
@@ -707,7 +733,7 @@ export const aiSaveMatch = onCall(
 
       updatesList.sort((a, b) => b.eloDiff - a.eloDiff);
 
-      return { success: true, updates: updatesList };
+      return { success: true, updates: updatesList, chronicle };
     } catch (error: any) {
       logger.error('aiSaveMatch error:', error);
       if (error instanceof HttpsError) {
@@ -1824,6 +1850,258 @@ export const aiContentCheck = onCall(
   },
 );
 
+export const forceFinalizeDerbySprint = onCall(
+  { region: 'europe-west1' },
+  async (request: CallableRequest) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Login required');
+    }
+
+    const callerUid = request.auth.uid;
+    const { roomId, sport } = request.data || {};
+
+    if (!roomId || !sport) {
+      throw new HttpsError('invalid-argument', 'Missing roomId or sport');
+    }
+
+    if (!['pingpong', 'tennis', 'badminton'].includes(sport)) {
+      throw new HttpsError('invalid-argument', 'Invalid sport type');
+    }
+
+    const nowMs = Date.now();
+    const nowIso = new Date().toISOString();
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+    const roomRef = db.collection(`rooms-${sport}`).doc(roomId);
+
+    await db.runTransaction(async (t) => {
+      const roomDoc = await t.get(roomRef);
+      if (!roomDoc.exists) {
+        throw new HttpsError('not-found', 'Room not found');
+      }
+
+      const room = roomDoc.data();
+      if (!room || room.mode !== 'derby' || room.isArchived) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Invalid room for derby sprint',
+        );
+      }
+
+      const memberIds = room.memberIds || [];
+      if (!memberIds.includes(callerUid)) {
+        throw new HttpsError(
+          'permission-denied',
+          'Only room members can finalize the sprint',
+        );
+      }
+
+      if (!room.sprintStartTs) {
+        throw new HttpsError('failed-precondition', 'Sprint not started');
+      }
+
+      const sprintDurationWeeks = Number(room.sprintDuration) || 2;
+      const sprintEndTs =
+        room.sprintStartTs + sprintDurationWeeks * ONE_WEEK_MS;
+
+      if (nowMs < sprintEndTs - 10000) {
+        throw new HttpsError('failed-precondition', 'Sprint has not ended yet');
+      }
+
+      const members = room.members || [];
+      if (members.length === 0) return;
+
+      const playersOnlyMembers = members.filter(
+        (m: any) => m.accountType !== 'coach',
+      );
+
+      const startDate = room.sprintStartTs
+        ? getFinnishDate(new Date(room.sprintStartTs)).split(' ')[0]
+        : '???';
+      const endDate = getFinnishDate(new Date(nowMs)).split(' ')[0];
+      const periodLabel = `${startDate} — ${endDate}`;
+
+      const participants = [...playersOnlyMembers].sort((a, b) => {
+        const rA = a.rating || 1000;
+        const rB = b.rating || 1000;
+        if (rB !== rA) return rB - rA;
+        const wA = a.wins || 0;
+        const wB = b.wins || 0;
+        if (wB !== wA) return wB - wA;
+        const tA = (a.wins || 0) + (a.losses || 0);
+        const tB = (b.wins || 0) + (b.losses || 0);
+        const wrA = (a.wins || 0) / (tA || 1);
+        const wrB = (b.wins || 0) / (tB || 1);
+        return wrB - wrA;
+      });
+
+      const podium = participants.slice(0, 3);
+      const champion = podium[0];
+
+      const topSlayerPlayer = [...playersOnlyMembers].sort(
+        (a, b) =>
+          (b.badges?.filter((x: string) => x === 'giant_slayer').length || 0) -
+          (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0),
+      )[0];
+      const slayerCount =
+        topSlayerPlayer?.badges?.filter((x: string) => x === 'giant_slayer')
+          .length || 0;
+
+      const topStreakPlayer = [...playersOnlyMembers].sort(
+        (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
+      )[0];
+
+      const sprintCount = (room.sprintCount || 0) + 1;
+
+      const sprintResult = {
+        sprintNumber: sprintCount,
+        period: periodLabel,
+        winnerId: champion?.userId || null,
+        winnerName: champion?.name || 'Unknown',
+        podium: podium.map((p) => ({
+          name: p.name || 'Unknown',
+          userId: p.userId,
+          rating: p.rating || 1000,
+        })),
+        topSlayerName: topSlayerPlayer?.name || null,
+        topSlayerCount: slayerCount || 0,
+        maxStreak: topStreakPlayer?.highestStreak || 0,
+        maxStreakPlayerName: topStreakPlayer?.name || null,
+      };
+
+      const hallOfFame = Array.isArray(room.hallOfFame)
+        ? [...room.hallOfFame]
+        : [];
+      const sprintHistory = Array.isArray(room.sprintHistory)
+        ? [...room.sprintHistory]
+        : [];
+      sprintHistory.push(sprintResult);
+
+      const updatedMembers = members.map((m: any) => {
+        let hof = hallOfFame.find((e: any) => e.userId === m.userId);
+        if (!hof) {
+          hof = {
+            userId: m.userId,
+            name: m.name || 'Unknown',
+            championships: 0,
+            streaksBroken: 0,
+            maxStreakEver: 0,
+            totalDerbyWins: 0,
+          };
+          hallOfFame.push(hof);
+        }
+
+        if (champion && m.userId === champion.userId) {
+          hof.championships = (hof.championships || 0) + 1;
+        }
+
+        const curSlayers =
+          m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
+        hof.streaksBroken = (hof.streaksBroken || 0) + curSlayers;
+
+        if ((m.highestStreak || 0) > (hof.maxStreakEver || 0)) {
+          hof.maxStreakEver = m.highestStreak;
+        }
+
+        // ACCUMULATE lifetime wins instead of overwriting
+        hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
+
+        const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
+        if (podiumIdx !== -1) {
+          const userRef = db.collection('users').doc(m.userId);
+          const totalM = (m.wins || 0) + (m.losses || 0);
+          const baseAchievement = {
+            sport,
+            dateFinished: nowIso,
+            roomName: room.name || 'Derby',
+            place: podiumIdx + 1,
+            matchesPlayed: totalM,
+            wins: m.wins || 0,
+            mode: 'derby',
+          };
+          const achievementsToAdd = [
+            { ...baseAchievement, type: 'seasonFinish' },
+          ];
+          if (podiumIdx === 0) {
+            achievementsToAdd.push({
+              ...baseAchievement,
+              type: 'derbyChampion',
+            });
+          }
+          t.update(userRef, {
+            achievements: admin.firestore.FieldValue.arrayUnion(
+              ...achievementsToAdd,
+            ),
+          });
+        }
+
+        if (
+          topStreakPlayer &&
+          m.userId === topStreakPlayer.userId &&
+          (m.highestStreak || 0) >= 5
+        ) {
+          t.update(db.collection('users').doc(m.userId), {
+            achievements: admin.firestore.FieldValue.arrayUnion({
+              type: 'derbyUnstoppable',
+              sport,
+              dateFinished: nowIso,
+              roomName: room.name || 'Derby',
+              longestWinStreak: m.highestStreak,
+            }),
+          });
+        }
+
+        const oldRating = m.rating || 1000;
+        return {
+          ...m,
+          rating: Math.round(1000 + (oldRating - 1000) * 0.75),
+          currentStreak: 0,
+          highestStreak: 0,
+          wins: 0, // RESET sprint stats
+          losses: 0, // RESET sprint stats
+          badges: [],
+        };
+      });
+
+      if (room.communityId) {
+        const feedRef = db
+          .collection('communities')
+          .doc(room.communityId)
+          .collection('feed')
+          .doc();
+        t.set(feedRef, {
+          id: feedRef.id,
+          communityId: room.communityId,
+          type: 'season_finished',
+          sport: sport,
+          title: `Derby Sprint Finished: ${room.name || 'Unknown'}`,
+          description: champion
+            ? `🏆 ${champion.name} won the sprint!`
+            : 'The sprint has concluded.',
+          createdAt: nowIso,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          meta: {
+            roomId: roomDoc.id,
+            roomName: room.name || '',
+            mode: 'derby',
+            winner: champion?.name || '',
+          },
+        });
+      }
+
+      t.update(roomDoc.ref, {
+        members: updatedMembers,
+        hallOfFame: hallOfFame,
+        sprintHistory: sprintHistory,
+        sprintStartTs: nowMs,
+        sprintCount: sprintCount,
+      });
+    });
+
+    return { success: true };
+  },
+);
+
 export const processDerbySprints = onSchedule(
   {
     schedule: '59 23 * * 0',
@@ -1858,16 +2136,15 @@ export const processDerbySprints = onSchedule(
         const room = roomDoc.data();
         if (!room) continue;
 
-        const sprintDurationWeeks = room.sprintDuration || 2;
-
         if (!room.sprintStartTs) {
           continue;
         }
 
-        const elapsedMs = nowMs - room.sprintStartTs;
-        const requiredMs = sprintDurationWeeks * ONE_WEEK_MS;
+        const sprintDurationWeeks = Number(room.sprintDuration) || 2;
+        const sprintEndTs =
+          room.sprintStartTs + sprintDurationWeeks * ONE_WEEK_MS;
 
-        if (elapsedMs < requiredMs) {
+        if (nowMs < sprintEndTs - 10000) {
           continue;
         }
 
@@ -1878,97 +2155,159 @@ export const processDerbySprints = onSchedule(
         const members = room.members || [];
         if (members.length === 0) continue;
 
-        const sortedByRating = [...members].sort(
-          (a, b) => (b.rating || 0) - (a.rating || 0),
+        const playersOnlyMembers = members.filter(
+          (m: any) => m.accountType !== 'coach',
         );
-        const champion = sortedByRating[0];
 
-        const sortedByStreak = [...members].sort(
+        const startDate = room.sprintStartTs
+          ? getFinnishDate(new Date(room.sprintStartTs)).split(' ')[0]
+          : '???';
+        const endDate = getFinnishDate(new Date(nowMs)).split(' ')[0];
+        const periodLabel = `${startDate} — ${endDate}`;
+
+        const participants = [...playersOnlyMembers].sort((a, b) => {
+          const rA = a.rating || 1000;
+          const rB = b.rating || 1000;
+          if (rB !== rA) return rB - rA;
+          const wA = a.wins || 0;
+          const wB = b.wins || 0;
+          if (wB !== wA) return wB - wA;
+          const tA = (a.wins || 0) + (a.losses || 0);
+          const tB = (b.wins || 0) + (b.losses || 0);
+          const wrA = (a.wins || 0) / (tA || 1);
+          const wrB = (b.wins || 0) / (tB || 1);
+          return wrB - wrA;
+        });
+
+        const podium = participants.slice(0, 3);
+        const champion = podium[0];
+
+        const topSlayerPlayer = [...playersOnlyMembers].sort(
+          (a, b) =>
+            (b.badges?.filter((x: string) => x === 'giant_slayer').length ||
+              0) -
+            (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0),
+        )[0];
+        const slayerCount =
+          topSlayerPlayer?.badges?.filter((x: string) => x === 'giant_slayer')
+            .length || 0;
+
+        const topStreakPlayer = [...playersOnlyMembers].sort(
           (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
-        );
-        const unstoppable =
-          sortedByStreak[0]?.highestStreak >= 5 ? sortedByStreak[0] : null;
+        )[0];
 
-        const hallOfFame = room.hallOfFame || [];
+        const sprintCount = (room.sprintCount || 0) + 1;
+
+        const sprintResult = {
+          sprintNumber: sprintCount,
+          period: periodLabel,
+          winnerId: champion?.userId || null,
+          winnerName: champion?.name || 'Unknown',
+          podium: podium.map((p) => ({
+            name: p.name || 'Unknown',
+            userId: p.userId,
+            rating: p.rating || 1000,
+          })),
+          topSlayerName: topSlayerPlayer?.name || null,
+          topSlayerCount: slayerCount || 0,
+          maxStreak: topStreakPlayer?.highestStreak || 0,
+          maxStreakPlayerName: topStreakPlayer?.name || null,
+        };
+
+        const hallOfFame = Array.isArray(room.hallOfFame)
+          ? [...room.hallOfFame]
+          : [];
+        const sprintHistory = Array.isArray(room.sprintHistory)
+          ? [...room.sprintHistory]
+          : [];
+        sprintHistory.push(sprintResult);
+
         const batch = db.batch();
 
-        const getOrCreateHof = (uid: string, name: string) => {
-          if (!uid) return null;
-          let entry = hallOfFame.find((e: any) => e.userId === uid);
-          if (!entry) {
-            entry = {
-              userId: uid,
-              name: name || 'Unknown',
+        const updatedMembers = members.map((m: any) => {
+          let hof = hallOfFame.find((e: any) => e.userId === m.userId);
+          if (!hof) {
+            hof = {
+              userId: m.userId,
+              name: m.name || 'Unknown',
               championships: 0,
               streaksBroken: 0,
               maxStreakEver: 0,
               totalDerbyWins: 0,
             };
-            hallOfFame.push(entry);
+            hallOfFame.push(hof);
           }
 
-          entry.championships = Number(entry.championships) || 0;
-          entry.streaksBroken = Number(entry.streaksBroken) || 0;
-          entry.maxStreakEver = Number(entry.maxStreakEver) || 0;
-          entry.totalDerbyWins = Number(entry.totalDerbyWins) || 0;
-
-          return entry;
-        };
-
-        if (champion && champion.userId) {
-          const hof = getOrCreateHof(champion.userId, champion.name);
-          if (hof) {
-            hof.championships += 1;
+          if (champion && m.userId === champion.userId) {
+            hof.championships = (hof.championships || 0) + 1;
           }
 
-          batch.update(db.collection('users').doc(champion.userId), {
-            achievements: admin.firestore.FieldValue.arrayUnion({
-              type: 'derbyChampion',
-              sport: sport,
+          const curSlayers =
+            m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
+          hof.streaksBroken = (hof.streaksBroken || 0) + curSlayers;
+
+          if ((m.highestStreak || 0) > (hof.maxStreakEver || 0)) {
+            hof.maxStreakEver = m.highestStreak;
+          }
+
+          // ACCUMULATE lifetime wins instead of overwriting
+          hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
+
+          const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
+          if (podiumIdx !== -1) {
+            const userRef = db.collection('users').doc(m.userId);
+            const totalM = (m.wins || 0) + (m.losses || 0);
+            const baseAchievement = {
+              sport,
               dateFinished: nowIso,
-              roomId: roomDoc.id,
-              roomName: room.name || '',
-              roomRating: champion.rating || 1000,
-            }),
-          });
-        }
-
-        if (unstoppable && unstoppable.userId) {
-          batch.update(db.collection('users').doc(unstoppable.userId), {
-            achievements: admin.firestore.FieldValue.arrayUnion({
-              type: 'derbyUnstoppable',
-              sport: sport,
-              dateFinished: nowIso,
-              roomId: roomDoc.id,
-              roomName: room.name || '',
-              longestWinStreak: unstoppable.highestStreak || 0,
-            }),
-          });
-        }
-
-        members.forEach((m: any) => {
-          if (!m || !m.userId) return;
-
-          const hof = getOrCreateHof(m.userId, m.name);
-          if (hof) {
-            const slayersCount =
-              m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
-            hof.streaksBroken += slayersCount;
-
-            const currentHighest = Number(m.highestStreak) || 0;
-            if (currentHighest > hof.maxStreakEver) {
-              hof.maxStreakEver = currentHighest;
+              roomName: room.name || 'Derby',
+              place: podiumIdx + 1,
+              matchesPlayed: totalM,
+              wins: m.wins || 0,
+              mode: 'derby',
+            };
+            const achievementsToAdd = [
+              { ...baseAchievement, type: 'seasonFinish' },
+            ];
+            if (podiumIdx === 0) {
+              achievementsToAdd.push({
+                ...baseAchievement,
+                type: 'derbyChampion',
+              });
             }
-
-            hof.totalDerbyWins = Number(m.wins) || 0;
+            batch.update(userRef, {
+              achievements: admin.firestore.FieldValue.arrayUnion(
+                ...achievementsToAdd,
+              ),
+            });
           }
 
-          const currentElo = m.rating || 1000;
-          m.rating = Math.round(1000 + (currentElo - 1000) * 0.75);
+          if (
+            topStreakPlayer &&
+            m.userId === topStreakPlayer.userId &&
+            (m.highestStreak || 0) >= 5
+          ) {
+            batch.update(db.collection('users').doc(m.userId), {
+              achievements: admin.firestore.FieldValue.arrayUnion({
+                type: 'derbyUnstoppable',
+                sport,
+                dateFinished: nowIso,
+                roomName: room.name || 'Derby',
+                longestWinStreak: m.highestStreak,
+              }),
+            });
+          }
 
-          m.currentStreak = 0;
-          m.highestStreak = 0;
-          m.badges = [];
+          const oldRating = m.rating || 1000;
+          return {
+            ...m,
+            rating: Math.round(1000 + (oldRating - 1000) * 0.75),
+            currentStreak: 0,
+            highestStreak: 0,
+            wins: 0, // RESET sprint stats
+            losses: 0, // RESET sprint stats
+            badges: [],
+          };
         });
 
         if (room.communityId) {
@@ -1997,10 +2336,10 @@ export const processDerbySprints = onSchedule(
           });
         }
 
-        const sprintCount = (room.sprintCount || 0) + 1;
         batch.update(roomDoc.ref, {
-          members: members,
+          members: updatedMembers,
           hallOfFame: hallOfFame,
+          sprintHistory: sprintHistory,
           sprintStartTs: nowMs,
           sprintCount: sprintCount,
         });

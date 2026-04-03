@@ -1,3 +1,4 @@
+// src/app/rooms/[roomId]/page.tsx
 'use client';
 
 import { ProtectedRoute } from '@/components/ProtectedRoutes';
@@ -27,7 +28,6 @@ import {
 	ScrollArea,
 } from '@/components/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSport } from '@/contexts/SportContext';
 import { useToast } from '@/hooks/use-toast';
@@ -64,9 +64,9 @@ import {
 	History,
 	LayoutDashboard,
 	Lock,
+	Swords,
 	Trophy,
 	UserPlus,
-	Zap,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -764,6 +764,7 @@ export default function RoomPage() {
   return (
     <ProtectedRoute>
       <div className='container mx-auto py-8 px-4 max-w-7xl'>
+        {/* --- HEADER --- */}
         <Button
           variant='ghost'
           className='mb-4 -ml-2 text-muted-foreground hover:text-foreground rounded-full h-10 transition-all'
@@ -817,26 +818,29 @@ export default function RoomPage() {
           )}
         </div>
 
+        {/* --- MAIN ACTION AREA (Record Match + Player List) --- */}
         <div className='grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12'>
-          <div className='lg:col-span-4 space-y-6'>
-            <Card className='shadow-xl border-0 rounded-[2rem] bg-card glass-panel'>
-              <CardHeader className='px-6 pt-6 pb-2'>
+          <div className='lg:col-span-4 order-1 lg:order-2 space-y-6'>
+            <Card className='shadow-xl border-0 rounded-[2rem] bg-card glass-panel h-full flex flex-col'>
+              <CardHeader className='px-6 pt-6 pb-2 shrink-0'>
                 <CardTitle className='text-xl font-bold flex items-center gap-2'>
                   <UserPlus className='w-5 h-5 text-primary' />
                   {t('Players')}
                 </CardTitle>
               </CardHeader>
-              <CardContent className='px-6 pb-6'>
-                <MembersList
-                  members={playersOnlyMembers}
-                  room={room}
-                  isCreator={isCreator}
-                  canManage={canManageRoom}
-                  currentUser={user}
-                  onRemovePlayer={handleRemovePlayer}
-                />
+              <CardContent className='px-6 pb-6 flex-1 flex flex-col'>
+                <div className='flex-1'>
+                  <MembersList
+                    members={playersOnlyMembers}
+                    room={room}
+                    isCreator={isCreator}
+                    canManage={canManageRoom}
+                    currentUser={user}
+                    onRemovePlayer={handleRemovePlayer}
+                  />
+                </div>
                 {isMember && !latestSeason && !room.isArchived && (
-                  <div className='mt-8 pt-6 border-t border-border/40'>
+                  <div className='mt-8 pt-6 border-t border-border/40 shrink-0'>
                     <h4 className='font-bold text-sm mb-4 uppercase tracking-widest text-muted-foreground'>
                       {t('Invite Friends')}
                     </h4>
@@ -884,29 +888,8 @@ export default function RoomPage() {
                 )}
               </CardContent>
             </Card>
-
-            {(isCreator || isGlobalAdmin) &&
-              room.mode === 'derby' &&
-              debugMode && (
-                <div className='p-4 rounded-3xl border border-red-500/20 bg-red-500/5 space-y-4'>
-                  <p className='text-[10px] uppercase font-black text-red-600 dark:text-red-400 tracking-widest text-center'>
-                    {t('Admin Dev Mode')}
-                  </p>
-                  <Button
-                    variant='destructive'
-                    className='w-full rounded-xl font-bold'
-                    onClick={() => {
-                      if (confirm(t('Reset ELO and update Hall of Fame?')))
-                        handleForceEndSprint();
-                    }}
-                  >
-                    {t('Force End Sprint')}
-                  </Button>
-                </div>
-              )}
           </div>
-
-          <div className='lg:col-span-8'>
+          <div className='lg:col-span-8 order-2 lg:order-2'>
             {isMember && !latestSeason && !room.isArchived ? (
               <RecordBlock
                 members={playersOnlyMembers}
@@ -917,7 +900,7 @@ export default function RoomPage() {
                 onFinishSeason={handleFinishSeason}
               />
             ) : (
-              <Card className='h-full border-0 rounded-[2rem] glass-panel bg-muted/20 flex items-center justify-center p-8 text-center'>
+              <Card className='h-full min-h-[300px] border-0 rounded-[2rem] glass-panel bg-muted/20 flex items-center justify-center p-8 text-center'>
                 <div className='max-w-xs space-y-2'>
                   <Lock className='w-10 h-10 mx-auto opacity-20' />
                   <h3 className='font-bold text-lg opacity-40'>
@@ -927,89 +910,56 @@ export default function RoomPage() {
               </Card>
             )}
           </div>
+
         </div>
 
-        <div className='space-y-12'>
-          {(canManageRoom || isGlobalAdmin) &&
-            room.mode === 'derby' &&
-            debugMode && (
-              <section className='animate-in slide-in-from-bottom-4 duration-1000'>
+        {/* --- DERBY DASHBOARD (Only visible if mode is derby) --- */}
+        {room.mode === 'derby' && (
+          <div className='mb-12 animate-in fade-in duration-700'>
+            <div className='flex items-center gap-3 mb-6 px-2'>
+              <div className='bg-red-500/10 p-2 rounded-xl text-red-500 ring-1 ring-red-500/20 shadow-sm'>
+                <Swords className='w-5 h-5' />
+              </div>
+              <h2 className='text-2xl font-black tracking-tight text-foreground'>
+                {t('Derby Dashboard')}
+              </h2>
+            </div>
+
+            <div className='grid grid-cols-1 lg:grid-cols-12 gap-8'>
+              {/* Feed is wider for better reading */}
+              <div className='lg:col-span-7 h-[600px]'>
+                <DerbyFeed
+                  room={room}
+                  members={playersOnlyMembers}
+                  matches={recentMatches}
+                />
+              </div>
+
+              {/* Hall of fame stays compact on the right */}
+              <div className='lg:col-span-5 h-[600px]'>
+                <DerbyHallOfFame room={room} />
+              </div>
+            </div>
+
+            {(canManageRoom || isGlobalAdmin) && debugMode && (
+              <div className='mt-8'>
                 <DerbySimulator
                   roomId={roomId}
                   members={playersOnlyMembers}
                   sport={sport}
                 />
-              </section>
-            )}
-
-          <section className='animate-in fade-in duration-1000'>
-            {room.mode === 'derby' ? (
-              <Tabs defaultValue='derby' className='w-full'>
-                <TabsList className='mb-8 grid w-full max-w-2xl mx-auto grid-cols-3 p-1.5 bg-muted/30 rounded-2xl ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-xl h-auto min-h-[3.5rem]'>
-                  <TabsTrigger
-                    value='derby'
-                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm font-bold gap-2'
-                  >
-                    <Zap className='w-4 h-4 hidden sm:block' />
-                    {t('Events')}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value='hof'
-                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm font-bold gap-2'
-                  >
-                    <Trophy className='w-4 h-4 hidden sm:block' />
-                    {t('Hall of Fame')}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value='matches'
-                    className='rounded-xl h-auto py-2.5 text-xs sm:text-sm font-bold gap-2'
-                  >
-                    <History className='w-4 h-4 hidden sm:block' />
-                    {t('History')}
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent
-                  value='derby'
-                  className='mt-0 text-left animate-in fade-in zoom-in-95 duration-500'
-                >
-                  <DerbyFeed
-                    room={room}
-                    members={playersOnlyMembers}
-                    matches={recentMatches}
-                  />
-                </TabsContent>
-                <TabsContent
-                  value='hof'
-                  className='mt-0 text-left animate-in fade-in zoom-in-95 duration-500'
-                >
-                  <DerbyHallOfFame room={room} />
-                </TabsContent>
-                <TabsContent
-                  value='matches'
-                  className='mt-0 text-left animate-in fade-in zoom-in-95 duration-500'
-                >
-                  <RecentMatches matches={recentMatches} />
-                </TabsContent>
-              </Tabs>
-            ) : (
-              <div className='text-left'>
-                <div className='flex items-center gap-3 mb-6 px-2'>
-                  <div className='bg-primary/10 p-2 rounded-xl text-primary ring-1 ring-primary/20 shadow-sm'>
-                    <History className='w-5 h-5' />
-                  </div>
-                  <h2 className='text-2xl font-black tracking-tight'>
-                    {t('Match History')}
-                  </h2>
-                </div>
-                <RecentMatches matches={recentMatches} />
               </div>
             )}
-          </section>
+          </div>
+        )}
 
-          <section className='animate-in fade-in duration-700'>
+        {/* --- LEADERBOARD & MATCH HISTORY --- */}
+        <div className='grid grid-cols-1 lg:grid-cols-12 gap-8'>
+          {/* Leaderboard (Wider on desktop) */}
+          <div className='lg:col-span-8 animate-in fade-in duration-700'>
             <div className='flex items-center gap-3 mb-6 px-2'>
               <div className='bg-primary/10 p-2 rounded-xl text-primary ring-1 ring-primary/20 shadow-sm'>
-                <LayoutDashboard className='w-5 h-5' />
+                <Trophy className='w-5 h-5' />
               </div>
               <h2 className='text-2xl font-black tracking-tight'>
                 {t('Leaderboard')}
@@ -1021,7 +971,22 @@ export default function RoomPage() {
               roomCreatorId={room.createdBy || room.creator || ''}
               roomMode={room.mode || 'office'}
             />
-          </section>
+          </div>
+
+          {/* Recent Matches (Compact on the right) */}
+          <div className='lg:col-span-4 animate-in fade-in duration-700'>
+            <div className='flex items-center gap-3 mb-6 px-2'>
+              <div className='bg-primary/10 p-2 rounded-xl text-primary ring-1 ring-primary/20 shadow-sm'>
+                <History className='w-5 h-5' />
+              </div>
+              <h2 className='text-2xl font-black tracking-tight'>
+                {t('Recent Matches')}
+              </h2>
+            </div>
+            <div className='h-[600px] bg-card rounded-[2rem] shadow-xl border-0 glass-panel overflow-hidden'>
+              <RecentMatches matches={recentMatches} compact={true} />
+            </div>
+          </div>
         </div>
       </div>
     </ProtectedRoute>

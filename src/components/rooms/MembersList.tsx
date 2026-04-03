@@ -148,6 +148,7 @@ export function MembersList({
               const currentStreak = p.currentStreak ?? 0;
               const isOnFire = currentStreak >= 3;
               const isGiantSlayer = p.badges?.includes('giant_slayer');
+              const hasPlayed = p.totalMatches > 0;
 
               return (
                 <div
@@ -157,16 +158,16 @@ export function MembersList({
                   <div className='flex items-center gap-2.5 flex-grow min-w-0'>
                     <div
                       className={`w-4 text-right font-mono text-xs font-bold shrink-0 ${
-                        index === 0 && p.totalMatches > 0
+                        index === 0 && hasPlayed
                           ? 'text-yellow-500'
-                          : index === 1 && p.totalMatches > 0
+                          : index === 1 && hasPlayed
                             ? 'text-slate-400'
-                            : index === 2 && p.totalMatches > 0
+                            : index === 2 && hasPlayed
                               ? 'text-amber-600'
                               : 'text-muted-foreground/40'
                       }`}
                     >
-                      {p.totalMatches > 0 ? index + 1 : '-'}
+                      {hasPlayed ? index + 1 : '-'}
                     </div>
 
                     <Avatar
@@ -208,14 +209,14 @@ export function MembersList({
 
                       <div className='text-[10px] text-muted-foreground truncate mt-0.5 flex items-center gap-1.5 font-medium'>
                         <span className='text-emerald-500 font-bold'>
-                          {p.wins}
+                          {p.wins ?? 0}
                         </span>
                         <span className='opacity-40 uppercase tracking-wider text-[8px]'>
                           {t('W')}
                         </span>
                         <span className='opacity-20'>|</span>
                         <span className='text-red-500 font-bold'>
-                          {p.losses}
+                          {p.losses ?? 0}
                         </span>
                         <span className='opacity-40 uppercase tracking-wider text-[8px]'>
                           {t('L')}
@@ -275,12 +276,12 @@ export function MembersList({
                   </div>
 
                   <div className='flex items-center gap-2 pl-1 shrink-0'>
-                    {p.totalMatches > 0 && (
+                    {hasPlayed && (
                       <div className='flex flex-col items-end justify-center min-w-[36px]'>
                         {roomMode === 'professional' ? (
                           <>
                             <span className='font-black text-primary text-sm leading-none'>
-                              {Math.round(p.rating)}
+                              {Math.round(p.rating ?? 1000)}
                             </span>
                             <span className='text-[8px] uppercase tracking-widest text-muted-foreground/60 font-bold mt-0.5'>
                               {t('elo')}
@@ -289,7 +290,7 @@ export function MembersList({
                         ) : roomMode === 'arcade' ? (
                           <>
                             <span className='font-black text-purple-500 text-sm leading-none'>
-                              {p.wins}
+                              {p.wins ?? 0}
                             </span>
                             <span className='text-[8px] uppercase tracking-widest text-muted-foreground/60 font-bold mt-0.5'>
                               {t('wins')}
@@ -308,7 +309,6 @@ export function MembersList({
                       </div>
                     )}
 
-                    {/* Кнопка удаления появляется ТОЛЬКО при ховере */}
                     {canRemovePlayers && p.userId !== currentUser?.uid && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
