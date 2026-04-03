@@ -6,33 +6,24 @@ import { genkit, z } from 'genkit';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
-// Воссоздаем __dirname для ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Явно указываем путь к твоему файлу .env.development
 const envPath = path.resolve(__dirname, '../.env.development');
 if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 } else {
-  // Фолбэк, если когда-нибудь появится обычный .env
   dotenv.config();
 }
 
-// Если ключ называется иначе, Genkit всё равно ждет GOOGLE_GENAI_API_KEY или GEMINI_API_KEY
-// Если в твоем .env он называется просто API_KEY, можешь раскомментировать строку ниже:
-// process.env.GOOGLE_GENAI_API_KEY = process.env.ТВОЕ_НАЗВАНИЕ_КЛЮЧА;
-
-// Инициализируем ИИ
 const ai = genkit({
   plugins: [googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY })],
-  model: 'googleai/gemini-2.0-flash',
+  model: 'googleai/gemini-2.0-flash', // Используем стабильную и мощную 2.0-flash
 });
 
 const localesDir = path.resolve(__dirname, '../public/locales');
 const targetLocales = ['ru', 'fi', 'ko'];
 
-// Названия языков для промпта ИИ
 const localeNames: Record<string, string> = {
   ru: 'Russian',
   fi: 'Finnish',
@@ -51,7 +42,6 @@ async function translateMissing() {
     const fileContent = fs.readFileSync(filePath, 'utf8');
     const translations = JSON.parse(fileContent);
 
-    // Находим только те ключи, у которых значение пустое ""
     const missingKeys = Object.keys(translations).filter(
       (key) => translations[key] === ''
     );
@@ -63,47 +53,63 @@ async function translateMissing() {
 
     console.log(`⏳ Переводим ${missingKeys.length} новых строк для [${locale}]...`);
 
-    // Обрабатываем батчами по 40 строк, чтобы ИИ не запутался и не обрезал ответ
-    const batchSize = 40;
+    const batchSize = 15; 
     for (let i = 0; i < missingKeys.length; i += batchSize) {
       const batchKeys = missingKeys.slice(i, i + batchSize);
-      const objToTranslate: Record<string, string> = {};
-
-      // Исходным текстом для перевода является сам ключ (т.к. мы пишем ключи на английском)
-      batchKeys.forEach((k) => {
-        objToTranslate[k] = k;
-      });
+      
+      // Создаем массив объектов. ИИ намного проще работать с массивами, чем с динамическими ключами объектов.
+      const inputItems = batchKeys.map(key => ({
+        originalKey: key,
+        textToTranslate: key // В нашем случае ключ — это и есть текст на английском
+      }));
 
       try {
-        console.log(`   Отправка батча ${Math.floor(i / batchSize) + 1}...`);
+        console.log(`   Отправка батча ${Math.floor(i / batchSize) + 1} (${batchKeys.length} строк)...`);
         const response = await ai.generate({
-          prompt: `Translate the values of the following JSON from English to ${localeNames[locale]}. 
+          prompt: `You are an expert translator. Translate the 'textToTranslate' fields from English to ${localeNames[locale]}. 
           Context: A web application for racket sports (ping pong, tennis, badminton) that includes ELO tracking, match history, tournaments, and a "Derby" mode with bounties, win streaks, and nemeses.
-          Keep the JSON keys exactly the same as in the original, ONLY translate the values into natural, UI-friendly language.
           
-          JSON to translate:
-          ${JSON.stringify(objToTranslate, null, 2)}`,
+          CRITICAL RULES:
+          1. You MUST return exactly ${batchKeys.length} items in the array.
+          2. Maintain EXACTLY the same 'originalKey' in your response. Do not alter it in any way.
+          3. Do not translate placeholder variables like {{count}} or {{opponent}}.
+          4. Only translate the text into natural, UI-friendly language.
+          
+          Data to translate:
+          ${JSON.stringify(inputItems, null, 2)}`,
           output: {
-            schema: z.record(z.string()), // Гарантирует, что на выходе будет чистый объект { "Ключ": "Перевод" }
+            // Строгая схема: массив объектов
+            schema: z.array(z.object({
+              originalKey: z.string(),
+              translatedText: z.string()
+            })),
           },
         });
 
         const translatedBatch = response.output;
 
-        if (translatedBatch) {
-          // Записываем переводы в основной объект
-          Object.keys(translatedBatch).forEach((key) => {
-            if (translations[key] === '') {
-              translations[key] = translatedBatch[key];
+        if (translatedBatch && Array.isArray(translatedBatch)) {
+          let translatedCount = 0;
+          
+          translatedBatch.forEach((item) => {
+            // Ищем строку по оригинальному ключу
+            if (item.originalKey && translations[item.originalKey] === '') {
+              translations[item.originalKey] = item.translatedText;
+              translatedCount++;
             }
           });
+          
+          console.log(`   -> Получено и сохранено: ${translatedCount} / ${batchKeys.length} переводов.`);
+          
+          if (translatedCount < batchKeys.length) {
+            console.log(`   ⚠️ ИИ пропустил ${batchKeys.length - translatedCount} строк. Они будут обработаны при следующем запуске.`);
+          }
         }
       } catch (error) {
         console.error(`❌ Ошибка перевода батча для ${locale}:`, error);
       }
     }
 
-    // Сортируем ключи по алфавиту (как это делает сам i18next-parser)
     const sortedTranslations = Object.keys(translations)
       .sort()
       .reduce((acc: Record<string, string>, key) => {
@@ -111,7 +117,6 @@ async function translateMissing() {
         return acc;
       }, {});
 
-    // Сохраняем обновленный файл
     fs.writeFileSync(
       filePath,
       JSON.stringify(sortedTranslations, null, 2) + '\n',

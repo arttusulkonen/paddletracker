@@ -322,44 +322,28 @@ export const FullscreenScoreboard = ({
       const isLWinner = g.scoreL > g.scoreR;
       const winnerId = isLWinner ? g.playerLId : g.playerRId;
 
-      let pLEloBefore = 1000;
-      let pREloBefore = 1000;
-      let pLBaseDelta = 0;
-      let pRBaseDelta = 0;
-      let pLDelta = 0;
-      let pRDelta = 0;
+      let chronicleData = null;
 
       if (cInfo) {
-        if (cInfo.player1Id === g.playerLId) {
-          pLEloBefore = cInfo.player1EloBefore;
-          pREloBefore = cInfo.player2EloBefore;
-          pLBaseDelta = cInfo.player1BaseDelta;
-          pRBaseDelta = cInfo.player2BaseDelta;
-          pLDelta = cInfo.player1Delta;
-          pRDelta = cInfo.player2Delta;
-        } else {
-          pLEloBefore = cInfo.player2EloBefore;
-          pREloBefore = cInfo.player1EloBefore;
-          pLBaseDelta = cInfo.player2BaseDelta;
-          pRBaseDelta = cInfo.player1BaseDelta;
-          pLDelta = cInfo.player2Delta;
-          pRDelta = cInfo.player1Delta;
-        }
+        const isP1L = cInfo.player1Id === g.playerLId;
+        chronicleData = {
+          pLEloBefore: isP1L ? cInfo.player1EloBefore : cInfo.player2EloBefore,
+          pREloBefore: isP1L ? cInfo.player2EloBefore : cInfo.player1EloBefore,
+          pLBaseDelta: isP1L ? cInfo.player1BaseDelta : cInfo.player2BaseDelta,
+          pRBaseDelta: isP1L ? cInfo.player2BaseDelta : cInfo.player1BaseDelta,
+          pLDelta: isP1L ? cInfo.player1Delta : cInfo.player2Delta,
+          pRDelta: isP1L ? cInfo.player2Delta : cInfo.player1Delta,
+          bountyApplied: cInfo.bountyApplied || 0,
+          nemesisApplied: cInfo.nemesisApplied || false,
+          streakContinued: cInfo.streakContinued || 0,
+        };
       }
 
       return {
         ...g,
         gameNumber: i + 1,
         winnerId,
-        bountyApplied: cInfo?.bountyApplied || 0,
-        nemesisApplied: cInfo?.nemesisApplied || false,
-        streakContinued: cInfo?.streakContinued || 0,
-        pLEloBefore,
-        pREloBefore,
-        pLBaseDelta,
-        pRBaseDelta,
-        pLDelta,
-        pRDelta,
+        chronicleData,
       };
     });
   }, [
@@ -1245,14 +1229,14 @@ export const FullscreenScoreboard = ({
                         <span
                           className={`truncate flex-1 text-right flex items-center justify-end gap-2 ${g.winnerId === g.playerLId ? 'text-foreground' : 'text-muted-foreground'}`}
                         >
-                          {g.pLDelta < 0 && (
+                          {g.chronicleData && g.chronicleData.pLDelta < 0 && (
                             <span className='text-[10px] text-red-500 font-black px-1.5 py-0.5 bg-red-500/10 rounded'>
-                              {g.pLDelta}
+                              {g.chronicleData.pLDelta}
                             </span>
                           )}
-                          {g.pLDelta > 0 && (
+                          {g.chronicleData && g.chronicleData.pLDelta > 0 && (
                             <span className='text-[10px] text-emerald-500 font-black px-1.5 py-0.5 bg-emerald-500/10 rounded'>
-                              +{g.pLDelta}
+                              +{g.chronicleData.pLDelta}
                             </span>
                           )}
                           {g.playerLName}
@@ -1264,116 +1248,126 @@ export const FullscreenScoreboard = ({
                           className={`truncate flex-1 text-left flex items-center gap-2 ${g.winnerId === g.playerRId ? 'text-foreground' : 'text-muted-foreground'}`}
                         >
                           {g.playerRName}
-                          {g.pRDelta < 0 && (
+                          {g.chronicleData && g.chronicleData.pRDelta < 0 && (
                             <span className='text-[10px] text-red-500 font-black px-1.5 py-0.5 bg-red-500/10 rounded'>
-                              {g.pRDelta}
+                              {g.chronicleData.pRDelta}
                             </span>
                           )}
-                          {g.pRDelta > 0 && (
+                          {g.chronicleData && g.chronicleData.pRDelta > 0 && (
                             <span className='text-[10px] text-emerald-500 font-black px-1.5 py-0.5 bg-emerald-500/10 rounded'>
-                              +{g.pRDelta}
+                              +{g.chronicleData.pRDelta}
                             </span>
                           )}
                         </span>
                       </div>
                     </div>
 
-                    <div className='flex flex-col gap-1 mt-3 pt-3 border-t border-border/30 bg-muted/10 rounded-xl p-3 font-mono text-[10px] text-muted-foreground shadow-inner'>
-                      <div className='flex justify-between items-center w-full'>
-                        <span className='opacity-70 text-left w-1/4 truncate'>
-                          {g.playerLName}{' '}
-                          <span className='text-foreground font-bold ml-1'>
-                            [{Math.round(g.pLEloBefore)}]
+                    {g.chronicleData && (
+                      <div className='flex flex-col gap-1 mt-3 pt-3 border-t border-border/30 bg-muted/10 rounded-xl p-3 font-mono text-[10px] text-muted-foreground shadow-inner'>
+                        <div className='flex justify-between items-center w-full'>
+                          <span className='opacity-70 text-left w-1/4 truncate'>
+                            {g.playerLName}{' '}
+                            <span className='text-foreground font-bold ml-1'>
+                              [{Math.round(g.chronicleData.pLEloBefore)}]
+                            </span>
                           </span>
-                        </span>
-                        <span className='flex-1 flex justify-center items-center gap-1.5 opacity-80'>
-                          <span className='font-bold'>
-                            {g.pLBaseDelta > 0
-                              ? `+${g.pLBaseDelta}`
-                              : g.pLBaseDelta}{' '}
-                            {t('Base')}
+                          <span className='flex-1 flex justify-center items-center gap-1.5 opacity-80'>
+                            <span className='font-bold'>
+                              {g.chronicleData.pLBaseDelta > 0
+                                ? `+${g.chronicleData.pLBaseDelta}`
+                                : g.chronicleData.pLBaseDelta}{' '}
+                              {t('Base')}
+                            </span>
+                            {isDerbyMode &&
+                              g.winnerId === g.playerLId &&
+                              g.chronicleData.nemesisApplied && (
+                                <span className='text-purple-500 font-bold bg-purple-500/10 px-1.5 py-0.5 rounded'>
+                                  ×1.5
+                                </span>
+                              )}
+                            {isDerbyMode &&
+                              g.winnerId === g.playerLId &&
+                              g.chronicleData.bountyApplied > 0 && (
+                                <span className='text-red-500 font-bold bg-red-500/10 px-1.5 py-0.5 rounded'>
+                                  +{g.chronicleData.bountyApplied} {t('Bounty')}
+                                </span>
+                              )}
                           </span>
-                          {isDerbyMode &&
-                            g.winnerId === g.playerLId &&
-                            g.nemesisApplied && (
-                              <span className='text-purple-500 font-bold bg-purple-500/10 px-1.5 py-0.5 rounded'>
-                                ×1.5
-                              </span>
-                            )}
-                          {isDerbyMode &&
-                            g.winnerId === g.playerLId &&
-                            g.bountyApplied > 0 && (
-                              <span className='text-red-500 font-bold bg-red-500/10 px-1.5 py-0.5 rounded'>
-                                +{g.bountyApplied} {t('Bounty')}
-                              </span>
-                            )}
-                        </span>
-                        <span className='w-1/4 text-right'>
-                          <span className='text-foreground font-bold bg-background px-2 py-1 rounded shadow-sm border border-border/50'>
-                            = {g.pLDelta > 0 ? `+${g.pLDelta}` : g.pLDelta}
+                          <span className='w-1/4 text-right'>
+                            <span className='text-foreground font-bold bg-background px-2 py-1 rounded shadow-sm border border-border/50'>
+                              ={' '}
+                              {g.chronicleData.pLDelta > 0
+                                ? `+${g.chronicleData.pLDelta}`
+                                : g.chronicleData.pLDelta}
+                            </span>
                           </span>
-                        </span>
+                        </div>
+                        <div className='flex justify-between items-center w-full'>
+                          <span className='opacity-70 text-left w-1/4 truncate'>
+                            {g.playerRName}{' '}
+                            <span className='text-foreground font-bold ml-1'>
+                              [{Math.round(g.chronicleData.pREloBefore)}]
+                            </span>
+                          </span>
+                          <span className='flex-1 flex justify-center items-center gap-1.5 opacity-80'>
+                            <span className='font-bold'>
+                              {g.chronicleData.pRBaseDelta > 0
+                                ? `+${g.chronicleData.pRBaseDelta}`
+                                : g.chronicleData.pRBaseDelta}{' '}
+                              {t('Base')}
+                            </span>
+                            {isDerbyMode &&
+                              g.winnerId === g.playerRId &&
+                              g.chronicleData.nemesisApplied && (
+                                <span className='text-purple-500 font-bold bg-purple-500/10 px-1.5 py-0.5 rounded'>
+                                  ×1.5
+                                </span>
+                              )}
+                            {isDerbyMode &&
+                              g.winnerId === g.playerRId &&
+                              g.chronicleData.bountyApplied > 0 && (
+                                <span className='text-red-500 font-bold bg-red-500/10 px-1.5 py-0.5 rounded'>
+                                  +{g.chronicleData.bountyApplied} {t('Bounty')}
+                                </span>
+                              )}
+                          </span>
+                          <span className='w-1/4 text-right'>
+                            <span className='text-foreground font-bold bg-background px-2 py-1 rounded shadow-sm border border-border/50'>
+                              ={' '}
+                              {g.chronicleData.pRDelta > 0
+                                ? `+${g.chronicleData.pRDelta}`
+                                : g.chronicleData.pRDelta}
+                            </span>
+                          </span>
+                        </div>
                       </div>
-                      <div className='flex justify-between items-center w-full'>
-                        <span className='opacity-70 text-left w-1/4 truncate'>
-                          {g.playerRName}{' '}
-                          <span className='text-foreground font-bold ml-1'>
-                            [{Math.round(g.pREloBefore)}]
-                          </span>
-                        </span>
-                        <span className='flex-1 flex justify-center items-center gap-1.5 opacity-80'>
-                          <span className='font-bold'>
-                            {g.pRBaseDelta > 0
-                              ? `+${g.pRBaseDelta}`
-                              : g.pRBaseDelta}{' '}
-                            {t('Base')}
-                          </span>
-                          {isDerbyMode &&
-                            g.winnerId === g.playerRId &&
-                            g.nemesisApplied && (
-                              <span className='text-purple-500 font-bold bg-purple-500/10 px-1.5 py-0.5 rounded'>
-                                ×1.5
-                              </span>
-                            )}
-                          {isDerbyMode &&
-                            g.winnerId === g.playerRId &&
-                            g.bountyApplied > 0 && (
-                              <span className='text-red-500 font-bold bg-red-500/10 px-1.5 py-0.5 rounded'>
-                                +{g.bountyApplied} {t('Bounty')}
-                              </span>
-                            )}
-                        </span>
-                        <span className='w-1/4 text-right'>
-                          <span className='text-foreground font-bold bg-background px-2 py-1 rounded shadow-sm border border-border/50'>
-                            = {g.pRDelta > 0 ? `+${g.pRDelta}` : g.pRDelta}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
+                    )}
 
                     {isDerbyMode &&
-                      (g.bountyApplied > 0 ||
-                        g.nemesisApplied ||
-                        g.streakContinued >= 3) && (
+                      g.chronicleData &&
+                      (g.chronicleData.bountyApplied > 0 ||
+                        g.chronicleData.nemesisApplied ||
+                        g.chronicleData.streakContinued >= 3) && (
                         <div className='flex flex-wrap items-center justify-center gap-2 pt-3 mt-1'>
-                          {g.bountyApplied > 0 && (
+                          {g.chronicleData.bountyApplied > 0 && (
                             <div className='flex items-center gap-1.5 text-[10px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 px-2.5 py-1 rounded-md ring-1 ring-red-500/20 uppercase tracking-widest'>
                               <Swords className='w-3.5 h-3.5' />
                               {t('Bounty Claimed!')}
                             </div>
                           )}
-                          {g.nemesisApplied && (
+                          {g.chronicleData.nemesisApplied && (
                             <div className='flex items-center gap-1.5 text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2.5 py-1 rounded-md ring-1 ring-purple-500/20 uppercase tracking-widest'>
                               <Skull className='w-3.5 h-3.5' />
                               {t('Nemesis Defeated!')}
                             </div>
                           )}
-                          {g.streakContinued >= 3 &&
-                            !g.bountyApplied &&
-                            !g.nemesisApplied && (
+                          {g.chronicleData.streakContinued >= 3 &&
+                            !g.chronicleData.bountyApplied &&
+                            !g.chronicleData.nemesisApplied && (
                               <div className='flex items-center gap-1.5 text-[10px] font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 px-2.5 py-1 rounded-md ring-1 ring-orange-500/20 uppercase tracking-widest'>
                                 <Flame className='w-3.5 h-3.5 fill-current animate-pulse' />
-                                {g.streakContinued} {t('Win Streak')}
+                                {g.chronicleData.streakContinued}{' '}
+                                {t('Win Streak')}
                               </div>
                             )}
                         </div>

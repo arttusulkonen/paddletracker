@@ -96,7 +96,6 @@ function getFinnishDate(dateObj: Date = new Date()): string {
   )}.${getPart('minute')}.${getPart('second')}`;
 }
 
-
 async function getSuperAdminIds(): Promise<string[]> {
   try {
     const docRef = db.collection('config').doc('app');
@@ -463,7 +462,7 @@ export const aiSaveMatch = onCall(
           score1,
           score2,
           true,
-          mode
+          mode,
         );
         const d2_Global = calcDeltaImport(
           p2State.currentGlobalElo,
@@ -471,7 +470,7 @@ export const aiSaveMatch = onCall(
           score2,
           score1,
           true,
-          mode
+          mode,
         );
 
         const d1_Room = calcDeltaImport(
@@ -480,7 +479,7 @@ export const aiSaveMatch = onCall(
           score1,
           score2,
           false,
-          mode
+          mode,
         );
         const d2_Room = calcDeltaImport(
           p2State.currentRoomElo,
@@ -488,7 +487,7 @@ export const aiSaveMatch = onCall(
           score2,
           score1,
           false,
-          mode
+          mode,
         );
 
         let final_d1_Room = d1_Room;
@@ -1860,7 +1859,7 @@ export const forceFinalizeDerbySprint = onCall(
 
     const callerUid = request.auth.uid;
     const { roomId, sport } = request.data || {};
-    
+
     if (!roomId || !sport) {
       throw new HttpsError('invalid-argument', 'Missing roomId or sport');
     }
@@ -1891,7 +1890,10 @@ export const forceFinalizeDerbySprint = onCall(
 
       const memberIds = room.memberIds || [];
       if (!memberIds.includes(callerUid)) {
-        throw new HttpsError('permission-denied', 'Only room members can finalize the sprint');
+        throw new HttpsError(
+          'permission-denied',
+          'Only room members can finalize the sprint',
+        );
       }
 
       if (!room.sprintStartTs) {
@@ -1899,7 +1901,8 @@ export const forceFinalizeDerbySprint = onCall(
       }
 
       const sprintDurationWeeks = Number(room.sprintDuration) || 2;
-      const sprintEndTs = room.sprintStartTs + (sprintDurationWeeks * ONE_WEEK_MS);
+      const sprintEndTs =
+        room.sprintStartTs + sprintDurationWeeks * ONE_WEEK_MS;
 
       if (nowMs < sprintEndTs - 10000) {
         throw new HttpsError('failed-precondition', 'Sprint has not ended yet');
@@ -1909,7 +1912,7 @@ export const forceFinalizeDerbySprint = onCall(
       if (members.length === 0) return;
 
       const playersOnlyMembers = members.filter(
-        (m: any) => m.accountType !== 'coach'
+        (m: any) => m.accountType !== 'coach',
       );
 
       const startDate = room.sprintStartTs
@@ -1938,14 +1941,14 @@ export const forceFinalizeDerbySprint = onCall(
       const topSlayerPlayer = [...playersOnlyMembers].sort(
         (a, b) =>
           (b.badges?.filter((x: string) => x === 'giant_slayer').length || 0) -
-          (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0)
+          (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0),
       )[0];
       const slayerCount =
         topSlayerPlayer?.badges?.filter((x: string) => x === 'giant_slayer')
           .length || 0;
 
       const topStreakPlayer = [...playersOnlyMembers].sort(
-        (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0)
+        (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
       )[0];
 
       const sprintCount = (room.sprintCount || 0) + 1;
@@ -1987,20 +1990,21 @@ export const forceFinalizeDerbySprint = onCall(
           };
           hallOfFame.push(hof);
         }
-        
+
         if (champion && m.userId === champion.userId) {
           hof.championships = (hof.championships || 0) + 1;
         }
-        
+
         const curSlayers =
           m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
         hof.streaksBroken = (hof.streaksBroken || 0) + curSlayers;
-        
+
         if ((m.highestStreak || 0) > (hof.maxStreakEver || 0)) {
           hof.maxStreakEver = m.highestStreak;
         }
-        
-        hof.totalDerbyWins = m.wins || 0;
+
+        // ACCUMULATE lifetime wins instead of overwriting
+        hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
 
         const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
         if (podiumIdx !== -1) {
@@ -2026,11 +2030,11 @@ export const forceFinalizeDerbySprint = onCall(
           }
           t.update(userRef, {
             achievements: admin.firestore.FieldValue.arrayUnion(
-              ...achievementsToAdd
+              ...achievementsToAdd,
             ),
           });
         }
-        
+
         if (
           topStreakPlayer &&
           m.userId === topStreakPlayer.userId &&
@@ -2046,13 +2050,15 @@ export const forceFinalizeDerbySprint = onCall(
             }),
           });
         }
-        
+
         const oldRating = m.rating || 1000;
         return {
           ...m,
           rating: Math.round(1000 + (oldRating - 1000) * 0.75),
           currentStreak: 0,
           highestStreak: 0,
+          wins: 0, // RESET sprint stats
+          losses: 0, // RESET sprint stats
           badges: [],
         };
       });
@@ -2093,7 +2099,7 @@ export const forceFinalizeDerbySprint = onCall(
     });
 
     return { success: true };
-  }
+  },
 );
 
 export const processDerbySprints = onSchedule(
@@ -2135,19 +2141,22 @@ export const processDerbySprints = onSchedule(
         }
 
         const sprintDurationWeeks = Number(room.sprintDuration) || 2;
-        const sprintEndTs = room.sprintStartTs + (sprintDurationWeeks * ONE_WEEK_MS);
+        const sprintEndTs =
+          room.sprintStartTs + sprintDurationWeeks * ONE_WEEK_MS;
 
         if (nowMs < sprintEndTs - 10000) {
           continue;
         }
 
-        logger.info(`Processing Sprint End for room: ${room.name} (${roomDoc.id})`);
+        logger.info(
+          `Processing Sprint End for room: ${room.name} (${roomDoc.id})`,
+        );
 
         const members = room.members || [];
         if (members.length === 0) continue;
 
         const playersOnlyMembers = members.filter(
-          (m: any) => m.accountType !== 'coach'
+          (m: any) => m.accountType !== 'coach',
         );
 
         const startDate = room.sprintStartTs
@@ -2175,15 +2184,16 @@ export const processDerbySprints = onSchedule(
 
         const topSlayerPlayer = [...playersOnlyMembers].sort(
           (a, b) =>
-            (b.badges?.filter((x: string) => x === 'giant_slayer').length || 0) -
-            (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0)
+            (b.badges?.filter((x: string) => x === 'giant_slayer').length ||
+              0) -
+            (a.badges?.filter((x: string) => x === 'giant_slayer').length || 0),
         )[0];
         const slayerCount =
           topSlayerPlayer?.badges?.filter((x: string) => x === 'giant_slayer')
             .length || 0;
 
         const topStreakPlayer = [...playersOnlyMembers].sort(
-          (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0)
+          (a, b) => (b.highestStreak || 0) - (a.highestStreak || 0),
         )[0];
 
         const sprintCount = (room.sprintCount || 0) + 1;
@@ -2227,20 +2237,21 @@ export const processDerbySprints = onSchedule(
             };
             hallOfFame.push(hof);
           }
-          
+
           if (champion && m.userId === champion.userId) {
             hof.championships = (hof.championships || 0) + 1;
           }
-          
+
           const curSlayers =
             m.badges?.filter((b: string) => b === 'giant_slayer').length || 0;
           hof.streaksBroken = (hof.streaksBroken || 0) + curSlayers;
-          
+
           if ((m.highestStreak || 0) > (hof.maxStreakEver || 0)) {
             hof.maxStreakEver = m.highestStreak;
           }
-          
-          hof.totalDerbyWins = m.wins || 0;
+
+          // ACCUMULATE lifetime wins instead of overwriting
+          hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
 
           const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
           if (podiumIdx !== -1) {
@@ -2266,11 +2277,11 @@ export const processDerbySprints = onSchedule(
             }
             batch.update(userRef, {
               achievements: admin.firestore.FieldValue.arrayUnion(
-                ...achievementsToAdd
+                ...achievementsToAdd,
               ),
             });
           }
-          
+
           if (
             topStreakPlayer &&
             m.userId === topStreakPlayer.userId &&
@@ -2286,13 +2297,15 @@ export const processDerbySprints = onSchedule(
               }),
             });
           }
-          
+
           const oldRating = m.rating || 1000;
           return {
             ...m,
             rating: Math.round(1000 + (oldRating - 1000) * 0.75),
             currentStreak: 0,
             highestStreak: 0,
+            wins: 0, // RESET sprint stats
+            losses: 0, // RESET sprint stats
             badges: [],
           };
         });
@@ -2337,5 +2350,5 @@ export const processDerbySprints = onSchedule(
     }
 
     logger.info('Derby Sprints processing completed.');
-  }
+  },
 );

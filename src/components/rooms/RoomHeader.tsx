@@ -46,7 +46,7 @@ import {
 	X,
 	Zap,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RoomSettingsDialog } from './RoomSettings';
 
@@ -80,11 +80,13 @@ export function RoomHeader({
   const isManagedUser = !!userProfile?.managedBy;
 
   const [timeLeft, setTimeLeft] = useState<string>('');
+  
+  // Guard references to prevent infinite loops and re-triggering
+  const hasTriggeredRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (mode !== 'derby') return;
-
-    let hasTriggeredFinalize = false;
 
     const triggerFinalize = async () => {
       try {
@@ -112,9 +114,13 @@ export function RoomHeader({
       const diff = endTs - now;
 
       if (diff <= 0) {
-        if (isMember && !hasTriggeredFinalize) {
-          hasTriggeredFinalize = true;
+        if (isMember && !hasTriggeredRef.current) {
+          hasTriggeredRef.current = true;
           triggerFinalize();
+        }
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
         }
         return t('Finalizing...');
       }
@@ -130,30 +136,25 @@ export function RoomHeader({
       return `${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
     };
 
-    hasTriggeredFinalize = false;
+    hasTriggeredRef.current = false;
     setTimeLeft(calculateTimeLeft());
 
     const startMs = Number(room.sprintStartTs);
     const hasValidStartTs =
       !!room.sprintStartTs && !Number.isNaN(startMs) && startMs !== 0;
-    if (!hasValidStartTs) {
-      return;
+      
+    if (!hasValidStartTs) return;
+
+    if (!hasTriggeredRef.current) {
+      intervalRef.current = setInterval(() => {
+        setTimeLeft(calculateTimeLeft());
+      }, 1000);
     }
 
-    const interval = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [
-    room.sprintStartTs,
-    room.sprintDuration,
-    mode,
-    t,
-    room.id,
-    sport,
-    isMember,
-  ]);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [room.sprintStartTs, room.sprintDuration, mode, t, room.id, sport, isMember]);
 
   const topBountyMember = members?.reduce((prev, current) => {
     const prevStreak = prev?.currentStreak ?? 0;
