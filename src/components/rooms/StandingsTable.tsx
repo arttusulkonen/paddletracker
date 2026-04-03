@@ -255,6 +255,22 @@ function LiveFinalStandings({ players, t, roomMode }: any) {
     { key: 'globalElo', label: 'Global ELO' },
   ];
 
+	if (rows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center animate-in fade-in duration-500">
+        <div className="bg-muted/30 p-4 rounded-full mb-4 ring-1 ring-black/5 dark:ring-white/10">
+          <Trophy className="h-8 w-8 text-muted-foreground opacity-40" />
+        </div>
+        <h3 className="text-base font-bold text-foreground mb-1">
+          {t('No ranked players yet')}
+        </h3>
+        <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+          {t('Play your first match to appear on the leaderboard.')}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className='overflow-x-auto'>
       <ScrollArea className='w-full max-h-[500px]'>
