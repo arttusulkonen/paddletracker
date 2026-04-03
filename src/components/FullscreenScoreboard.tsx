@@ -302,8 +302,7 @@ export const FullscreenScoreboard = ({
   const isDerbyMode = selectedRoom?.mode === 'derby';
 
   const sessionGames = useMemo(() => {
-    if (step !== 'results' || !selectedRoom || !matchResults?.chronicle)
-      return [];
+    if (step !== 'results' || !selectedRoom) return [];
 
     const allGames = [...matchHistory];
     if (scoreL > 0 || scoreR > 0 || isMatchFinished) {
@@ -319,7 +318,7 @@ export const FullscreenScoreboard = ({
     }
 
     return allGames.map((g, i) => {
-      const cInfo = matchResults.chronicle?.[i];
+      const cInfo = matchResults?.chronicle?.[i];
       const isLWinner = g.scoreL > g.scoreR;
       const winnerId = isLWinner ? g.playerLId : g.playerRId;
 
@@ -1292,7 +1291,7 @@ export const FullscreenScoreboard = ({
                             {g.pLBaseDelta > 0
                               ? `+${g.pLBaseDelta}`
                               : g.pLBaseDelta}{' '}
-                            Base
+                            {t('Base')}
                           </span>
                           {isDerbyMode &&
                             g.winnerId === g.playerLId &&
@@ -1305,7 +1304,7 @@ export const FullscreenScoreboard = ({
                             g.winnerId === g.playerLId &&
                             g.bountyApplied > 0 && (
                               <span className='text-red-500 font-bold bg-red-500/10 px-1.5 py-0.5 rounded'>
-                                +{g.bountyApplied} Bounty
+                                +{g.bountyApplied} {t('Bounty')}
                               </span>
                             )}
                         </span>
@@ -1327,7 +1326,7 @@ export const FullscreenScoreboard = ({
                             {g.pRBaseDelta > 0
                               ? `+${g.pRBaseDelta}`
                               : g.pRBaseDelta}{' '}
-                            Base
+                            {t('Base')}
                           </span>
                           {isDerbyMode &&
                             g.winnerId === g.playerRId &&
@@ -1340,7 +1339,7 @@ export const FullscreenScoreboard = ({
                             g.winnerId === g.playerRId &&
                             g.bountyApplied > 0 && (
                               <span className='text-red-500 font-bold bg-red-500/10 px-1.5 py-0.5 rounded'>
-                                +{g.bountyApplied} Bounty
+                                +{g.bountyApplied} {t('Bounty')}
                               </span>
                             )}
                         </span>

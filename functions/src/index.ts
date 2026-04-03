@@ -96,26 +96,6 @@ function getFinnishDate(dateObj: Date = new Date()): string {
   )}.${getPart('minute')}.${getPart('second')}`;
 }
 
-const calculateDelta = (
-  rating1: number,
-  rating2: number,
-  score1: number,
-  score2: number,
-  isGlobal: boolean,
-) => {
-  const K = 32;
-  const result = score1 > score2 ? 1 : 0;
-  const expected = 1 / (1 + 10 ** ((rating2 - rating1) / 400));
-  let delta = Math.round(K * (result - expected));
-
-  if (!isGlobal) {
-    if (delta < 0) {
-      const inflationFactor = 0.8;
-      delta = Math.round(delta * inflationFactor);
-    }
-  }
-  return delta;
-};
 
 async function getSuperAdminIds(): Promise<string[]> {
   try {
@@ -477,34 +457,38 @@ export const aiSaveMatch = onCall(
         const startRoomR1 = p1State.currentRoomElo;
         const startRoomR2 = p2State.currentRoomElo;
 
-        const d1_Global = calculateDelta(
+        const d1_Global = calcDeltaImport(
           p1State.currentGlobalElo,
           p2State.currentGlobalElo,
           score1,
           score2,
           true,
+          mode
         );
-        const d2_Global = calculateDelta(
+        const d2_Global = calcDeltaImport(
           p2State.currentGlobalElo,
           p1State.currentGlobalElo,
           score2,
           score1,
           true,
+          mode
         );
 
-        const d1_Room = calculateDelta(
+        const d1_Room = calcDeltaImport(
           p1State.currentRoomElo,
           p2State.currentRoomElo,
           score1,
           score2,
           false,
+          mode
         );
-        const d2_Room = calculateDelta(
+        const d2_Room = calcDeltaImport(
           p2State.currentRoomElo,
           p1State.currentRoomElo,
           score2,
           score1,
           false,
+          mode
         );
 
         let final_d1_Room = d1_Room;
@@ -2016,7 +2000,7 @@ export const forceFinalizeDerbySprint = onCall(
           hof.maxStreakEver = m.highestStreak;
         }
         
-        hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
+        hof.totalDerbyWins = m.wins || 0;
 
         const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
         if (podiumIdx !== -1) {
@@ -2256,7 +2240,7 @@ export const processDerbySprints = onSchedule(
             hof.maxStreakEver = m.highestStreak;
           }
           
-          hof.totalDerbyWins = (hof.totalDerbyWins || 0) + (m.wins || 0);
+          hof.totalDerbyWins = m.wins || 0;
 
           const podiumIdx = podium.findIndex((p) => p.userId === m.userId);
           if (podiumIdx !== -1) {
