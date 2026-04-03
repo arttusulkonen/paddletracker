@@ -1,3 +1,4 @@
+// src/components/rooms/RecentMatches.tsx
 'use client';
 
 import {
@@ -23,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 interface RecentMatchesProps {
   matches: Match[];
   defaultPlayer?: string;
+  compact?: boolean; // Добавили поддержку компактного режима
 }
 
 const tsToMs = (m: any): number => {
@@ -50,7 +52,11 @@ const roomDelta = (p: any): number => {
   return 0;
 };
 
-export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
+export function RecentMatches({
+  matches,
+  defaultPlayer,
+  compact = false,
+}: RecentMatchesProps) {
   const { t } = useTranslation();
   const [selectedPlayer, setSelectedPlayer] = useState<string>(
     defaultPlayer ?? '',
@@ -74,6 +80,8 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
   }, [matches, selectedPlayer]);
 
   const cumulativeByMatchId = useMemo(() => {
+    if (compact) return {}; // В компактном режиме нам не нужны сложные вычисления
+
     const chronological = [...matches].sort((a, b) => tsToMs(a) - tsToMs(b));
 
     const gained: Record<string, number> = {};
@@ -112,8 +120,131 @@ export function RecentMatches({ matches, defaultPlayer }: RecentMatchesProps) {
     }
 
     return snapshot;
-  }, [matches]);
+  }, [matches, compact]);
 
+  // Если режим компактный, мы возвращаем только самое важное (без Card обертки, так как она уже есть в page.tsx)
+  if (compact) {
+    return (
+      <div className='flex flex-col h-full bg-transparent'>
+        <div className='px-5 pt-5 pb-3 flex flex-col gap-3 border-b border-border/40 shrink-0 bg-muted/5'>
+          <div className='flex items-center justify-between gap-4'>
+            <div className='flex flex-col'>
+              <span className='text-[10px] font-black uppercase tracking-widest text-muted-foreground'>
+                {t('Matches')}
+              </span>
+              <span className='text-xs font-bold text-foreground'>
+                {selectedPlayer
+                  ? t('{{count}} match(es)', { count: filtered.length })
+                  : t('{{count}} match(es) total', { count: matches.length })}
+              </span>
+            </div>
+
+            <select
+              className='h-8 max-w-[120px] rounded-lg border-0 bg-background px-3 text-[10px] font-bold shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer ring-1 ring-border/50'
+              value={selectedPlayer}
+              onChange={(e) => setSelectedPlayer(e.target.value)}
+            >
+              <option value=''>{t('All players')}</option>
+              {allPlayers.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className='flex-1 overflow-hidden'>
+          {filtered.length ? (
+            <ScrollArea className='h-full w-full'>
+              <div className='flex flex-col'>
+                {filtered.map((m) => {
+                  const roomDeltaP1 = roomDelta(m.player1);
+                  const roomDeltaP2 = roomDelta(m.player2);
+                  const isP1Winner = m.player1.scores > m.player2.scores;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className='flex flex-col p-4 border-b border-border/40 hover:bg-muted/30 transition-colors gap-2.5'
+                    >
+                      <div className='flex justify-between items-center w-full'>
+                        <span className='text-[8px] uppercase tracking-widest font-black text-muted-foreground/60'>
+                          {safeFormatDate(
+                            (m as any).timestamp ??
+                              (m as any).createdAt ??
+                              (m as any).tsIso,
+                            'MMM d, HH:mm',
+                          )}
+                        </span>
+
+                        <div className='flex items-center gap-1 font-mono text-[10px] bg-background px-1.5 py-0.5 rounded shadow-sm border border-border/50'>
+                          <span
+                            className={
+                              roomDeltaP1 > 0
+                                ? 'text-emerald-500 font-bold'
+                                : 'text-red-500 opacity-80'
+                            }
+                          >
+                            {roomDeltaP1 >= 0
+                              ? `+${Math.round(roomDeltaP1)}`
+                              : Math.round(roomDeltaP1)}
+                          </span>
+                          <span className='text-muted-foreground/30 mx-0.5'>
+                            |
+                          </span>
+                          <span
+                            className={
+                              roomDeltaP2 > 0
+                                ? 'text-emerald-500 font-bold'
+                                : 'text-red-500 opacity-80'
+                            }
+                          >
+                            {roomDeltaP2 >= 0
+                              ? `+${Math.round(roomDeltaP2)}`
+                              : Math.round(roomDeltaP2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className='flex items-center justify-between w-full'>
+                        <div
+                          className={`font-bold text-sm truncate flex-1 ${isP1Winner ? 'text-foreground' : 'text-muted-foreground'}`}
+                        >
+                          {m.player1.name}
+                        </div>
+                        <div className='font-mono font-black text-sm bg-muted/40 px-2 py-0.5 rounded-md mx-3 shrink-0 text-primary'>
+                          {m.player1.scores} - {m.player2.scores}
+                        </div>
+                        <div
+                          className={`font-bold text-sm truncate flex-1 text-right ${!isP1Winner ? 'text-foreground' : 'text-muted-foreground'}`}
+                        >
+                          {m.player2.name}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className='flex flex-col items-center justify-center h-full text-center py-10 px-4'>
+              <History className='h-8 w-8 text-muted-foreground/30 mb-3' />
+              <p className='text-xs font-bold text-foreground mb-1'>
+                {selectedPlayer
+                  ? t('No matches found for {{player}}', {
+                      player: selectedPlayer,
+                    })
+                  : t('No recent matches')}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // STANDARD FULL VIEW (For older pages where it was used as a wide table)
   return (
     <Card className='shadow-xl border-0 rounded-[2rem] glass-panel overflow-hidden mb-6'>
       <CardHeader className='px-6 pt-6 pb-4'>
