@@ -244,7 +244,12 @@ export const LiveFeed: React.FC = () => {
                 });
               }
             });
-          } catch (e) {}
+          } catch (e) {
+            console.error(
+              'Failed to load communities for visible rooms chunk',
+              { chunk, error: e },
+            );
+          }
         }),
       );
     }
