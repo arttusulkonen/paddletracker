@@ -1,15 +1,15 @@
-// src/lib/firebase.ts
 import {
-  getAnalytics,
-  isSupported as isAnalyticsSupported,
-  type Analytics,
+	getAnalytics,
+	isSupported as isAnalyticsSupported,
+	type Analytics,
 } from 'firebase/analytics';
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import {
-  initializeAppCheck,
-  ReCaptchaEnterpriseProvider,
+	initializeAppCheck,
+	ReCaptchaEnterpriseProvider,
 } from 'firebase/app-check';
 import { getAuth, type Auth } from 'firebase/auth';
+import { enableLogging, getDatabase, type Database } from 'firebase/database';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
@@ -21,17 +21,19 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
 };
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
+let rtdb: Database | null = null;
 let storage: FirebaseStorage | null = null;
 let analytics: Analytics | null = null;
 
 if (!firebaseConfig.apiKey) {
   console.error(
-    'Firebase API key is missing. Please set NEXT_PUBLIC_FIREBASE_API_KEY in your environment. Firebase will not be initialized.'
+    'Firebase API key is missing. Please set NEXT_PUBLIC_FIREBASE_API_KEY in your environment. Firebase will not be initialized.',
   );
 } else {
   if (!getApps().length) {
@@ -48,6 +50,15 @@ if (!firebaseConfig.apiKey) {
     try {
       auth = getAuth(app);
       db = getFirestore(app);
+
+      if (
+        typeof window !== 'undefined' &&
+        process.env.NODE_ENV === 'development'
+      ) {
+        enableLogging(true);
+      }
+
+      rtdb = getDatabase(app, firebaseConfig.databaseURL);
       storage = getStorage(app);
 
       const initializedApp = app;
@@ -72,7 +83,6 @@ if (!firebaseConfig.apiKey) {
           });
         }
       }
-      // -------------------------------------------------------------
     } catch (e) {
       console.error('Error initializing Firebase services:', e);
     }
@@ -81,4 +91,4 @@ if (!firebaseConfig.apiKey) {
   }
 }
 
-export { analytics, app, auth, db, storage };
+export { analytics, app, auth, db, rtdb, storage };

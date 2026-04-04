@@ -38,7 +38,7 @@
     ".next/types/**/*.ts",
     "migrate-update.cjs",
     ".next/dev/types/**/*.ts"
-  ],
+, "next.config.mjs"  ],
   "exclude": [
     "node_modules"
   ]

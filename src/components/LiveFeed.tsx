@@ -39,7 +39,7 @@ type CombinedMatch = Match & {
 };
 
 const BATCH_SIZE = 5;
-const FETCH_LIMIT = 10;
+const FETCH_LIMIT = 30;
 
 type Cursors = Record<Sport, DocumentSnapshot | null>;
 type Queues = Record<Sport, CombinedMatch[]>;
@@ -244,9 +244,7 @@ export const LiveFeed: React.FC = () => {
                 });
               }
             });
-          } catch (e) {
-            console.error('Error fetching community chunk', e);
-          }
+          } catch (e) {}
         }),
       );
     }
@@ -273,19 +271,18 @@ export const LiveFeed: React.FC = () => {
       cursor: DocumentSnapshot | null,
       roomIds: string[],
     ) => {
-      if (allLoadedRef.current[sport] || roomIds.length === 0)
+      if (
+        allLoadedRef.current[sport] ||
+        roomIds.length === 0 ||
+        roomIds[0] === 'NO_VISIBLE_ROOMS'
+      )
         return { matches: [], cursor, allLoaded: true };
 
       try {
         const collectionName = sportConfig[sport].collections.matches;
-        const chunkedRoomIds = roomIds.slice(0, 10);
-
-        if (chunkedRoomIds.length === 0) {
-          return { matches: [], cursor, allLoaded: true };
-        }
+        const roomIdsSet = new Set(roomIds);
 
         const constraints: QueryConstraint[] = [
-          where('roomId', 'in', chunkedRoomIds),
           orderBy('tsIso', 'desc'),
           limit(FETCH_LIMIT),
         ];
@@ -301,11 +298,14 @@ export const LiveFeed: React.FC = () => {
           return { matches: [], cursor, allLoaded: true };
         }
 
-        const newMatches = snap.docs.map((doc) => ({
-          ...(doc.data() as Match),
-          id: doc.id,
-          sport: sport,
-        }));
+        const newMatches = snap.docs
+          .map((doc) => ({
+            ...(doc.data() as Match),
+            id: doc.id,
+            sport: sport,
+          }))
+          .filter((match) => roomIdsSet.has(match.roomId));
+
         const newCursor = snap.docs[snap.docs.length - 1];
 
         return {
@@ -314,7 +314,6 @@ export const LiveFeed: React.FC = () => {
           allLoaded: snap.size < FETCH_LIMIT,
         };
       } catch (e) {
-        console.warn(`Failed to fetch ${sport}`, e);
         return { matches: [], cursor, allLoaded: true };
       }
     },
@@ -341,35 +340,26 @@ export const LiveFeed: React.FC = () => {
         setLoadingMore(true);
       }
 
-      const fetches: Promise<any>[] = [];
-      for (const sport of sports) {
-        if (
-          queuesRef.current[sport].length === 0 &&
-          !allLoadedRef.current[sport]
-        ) {
-          fetches.push(
-            fetchQueue(sport, cursorsRef.current[sport], visibleRoomIds),
+      const fetchPromises = sports
+        .filter(
+          (s) => queuesRef.current[s].length === 0 && !allLoadedRef.current[s],
+        )
+        .map(async (sport) => {
+          const res = await fetchQueue(
+            sport,
+            cursorsRef.current[sport],
+            visibleRoomIds,
           );
-        }
-      }
+          return { sport, ...res };
+        });
 
-      let anyFetched = false;
-      if (fetches.length > 0) {
-        const results = await Promise.all(fetches);
-        for (const result of results) {
-          if (!result || result.matches.length === 0) {
-            continue;
-          }
-          anyFetched = true;
-          const sport = result.matches[0]?.sport as Sport;
-          if (sport) {
-            queuesRef.current[sport] = [
-              ...queuesRef.current[sport],
-              ...result.matches,
-            ];
-            cursorsRef.current[sport] = result.cursor;
-            allLoadedRef.current[sport] = result.allLoaded;
-          }
+      if (fetchPromises.length > 0) {
+        const results = await Promise.all(fetchPromises);
+        for (const res of results) {
+          const { sport, matches, cursor, allLoaded } = res;
+          queuesRef.current[sport] = [...queuesRef.current[sport], ...matches];
+          cursorsRef.current[sport] = cursor;
+          allLoadedRef.current[sport] = allLoaded;
         }
       }
 
@@ -378,7 +368,7 @@ export const LiveFeed: React.FC = () => {
       );
       const remainingToLoad = sports.some((s) => !allLoadedRef.current[s]);
 
-      if (!remainingInQueues && !remainingToLoad && !anyFetched) {
+      if (!remainingInQueues && !remainingToLoad) {
         setFullyLoaded(true);
       }
 
@@ -436,7 +426,9 @@ export const LiveFeed: React.FC = () => {
 
   useEffect(() => {
     const handleMatchRecorded = () => {
-      handleRefresh();
+      setTimeout(() => {
+        handleRefresh();
+      }, 1500);
     };
     window.addEventListener('match-recorded', handleMatchRecorded);
     return () =>

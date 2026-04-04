@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "pin_mappings": {
+      ".read": true,
+      ".write": false
+    },
+    "live_sessions": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
