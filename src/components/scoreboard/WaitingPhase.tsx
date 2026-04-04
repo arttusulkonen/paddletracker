@@ -1,5 +1,4 @@
 import { Loader2 } from 'lucide-react';
-import React from 'react';
 
 export const WaitingPhase = ({ state, actions, t }: any) => {
   return (
