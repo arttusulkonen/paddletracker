@@ -1,7 +1,6 @@
 // src/components/scoreboard/MatchPhase.tsx
 import { Button } from '@/components/ui/button';
 import { Loader2, Trophy } from 'lucide-react';
-import React from 'react';
 
 export const MatchPhase = ({ state, actions, t }: any) => {
   return (
