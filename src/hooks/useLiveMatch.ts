@@ -66,23 +66,24 @@ export function useLiveMatch(sessionId: string | null) {
   const updateScore = useCallback(
     async (updates: Partial<MatchState>) => {
       console.log('[RTDB Debug] updateScore called with:', updates);
-      setMatchState((prev) => {
-        const newState = { ...prev, ...updates, last_updated: Date.now() };
-        if (sessionId && rtdb) {
-          const matchRef = ref(rtdb, `live_sessions/${sessionId}`);
-          update(matchRef, {
-            ...updates,
-            last_updated: newState.last_updated,
-          })
-            .then(() => {
-              console.log('[RTDB Debug] updateScore success');
-            })
-            .catch((err) => {
-              console.error('[RTDB Debug] updateScore failed:', err);
-            });
-        }
-        return newState;
-      });
+      const last_updated = Date.now();
+
+      setMatchState((prev) => ({ ...prev, ...updates, last_updated }));
+
+      if (!sessionId || !rtdb) return;
+
+      const matchRef = ref(rtdb, `live_sessions/${sessionId}`);
+
+      try {
+        await update(matchRef, {
+          ...updates,
+          last_updated,
+        });
+        console.log('[RTDB Debug] updateScore success');
+      } catch (err) {
+        console.error('[RTDB Debug] updateScore failed:', err);
+        throw err;
+      }
     },
     [sessionId],
   );
