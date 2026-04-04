@@ -319,7 +319,7 @@ export const LiveFeed: React.FC = () => {
           allLoaded: snap.size < FETCH_LIMIT,
         };
       } catch (e) {
-        return { matches: [], cursor, allLoaded: true };
+        return { matches: [], cursor, allLoaded: false };
       }
     },
     [],
