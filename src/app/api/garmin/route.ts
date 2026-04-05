@@ -50,6 +50,15 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const apiSecret = process.env.GARMIN_API_SECRET;
+    if (apiSecret) {
+      const authHeader =
+        req.headers.get('authorization') || req.headers.get('x-api-key');
+      if (authHeader !== `Bearer ${apiSecret}` && authHeader !== apiSecret) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
+
     const db = getAdminDb();
     const rawText = await req.text();
     let body;
@@ -87,17 +96,41 @@ export async function POST(req: Request) {
       updates.deviceConnected =
         body.deviceConnected === true || body.deviceConnected === 'true';
     }
-    if (body.scoreL !== undefined) updates.scoreL = Number(body.scoreL);
-    if (body.scoreR !== undefined) updates.scoreR = Number(body.scoreR);
-    if (body.seriesL !== undefined) updates.seriesL = Number(body.seriesL);
-    if (body.seriesR !== undefined) updates.seriesR = Number(body.seriesR);
-    if (body.last_updated !== undefined)
-      updates.last_updated = Number(body.last_updated);
-    if (body.matchStarted !== undefined)
+
+    if (body.scoreL !== undefined) {
+      const parsed = Number(body.scoreL);
+      if (!isNaN(parsed)) updates.scoreL = parsed;
+    }
+
+    if (body.scoreR !== undefined) {
+      const parsed = Number(body.scoreR);
+      if (!isNaN(parsed)) updates.scoreR = parsed;
+    }
+
+    if (body.seriesL !== undefined) {
+      const parsed = Number(body.seriesL);
+      if (!isNaN(parsed)) updates.seriesL = parsed;
+    }
+
+    if (body.seriesR !== undefined) {
+      const parsed = Number(body.seriesR);
+      if (!isNaN(parsed)) updates.seriesR = parsed;
+    }
+
+    if (body.last_updated !== undefined) {
+      const parsed = Number(body.last_updated);
+      if (!isNaN(parsed)) updates.last_updated = parsed;
+    }
+
+    if (body.matchStarted !== undefined) {
       updates.matchStarted = body.matchStarted;
-    if (body.isMatchFinished !== undefined)
+    }
+
+    if (body.isMatchFinished !== undefined) {
       updates.isMatchFinished =
         body.isMatchFinished === true || body.isMatchFinished === 'true';
+    }
+
     if (body.server !== undefined) updates.server = body.server;
     if (body.nameL !== undefined) updates.nameL = body.nameL;
     if (body.nameR !== undefined) updates.nameR = body.nameR;

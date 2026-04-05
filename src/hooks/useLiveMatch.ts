@@ -53,7 +53,9 @@ export function useLiveMatch(sessionId: string | null) {
           }
         }
       },
-      (error) => {},
+      (error) => {
+        console.error(error);
+      },
     );
 
     return () => {
@@ -69,10 +71,14 @@ export function useLiveMatch(sessionId: string | null) {
       if (!sessionId || !rtdb) return;
 
       const matchRef = ref(rtdb, `live_sessions/${sessionId}`);
-      await update(matchRef, {
-        ...updates,
-        last_updated,
-      });
+      try {
+        await update(matchRef, {
+          ...updates,
+          last_updated,
+        });
+      } catch (error) {
+        console.error(error);
+      }
     },
     [sessionId],
   );
@@ -85,7 +91,9 @@ export function useLiveMatch(sessionId: string | null) {
         const matchRef = ref(rtdb, `live_sessions/${sessionId}`);
         try {
           await update(matchRef, stateWithTime);
-        } catch (err) {}
+        } catch (err) {
+          console.error(err);
+        }
       }
     },
     [sessionId],
@@ -97,7 +105,9 @@ export function useLiveMatch(sessionId: string | null) {
     const matchRef = ref(rtdb, `live_sessions/${sessionId}`);
     try {
       await remove(matchRef);
-    } catch (err) {}
+    } catch (err) {
+      console.error(err);
+    }
   }, [sessionId]);
 
   const startMatch = useCallback(async () => {
@@ -105,7 +115,9 @@ export function useLiveMatch(sessionId: string | null) {
     const matchRef = ref(rtdb, `live_sessions/${sessionId}`);
     try {
       await update(matchRef, { matchStarted: true, last_updated: Date.now() });
-    } catch (err) {}
+    } catch (err) {
+      console.error(err);
+    }
   }, [sessionId]);
 
   return { matchState, updateScore, initMatch, clearMatch, startMatch };

@@ -2,11 +2,13 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Trophy } from 'lucide-react';
 
 export const MatchPhase = ({ state, actions, t }: any) => {
+  if (!state) return null;
+
   return (
     <div className='w-full h-full flex flex-col relative'>
       <div className='flex-none flex flex-col items-center pt-10 pb-6 z-10 w-full'>
         <div className='flex flex-wrap justify-center gap-4 mb-8 px-6'>
-          {state.matchHistory.map((m: any, i: number) => (
+          {state.matchHistory?.map((m: any, i: number) => (
             <div
               key={i}
               className='bg-card/60 backdrop-blur-xl border border-border/50 px-5 py-2.5 rounded-2xl text-xs font-black shadow-xl flex items-center gap-4 group hover:scale-105 transition-transform'
@@ -45,7 +47,7 @@ export const MatchPhase = ({ state, actions, t }: any) => {
           </div>
           <div className='h-12 w-px bg-border/50' />
           <div className='bg-primary text-primary-foreground px-10 py-3 rounded-full text-lg font-black uppercase tracking-[0.3em] shadow-lg'>
-            {t('Game')} {state.matchHistory.length + 1}
+            {t('Game')} {(state.matchHistory?.length || 0) + 1}
           </div>
           <div className='h-12 w-px bg-border/50' />
           <div className='flex flex-col items-start'>
@@ -86,7 +88,7 @@ export const MatchPhase = ({ state, actions, t }: any) => {
             </h3>
             <div className='flex gap-3'>
               {Array.from({ length: 4 }).map((_, i) => {
-                const status = state.playerLHistoryStatus[i];
+                const status = state.playerLHistoryStatus?.[i];
                 const colorClass =
                   status === 'win'
                     ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_15px_#10b981]'
@@ -123,7 +125,7 @@ export const MatchPhase = ({ state, actions, t }: any) => {
             </h3>
             <div className='flex gap-3'>
               {Array.from({ length: 4 }).map((_, i) => {
-                const status = state.playerRHistoryStatus[i];
+                const status = state.playerRHistoryStatus?.[i];
                 const colorClass =
                   status === 'win'
                     ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_15px_#10b981]'
@@ -251,23 +253,23 @@ export const MatchPhase = ({ state, actions, t }: any) => {
       )}
 
       {state.isMatchFinished && (
-        <div className='absolute inset-0 bg-background/60 backdrop-blur-md z-40 flex flex-col items-center justify-center animate-in zoom-in-95 duration-500'>
-          <div className='bg-card border border-border/50 p-16 rounded-[4rem] shadow-[0_0_100px_rgba(0,0,0,0.4)] flex flex-col items-center text-center max-w-2xl w-full mx-4 relative overflow-hidden'>
-            <div className='absolute top-0 left-0 w-full h-1.5 bg-primary shadow-[0_0_15px_rgba(var(--primary),0.5)]' />
-            <Trophy className='w-20 h-20 text-primary mb-8 animate-bounce' />
-            <h2 className='text-6xl font-black text-foreground uppercase tracking-tighter mb-4'>
+        <div className='absolute inset-0 bg-background/60 backdrop-blur-md z-40 flex flex-col items-center justify-center animate-in zoom-in-95 duration-500 p-4'>
+          <div className='bg-card border border-border/50 p-10 md:p-16 rounded-[4rem] shadow-[0_0_100px_rgba(0,0,0,0.4)] flex flex-col items-center text-center max-w-2xl w-full relative max-h-[95vh] overflow-y-auto custom-scrollbar'>
+            <div className='absolute top-0 left-0 w-full h-1.5 bg-primary shadow-[0_0_15px_rgba(var(--primary),0.5)] min-h-[6px]' />
+            <Trophy className='w-16 h-16 md:w-20 md:h-20 text-primary mb-6 md:mb-8 animate-bounce mt-4' />
+            <h2 className='text-5xl md:text-6xl font-black text-foreground uppercase tracking-tighter mb-4'>
               {state.scoreL > state.scoreR
                 ? state.playerLName
                 : state.playerRName}
             </h2>
-            <p className='text-2xl font-black text-primary uppercase tracking-[0.3em] mb-12'>
+            <p className='text-xl md:text-2xl font-black text-primary uppercase tracking-[0.3em] mb-8 md:mb-12'>
               {t('Set Victory')}
             </p>
 
-            <div className='grid grid-cols-2 gap-4 w-full'>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4 w-full'>
               <Button
                 size='lg'
-                className='h-16 text-lg font-black uppercase rounded-2xl'
+                className='h-14 md:h-16 text-sm md:text-lg font-black uppercase rounded-2xl'
                 onClick={() => actions.handleNextAction('next_swap')}
               >
                 {t('Swap & Next [Enter]')}
@@ -275,7 +277,7 @@ export const MatchPhase = ({ state, actions, t }: any) => {
               <Button
                 size='lg'
                 variant='secondary'
-                className='h-16 text-lg font-black uppercase rounded-2xl'
+                className='h-14 md:h-16 text-sm md:text-lg font-black uppercase rounded-2xl'
                 onClick={() => actions.handleNextAction('next_keep')}
               >
                 {t('Stay & Next [N]')}
@@ -283,7 +285,7 @@ export const MatchPhase = ({ state, actions, t }: any) => {
               <Button
                 size='lg'
                 variant='outline'
-                className='h-16 text-lg font-bold rounded-2xl col-span-2'
+                className='h-14 md:h-16 text-sm md:text-lg font-bold rounded-2xl md:col-span-2'
                 onClick={() => actions.handleNextAction('rematch')}
               >
                 {t('Discard & Replay [Space]')}
@@ -291,12 +293,12 @@ export const MatchPhase = ({ state, actions, t }: any) => {
 
               <Button
                 size='lg'
-                className='h-20 text-2xl font-black uppercase col-span-2 bg-emerald-600 hover:bg-emerald-500 mt-6 rounded-2xl shadow-xl'
+                className='h-16 md:h-20 text-xl md:text-2xl font-black uppercase md:col-span-2 bg-emerald-600 hover:bg-emerald-500 mt-4 md:mt-6 rounded-2xl shadow-xl'
                 onClick={actions.submitSeries}
                 disabled={state.isSubmitting}
               >
                 {state.isSubmitting ? (
-                  <Loader2 className='animate-spin mr-3 h-8 w-8' />
+                  <Loader2 className='animate-spin mr-3 h-6 w-6 md:h-8 md:w-8' />
                 ) : null}
                 {t('Submit Final Series')}
               </Button>

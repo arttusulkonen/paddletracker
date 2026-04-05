@@ -1,4 +1,3 @@
-// src/components/scoreboard/ResultsPhase.tsx
 import { Button } from '@/components/ui/button';
 import {
 	ArrowDown,
@@ -12,11 +11,13 @@ import {
 } from 'lucide-react';
 
 export const ResultsPhase = ({ state, actions, t }: any) => {
-  return (
-    <div className='flex flex-col w-full max-w-6xl bg-card border border-border rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-500 z-50 backdrop-blur-3xl relative overflow-hidden'>
-      <div className='absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-primary to-red-500' />
+  if (!state || !state.matchResults || !state.sessionGames) return null;
 
-      <div className='flex flex-col items-center justify-center gap-3 mb-10 text-primary'>
+  return (
+    <div className='flex flex-col w-full max-w-6xl max-h-[95vh] overflow-y-auto custom-scrollbar bg-card border border-border rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-500 z-50 backdrop-blur-3xl relative'>
+      <div className='absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-primary to-red-500 min-h-[8px]' />
+
+      <div className='flex flex-col items-center justify-center gap-3 mb-10 text-primary mt-4'>
         <Trophy className='h-12 w-12' />
         <h2 className='text-4xl md:text-5xl font-black uppercase tracking-tighter text-foreground'>
           {t('Series Report')}
@@ -99,7 +100,7 @@ export const ResultsPhase = ({ state, actions, t }: any) => {
             {t('Match Chronicle')}
           </div>
 
-          <div className='overflow-y-auto max-h-[550px] pr-2 space-y-3 custom-scrollbar'>
+          <div className='space-y-3'>
             {state.sessionGames.map((g: any) => (
               <div
                 key={g.gameNumber}
@@ -270,7 +271,7 @@ export const ResultsPhase = ({ state, actions, t }: any) => {
 
       <Button
         size='lg'
-        className='h-16 w-full text-xl rounded-[1.5rem] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.01] transition-transform'
+        className='h-16 w-full text-xl rounded-[1.5rem] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.01] transition-transform flex-shrink-0'
         onClick={actions.onCloseReset}
       >
         {t('Exit Arena')}

@@ -4,24 +4,25 @@ import { getDatabase } from 'firebase-admin/database';
 import fs from 'fs';
 import path from 'path';
 
-// Нормализатор RSA-ключа (исправляет проблему с \n в строке)
 const formatPrivateKey = (key: string | undefined): string | undefined => {
   if (!key) return undefined;
   return key.replace(/\\n/g, '\n');
 };
 
-const databaseURL =
-  'https://pingpong-dev-fa6d2-default-rtdb.europe-west1.firebasedatabase.app';
-
 export function initFirebaseAdmin(): App {
-  // Ищем ИМЕННО дефолтное приложение.
-  // Firebase Web Frameworks может инжектить свои именованные инстансы,
-  // поэтому простая проверка длины массива здесь не подходит.
   const apps = getApps();
   const defaultApp = apps.find((app) => app.name === '[DEFAULT]');
 
   if (defaultApp) {
     return defaultApp;
+  }
+
+  const databaseURL =
+    process.env.FIREBASE_DATABASE_URL ||
+    process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
+
+  if (!databaseURL) {
+    throw new Error('FIREBASE_DATABASE_URL environment variable is missing.');
   }
 
   try {
@@ -35,9 +36,6 @@ export function initFirebaseAdmin(): App {
         );
       }
 
-      console.log(
-        '[Firebase Admin] Initializing [DEFAULT] app with SERVICE_ACCOUNT_JSON',
-      );
       return initializeApp({
         credential: cert(serviceAccount),
         databaseURL,
@@ -48,9 +46,6 @@ export function initFirebaseAdmin(): App {
       const keyPath = path.resolve(process.cwd(), 'serviceAccountKeyDev.json');
 
       if (fs.existsSync(keyPath)) {
-        console.log(
-          '[Firebase Admin] Initializing [DEFAULT] app with local JSON',
-        );
         const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
         if (serviceAccount.private_key) {
           serviceAccount.private_key = formatPrivateKey(
@@ -64,10 +59,8 @@ export function initFirebaseAdmin(): App {
       }
     }
 
-    console.log('[Firebase Admin] Initializing [DEFAULT] app with ADC');
     return initializeApp({ databaseURL });
   } catch (error: any) {
-    console.error('[Firebase Admin] CRITICAL INITIALIZATION ERROR:', error);
     throw new Error(`Firebase Admin Initialization Failed: ${error.message}`);
   }
 }
