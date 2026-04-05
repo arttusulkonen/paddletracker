@@ -10,7 +10,6 @@ import {
 	Swords,
 	Trophy,
 } from 'lucide-react';
-import React from 'react';
 
 export const ResultsPhase = ({ state, actions, t }: any) => {
   return (
