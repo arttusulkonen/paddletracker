@@ -17,7 +17,7 @@ import {
 } from '@/components/ui';
 import type { Match } from '@/lib/types';
 import { safeFormatDate } from '@/lib/utils/date';
-import { Flame, ShieldCheck } from 'lucide-react';
+import { Flame, History, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 

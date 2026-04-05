@@ -62,7 +62,6 @@ import {
 	ArrowLeft,
 	Clock,
 	History,
-	LayoutDashboard,
 	Lock,
 	Swords,
 	Trophy,

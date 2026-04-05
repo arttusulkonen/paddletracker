@@ -1,13 +1,13 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  serverExternalPackages: ['firebase-admin'],
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
-  outputFileTracingRoot: __dirname,
+  outputFileTracingRoot: process.cwd(),
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'picsum.photos', pathname: '/**' },

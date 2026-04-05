@@ -17,8 +17,12 @@ if (fs.existsSync(envPath)) {
 }
 
 const ai = genkit({
-  plugins: [googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY })],
-  model: 'googleai/gemini-2.0-flash', // Используем стабильную и мощную 2.0-flash
+  plugins: [
+    googleAI({
+      apiKey: process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY,
+    }),
+  ],
+  model: 'googleai/gemini-2.5-flash', // Используем стабильную и мощную 2.5-flash
 });
 
 const localesDir = path.resolve(__dirname, '../public/locales');
@@ -43,7 +47,7 @@ async function translateMissing() {
     const translations = JSON.parse(fileContent);
 
     const missingKeys = Object.keys(translations).filter(
-      (key) => translations[key] === ''
+      (key) => translations[key] === '',
     );
 
     if (missingKeys.length === 0) {
@@ -51,20 +55,24 @@ async function translateMissing() {
       continue;
     }
 
-    console.log(`⏳ Переводим ${missingKeys.length} новых строк для [${locale}]...`);
+    console.log(
+      `⏳ Переводим ${missingKeys.length} новых строк для [${locale}]...`,
+    );
 
-    const batchSize = 15; 
+    const batchSize = 15;
     for (let i = 0; i < missingKeys.length; i += batchSize) {
       const batchKeys = missingKeys.slice(i, i + batchSize);
-      
+
       // Создаем массив объектов. ИИ намного проще работать с массивами, чем с динамическими ключами объектов.
-      const inputItems = batchKeys.map(key => ({
+      const inputItems = batchKeys.map((key) => ({
         originalKey: key,
-        textToTranslate: key // В нашем случае ключ — это и есть текст на английском
+        textToTranslate: key, // В нашем случае ключ — это и есть текст на английском
       }));
 
       try {
-        console.log(`   Отправка батча ${Math.floor(i / batchSize) + 1} (${batchKeys.length} строк)...`);
+        console.log(
+          `   Отправка батча ${Math.floor(i / batchSize) + 1} (${batchKeys.length} строк)...`,
+        );
         const response = await ai.generate({
           prompt: `You are an expert translator. Translate the 'textToTranslate' fields from English to ${localeNames[locale]}. 
           Context: A web application for racket sports (ping pong, tennis, badminton) that includes ELO tracking, match history, tournaments, and a "Derby" mode with bounties, win streaks, and nemeses.
@@ -79,10 +87,12 @@ async function translateMissing() {
           ${JSON.stringify(inputItems, null, 2)}`,
           output: {
             // Строгая схема: массив объектов
-            schema: z.array(z.object({
-              originalKey: z.string(),
-              translatedText: z.string()
-            })),
+            schema: z.array(
+              z.object({
+                originalKey: z.string(),
+                translatedText: z.string(),
+              }),
+            ),
           },
         });
 
@@ -90,7 +100,7 @@ async function translateMissing() {
 
         if (translatedBatch && Array.isArray(translatedBatch)) {
           let translatedCount = 0;
-          
+
           translatedBatch.forEach((item) => {
             // Ищем строку по оригинальному ключу
             if (item.originalKey && translations[item.originalKey] === '') {
@@ -98,11 +108,15 @@ async function translateMissing() {
               translatedCount++;
             }
           });
-          
-          console.log(`   -> Получено и сохранено: ${translatedCount} / ${batchKeys.length} переводов.`);
-          
+
+          console.log(
+            `   -> Получено и сохранено: ${translatedCount} / ${batchKeys.length} переводов.`,
+          );
+
           if (translatedCount < batchKeys.length) {
-            console.log(`   ⚠️ ИИ пропустил ${batchKeys.length - translatedCount} строк. Они будут обработаны при следующем запуске.`);
+            console.log(
+              `   ⚠️ ИИ пропустил ${batchKeys.length - translatedCount} строк. Они будут обработаны при следующем запуске.`,
+            );
           }
         }
       } catch (error) {
@@ -120,7 +134,7 @@ async function translateMissing() {
     fs.writeFileSync(
       filePath,
       JSON.stringify(sortedTranslations, null, 2) + '\n',
-      'utf8'
+      'utf8',
     );
     console.log(`🎉 Файл [${locale}] успешно обновлен!\n`);
   }
