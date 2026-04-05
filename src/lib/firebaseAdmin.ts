@@ -1,6 +1,8 @@
 import { App, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getDatabase } from 'firebase-admin/database';
+import fs from 'fs';
+import path from 'path';
 
 // Нормализатор RSA-ключа (исправляет проблему с \n в строке)
 const formatPrivateKey = (key: string | undefined): string | undefined => {
@@ -43,8 +45,6 @@ export function initFirebaseAdmin(): App {
     }
 
     if (process.env.NODE_ENV !== 'production') {
-      const fs = require('fs');
-      const path = require('path');
       const keyPath = path.resolve(process.cwd(), 'serviceAccountKeyDev.json');
 
       if (fs.existsSync(keyPath)) {

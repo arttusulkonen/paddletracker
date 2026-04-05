@@ -1,7 +1,7 @@
-// src/app/actions/garminPairing.ts
 'use server';
 
 import { getAdminDb } from '@/lib/firebaseAdmin';
+import { randomInt } from 'crypto';
 
 export async function createSessionPairing() {
   try {
@@ -16,7 +16,34 @@ export async function createSessionPairing() {
       };
     }
 
-    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    let pin = '';
+    let isUnique = false;
+    let attempts = 0;
+
+    while (!isUnique && attempts < 10) {
+      pin = randomInt(1000, 10000).toString();
+      const snapshot = await db.ref(`pin_mappings/${pin}`).once('value');
+
+      if (!snapshot.exists()) {
+        isUnique = true;
+      } else {
+        const data = snapshot.val();
+        if (data && data.expiresAt && Date.now() > data.expiresAt) {
+          isUnique = true;
+        }
+      }
+      attempts++;
+    }
+
+    if (!isUnique) {
+      return {
+        success: false,
+        error: 'Failed to generate unique PIN',
+        pin: null,
+        sessionId: null,
+      };
+    }
+
     const sessionRef = db.ref('live_sessions').push();
     const sessionId = sessionRef.key;
 
@@ -47,7 +74,6 @@ export async function createSessionPairing() {
 
     return { success: true, pin, sessionId, error: null };
   } catch (error) {
-    console.error('[Action createSessionPairing] Error:', error);
     return { success: false, error: String(error), pin: null, sessionId: null };
   }
 }

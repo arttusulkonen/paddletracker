@@ -244,7 +244,9 @@ export const LiveFeed: React.FC = () => {
                 });
               }
             });
-          } catch (e) {}
+          } catch (e) {
+            console.error(e);
+          }
         }),
       );
     }
@@ -314,7 +316,8 @@ export const LiveFeed: React.FC = () => {
           allLoaded: snap.size < FETCH_LIMIT,
         };
       } catch (e) {
-        return { matches: [], cursor, allLoaded: true };
+        console.error(e);
+        return { matches: [], cursor, allLoaded: false };
       }
     },
     [],

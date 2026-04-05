@@ -65,6 +65,28 @@ type MatchResultData = {
 
 type RoomWithId = Room & { id: string };
 
+const getActiveServer = (
+  initialServerSide: 'L' | 'R',
+  totalScore: number,
+): 'L' | 'R' => {
+  let changes = 0;
+  if (totalScore < 20) {
+    changes = Math.floor(totalScore / 2);
+  } else {
+    changes = 10 + (totalScore - 20);
+  }
+  const isEven = changes % 2 === 0;
+  return isEven ? initialServerSide : initialServerSide === 'L' ? 'R' : 'L';
+};
+
+const getServesLeft = (totalScore: number): number => {
+  if (totalScore < 20) {
+    return 2 - (totalScore % 2);
+  } else {
+    return 1;
+  }
+};
+
 export const FullscreenScoreboard = ({
   onClose,
   lastActiveRoom,
@@ -92,11 +114,45 @@ export const FullscreenScoreboard = ({
   const [pairingPin, setPairingPin] = useState<string | null>(null);
   const [isPairingLoading, setIsPairingLoading] = useState(false);
 
+  const [initialServerPlayerId, setInitialServerPlayerId] =
+    useState<string>('');
+  const [gameInitialServerSide, setGameInitialServerSide] = useState<'L' | 'R'>(
+    'L',
+  );
+
   const { matchState, updateScore, initMatch, clearMatch } =
     useLiveMatch(sessionId);
 
-  const scoreL = matchState.scoreL;
-  const scoreR = matchState.scoreR;
+  const checkWinCondition = useCallback(
+    (l: number, r: number) => {
+      if (config && typeof (config as any).validateScore === 'function') {
+        const res = (config as any).validateScore(l, r);
+        return typeof res === 'boolean' ? res : !!res?.isValid;
+      }
+      return (l >= 11 || r >= 11) && Math.abs(l - r) >= 2;
+    },
+    [config],
+  );
+
+  const rawScoreL = matchState.scoreL;
+  const rawScoreR = matchState.scoreR;
+
+  const { scoreL, scoreR } = useMemo(() => {
+    let l = rawScoreL;
+    let r = rawScoreR;
+
+    if (checkWinCondition(l, r)) {
+      while (l > r && l > 0 && checkWinCondition(l - 1, r)) {
+        l--;
+      }
+      while (r > l && r > 0 && checkWinCondition(l, r - 1)) {
+        r--;
+      }
+    }
+
+    return { scoreL: l, scoreR: r };
+  }, [rawScoreL, rawScoreR, checkWinCondition]);
+
   const currentServerSide = matchState.server;
 
   const [time, setTime] = useState(0);
@@ -110,16 +166,6 @@ export const FullscreenScoreboard = ({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clickCountRef = useRef(0);
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const stateRef = useRef({
-    step,
-    isSubmitting,
-    scoreL,
-    scoreR,
-    playerLId,
-    playerRId,
-    currentServerSide,
-  });
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -217,18 +263,90 @@ export const FullscreenScoreboard = ({
     );
   }, [selectedRoom, playerRId]);
 
-  const checkWinCondition = useCallback(
-    (l: number, r: number) => {
-      if (config && typeof (config as any).validateScore === 'function') {
-        const res = (config as any).validateScore(l, r);
-        return typeof res === 'boolean' ? res : !!res?.isValid;
-      }
-      return (l >= 11 || r >= 11) && Math.abs(l - r) >= 2;
-    },
-    [config],
-  );
+  const seriesL = useMemo(() => {
+    return matchHistory.filter((m) => {
+      const pLWin = m.scoreL > m.scoreR;
+      const pRWin = m.scoreR > m.scoreL;
+      if (m.playerLId === playerLId && pLWin) return true;
+      if (m.playerRId === playerLId && pRWin) return true;
+      return false;
+    }).length;
+  }, [matchHistory, playerLId]);
 
-  const isMatchFinished = checkWinCondition(scoreL, scoreR);
+  const seriesR = useMemo(() => {
+    return matchHistory.filter((m) => {
+      const pLWin = m.scoreL > m.scoreR;
+      const pRWin = m.scoreR > m.scoreL;
+      if (m.playerLId === playerRId && pLWin) return true;
+      if (m.playerRId === playerRId && pRWin) return true;
+      return false;
+    }).length;
+  }, [matchHistory, playerRId]);
+
+  const isWinConditionMet = checkWinCondition(scoreL, scoreR);
+  const isMatchFinished = isWinConditionMet || !!matchState.isMatchFinished;
+
+  const playerColors = useMemo(() => {
+    if (!initialIds) return { [playerLId]: '#3b82f6', [playerRId]: '#ef4444' };
+    return {
+      [initialIds.l]: '#3b82f6',
+      [initialIds.r]: '#ef4444',
+    };
+  }, [initialIds, playerLId, playerRId]);
+
+  useEffect(() => {
+    if (step === 'match' && sessionId) {
+      const totalScore = scoreL + scoreR;
+      const expectedServer = getActiveServer(gameInitialServerSide, totalScore);
+      const expectedServesLeft = getServesLeft(totalScore);
+
+      const updates: any = {};
+
+      if (rawScoreL !== scoreL) updates.scoreL = scoreL;
+      if (rawScoreR !== scoreR) updates.scoreR = scoreR;
+
+      if (matchState.nameL !== playerLName) updates.nameL = playerLName;
+      if (matchState.nameR !== playerRName) updates.nameR = playerRName;
+      if (matchState.colorL !== playerColors[playerLId])
+        updates.colorL = playerColors[playerLId];
+      if (matchState.colorR !== playerColors[playerRId])
+        updates.colorR = playerColors[playerRId];
+      if (matchState.seriesL !== seriesL) updates.seriesL = seriesL;
+      if (matchState.seriesR !== seriesR) updates.seriesR = seriesR;
+
+      const expectedIsMatchFinished =
+        isWinConditionMet || !!matchState.isMatchFinished;
+      if (matchState.isMatchFinished !== expectedIsMatchFinished) {
+        updates.isMatchFinished = expectedIsMatchFinished;
+      }
+
+      if (currentServerSide !== expectedServer) {
+        updates.server = expectedServer;
+      }
+      if ((matchState as any).servesLeft !== expectedServesLeft) {
+        updates.servesLeft = expectedServesLeft;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updateScore(updates).catch(console.error);
+      }
+    }
+  }, [
+    step,
+    sessionId,
+    rawScoreL,
+    rawScoreR,
+    scoreL,
+    scoreR,
+    playerLId,
+    playerRId,
+    playerColors,
+    seriesL,
+    seriesR,
+    isWinConditionMet,
+    matchState,
+    updateScore,
+  ]);
 
   const intensity = useMemo(() => {
     if (isMatchFinished) return 'normal';
@@ -237,13 +355,8 @@ export const FullscreenScoreboard = ({
     const minScore = Math.min(scoreL, scoreR);
     const diff = maxScore - minScore;
 
-    if (minScore >= 13 && diff <= 1) {
-      return 'high_voltage';
-    }
-
-    if (scoreL >= 9 && scoreR >= 9 && diff === 0) {
-      return 'critical_tie';
-    }
+    if (minScore >= 13 && diff <= 1) return 'high_voltage';
+    if (scoreL >= 9 && scoreR >= 9 && diff === 0) return 'critical_tie';
 
     return 'normal';
   }, [scoreL, scoreR, isMatchFinished]);
@@ -314,6 +427,18 @@ export const FullscreenScoreboard = ({
     });
   }, [step, selectedRoom, matchHistory, matchResults]);
 
+  const stateRef = useRef({
+    step,
+    isSubmitting,
+    scoreL,
+    scoreR,
+    playerLId,
+    playerRId,
+    currentServerSide,
+    gameInitialServerSide,
+    isMatchFinished,
+  });
+
   useEffect(() => {
     stateRef.current = {
       step,
@@ -323,6 +448,8 @@ export const FullscreenScoreboard = ({
       playerLId,
       playerRId,
       currentServerSide,
+      gameInitialServerSide,
+      isMatchFinished,
     };
   }, [
     step,
@@ -332,6 +459,8 @@ export const FullscreenScoreboard = ({
     playerLId,
     playerRId,
     currentServerSide,
+    gameInitialServerSide,
+    isMatchFinished,
   ]);
 
   useEffect(() => {
@@ -346,9 +475,7 @@ export const FullscreenScoreboard = ({
             colors: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b'],
           });
         })
-        .catch((error) => {
-          console.error(error);
-        });
+        .catch((error) => console.error(error));
     }
   }, [isMatchFinished]);
 
@@ -395,19 +522,41 @@ export const FullscreenScoreboard = ({
 
   const handleServerSelection = useCallback(
     (side: 'L' | 'R') => {
+      setInitialServerPlayerId(side === 'L' ? playerLId : playerRId);
+      setGameInitialServerSide(side);
+
       initMatch({
         scoreL: 0,
         scoreR: 0,
         server: side,
         last_updated: Date.now(),
         matchStarted: true,
-        deviceConnected: true,
+        nameL: playerLName,
+        nameR: playerRName,
+        colorL: '#3b82f6',
+        colorR: '#ef4444',
+        seriesL,
+        seriesR,
+        isMatchFinished: false,
+        remoteAction: '',
+        ...({ servesLeft: 2 } as any),
       });
       setStep('match');
-      startTimer();
     },
-    [initMatch, startTimer],
+    [
+      initMatch,
+      playerLName,
+      playerRName,
+      seriesL,
+      seriesR,
+      playerLId,
+      playerRId,
+    ],
   );
+
+  const forceFinishMatch = useCallback(() => {
+    updateScore({ isMatchFinished: true });
+  }, [updateScore]);
 
   const submitSeries = useCallback(async () => {
     if (
@@ -425,7 +574,7 @@ export const FullscreenScoreboard = ({
     setIsSubmitting(true);
     try {
       const finalGames = [...matchHistory];
-      if (scoreL > 0 || scoreR > 0 || isMatchFinished) {
+      if (scoreL > 0 || scoreR > 0) {
         finalGames.push({
           playerLId,
           playerRId,
@@ -487,35 +636,69 @@ export const FullscreenScoreboard = ({
   const handleNextAction = useCallback(
     async (action: 'next_swap' | 'next_keep' | 'rematch') => {
       if (action !== 'rematch') {
-        setMatchHistory((prev) => [
-          ...prev,
-          {
-            playerLId,
-            playerRId,
-            playerLName,
-            playerRName,
-            scoreL,
-            scoreR,
-            matchTime: time,
-          },
-        ]);
+        if (scoreL > 0 || scoreR > 0) {
+          setMatchHistory((prev) => [
+            ...prev,
+            {
+              playerLId,
+              playerRId,
+              playerLName,
+              playerRName,
+              scoreL,
+              scoreR,
+              matchTime: time,
+            },
+          ]);
+        }
       }
 
       startTimer();
+
+      let nextServerPlayerId = initialServerPlayerId;
+      if (action !== 'rematch') {
+        nextServerPlayerId =
+          initialServerPlayerId === playerLId ? playerRId : playerLId;
+        setInitialServerPlayerId(nextServerPlayerId);
+      }
 
       if (action === 'next_swap') {
         const oldL = playerLId;
         setPlayerLId(playerRId);
         setPlayerRId(oldL);
-        await updateScore({ scoreL: 0, scoreR: 0 });
-      } else if (action === 'next_keep') {
+
+        const newLId = playerRId;
+        const newInitialSide = nextServerPlayerId === newLId ? 'L' : 'R';
+        setGameInitialServerSide(newInitialSide);
+
         await updateScore({
           scoreL: 0,
           scoreR: 0,
-          server: currentServerSide === 'L' ? 'R' : 'L',
+          server: newInitialSide,
+          isMatchFinished: false,
+          remoteAction: '',
+          ...({ servesLeft: 2 } as any),
+        });
+      } else if (action === 'next_keep') {
+        const newInitialSide = nextServerPlayerId === playerLId ? 'L' : 'R';
+        setGameInitialServerSide(newInitialSide);
+
+        await updateScore({
+          scoreL: 0,
+          scoreR: 0,
+          server: newInitialSide,
+          isMatchFinished: false,
+          remoteAction: '',
+          ...({ servesLeft: 2 } as any),
         });
       } else {
-        await updateScore({ scoreL: 0, scoreR: 0 });
+        await updateScore({
+          scoreL: 0,
+          scoreR: 0,
+          server: gameInitialServerSide,
+          isMatchFinished: false,
+          remoteAction: '',
+          ...({ servesLeft: 2 } as any),
+        });
       }
 
       setStep('match');
@@ -528,9 +711,10 @@ export const FullscreenScoreboard = ({
       scoreL,
       scoreR,
       time,
-      currentServerSide,
       startTimer,
       updateScore,
+      initialServerPlayerId,
+      gameInitialServerSide,
     ],
   );
 
@@ -545,15 +729,36 @@ export const FullscreenScoreboard = ({
     handleNextAction,
     onClose: onCloseReset,
     handleServerSelection,
+    forceFinishMatch,
   });
+
   useEffect(() => {
     cbsRef.current = {
       submitSeries,
       handleNextAction,
       onClose: onCloseReset,
       handleServerSelection,
+      forceFinishMatch,
     };
-  }, [submitSeries, handleNextAction, onCloseReset, handleServerSelection]);
+  }, [
+    submitSeries,
+    handleNextAction,
+    onCloseReset,
+    handleServerSelection,
+    forceFinishMatch,
+  ]);
+
+  useEffect(() => {
+    if (matchState.remoteAction) {
+      const action = matchState.remoteAction;
+
+      if (action === 'next_swap') {
+        cbsRef.current.handleNextAction('next_swap');
+      } else if (action === 'submit') {
+        cbsRef.current.submitSeries();
+      }
+    }
+  }, [matchState.remoteAction]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -565,7 +770,7 @@ export const FullscreenScoreboard = ({
 
       const cur = stateRef.current;
       const cbs = cbsRef.current;
-      const isFin = checkWinCondition(cur.scoreL, cur.scoreR);
+      const isFin = cur.isMatchFinished;
 
       if (cur.step === 'setup') return;
       if (cur.step === 'results') {
@@ -663,12 +868,15 @@ export const FullscreenScoreboard = ({
           updateScore({ scoreL: cur.scoreR, scoreR: cur.scoreL });
           setPlayerLId(cur.playerRId);
           setPlayerRId(cur.playerLId);
+          setGameInitialServerSide(
+            cur.gameInitialServerSide === 'L' ? 'R' : 'L',
+          );
         }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isMac, startTimer, updateScore, checkWinCondition]);
+  }, [isMac, startTimer, updateScore]);
 
   return (
     <div className='fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-500'>
@@ -724,7 +932,7 @@ export const FullscreenScoreboard = ({
             selectedRoom,
             playerLName,
             playerRName,
-						isGarminEnabled,
+            isGarminEnabled,
           }}
           actions={{
             handleServerSelection,
@@ -759,6 +967,7 @@ export const FullscreenScoreboard = ({
             handleNextAction,
             submitSeries,
             onCloseReset,
+            forceFinishMatch,
           }}
           t={t}
         />

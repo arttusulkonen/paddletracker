@@ -1,4 +1,3 @@
-// src/components/scoreboard/MatchPhase.tsx
 import { Button } from '@/components/ui/button';
 import { Loader2, Trophy } from 'lucide-react';
 import React from 'react';
@@ -241,6 +240,16 @@ export const MatchPhase = ({ state, actions, t }: any) => {
           </span>
         </button>
       </div>
+
+      {!state.isMatchFinished && (
+        <Button
+          variant='destructive'
+          className='absolute bottom-10 right-10 z-50 h-14 px-6 rounded-full font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-all'
+          onClick={actions.forceFinishMatch}
+        >
+          {t('Force End Set')}
+        </Button>
+      )}
 
       {state.isMatchFinished && (
         <div className='absolute inset-0 bg-background/60 backdrop-blur-md z-40 flex flex-col items-center justify-center animate-in zoom-in-95 duration-500'>
