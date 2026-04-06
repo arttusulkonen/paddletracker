@@ -1,3 +1,4 @@
+// src/components/scoreboard/MatchPhase.tsx
 import { Button } from '@/components/ui/button';
 import { Loader2, Trophy } from 'lucide-react';
 
@@ -258,12 +259,16 @@ export const MatchPhase = ({ state, actions, t }: any) => {
             <div className='absolute top-0 left-0 w-full h-1.5 bg-primary shadow-[0_0_15px_rgba(var(--primary),0.5)] min-h-[6px]' />
             <Trophy className='w-16 h-16 md:w-20 md:h-20 text-primary mb-6 md:mb-8 animate-bounce mt-4' />
             <h2 className='text-5xl md:text-6xl font-black text-foreground uppercase tracking-tighter mb-4'>
-              {state.scoreL > state.scoreR
-                ? state.playerLName
-                : state.playerRName}
+              {state.scoreL === state.scoreR
+                ? t('Set Aborted')
+                : state.scoreL > state.scoreR
+                  ? state.playerLName
+                  : state.playerRName}
             </h2>
             <p className='text-xl md:text-2xl font-black text-primary uppercase tracking-[0.3em] mb-8 md:mb-12'>
-              {t('Set Victory')}
+              {state.scoreL === state.scoreR
+                ? t('No Winner')
+                : t('Set Victory')}
             </p>
 
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4 w-full'>

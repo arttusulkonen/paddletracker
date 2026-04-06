@@ -1,3 +1,4 @@
+// src/components/FullscreenScoreboard.tsx
 'use client';
 
 import { createSessionPairing } from '@/app/actions/garminPairing';
@@ -783,14 +784,23 @@ export const FullscreenScoreboard = ({
   useEffect(() => {
     if (matchState.remoteAction) {
       const action = matchState.remoteAction;
+      const cbs = cbsRef.current;
 
-      if (action === 'next_swap') {
-        cbsRef.current.handleNextAction('next_swap');
+      updateScore({ remoteAction: '' }).catch(console.error);
+
+      if (action === 'force_end') {
+        cbs.forceFinishMatch();
+      } else if (action === 'rematch') {
+        cbs.handleNextAction('rematch');
       } else if (action === 'submit') {
-        cbsRef.current.submitSeries();
+        cbs.submitSeries();
+      } else if (action === 'next_swap') {
+        cbs.handleNextAction('next_swap');
+      } else if (action === 'next_keep') {
+        cbs.handleNextAction('next_keep');
       }
     }
-  }, [matchState.remoteAction]);
+  }, [matchState.remoteAction, updateScore]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
