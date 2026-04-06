@@ -10,6 +10,7 @@ import {
 	DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/lib/types';
 import { Loader2, Trash2, Watch } from 'lucide-react';
@@ -25,21 +26,27 @@ export const GarminLinkDialog = ({
 }) => {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { user } = useAuth(); // Подтягиваем активного юзера для токена
   const [isOpen, setIsOpen] = useState(false);
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Проверяем, есть ли уже привязанное устройство (используем as any для гибкости типа)
-  const isLinked = !!(profile as any).hasGarminDevice;
+  // Безопасный каст с добавлением опционального флага
+  const isLinked = !!(profile as UserProfile & { hasGarminDevice?: boolean })
+    .hasGarminDevice;
 
   const handleLink = async () => {
-    if (!code || code.length !== 6) return;
+    if (!code || code.length !== 6 || !user) return;
     setIsLoading(true);
     try {
+      const token = await user.getIdToken();
       const res = await fetch('/api/garmin/link', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'link', code, uid: profile.uid }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'link', code }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -49,11 +56,11 @@ export const GarminLinkDialog = ({
         });
         setIsOpen(false);
         setCode('');
-        onUpdate(); // Обновляем страницу, чтобы профиль подхватил изменения
+        onUpdate();
       } else {
         toast({
           title: t('Error linking watch'),
-          description: data.error,
+          description: data.error || t('Unknown error'),
           variant: 'destructive',
         });
       }
@@ -69,19 +76,40 @@ export const GarminLinkDialog = ({
   };
 
   const handleUnlink = async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
+      const token = await user.getIdToken();
       const res = await fetch('/api/garmin/link', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'unlink', uid: profile.uid }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'unlink' }),
       });
+
       if (res.ok) {
         toast({
           title: t('Unlinked'),
           description: t('Your watch has been disconnected.'),
         });
         onUpdate();
+      } else {
+        let errorMessage = t('Failed to disconnect your watch.');
+        try {
+          const data = await res.json();
+          if (data?.error) {
+            errorMessage = data.error;
+          }
+        } catch {
+          // Игнорируем ошибки парсинга, оставляем стандартное сообщение
+        }
+        toast({
+          title: t('Error unlinking watch'),
+          description: errorMessage,
+          variant: 'destructive',
+        });
       }
     } catch (error: any) {
       toast({
