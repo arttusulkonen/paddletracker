@@ -1,3 +1,4 @@
+// src/components/FullscreenScoreboard.tsx
 'use client';
 
 import { createSessionPairing } from '@/app/actions/garminPairing';
@@ -137,10 +138,36 @@ export const FullscreenScoreboard = ({
   const rawScoreL = matchState.scoreL;
   const rawScoreR = matchState.scoreR;
 
-  const { scoreL, scoreR } = useMemo(() => {
+  const [lockedScore, setLockedScore] = useState<{
+    l: number;
+    r: number;
+  } | null>(null);
+
+  const { scoreL, scoreR, isUnlocking, willLock } = useMemo(() => {
+    if (lockedScore) {
+      if (
+        rawScoreL < lockedScore.l ||
+        rawScoreR < lockedScore.r ||
+        (rawScoreL === 0 && rawScoreR === 0)
+      ) {
+        return {
+          scoreL: rawScoreL,
+          scoreR: rawScoreR,
+          isUnlocking: true,
+          willLock: false,
+        };
+      }
+      return {
+        scoreL: lockedScore.l,
+        scoreR: lockedScore.r,
+        isUnlocking: false,
+        willLock: false,
+      };
+    }
+
     let l = rawScoreL;
     let r = rawScoreR;
-
+    let lock = false;
     if (checkWinCondition(l, r)) {
       while (l > r && l > 0 && checkWinCondition(l - 1, r)) {
         l--;
@@ -148,10 +175,16 @@ export const FullscreenScoreboard = ({
       while (r > l && r > 0 && checkWinCondition(l, r - 1)) {
         r--;
       }
+      lock = true;
     }
 
-    return { scoreL: l, scoreR: r };
-  }, [rawScoreL, rawScoreR, checkWinCondition]);
+    return { scoreL: l, scoreR: r, isUnlocking: false, willLock: lock };
+  }, [rawScoreL, rawScoreR, checkWinCondition, lockedScore]);
+
+  useEffect(() => {
+    if (isUnlocking) setLockedScore(null);
+    if (willLock && !lockedScore) setLockedScore({ l: scoreL, r: scoreR });
+  }, [isUnlocking, willLock, scoreL, scoreR, lockedScore]);
 
   const currentServerSide = matchState.server;
 
@@ -751,14 +784,23 @@ export const FullscreenScoreboard = ({
   useEffect(() => {
     if (matchState.remoteAction) {
       const action = matchState.remoteAction;
+      const cbs = cbsRef.current;
 
-      if (action === 'next_swap') {
-        cbsRef.current.handleNextAction('next_swap');
+      updateScore({ remoteAction: '' }).catch(console.error);
+
+      if (action === 'force_end') {
+        cbs.forceFinishMatch();
+      } else if (action === 'rematch') {
+        cbs.handleNextAction('rematch');
       } else if (action === 'submit') {
-        cbsRef.current.submitSeries();
+        cbs.submitSeries();
+      } else if (action === 'next_swap') {
+        cbs.handleNextAction('next_swap');
+      } else if (action === 'next_keep') {
+        cbs.handleNextAction('next_keep');
       }
     }
-  }, [matchState.remoteAction]);
+  }, [matchState.remoteAction, updateScore]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {

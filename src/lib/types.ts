@@ -127,6 +127,9 @@ export interface UserProfile {
   isGhost?: boolean; // Флаг призрачного игрока
   isClaimed?: boolean; // Был ли профиль захвачен реальным пользователем
   claimedBy?: string; // ID реального пользователя, захватившего профиль
+
+	hasGarminDevice?: boolean;
+  garminLinkedAt?: number;
 }
 
 // --- Room Members ---
