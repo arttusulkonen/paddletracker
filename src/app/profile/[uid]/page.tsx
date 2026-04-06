@@ -2,6 +2,7 @@
 'use client';
 
 import { CoachDashboard } from '@/components/profile/CoachDashboard';
+import { GarminLinkDialog } from '@/components/profile/GarminLinkDialog';
 import { NewPlayerCard } from '@/components/profile/NewPlayerCard';
 import { ProfileContent } from '@/components/profile/ProfileContent';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
@@ -413,7 +414,13 @@ export default function ProfileUidPage() {
               </>
             )}
           </div>
-          <div className='lg:col-span-4 xl:col-span-3'>
+          <div className='lg:col-span-4 xl:col-span-3 flex flex-col gap-4'>
+            {isSelf && (
+              <GarminLinkDialog
+                profile={targetProfile}
+                onUpdate={fetchProfileAndMatches}
+              />
+            )}
             <ProfileSidebar
               canViewProfile={canView}
               targetProfile={targetProfile}
