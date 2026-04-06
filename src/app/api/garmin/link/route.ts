@@ -35,7 +35,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Code expired' }, { status: 410 });
     }
 
-    return NextResponse.json(data);
+    // ИСПРАВЛЕНИЕ: Возвращаем только публичные данные, скрывая UID
+    return NextResponse.json({
+      status: data.status,
+      expiresAt: data.expiresAt,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: 'Internal Server Error' },
@@ -118,11 +122,12 @@ export async function POST(req: Request) {
       const ref = db.ref(`garmin_links/${body.code}`);
       const now = Date.now();
 
-      // Используем транзакцию для защиты от состояния гонки
       const transactionResult = await ref.transaction((currentData) => {
-        if (!currentData) return currentData;
-        if (currentData.expiresAt && now > currentData.expiresAt) return; // Abort
-        if (currentData.status !== 'pending') return; // Abort
+        // ИСПРАВЛЕНИЕ: Возвращаем undefined (а не currentData), чтобы отменить транзакцию
+        if (!currentData) return;
+
+        if (currentData.expiresAt && now > currentData.expiresAt) return;
+        if (currentData.status !== 'pending') return;
 
         return {
           ...currentData,

@@ -63,9 +63,8 @@ export async function POST(req: Request) {
     const rawText = await req.text();
     let body;
 
-    if (!rawText) {
+    if (!rawText)
       return NextResponse.json({ error: 'Empty body' }, { status: 400 });
-    }
 
     try {
       body = JSON.parse(rawText);
@@ -81,83 +80,79 @@ export async function POST(req: Request) {
     }
 
     const sessionRef = db.ref(`live_sessions/${body.sessionId}`);
-    const sessionSnapshot = await sessionRef.once('value');
 
-    if (!sessionSnapshot.exists()) {
+    // ИСПРАВЛЕНИЕ: Используем Атомарную Транзакцию вместо .once() + .update()
+    const transactionResult = await sessionRef.transaction((currentData) => {
+      // Если сессии не существует, отменяем транзакцию
+      if (!currentData) return;
+
+      const action = body.remoteAction;
+
+      if (action === 'add_left') {
+        currentData.scoreL = (currentData.scoreL || 0) + 1;
+      } else if (action === 'add_right') {
+        currentData.scoreR = (currentData.scoreR || 0) + 1;
+      } else if (action === 'sub_left') {
+        currentData.scoreL = Math.max(0, (currentData.scoreL || 0) - 1);
+      } else if (action === 'sub_right') {
+        currentData.scoreR = Math.max(0, (currentData.scoreR || 0) - 1);
+      } else {
+        if (body.scoreL !== undefined) {
+          const parsed = Number(body.scoreL);
+          if (!isNaN(parsed)) currentData.scoreL = parsed;
+        }
+        if (body.scoreR !== undefined) {
+          const parsed = Number(body.scoreR);
+          if (!isNaN(parsed)) currentData.scoreR = parsed;
+        }
+      }
+
+      if (
+        action &&
+        !['add_left', 'add_right', 'sub_left', 'sub_right'].includes(action)
+      ) {
+        currentData.remoteAction = action;
+      }
+
+      if (body.deviceConnected !== undefined) {
+        currentData.deviceConnected =
+          body.deviceConnected === true || body.deviceConnected === 'true';
+      }
+      if (body.seriesL !== undefined) {
+        const parsed = Number(body.seriesL);
+        if (!isNaN(parsed)) currentData.seriesL = parsed;
+      }
+      if (body.seriesR !== undefined) {
+        const parsed = Number(body.seriesR);
+        if (!isNaN(parsed)) currentData.seriesR = parsed;
+      }
+      if (body.last_updated !== undefined) {
+        const parsed = Number(body.last_updated);
+        if (!isNaN(parsed)) currentData.last_updated = parsed;
+      }
+
+      if (body.matchStarted !== undefined)
+        currentData.matchStarted = body.matchStarted;
+      if (body.isMatchFinished !== undefined) {
+        currentData.isMatchFinished =
+          body.isMatchFinished === true || body.isMatchFinished === 'true';
+      }
+      if (body.server !== undefined) currentData.server = body.server;
+      if (body.nameL !== undefined) currentData.nameL = body.nameL;
+      if (body.nameR !== undefined) currentData.nameR = body.nameR;
+      if (body.colorL !== undefined) currentData.colorL = body.colorL;
+      if (body.colorR !== undefined) currentData.colorR = body.colorR;
+
+      return currentData;
+    });
+
+    if (!transactionResult.committed) {
       return NextResponse.json(
         { error: 'Session not found or expired' },
         { status: 404 },
       );
     }
 
-    const currentData = sessionSnapshot.val();
-    const updates: Record<string, any> = {};
-
-    // ==========================================
-    // EVENT-DRIVEN АРХИТЕКТУРА ДЛЯ СЧЕТА
-    // Сервер сам вычисляет очки на основе базы
-    // ==========================================
-    const action = body.remoteAction;
-
-    if (action === 'add_left') {
-      updates.scoreL = (currentData.scoreL || 0) + 1;
-    } else if (action === 'add_right') {
-      updates.scoreR = (currentData.scoreR || 0) + 1;
-    } else if (action === 'sub_left') {
-      updates.scoreL = Math.max(0, (currentData.scoreL || 0) - 1);
-    } else if (action === 'sub_right') {
-      updates.scoreR = Math.max(0, (currentData.scoreR || 0) - 1);
-    } else {
-      // Если это не событие очков, принимаем абсолютные значения (например, с клавиатуры сайта)
-      if (body.scoreL !== undefined) {
-        const parsed = Number(body.scoreL);
-        if (!isNaN(parsed)) updates.scoreL = parsed;
-      }
-      if (body.scoreR !== undefined) {
-        const parsed = Number(body.scoreR);
-        if (!isNaN(parsed)) updates.scoreR = parsed;
-      }
-    }
-
-    // Если есть remoteAction, но это НЕ изменение очков (например, force_end, submit) —
-    // прокидываем его в базу, чтобы веб-клиент мог его поймать.
-    if (
-      action &&
-      !['add_left', 'add_right', 'sub_left', 'sub_right'].includes(action)
-    ) {
-      updates.remoteAction = action;
-    }
-
-    // Обновляем остальные классические поля
-    if (body.deviceConnected !== undefined) {
-      updates.deviceConnected =
-        body.deviceConnected === true || body.deviceConnected === 'true';
-    }
-    if (body.seriesL !== undefined) {
-      const parsed = Number(body.seriesL);
-      if (!isNaN(parsed)) updates.seriesL = parsed;
-    }
-    if (body.seriesR !== undefined) {
-      const parsed = Number(body.seriesR);
-      if (!isNaN(parsed)) updates.seriesR = parsed;
-    }
-    if (body.last_updated !== undefined) {
-      const parsed = Number(body.last_updated);
-      if (!isNaN(parsed)) updates.last_updated = parsed;
-    }
-    if (body.matchStarted !== undefined)
-      updates.matchStarted = body.matchStarted;
-    if (body.isMatchFinished !== undefined) {
-      updates.isMatchFinished =
-        body.isMatchFinished === true || body.isMatchFinished === 'true';
-    }
-    if (body.server !== undefined) updates.server = body.server;
-    if (body.nameL !== undefined) updates.nameL = body.nameL;
-    if (body.nameR !== undefined) updates.nameR = body.nameR;
-    if (body.colorL !== undefined) updates.colorL = body.colorL;
-    if (body.colorR !== undefined) updates.colorR = body.colorR;
-
-    await sessionRef.update(updates);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(

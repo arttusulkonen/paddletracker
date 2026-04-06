@@ -14,7 +14,6 @@ export const ResultsPhase = ({ state, actions, t }: any) => {
   if (!state || !state.matchResults || !state.sessionGames) return null;
 
   return (
-    // Убрали overflow-y-auto отсюда и добавили overflow-hidden, чтобы окно никогда не скроллилось целиком
     <div className='flex flex-col w-full max-w-6xl max-h-[95vh] bg-card border border-border rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-500 z-50 backdrop-blur-3xl relative overflow-hidden'>
       <div className='absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-primary to-red-500 min-h-[8px]' />
 
