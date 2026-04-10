@@ -1,3 +1,4 @@
+// src/app/api/garmin/route.ts
 export const dynamic = 'force-dynamic';
 
 import { getAdminDb } from '@/lib/firebaseAdmin';
@@ -81,10 +82,11 @@ export async function POST(req: Request) {
 
     const sessionRef = db.ref(`live_sessions/${body.sessionId}`);
 
-    // ИСПРАВЛЕНИЕ: Используем Атомарную Транзакцию вместо .once() + .update()
+    // ИСПРАВЛЕНИЕ: Используем Атомарную Транзакцию
     const transactionResult = await sessionRef.transaction((currentData) => {
-      // Если сессии не существует, отменяем транзакцию
-      if (!currentData) return;
+      // ИСПРАВЛЕНИЕ FIREBASE: Возвращаем null (а не undefined), чтобы заставить
+      // SDK сходить на сервер и получить реальные данные, а не отменять локально.
+      if (currentData === null) return null;
 
       const action = body.remoteAction;
 
@@ -146,7 +148,8 @@ export async function POST(req: Request) {
       return currentData;
     });
 
-    if (!transactionResult.committed) {
+    // Проверяем, что данные реально существовали в базе после ответа сервера
+    if (!transactionResult.committed || !transactionResult.snapshot.exists()) {
       return NextResponse.json(
         { error: 'Session not found or expired' },
         { status: 404 },

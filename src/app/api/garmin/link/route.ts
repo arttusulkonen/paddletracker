@@ -1,3 +1,4 @@
+// src/app/api/garmin/link/route.ts
 export const dynamic = 'force-dynamic';
 
 import {
@@ -123,9 +124,10 @@ export async function POST(req: Request) {
       const now = Date.now();
 
       const transactionResult = await ref.transaction((currentData) => {
-        // ИСПРАВЛЕНИЕ: Возвращаем undefined (а не currentData), чтобы отменить транзакцию
-        if (!currentData) return;
+        // ИСПРАВЛЕНИЕ FIREBASE: Возвращаем null, чтобы заставить SDK запросить сервер
+        if (currentData === null) return null;
 
+        // А вот здесь уже прерываем выполнение (undefined), если код просрочен или уже привязан
         if (currentData.expiresAt && now > currentData.expiresAt) return;
         if (currentData.status !== 'pending') return;
 
@@ -137,7 +139,11 @@ export async function POST(req: Request) {
         };
       });
 
-      if (!transactionResult.committed) {
+      // Если транзакция не прошла ИЛИ снапшот пуст (т.е. кода изначально не было)
+      if (
+        !transactionResult.committed ||
+        !transactionResult.snapshot.exists()
+      ) {
         const snap = await ref.once('value');
         if (!snap.exists())
           return NextResponse.json({ error: 'Invalid code' }, { status: 404 });
@@ -158,7 +164,7 @@ export async function POST(req: Request) {
         );
       }
 
-      // Используем set с merge: true (idempotent update), чтобы не упало на пустом профиле
+      // Используем set с merge: true (idempotent update)
       await firestore.collection('users').doc(uid).set(
         {
           hasGarminDevice: true,
