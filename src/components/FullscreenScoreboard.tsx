@@ -1,4 +1,3 @@
-// src/components/FullscreenScoreboard.tsx
 'use client';
 
 import { createSessionPairing } from '@/app/actions/garminPairing';
@@ -328,7 +327,7 @@ export const FullscreenScoreboard = ({
   }, [initialIds, playerLId, playerRId]);
 
   useEffect(() => {
-    if (step === 'match' && sessionId) {
+    if (step === 'match') {
       const totalScore = scoreL + scoreR;
       const expectedServer = getActiveServer(gameInitialServerSide, totalScore);
       const expectedServesLeft = getServesLeft(totalScore);
@@ -366,7 +365,6 @@ export const FullscreenScoreboard = ({
     }
   }, [
     step,
-    sessionId,
     rawScoreL,
     rawScoreR,
     scoreL,
@@ -379,6 +377,10 @@ export const FullscreenScoreboard = ({
     isWinConditionMet,
     matchState,
     updateScore,
+    gameInitialServerSide,
+    currentServerSide,
+    playerLName,
+    playerRName,
   ]);
 
   const intensity = useMemo(() => {
