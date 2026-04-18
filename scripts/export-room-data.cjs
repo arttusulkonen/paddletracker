@@ -15,7 +15,7 @@ args.forEach((arg) => {
   }
 });
 
-const TARGET_ROOM_ID = '2gBBRla2jyTeJU3wVtwD';
+const TARGET_ROOM_ID = 'np2RRK0oNnIwqjY0s6WG';
 const SPORT = argMap.sport || process.env.SPORT || 'pingpong';
 const ROOMS_COLLECTION =
   argMap.roomsCollection || process.env.ROOMS_COLLECTION || `rooms-${SPORT}`;
@@ -33,10 +33,10 @@ if (!TARGET_ROOM_ID) {
 }
 
 // Настройка путей для ключа
-const serviceAccountPath = path.join(__dirname, '../serviceAccountKeyDev.json');
+const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
 const finalKeyPath = fs.existsSync(serviceAccountPath)
   ? serviceAccountPath
-  : path.join(__dirname, 'serviceAccountKeyDev.json');
+  : path.join(__dirname, 'serviceAccountKey.json');
 
 if (!fs.existsSync(finalKeyPath)) {
   console.error(
